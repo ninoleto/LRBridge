@@ -27,6 +27,8 @@ Reliable enough for use:
 - duplicate polling protection
 - Companion Generic HTTP support
 - slider metadata registry
+- reset individual sliders
+- reset slider groups
 - reset all mapped sliders
 
 Experimental / not trusted yet:
@@ -129,6 +131,27 @@ This returns slider metadata from:
 config/sliders.json
 ```
 
+### Supported groups endpoint
+
+```text
+GET /groups
+```
+
+Example:
+
+```text
+http://127.0.0.1:17891/groups
+```
+
+Current groups:
+
+```text
+Basic
+Color
+Presence
+Detail
+```
+
 ### Adjust slider
 
 ```text
@@ -172,6 +195,17 @@ GET /reset?slider=Exposure
 ```
 
 This uses Lightroom's single-slider reset command and is preferred over `/set` for returning a slider to default.
+
+### Reset slider group
+
+```text
+GET /reset-group?group=Basic
+GET /reset-group?group=Color
+GET /reset-group?group=Presence
+GET /reset-group?group=Detail
+```
+
+This queues reset commands for every slider in the selected group.
 
 ### Reset all mapped sliders
 
@@ -247,6 +281,7 @@ Recommended actions:
 /adjust?slider=Exposure&amount=1
 /adjust?slider=Exposure&amount=-1
 /reset?slider=Exposure
+/reset-group?group=Basic
 /reset-all
 ```
 
@@ -325,8 +360,10 @@ Manual HTTP tests:
 ```powershell
 curl.exe "http://localhost:17891/status"
 curl.exe "http://localhost:17891/sliders"
+curl.exe "http://localhost:17891/groups"
 curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=1"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
+curl.exe "http://localhost:17891/reset-group?group=Basic"
 curl.exe "http://localhost:17891/reset-all"
 ```
 
@@ -344,7 +381,7 @@ After a working change:
 ```powershell
 git add .
 git commit -m "Short description"
-git push
+git push"
 ```
 
 ## Current limitations
