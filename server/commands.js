@@ -24,6 +24,10 @@ const sliderMap = {
     ColorNR: true
 };
 
+function getSupportedSliders() {
+    return Object.keys(sliderMap);
+}
+
 function validateCommand(command) {
     const allowedCommands = [
         "develop.adjust",
@@ -112,7 +116,7 @@ function getStatus() {
         ok: true,
         queueLength: commandQueue.length,
         hasLatestResult: latestResult !== null,
-        supportedSliders: Object.keys(sliderMap)
+        supportedSliders: getSupportedSliders()
     };
 }
 
@@ -121,5 +125,6 @@ module.exports = {
     getNextCommand,
     setLatestResult,
     getLatestResult,
-    getStatus
+    getStatus,
+    getSupportedSliders
 };

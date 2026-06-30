@@ -25,6 +25,12 @@ app.get("/status", function (req, res) {
     res.json(commands.getStatus());
 });
 
+app.get("/sliders", function (req, res) {
+    res.json({
+        sliders: commands.getSupportedSliders()
+    });
+});
+
 app.get("/next", function (req, res) {
     const command = commands.getNextCommand();
     res.json({ command: command });
