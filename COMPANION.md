@@ -38,6 +38,43 @@ Use:
 Generic HTTP Requests
 ```
 
+## Important: amount means Lightroom increments
+
+In LRBridge:
+
+```text
+amount = number of Lightroom increment steps
+```
+
+It does not always mean exact slider points.
+
+Known behavior:
+
+```text
+Exposure amount=1 ≈ 0.1 Exposure
+Contrast amount=1 ≈ 5 points
+Highlights amount=1 ≈ 5 points
+Shadows amount=1 ≈ 5 points
+Whites amount=1 ≈ 5 points
+Blacks amount=1 ≈ 5 points
+```
+
+So for normal encoder movement:
+
+```text
+Exposure: use amount=1
+Most other sliders: use amount=1
+```
+
+For faster movement:
+
+```text
+amount=2
+amount=3
+```
+
+Avoid large values unless you want big jumps.
+
 ## Basic test actions
 
 ### Check bridge status
@@ -88,7 +125,7 @@ Exposure moves in Lightroom 0.1 steps.
 
 ## Basic panel sliders
 
-These usually move in 1-point steps.
+These usually move in larger Lightroom increments, around 5 slider points per amount step.
 
 ### Contrast
 
@@ -194,6 +231,12 @@ These usually move in 1-point steps.
 
 ### Sharpness
 
+Lightroom location:
+
+```text
+Develop → Detail → Sharpening → Amount
+```
+
 ```text
 /adjust?slider=Sharpness&amount=1
 /adjust?slider=Sharpness&amount=-1
@@ -202,6 +245,12 @@ These usually move in 1-point steps.
 
 ### Luminance Noise Reduction
 
+Lightroom location:
+
+```text
+Develop → Detail → Noise Reduction → Luminance
+```
+
 ```text
 /adjust?slider=LuminanceNR&amount=1
 /adjust?slider=LuminanceNR&amount=-1
@@ -209,6 +258,12 @@ These usually move in 1-point steps.
 ```
 
 ### Color Noise Reduction
+
+Lightroom location:
+
+```text
+Develop → Detail → Noise Reduction → Color
+```
 
 ```text
 /adjust?slider=ColorNR&amount=1
@@ -231,15 +286,23 @@ Press:
 /reset?slider=Exposure
 ```
 
-For Exposure, use `amount=1`.
-
-For most other sliders, use `amount=1`.
-
-For faster movement, use larger values:
+For Exposure, use:
 
 ```text
-amount=5
-amount=10
+amount=1
+```
+
+For most other sliders, start with:
+
+```text
+amount=1
+```
+
+For faster movement, try:
+
+```text
+amount=2
+amount=3
 ```
 
 ## Do not use for now
