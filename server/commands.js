@@ -47,11 +47,11 @@ function setLatestCommand(message) {
         command = JSON.parse(message);
     } catch (err) {
         console.log("Invalid JSON");
-        return;
+        return false;
     }
 
     if (!validateCommand(command)) {
-        return;
+        return false;
     }
 
     if (command.command === "develop.adjust") {
@@ -64,7 +64,7 @@ function setLatestCommand(message) {
         ) {
             lastCommand.amount += command.amount;
             console.log("Coalesced command:", lastCommand);
-            return;
+            return true;
         }
     }
 
@@ -72,6 +72,8 @@ function setLatestCommand(message) {
 
     console.log("Queued command:", command);
     console.log("Queue length:", commandQueue.length);
+
+    return true;
 }
 
 function getNextCommand() {

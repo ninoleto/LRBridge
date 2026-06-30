@@ -10,7 +10,7 @@ const WS_PORT = 17890;
 const app = express();
 
 function queueCommand(command) {
-    commands.setLatestCommand(JSON.stringify(command));
+    return commands.setLatestCommand(JSON.stringify(command));
 }
 
 function isExperimentalEnabled(req) {
@@ -23,6 +23,28 @@ function rejectExperimentalSet(res) {
         error: "develop.set is experimental and currently unreliable in Lightroom.",
         hint: "Use /adjust or /reset for normal control. Add experimental=1 only when testing."
     });
+}
+
+function rejectInvalidCommand(res, command) {
+    res.status(400).json({
+        ok: false,
+        error: "Invalid command",
+        rejected: command
+    });
+}
+
+function queueOrReject(res, command, responseExtra) {
+    const queued = queueCommand(command);
+
+    if (!queued) {
+        rejectInvalidCommand(res, command);
+        return;
+    }
+
+    res.json(Object.assign({
+        ok: true,
+        queued: command
+    }, responseExtra || {}));
 }
 
 app.get("/", function (req, res) {
@@ -75,27 +97,29 @@ app.get("/command", function (req, res) {
         commands.clearLatestResult();
     }
 
-    queueCommand(command);
-
-    res.json({
-        ok: true,
-        queued: command
-    });
+    queueOrReject(res, command);
 });
 
 app.get("/adjust", function (req, res) {
+    const slider = req.query.slider;
+    const amount = Number(req.query.amount);
+
+    if (req.query.amount === undefined || Number.isNaN(amount)) {
+        res.status(400).json({
+            ok: false,
+            error: "Missing or invalid amount",
+            slider: slider
+        });
+        return;
+    }
+
     const command = {
         command: "develop.adjust",
-        slider: req.query.slider,
-        amount: Number(req.query.amount)
+        slider: slider,
+        amount: amount
     };
 
-    queueCommand(command);
-
-    res.json({
-        ok: true,
-        queued: command
-    });
+    queueOrReject(res, command);
 });
 
 app.get("/set", function (req, res) {
@@ -104,17 +128,26 @@ app.get("/set", function (req, res) {
         return;
     }
 
+    const slider = req.query.slider;
+    const value = Number(req.query.value);
+
+    if (req.query.value === undefined || Number.isNaN(value)) {
+        res.status(400).json({
+            ok: false,
+            error: "Missing or invalid value",
+            slider: slider,
+            experimental: true
+        });
+        return;
+    }
+
     const command = {
         command: "develop.set",
-        slider: req.query.slider,
-        value: Number(req.query.value)
+        slider: slider,
+        value: value
     };
 
-    queueCommand(command);
-
-    res.json({
-        ok: true,
-        queued: command,
+    queueOrReject(res, command, {
         experimental: true
     });
 });
@@ -136,12 +169,7 @@ app.get("/reset", function (req, res) {
         slider: slider
     };
 
-    queueCommand(command);
-
-    res.json({
-        ok: true,
-        queued: command
-    });
+    queueOrReject(res, command);
 });
 
 app.get("/get", function (req, res) {
@@ -152,12 +180,7 @@ app.get("/get", function (req, res) {
         slider: req.query.slider
     };
 
-    queueCommand(command);
-
-    res.json({
-        ok: true,
-        queued: command
-    });
+    queueOrReject(res, command);
 });
 
 app.get("/result", function (req, res) {
