@@ -6,7 +6,12 @@ local Parser = require "Parser"
 local Commands = require "Commands"
 local Settings = require "Settings"
 
-LrDialogs.message("LRBridge", "Polling started.")
+local config = Settings.load()
+
+LrDialogs.message(
+    "LRBridge",
+    "Polling started.\nInterval: " .. tostring(config.pollInterval) .. " seconds"
+)
 
 LrTasks.startAsyncTask(function()
 
@@ -21,7 +26,7 @@ LrTasks.startAsyncTask(function()
 
         end
 
-        LrTasks.sleep(Settings.getPollInterval())
+        LrTasks.sleep(config.pollInterval)
 
     end
 

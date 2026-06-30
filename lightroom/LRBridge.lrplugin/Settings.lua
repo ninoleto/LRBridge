@@ -16,33 +16,33 @@ local function clamp(value, minValue, maxValue)
 
 end
 
-function Settings.getPollInterval()
+function Settings.load()
 
-    local defaultMs = 50
+    local config = {
+        pollInterval = 0.05
+    }
+
     local file = io.open(settingsPath, "r")
 
     if file == nil then
-        return defaultMs / 1000
+        return config
     end
 
     local content = file:read("*all")
     file:close()
 
-    local value = string.match(content, "poll_interval_ms%s*=%s*(%d+)")
+    local pollMs = string.match(content, "poll_interval_ms%s*=%s*(%d+)")
 
-    if value == nil then
-        return defaultMs / 1000
+    if pollMs ~= nil then
+        pollMs = tonumber(pollMs)
+
+        if pollMs ~= nil then
+            pollMs = clamp(pollMs, 10, 1000)
+            config.pollInterval = pollMs / 1000
+        end
     end
 
-    local pollMs = tonumber(value)
-
-    if pollMs == nil then
-        return defaultMs / 1000
-    end
-
-    pollMs = clamp(pollMs, 10, 1000)
-
-    return pollMs / 1000
+    return config
 
 end
 
