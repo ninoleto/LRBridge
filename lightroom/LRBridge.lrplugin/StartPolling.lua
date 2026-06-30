@@ -5,6 +5,8 @@ local LrTasks = import "LrTasks"
 local Parser = require "Parser"
 local Commands = require "Commands"
 
+local POLL_INTERVAL = 0.05
+
 LrDialogs.message("LRBridge", "Polling started.")
 
 LrTasks.startAsyncTask(function()
@@ -20,7 +22,7 @@ LrTasks.startAsyncTask(function()
 
         end
 
-        LrTasks.sleep(0.5)
+        LrTasks.sleep(POLL_INTERVAL)
 
     end
 
