@@ -1,0 +1,22 @@
+{
+    "Exposure": "Exposure",
+    "Contrast": "Contrast",
+    "Highlights": "Highlights",
+    "Shadows": "Shadows",
+    "Whites": "Whites",
+    "Blacks": "Blacks",
+
+    "Temperature": "Temperature",
+    "Tint": "Tint",
+
+    "Texture": "Texture",
+    "Clarity": "Clarity",
+    "Dehaze": "Dehaze",
+
+    "Vibrance": "Vibrance",
+    "Saturation": "Saturation",
+
+    "Sharpness": "Sharpness",
+    "LuminanceNR": "LuminanceNoiseReduction",
+    "ColorNR": "ColorNoiseReduction"
+}
