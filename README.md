@@ -27,6 +27,7 @@ Reliable enough for use:
 - duplicate polling protection
 - Companion Generic HTTP support
 - slider metadata registry
+- reset all mapped sliders
 
 Experimental / not trusted yet:
 
@@ -135,7 +136,26 @@ GET /adjust?slider=Exposure&amount=1
 GET /adjust?slider=Exposure&amount=-1
 ```
 
-For Exposure, Lightroom moves in 0.1 steps, so:
+Important:
+
+```text
+amount = number of Lightroom increment steps
+```
+
+It does not always mean exact slider points.
+
+Known behavior:
+
+```text
+Exposure amount=1 ≈ 0.1 Exposure
+Contrast amount=1 ≈ 5 points
+Highlights amount=1 ≈ 5 points
+Shadows amount=1 ≈ 5 points
+Whites amount=1 ≈ 5 points
+Blacks amount=1 ≈ 5 points
+```
+
+For Exposure:
 
 ```text
 /adjust?slider=Exposure&amount=10
@@ -143,7 +163,7 @@ For Exposure, Lightroom moves in 0.1 steps, so:
 
 means roughly +1.0 Exposure.
 
-Most other sliders move in 1-point steps.
+Avoid large values unless you want big jumps.
 
 ### Reset slider
 
@@ -152,6 +172,33 @@ GET /reset?slider=Exposure
 ```
 
 This uses Lightroom's single-slider reset command and is preferred over `/set` for returning a slider to default.
+
+### Reset all mapped sliders
+
+```text
+GET /reset-all
+```
+
+This queues reset commands for all supported sliders:
+
+```text
+Exposure
+Contrast
+Highlights
+Shadows
+Whites
+Blacks
+Temperature
+Tint
+Texture
+Clarity
+Dehaze
+Vibrance
+Saturation
+Sharpness
+LuminanceNR
+ColorNR
+```
 
 ### Experimental get slider
 
@@ -200,6 +247,7 @@ Recommended actions:
 /adjust?slider=Exposure&amount=1
 /adjust?slider=Exposure&amount=-1
 /reset?slider=Exposure
+/reset-all
 ```
 
 Avoid using these in Companion for now:
@@ -232,6 +280,36 @@ LuminanceNR
 ColorNR
 ```
 
+## Lightroom slider locations
+
+### Basic panel
+
+```text
+Exposure
+Contrast
+Highlights
+Shadows
+Whites
+Blacks
+Temperature
+Tint
+Texture
+Clarity
+Dehaze
+Vibrance
+Saturation
+```
+
+### Detail panel
+
+```text
+Sharpness   → Detail → Sharpening → Amount
+LuminanceNR → Detail → Noise Reduction → Luminance
+ColorNR     → Detail → Noise Reduction → Color
+```
+
+LRBridge reveals the relevant Lightroom panel before moving or resetting a mapped slider.
+
 ## Test tools
 
 Recommended visual movement tests:
@@ -249,6 +327,7 @@ curl.exe "http://localhost:17891/status"
 curl.exe "http://localhost:17891/sliders"
 curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=1"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
+curl.exe "http://localhost:17891/reset-all"
 ```
 
 Experimental tests only:
