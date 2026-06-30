@@ -54,6 +54,7 @@ Do not implement fake state unless the user explicitly changes this decision.
 Use these:
 
 ```text
+/help
 /status
 /sliders
 /groups
@@ -70,6 +71,27 @@ Do not use these for production Companion buttons:
 /last-result
 /set
 ```
+
+## Help endpoint
+
+Open this in browser or curl:
+
+```text
+http://127.0.0.1:17891/help
+```
+
+Or from another machine on the LAN:
+
+```text
+http://192.168.1.11:17891/help
+```
+
+This returns:
+
+- reliable endpoints
+- experimental endpoints
+- one-way control notes
+- amount behavior reminder
 
 ## Working examples
 
@@ -247,6 +269,12 @@ With LRBridge running:
 npm run smoke
 ```
 
+Or:
+
+```powershell
+npm test
+```
+
 Expected result:
 
 ```text
@@ -293,6 +321,12 @@ Base URL when LRBridge runs on ANTEC:
 http://192.168.1.11:17891
 ```
 
+Useful browser check:
+
+```text
+http://192.168.1.11:17891/help
+```
+
 ## Testing rule
 
 For normal development, test visually in Lightroom.
@@ -300,11 +334,12 @@ For normal development, test visually in Lightroom.
 Recommended visual tests:
 
 ```powershell
+curl.exe "http://localhost:17891/help"
 curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=10"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
 curl.exe "http://localhost:17891/reset-group?group=Basic"
 curl.exe "http://localhost:17891/reset-all"
-npm run smoke
+npm test
 ```
 
 Do not use `/get` as proof that slider movement works.
@@ -333,6 +368,14 @@ git push
 ```
 
 Keep commits small and stable.
+
+## Current stable tag
+
+```text
+v0.1.0-one-way
+```
+
+This tag marks the stable one-way controller version.
 
 ## Current priority
 
