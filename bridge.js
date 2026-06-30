@@ -72,6 +72,12 @@ app.get("/sliders", function (req, res) {
     });
 });
 
+app.get("/groups", function (req, res) {
+    res.json({
+        groups: sliders.getGroups()
+    });
+});
+
 app.get("/next", function (req, res) {
     const command = commands.getNextCommand();
     res.json({ command: command });

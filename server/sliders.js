@@ -16,6 +16,18 @@ function getIds() {
     });
 }
 
+function getGroups() {
+    const groups = [];
+
+    for (const slider of sliderMetadata) {
+        if (!groups.includes(slider.group)) {
+            groups.push(slider.group);
+        }
+    }
+
+    return groups;
+}
+
 function exists(sliderId) {
     return sliderMap[sliderId] !== undefined;
 }
@@ -37,6 +49,7 @@ function getDefaultValue(sliderId) {
 module.exports = {
     getAll,
     getIds,
+    getGroups,
     exists,
     getById,
     getDefaultValue
