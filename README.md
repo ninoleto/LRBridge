@@ -381,7 +381,7 @@ After a working change:
 ```powershell
 git add .
 git commit -m "Short description"
-git push"
+git push
 ```
 
 ## Current limitations
