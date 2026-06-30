@@ -56,8 +56,10 @@ Use these:
 ```text
 /status
 /sliders
+/groups
 /adjust
 /reset
+/reset-group
 /reset-all
 ```
 
@@ -88,6 +90,12 @@ amount=10 ≈ 1.0 Exposure
 
 ```text
 /reset?slider=Exposure
+```
+
+### Reset Basic group
+
+```text
+/reset-group?group=Basic
 ```
 
 ### Reset all mapped sliders
@@ -167,9 +175,35 @@ LuminanceNR must use LuminanceSmoothing.
 Do not change it back to LuminanceNoiseReduction.
 ```
 
+## Slider groups
+
+Defined in:
+
+```text
+config/sliders.json
+```
+
+Current groups:
+
+```text
+Basic
+Color
+Presence
+Detail
+```
+
+Group reset endpoint:
+
+```text
+/reset-group?group=Basic
+/reset-group?group=Color
+/reset-group?group=Presence
+/reset-group?group=Detail
+```
+
 ## Lightroom panels
 
-LRBridge now calls:
+LRBridge calls:
 
 ```text
 LrDevelopController.revealPanel(...)
@@ -183,6 +217,40 @@ Detail sliders are here:
 Sharpness   → Develop → Detail → Sharpening → Amount
 LuminanceNR → Develop → Detail → Noise Reduction → Luminance
 ColorNR     → Develop → Detail → Noise Reduction → Color
+```
+
+## Starting LRBridge
+
+Recommended:
+
+```powershell
+npm start
+```
+
+Alternative:
+
+```powershell
+node bridge.js
+```
+
+Windows batch file:
+
+```powershell
+.\start-bridge.bat
+```
+
+## Smoke test
+
+With LRBridge running:
+
+```powershell
+npm run smoke
+```
+
+Expected result:
+
+```text
+Smoke test passed.
 ```
 
 ## Polling
@@ -215,6 +283,7 @@ Recommended Companion actions:
 /adjust?slider=Exposure&amount=1
 /adjust?slider=Exposure&amount=-1
 /reset?slider=Exposure
+/reset-group?group=Basic
 /reset-all
 ```
 
@@ -233,7 +302,9 @@ Recommended visual tests:
 ```powershell
 curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=10"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
+curl.exe "http://localhost:17891/reset-group?group=Basic"
 curl.exe "http://localhost:17891/reset-all"
+npm run smoke
 ```
 
 Do not use `/get` as proof that slider movement works.
@@ -280,4 +351,4 @@ Not current priority:
 1. Feedback/readback
 2. Absolute /set values
 3. Fake controller-side state
-``` 
+```
