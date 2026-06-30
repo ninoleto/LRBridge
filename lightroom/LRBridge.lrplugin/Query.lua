@@ -9,6 +9,19 @@ local developSettingsMap = {
     Shadows = "Shadows2012",
     Whites = "Whites2012",
     Blacks = "Blacks2012",
+
+    Texture = "Texture",
+    Clarity = "Clarity2012",
+    Dehaze = "Dehaze",
+
+    Vibrance = "Vibrance",
+    Saturation = "Saturation",
+
+    Sharpness = "Sharpness",
+    ColorNR = "ColorNoiseReduction",
+
+    Temperature = "IncrementalTemperature",
+    Tint = "IncrementalTint",
 }
 
 function Query.getDevelopValue(slider)
