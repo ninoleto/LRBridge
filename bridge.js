@@ -172,6 +172,30 @@ app.get("/reset", function (req, res) {
     queueOrReject(res, command);
 });
 
+app.get("/reset-all", function (req, res) {
+    const sliderIds = sliders.getIds();
+    const queued = [];
+
+    for (const slider of sliderIds) {
+        const command = {
+            command: "develop.reset",
+            slider: slider
+        };
+
+        const wasQueued = queueCommand(command);
+
+        if (wasQueued) {
+            queued.push(command);
+        }
+    }
+
+    res.json({
+        ok: true,
+        queuedCount: queued.length,
+        queued: queued
+    });
+});
+
 app.get("/get", function (req, res) {
     commands.clearLatestResult();
 
