@@ -8,6 +8,10 @@ const WS_PORT = 17890;
 
 const app = express();
 
+function queueCommand(command) {
+    commands.setLatestCommand(JSON.stringify(command));
+}
+
 app.get("/next", function (req, res) {
     const command = commands.getNextCommand();
     res.json({ command: command });
@@ -30,7 +34,51 @@ app.get("/command", function (req, res) {
         command.value = Number(req.query.value);
     }
 
-    commands.setLatestCommand(JSON.stringify(command));
+    queueCommand(command);
+
+    res.json({
+        ok: true,
+        queued: command
+    });
+});
+
+app.get("/adjust", function (req, res) {
+    const command = {
+        command: "develop.adjust",
+        slider: req.query.slider,
+        amount: Number(req.query.amount)
+    };
+
+    queueCommand(command);
+
+    res.json({
+        ok: true,
+        queued: command
+    });
+});
+
+app.get("/set", function (req, res) {
+    const command = {
+        command: "develop.set",
+        slider: req.query.slider,
+        value: Number(req.query.value)
+    };
+
+    queueCommand(command);
+
+    res.json({
+        ok: true,
+        queued: command
+    });
+});
+
+app.get("/get", function (req, res) {
+    const command = {
+        command: "develop.get",
+        slider: req.query.slider
+    };
+
+    queueCommand(command);
 
     res.json({
         ok: true,
