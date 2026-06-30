@@ -6,6 +6,19 @@ local Parser = require "Parser"
 local Commands = require "Commands"
 local Settings = require "Settings"
 
+if _G.LRBridgePollingStarted == true then
+
+    LrDialogs.message(
+        "LRBridge",
+        "Polling is already running."
+    )
+
+    return
+
+end
+
+_G.LRBridgePollingStarted = true
+
 local config = Settings.load()
 
 LrDialogs.message(
@@ -15,7 +28,7 @@ LrDialogs.message(
 
 LrTasks.startAsyncTask(function()
 
-    while true do
+    while _G.LRBridgePollingStarted == true do
 
         local result = LrHttp.get("http://127.0.0.1:17891/next")
 
