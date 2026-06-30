@@ -1,4 +1,4 @@
-let latestCommand = null;
+const commandQueue = [];
 let latestResult = null;
 
 const sliderMap = {
@@ -60,15 +60,18 @@ function setLatestCommand(message) {
         return;
     }
 
-    latestCommand = command;
+    commandQueue.push(command);
 
-    console.log("Stored command:", latestCommand);
+    console.log("Queued command:", command);
+    console.log("Queue length:", commandQueue.length);
 }
 
 function getNextCommand() {
-    const command = latestCommand;
-    latestCommand = null;
-    return command;
+    if (commandQueue.length === 0) {
+        return null;
+    }
+
+    return commandQueue.shift();
 }
 
 function setLatestResult(result) {
