@@ -16,22 +16,31 @@ Lightroom SDK / LrDevelopController
 
 ## Current status
 
-Working:
+Reliable enough for use:
 
 - develop.adjust
 - develop.reset
-- develop.get
 - HTTP API
 - command queue
 - repeated command coalescing
 - configurable polling interval
+- duplicate polling protection
 - Companion Generic HTTP support
-- two-way value readback for selected Develop settings
 - slider metadata registry
 
 Experimental / not trusted yet:
 
+- develop.get
 - develop.set
+- two-way feedback/readback
+
+Important decision:
+
+```text
+LRBridge currently uses Lightroom as the visible source of truth.
+The controller moves sliders, and the user sees the real value directly in Lightroom.
+Controller-side feedback is not used for now.
+```
 
 ## Requirements
 
@@ -67,6 +76,12 @@ Then start polling manually:
 
 ```text
 Library → Plug-in Extras → Start LRBridge Polling
+```
+
+If polling is already running, Lightroom should show:
+
+```text
+Polling is already running.
 ```
 
 Polling interval is configured in:
@@ -138,11 +153,19 @@ GET /reset?slider=Exposure
 
 This uses Lightroom's single-slider reset command and is preferred over `/set` for returning a slider to default.
 
-### Request current slider value
+### Experimental get slider
 
 ```text
 GET /get?slider=Exposure
 GET /last-result
+```
+
+Important:
+
+```text
+/get is currently experimental and not reliable enough for controller feedback.
+Do not depend on /get for Companion feedback.
+Use Lightroom's visible sliders as the source of truth.
 ```
 
 ### Experimental set slider
@@ -171,7 +194,7 @@ Base URL:
 http://192.168.1.11:17891
 ```
 
-Example actions:
+Recommended actions:
 
 ```text
 /adjust?slider=Exposure&amount=1
@@ -179,7 +202,12 @@ Example actions:
 /reset?slider=Exposure
 ```
 
-Avoid using `/set` in Companion for now.
+Avoid using these in Companion for now:
+
+```text
+/get
+/set
+```
 
 ## Supported sliders
 
@@ -206,10 +234,12 @@ ColorNR
 
 ## Test tools
 
+Recommended visual movement tests:
+
 ```powershell
 node tests/send.js Exposure 1
-node tests/get.js Exposure
 node tests/burst.js Exposure 1 10
+curl.exe "http://localhost:17891/reset?slider=Exposure"
 ```
 
 Manual HTTP tests:
@@ -219,7 +249,12 @@ curl.exe "http://localhost:17891/status"
 curl.exe "http://localhost:17891/sliders"
 curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=1"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
-curl.exe "http://localhost:17891/set?slider=Exposure&value=1"
+```
+
+Experimental tests only:
+
+```powershell
+node tests/get.js Exposure
 curl.exe "http://localhost:17891/set?slider=Exposure&value=1&experimental=1"
 ```
 
@@ -238,6 +273,7 @@ git push
 - Lightroom polling must be started manually.
 - Native Companion module does not exist yet.
 - HTTP Generic Requests are used for now.
+- `/get` is experimental and should not be used for controller feedback.
 - `/set` is experimental and should not be used for normal control.
 - Only selected Develop controls are mapped.
 - No packaged .exe yet.
