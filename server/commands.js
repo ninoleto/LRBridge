@@ -107,9 +107,19 @@ function getLatestResult() {
     return result;
 }
 
+function getStatus() {
+    return {
+        ok: true,
+        queueLength: commandQueue.length,
+        hasLatestResult: latestResult !== null,
+        supportedSliders: Object.keys(sliderMap)
+    };
+}
+
 module.exports = {
     setLatestCommand,
     getNextCommand,
     setLatestResult,
-    getLatestResult
+    getLatestResult,
+    getStatus
 };

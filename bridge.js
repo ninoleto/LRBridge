@@ -12,6 +12,19 @@ function queueCommand(command) {
     commands.setLatestCommand(JSON.stringify(command));
 }
 
+app.get("/", function (req, res) {
+    res.json({
+        name: "LRBridge",
+        ok: true,
+        httpPort: HTTP_PORT,
+        wsPort: WS_PORT
+    });
+});
+
+app.get("/status", function (req, res) {
+    res.json(commands.getStatus());
+});
+
 app.get("/next", function (req, res) {
     const command = commands.getNextCommand();
     res.json({ command: command });
