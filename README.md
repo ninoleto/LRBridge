@@ -33,6 +33,7 @@ Reliable enough for use:
 - HTTP smoke test
 - Windows start script
 - npm start/smoke scripts
+- help endpoint
 
 Experimental / not trusted yet:
 
@@ -129,6 +130,20 @@ poll_interval_ms=50
 ```
 
 ## HTTP API
+
+### Help
+
+```text
+GET /help
+```
+
+Example:
+
+```text
+http://127.0.0.1:17891/help
+```
+
+This returns the current reliable endpoints, experimental endpoints, and basic usage notes.
 
 ### Status
 
@@ -387,6 +402,7 @@ curl.exe "http://localhost:17891/reset?slider=Exposure"
 Manual HTTP tests:
 
 ```powershell
+curl.exe "http://localhost:17891/help"
 curl.exe "http://localhost:17891/status"
 curl.exe "http://localhost:17891/sliders"
 curl.exe "http://localhost:17891/groups"
