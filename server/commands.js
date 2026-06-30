@@ -1,32 +1,7 @@
+const sliders = require("./sliders");
+
 const commandQueue = [];
 let latestResult = null;
-
-const sliderMap = {
-    Exposure: true,
-    Contrast: true,
-    Highlights: true,
-    Shadows: true,
-    Whites: true,
-    Blacks: true,
-
-    Temperature: true,
-    Tint: true,
-
-    Texture: true,
-    Clarity: true,
-    Dehaze: true,
-
-    Vibrance: true,
-    Saturation: true,
-
-    Sharpness: true,
-    LuminanceNR: true,
-    ColorNR: true
-};
-
-function getSupportedSliders() {
-    return Object.keys(sliderMap);
-}
 
 function validateCommand(command) {
     const allowedCommands = [
@@ -40,17 +15,23 @@ function validateCommand(command) {
         return false;
     }
 
-    if (!sliderMap[command.slider]) {
+    if (!sliders.exists(command.slider)) {
         console.log("Unknown slider:", command.slider);
         return false;
     }
 
-    if (command.command === "develop.adjust" && typeof command.amount !== "number") {
+    if (
+        command.command === "develop.adjust" &&
+        (typeof command.amount !== "number" || Number.isNaN(command.amount))
+    ) {
         console.log("Invalid amount");
         return false;
     }
 
-    if (command.command === "develop.set" && typeof command.value !== "number") {
+    if (
+        command.command === "develop.set" &&
+        (typeof command.value !== "number" || Number.isNaN(command.value))
+    ) {
         console.log("Invalid value");
         return false;
     }
@@ -116,8 +97,16 @@ function getStatus() {
         ok: true,
         queueLength: commandQueue.length,
         hasLatestResult: latestResult !== null,
-        supportedSliders: getSupportedSliders()
+        supportedSliders: sliders.getIds()
     };
+}
+
+function getSupportedSliders() {
+    return sliders.getIds();
+}
+
+function getSliderMetadata() {
+    return sliders.getAll();
 }
 
 module.exports = {
@@ -126,5 +115,6 @@ module.exports = {
     setLatestResult,
     getLatestResult,
     getStatus,
-    getSupportedSliders
+    getSupportedSliders,
+    getSliderMetadata
 };

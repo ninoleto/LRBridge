@@ -1,22 +1,146 @@
-{
-    "Exposure": "Exposure",
-    "Contrast": "Contrast",
-    "Highlights": "Highlights",
-    "Shadows": "Shadows",
-    "Whites": "Whites",
-    "Blacks": "Blacks",
-
-    "Temperature": "Temperature",
-    "Tint": "Tint",
-
-    "Texture": "Texture",
-    "Clarity": "Clarity",
-    "Dehaze": "Dehaze",
-
-    "Vibrance": "Vibrance",
-    "Saturation": "Saturation",
-
-    "Sharpness": "Sharpness",
-    "LuminanceNR": "LuminanceNoiseReduction",
-    "ColorNR": "ColorNoiseReduction"
-}
+[
+    {
+        "id": "Exposure",
+        "label": "Exposure",
+        "group": "Basic",
+        "min": -5,
+        "max": 5,
+        "default": 0,
+        "step": 0.1
+    },
+    {
+        "id": "Contrast",
+        "label": "Contrast",
+        "group": "Basic",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Highlights",
+        "label": "Highlights",
+        "group": "Basic",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Shadows",
+        "label": "Shadows",
+        "group": "Basic",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Whites",
+        "label": "Whites",
+        "group": "Basic",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Blacks",
+        "label": "Blacks",
+        "group": "Basic",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Temperature",
+        "label": "Temperature",
+        "group": "Color",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Tint",
+        "label": "Tint",
+        "group": "Color",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Texture",
+        "label": "Texture",
+        "group": "Presence",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Clarity",
+        "label": "Clarity",
+        "group": "Presence",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Dehaze",
+        "label": "Dehaze",
+        "group": "Presence",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Vibrance",
+        "label": "Vibrance",
+        "group": "Presence",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Saturation",
+        "label": "Saturation",
+        "group": "Presence",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "Sharpness",
+        "label": "Sharpness",
+        "group": "Detail",
+        "min": 0,
+        "max": 150,
+        "default": 40,
+        "step": 1
+    },
+    {
+        "id": "LuminanceNR",
+        "label": "Luminance Noise Reduction",
+        "group": "Detail",
+        "min": 0,
+        "max": 100,
+        "default": 0,
+        "step": 1
+    },
+    {
+        "id": "ColorNR",
+        "label": "Color Noise Reduction",
+        "group": "Detail",
+        "min": 0,
+        "max": 100,
+        "default": 25,
+        "step": 1
+    }
+]

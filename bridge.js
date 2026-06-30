@@ -27,7 +27,7 @@ app.get("/status", function (req, res) {
 
 app.get("/sliders", function (req, res) {
     res.json({
-        sliders: commands.getSupportedSliders()
+        sliders: commands.getSliderMetadata()
     });
 });
 
