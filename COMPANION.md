@@ -59,7 +59,7 @@ Whites amount=1 ≈ 5 points
 Blacks amount=1 ≈ 5 points
 ```
 
-So for normal encoder movement:
+For normal encoder movement:
 
 ```text
 Exposure: use amount=1
@@ -87,6 +87,12 @@ Avoid large values unless you want big jumps.
 
 ```text
 /sliders
+```
+
+### List supported groups
+
+```text
+/groups
 ```
 
 ## Exposure
@@ -271,15 +277,17 @@ Develop → Detail → Noise Reduction → Color
 /reset?slider=ColorNR
 ```
 
-## Reset all mapped sliders
+## Reset slider groups
 
-One Companion button can reset all currently mapped sliders:
+Useful Companion buttons:
+
+### Reset Basic group
 
 ```text
-/reset-all
+/reset-group?group=Basic
 ```
 
-This queues reset commands for all supported sliders:
+Resets:
 
 ```text
 Exposure
@@ -288,16 +296,57 @@ Highlights
 Shadows
 Whites
 Blacks
+```
+
+### Reset Color group
+
+```text
+/reset-group?group=Color
+```
+
+Resets:
+
+```text
 Temperature
 Tint
+```
+
+### Reset Presence group
+
+```text
+/reset-group?group=Presence
+```
+
+Resets:
+
+```text
 Texture
 Clarity
 Dehaze
 Vibrance
 Saturation
+```
+
+### Reset Detail group
+
+```text
+/reset-group?group=Detail
+```
+
+Resets:
+
+```text
 Sharpness
 LuminanceNR
 ColorNR
+```
+
+## Reset all mapped sliders
+
+One Companion button can reset all currently mapped sliders:
+
+```text
+/reset-all
 ```
 
 Suggested button label:
@@ -340,6 +389,25 @@ amount=2
 amount=3
 ```
 
+## Suggested reset buttons
+
+```text
+RESET BASIC
+/reset-group?group=Basic
+
+RESET COLOR
+/reset-group?group=Color
+
+RESET PRESENCE
+/reset-group?group=Presence
+
+RESET DETAIL
+/reset-group?group=Detail
+
+RESET ALL
+/reset-all
+```
+
 ## Do not use for now
 
 Do not use these for Companion feedback yet:
@@ -360,7 +428,9 @@ Use only:
 ```text
 /adjust
 /reset
+/reset-group
 /reset-all
 /status
 /sliders
+/groups
 ```
