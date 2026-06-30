@@ -1,55 +1,66 @@
-const allowedSliders = [
-    "Exposure",
-    "Contrast",
-    "Highlights",
-    "Shadows",
-    "Whites",
-    "Blacks"
-];
-
 let latestCommand = null;
 
-function setLatestCommand(commandText) {
-    console.log("Command received:", commandText);
+const sliderMap = {
+    Exposure: true,
+    Contrast: true,
+    Highlights: true,
+    Shadows: true,
+    Whites: true,
+    Blacks: true,
 
-    const parts = commandText.trim().split(" ");
+    Temperature: true,
+    Tint: true,
 
-    if (parts.length !== 2) {
-        console.log("Invalid command. Expected format: Slider Amount");
+    Texture: true,
+    Clarity: true,
+    Dehaze: true,
+
+    Vibrance: true,
+    Saturation: true,
+
+    Sharpness: true,
+    LuminanceNR: true,
+    ColorNR: true
+};
+
+function setLatestCommand(message) {
+
+    let command;
+
+    try {
+        command = JSON.parse(message);
+    } catch (err) {
+        console.log("Invalid JSON");
         return;
     }
 
-    const slider = parts[0];
-    const amount = Number(parts[1]);
-
-    if (!allowedSliders.includes(slider)) {
-        console.log("Unknown slider:", slider);
+    if (command.command !== "develop.adjust") {
+        console.log("Unknown command:", command.command);
         return;
     }
 
-    if (Number.isNaN(amount)) {
-        console.log("Invalid amount:", parts[1]);
+    if (!sliderMap[command.slider]) {
+        console.log("Unknown slider:", command.slider);
         return;
     }
 
-    latestCommand = {
-        type: "developAdjust",
-        slider: slider,
-        amount: amount
-    };
+    if (typeof command.amount !== "number") {
+        console.log("Invalid amount");
+        return;
+    }
 
-    console.log("Stored command for Lightroom:", latestCommand);
+    latestCommand = command;
+
+    console.log("Stored command:", latestCommand);
 }
 
 function getNextCommand() {
-    if (latestCommand === null) {
-        return null;
-    }
 
-    const commandToSend = latestCommand;
+    const command = latestCommand;
+
     latestCommand = null;
 
-    return commandToSend;
+    return command;
 }
 
 module.exports = {
