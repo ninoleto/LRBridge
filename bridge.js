@@ -58,7 +58,36 @@ app.get("/", function (req, res) {
         name: "LRBridge",
         ok: true,
         httpPort: HTTP_PORT,
-        wsPort: WS_PORT
+        wsPort: WS_PORT,
+        help: "/help"
+    });
+});
+
+app.get("/help", function (req, res) {
+    res.json({
+        name: "LRBridge",
+        mode: "one-way-lightroom-control",
+        sourceOfTruth: "Lightroom visible UI",
+        reliableEndpoints: {
+            status: "/status",
+            sliders: "/sliders",
+            groups: "/groups",
+            adjust: "/adjust?slider=Exposure&amount=1",
+            reset: "/reset?slider=Exposure",
+            resetGroup: "/reset-group?group=Basic",
+            resetAll: "/reset-all"
+        },
+        experimentalEndpoints: {
+            get: "/get?slider=Exposure",
+            lastResult: "/last-result",
+            set: "/set?slider=Exposure&value=1&experimental=1"
+        },
+        notes: [
+            "Use /adjust and /reset for Companion control.",
+            "Do not depend on /get for feedback.",
+            "Do not use /set for normal control.",
+            "amount means number of Lightroom increment steps."
+        ]
     });
 });
 
