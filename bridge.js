@@ -13,6 +13,31 @@ app.get("/next", function (req, res) {
     res.json({ command: command });
 });
 
+app.get("/command", function (req, res) {
+    const commandName = req.query.command;
+    const slider = req.query.slider;
+
+    const command = {
+        command: commandName,
+        slider: slider
+    };
+
+    if (req.query.amount !== undefined) {
+        command.amount = Number(req.query.amount);
+    }
+
+    if (req.query.value !== undefined) {
+        command.value = Number(req.query.value);
+    }
+
+    commands.setLatestCommand(JSON.stringify(command));
+
+    res.json({
+        ok: true,
+        queued: command
+    });
+});
+
 app.get("/result", function (req, res) {
     const rawValue = req.query.value;
     const numericValue = Number(rawValue);
