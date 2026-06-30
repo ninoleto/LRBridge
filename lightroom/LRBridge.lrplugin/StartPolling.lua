@@ -13,7 +13,7 @@ LrTasks.startAsyncTask(function()
 
         local result = LrHttp.get("http://127.0.0.1:17891/next")
 
-        if result ~= nil and string.find(result, "develop.adjust") then
+        if result ~= nil and string.find(result, [["command"]]) then
 
             local command = Parser.parse(result)
             Commands.execute(command)

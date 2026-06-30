@@ -13,6 +13,26 @@ app.get("/next", function (req, res) {
     res.json({ command: command });
 });
 
+app.get("/result", function (req, res) {
+    const rawValue = req.query.value;
+    const numericValue = Number(rawValue);
+
+    const result = {
+        command: req.query.command || "develop.get.result",
+        slider: req.query.slider || null,
+        value: Number.isNaN(numericValue) ? rawValue : numericValue
+    };
+
+    commands.setLatestResult(result);
+
+    res.json({ ok: true });
+});
+
+app.get("/last-result", function (req, res) {
+    const result = commands.getLatestResult();
+    res.json({ result: result });
+});
+
 app.listen(HTTP_PORT, function () {
     console.log("LRBridge HTTP server listening on http://localhost:" + HTTP_PORT);
 });

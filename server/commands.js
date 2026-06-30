@@ -1,4 +1,5 @@
 let latestCommand = null;
+let latestResult = null;
 
 const sliderMap = {
     Exposure: true,
@@ -24,7 +25,6 @@ const sliderMap = {
 };
 
 function setLatestCommand(message) {
-
     let command;
 
     try {
@@ -34,7 +34,7 @@ function setLatestCommand(message) {
         return;
     }
 
-    if (command.command !== "develop.adjust") {
+    if (command.command !== "develop.adjust" && command.command !== "develop.get") {
         console.log("Unknown command:", command.command);
         return;
     }
@@ -44,7 +44,7 @@ function setLatestCommand(message) {
         return;
     }
 
-    if (typeof command.amount !== "number") {
+    if (command.command === "develop.adjust" && typeof command.amount !== "number") {
         console.log("Invalid amount");
         return;
     }
@@ -55,15 +55,25 @@ function setLatestCommand(message) {
 }
 
 function getNextCommand() {
-
     const command = latestCommand;
-
     latestCommand = null;
-
     return command;
+}
+
+function setLatestResult(result) {
+    latestResult = result;
+    console.log("Stored result:", latestResult);
+}
+
+function getLatestResult() {
+    const result = latestResult;
+    latestResult = null;
+    return result;
 }
 
 module.exports = {
     setLatestCommand,
-    getNextCommand
+    getNextCommand,
+    setLatestResult,
+    getLatestResult
 };
