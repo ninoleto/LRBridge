@@ -90,6 +90,18 @@ Example:
 http://127.0.0.1:17891/status
 ```
 
+### Supported sliders endpoint
+
+```text
+GET /sliders
+```
+
+Example:
+
+```text
+http://127.0.0.1:17891/sliders
+```
+
 ### Adjust slider
 
 ```text
