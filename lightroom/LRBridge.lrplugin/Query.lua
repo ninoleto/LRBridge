@@ -18,6 +18,7 @@ local developSettingsMap = {
     Saturation = "Saturation",
 
     Sharpness = "Sharpness",
+    LuminanceNR = "LuminanceSmoothing",
     ColorNR = "ColorNoiseReduction",
 
     Temperature = "IncrementalTemperature",
