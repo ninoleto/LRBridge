@@ -47,6 +47,12 @@ function queueOrReject(res, command, responseExtra) {
     }, responseExtra || {}));
 }
 
+function getSlidersByGroup(groupName) {
+    return sliders.getAll().filter(function (slider) {
+        return slider.group === groupName;
+    });
+}
+
 app.get("/", function (req, res) {
     res.json({
         name: "LRBridge",
@@ -170,6 +176,41 @@ app.get("/reset", function (req, res) {
     };
 
     queueOrReject(res, command);
+});
+
+app.get("/reset-group", function (req, res) {
+    const group = req.query.group;
+    const groupSliders = getSlidersByGroup(group);
+    const queued = [];
+
+    if (groupSliders.length === 0) {
+        res.status(400).json({
+            ok: false,
+            error: "Unknown or empty group",
+            group: group
+        });
+        return;
+    }
+
+    for (const slider of groupSliders) {
+        const command = {
+            command: "develop.reset",
+            slider: slider.id
+        };
+
+        const wasQueued = queueCommand(command);
+
+        if (wasQueued) {
+            queued.push(command);
+        }
+    }
+
+    res.json({
+        ok: true,
+        group: group,
+        queuedCount: queued.length,
+        queued: queued
+    });
 });
 
 app.get("/reset-all", function (req, res) {
