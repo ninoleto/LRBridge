@@ -4,7 +4,7 @@
   "description": "",
   "main": "bridge.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run smoke",
     "start": "node bridge.js",
     "smoke": "node tests/http-smoke.js"
   },
