@@ -3,42 +3,51 @@ local LrHttp = import "LrHttp"
 local LrTasks = import "LrTasks"
 local LrDevelopController = import "LrDevelopController"
 
-local logPath = "D:\\Projects\\LRBridge\\lrplugin-log.txt"
+local function parseCommand(json)
+    local slider = string.match(json, [["slider":"([^"]+)"]])
+    local amount = string.match(json, [["amount":([%-]?%d+)]])
 
-local function log(message)
-    local file = io.open(logPath, "a")
-    if file then
-        file:write(os.date("%Y-%m-%d %H:%M:%S") .. " - " .. message .. "\n")
-        file:close()
+    if amount then
+        amount = tonumber(amount)
+    end
+
+    return slider, amount
+end
+
+local function adjustSlider(slider, amount)
+    if slider ~= "Exposure" then
+        return
+    end
+
+    if amount > 0 then
+        for i = 1, amount do
+            LrDevelopController.increment("Exposure")
+        end
+    elseif amount < 0 then
+        for i = 1, -amount do
+            LrDevelopController.decrement("Exposure")
+        end
     end
 end
 
-local function adjustDevelop(commandJson)
-    log("Trying Lightroom develop adjustment: " .. commandJson)
+local function executeCommand(json)
+    local slider, amount = parseCommand(json)
 
-    -- first brute-force test: Exposure only
-    local ok, err = pcall(function()
-        LrDevelopController.increment("Exposure")
-    end)
-
-    if ok then
-        log("Exposure increment OK")
-    else
-        log("Exposure increment FAILED: " .. tostring(err))
-        LrDialogs.message("LRBridge error", tostring(err))
+    if slider == nil or amount == nil then
+        return
     end
+
+    adjustSlider(slider, amount)
 end
 
 LrDialogs.message("LRBridge", "Polling started.")
-log("Polling started from menu")
 
 LrTasks.startAsyncTask(function()
     while true do
         local result = LrHttp.get("http://127.0.0.1:17891/next")
 
         if result ~= nil and string.find(result, "developAdjust") then
-            log("Command received: " .. result)
-            adjustDevelop(result)
+            executeCommand(result)
         end
 
         LrTasks.sleep(0.5)
