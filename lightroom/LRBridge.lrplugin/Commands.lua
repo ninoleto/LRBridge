@@ -8,7 +8,17 @@ function Commands.execute(command)
         return
     end
 
-    Driver.adjustSlider(command.slider, command.amount)
+    if command.command == "develop.adjust" then
+
+        Driver.adjustSlider(
+            command.slider,
+            command.amount
+        )
+
+        return
+    end
+
+    print("Unknown command: " .. tostring(command.command))
 
 end
 
