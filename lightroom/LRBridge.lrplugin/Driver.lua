@@ -25,6 +25,12 @@ local sliderMap = {
     ColorNR = "ColorNoiseReduction",
 }
 
+local function revealSlider(developSlider)
+
+    LrDevelopController.revealPanel(developSlider)
+
+end
+
 function Driver.adjustSlider(slider, amount)
 
     local developSlider = sliderMap[slider]
@@ -32,6 +38,8 @@ function Driver.adjustSlider(slider, amount)
     if developSlider == nil then
         return false
     end
+
+    revealSlider(developSlider)
 
     if amount > 0 then
         for i = 1, amount do
@@ -55,6 +63,8 @@ function Driver.setSlider(slider, value)
         return false
     end
 
+    revealSlider(developSlider)
+
     LrDevelopController.setValue(developSlider, value)
 
     return true
@@ -68,6 +78,8 @@ function Driver.resetSlider(slider)
     if developSlider == nil then
         return false
     end
+
+    revealSlider(developSlider)
 
     LrDevelopController.resetToDefault(developSlider)
 
