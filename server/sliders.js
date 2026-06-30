@@ -20,8 +20,24 @@ function exists(sliderId) {
     return sliderMap[sliderId] !== undefined;
 }
 
+function getById(sliderId) {
+    return sliderMap[sliderId] || null;
+}
+
+function getDefaultValue(sliderId) {
+    const slider = getById(sliderId);
+
+    if (slider === null) {
+        return null;
+    }
+
+    return slider.default;
+}
+
 module.exports = {
     getAll,
     getIds,
-    exists
+    exists,
+    getById,
+    getDefaultValue
 };

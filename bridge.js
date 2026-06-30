@@ -2,6 +2,7 @@ const express = require("express");
 const WebSocket = require("ws");
 
 const commands = require("./server/commands");
+const sliders = require("./server/sliders");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -81,6 +82,33 @@ app.get("/set", function (req, res) {
         command: "develop.set",
         slider: req.query.slider,
         value: Number(req.query.value)
+    };
+
+    queueCommand(command);
+
+    res.json({
+        ok: true,
+        queued: command
+    });
+});
+
+app.get("/reset", function (req, res) {
+    const slider = req.query.slider;
+    const defaultValue = sliders.getDefaultValue(slider);
+
+    if (defaultValue === null) {
+        res.status(400).json({
+            ok: false,
+            error: "Unknown slider",
+            slider: slider
+        });
+        return;
+    }
+
+    const command = {
+        command: "develop.set",
+        slider: slider,
+        value: defaultValue
     };
 
     queueCommand(command);
