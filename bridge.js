@@ -13,6 +13,18 @@ function queueCommand(command) {
     commands.setLatestCommand(JSON.stringify(command));
 }
 
+function isExperimentalEnabled(req) {
+    return req.query.experimental === "1";
+}
+
+function rejectExperimentalSet(res) {
+    res.status(400).json({
+        ok: false,
+        error: "develop.set is experimental and currently unreliable in Lightroom.",
+        hint: "Use /adjust or /reset for normal control. Add experimental=1 only when testing."
+    });
+}
+
 app.get("/", function (req, res) {
     res.json({
         name: "LRBridge",
@@ -40,6 +52,11 @@ app.get("/next", function (req, res) {
 app.get("/command", function (req, res) {
     const commandName = req.query.command;
     const slider = req.query.slider;
+
+    if (commandName === "develop.set" && !isExperimentalEnabled(req)) {
+        rejectExperimentalSet(res);
+        return;
+    }
 
     const command = {
         command: commandName,
@@ -82,6 +99,11 @@ app.get("/adjust", function (req, res) {
 });
 
 app.get("/set", function (req, res) {
+    if (!isExperimentalEnabled(req)) {
+        rejectExperimentalSet(res);
+        return;
+    }
+
     const command = {
         command: "develop.set",
         slider: req.query.slider,
@@ -92,7 +114,8 @@ app.get("/set", function (req, res) {
 
     res.json({
         ok: true,
-        queued: command
+        queued: command,
+        experimental: true
     });
 });
 
