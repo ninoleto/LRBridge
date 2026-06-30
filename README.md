@@ -30,6 +30,9 @@ Reliable enough for use:
 - reset individual sliders
 - reset slider groups
 - reset all mapped sliders
+- HTTP smoke test
+- Windows start script
+- npm start/smoke scripts
 
 Experimental / not trusted yet:
 
@@ -57,7 +60,19 @@ Controller-side feedback is not used for now.
 From the project folder:
 
 ```powershell
+npm start
+```
+
+Alternative direct command:
+
+```powershell
 node bridge.js
+```
+
+Windows batch file:
+
+```powershell
+.\start-bridge.bat
 ```
 
 Default ports:
@@ -65,6 +80,20 @@ Default ports:
 ```text
 HTTP: 17891
 WebSocket: 17890
+```
+
+## Smoke test
+
+With LRBridge running:
+
+```powershell
+npm run smoke
+```
+
+Expected ending:
+
+```text
+Smoke test passed.
 ```
 
 ## Lightroom setup
@@ -365,6 +394,12 @@ curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=1"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
 curl.exe "http://localhost:17891/reset-group?group=Basic"
 curl.exe "http://localhost:17891/reset-all"
+```
+
+Smoke test:
+
+```powershell
+npm run smoke
 ```
 
 Experimental tests only:
