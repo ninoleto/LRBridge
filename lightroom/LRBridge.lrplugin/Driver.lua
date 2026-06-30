@@ -21,7 +21,7 @@ local sliderMap = {
     Saturation = "Saturation",
 
     Sharpness = "Sharpness",
-    LuminanceNR = "LuminanceNoiseReduction",
+    LuminanceNR = "LuminanceSmoothing",
     ColorNR = "ColorNoiseReduction",
 }
 
