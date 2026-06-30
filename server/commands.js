@@ -7,7 +7,8 @@ function validateCommand(command) {
     const allowedCommands = [
         "develop.adjust",
         "develop.get",
-        "develop.set"
+        "develop.set",
+        "develop.reset"
     ];
 
     if (!allowedCommands.includes(command.command)) {
@@ -81,6 +82,10 @@ function getNextCommand() {
     return commandQueue.shift();
 }
 
+function clearLatestResult() {
+    latestResult = null;
+}
+
 function setLatestResult(result) {
     latestResult = result;
     console.log("Stored result:", latestResult);
@@ -112,6 +117,7 @@ function getSliderMetadata() {
 module.exports = {
     setLatestCommand,
     getNextCommand,
+    clearLatestResult,
     setLatestResult,
     getLatestResult,
     getStatus,

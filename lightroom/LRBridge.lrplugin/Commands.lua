@@ -42,6 +42,15 @@ function Commands.execute(command)
         return
     end
 
+    if command.command == "develop.reset" then
+
+        Driver.resetSlider(
+            command.slider
+        )
+
+        return
+    end
+
     if command.command == "develop.get" then
 
         local value = Query.getDevelopValue(command.slider)

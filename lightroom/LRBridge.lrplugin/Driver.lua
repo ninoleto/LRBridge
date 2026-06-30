@@ -61,4 +61,18 @@ function Driver.setSlider(slider, value)
 
 end
 
+function Driver.resetSlider(slider)
+
+    local developSlider = sliderMap[slider]
+
+    if developSlider == nil then
+        return false
+    end
+
+    LrDevelopController.resetToDefault(developSlider)
+
+    return true
+
+end
+
 return Driver

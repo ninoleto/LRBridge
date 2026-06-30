@@ -54,6 +54,10 @@ app.get("/command", function (req, res) {
         command.value = Number(req.query.value);
     }
 
+    if (command.command === "develop.get") {
+        commands.clearLatestResult();
+    }
+
     queueCommand(command);
 
     res.json({
@@ -94,9 +98,8 @@ app.get("/set", function (req, res) {
 
 app.get("/reset", function (req, res) {
     const slider = req.query.slider;
-    const defaultValue = sliders.getDefaultValue(slider);
 
-    if (defaultValue === null) {
+    if (!sliders.exists(slider)) {
         res.status(400).json({
             ok: false,
             error: "Unknown slider",
@@ -106,9 +109,8 @@ app.get("/reset", function (req, res) {
     }
 
     const command = {
-        command: "develop.set",
-        slider: slider,
-        value: defaultValue
+        command: "develop.reset",
+        slider: slider
     };
 
     queueCommand(command);
@@ -120,6 +122,8 @@ app.get("/reset", function (req, res) {
 });
 
 app.get("/get", function (req, res) {
+    commands.clearLatestResult();
+
     const command = {
         command: "develop.get",
         slider: req.query.slider
