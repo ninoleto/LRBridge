@@ -47,4 +47,18 @@ function Driver.adjustSlider(slider, amount)
 
 end
 
+function Driver.setSlider(slider, value)
+
+    local developSlider = sliderMap[slider]
+
+    if developSlider == nil then
+        return false
+    end
+
+    LrDevelopController.setValue(developSlider, value)
+
+    return true
+
+end
+
 return Driver

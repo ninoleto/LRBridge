@@ -5,9 +5,14 @@ function Parser.parse(json)
     local command = string.match(json, [["command":"([^"]+)"]])
     local slider = string.match(json, [["slider":"([^"]+)"]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
+    local value = string.match(json, [["value":([%-]?%d+%.?%d*)]])
 
     if amount then
         amount = tonumber(amount)
+    end
+
+    if value then
+        value = tonumber(value)
     end
 
     if command == nil then
@@ -17,7 +22,8 @@ function Parser.parse(json)
     return {
         command = command,
         slider = slider,
-        amount = amount
+        amount = amount,
+        value = value
     }
 
 end

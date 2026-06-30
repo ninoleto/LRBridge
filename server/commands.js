@@ -34,7 +34,13 @@ function setLatestCommand(message) {
         return;
     }
 
-    if (command.command !== "develop.adjust" && command.command !== "develop.get") {
+    const allowedCommands = [
+        "develop.adjust",
+        "develop.get",
+        "develop.set"
+    ];
+
+    if (!allowedCommands.includes(command.command)) {
         console.log("Unknown command:", command.command);
         return;
     }
@@ -46,6 +52,11 @@ function setLatestCommand(message) {
 
     if (command.command === "develop.adjust" && typeof command.amount !== "number") {
         console.log("Invalid amount");
+        return;
+    }
+
+    if (command.command === "develop.set" && typeof command.value !== "number") {
+        console.log("Invalid value");
         return;
     }
 
