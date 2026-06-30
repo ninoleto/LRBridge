@@ -24,6 +24,36 @@ const sliderMap = {
     ColorNR: true
 };
 
+function validateCommand(command) {
+    const allowedCommands = [
+        "develop.adjust",
+        "develop.get",
+        "develop.set"
+    ];
+
+    if (!allowedCommands.includes(command.command)) {
+        console.log("Unknown command:", command.command);
+        return false;
+    }
+
+    if (!sliderMap[command.slider]) {
+        console.log("Unknown slider:", command.slider);
+        return false;
+    }
+
+    if (command.command === "develop.adjust" && typeof command.amount !== "number") {
+        console.log("Invalid amount");
+        return false;
+    }
+
+    if (command.command === "develop.set" && typeof command.value !== "number") {
+        console.log("Invalid value");
+        return false;
+    }
+
+    return true;
+}
+
 function setLatestCommand(message) {
     let command;
 
@@ -34,30 +64,22 @@ function setLatestCommand(message) {
         return;
     }
 
-    const allowedCommands = [
-        "develop.adjust",
-        "develop.get",
-        "develop.set"
-    ];
-
-    if (!allowedCommands.includes(command.command)) {
-        console.log("Unknown command:", command.command);
+    if (!validateCommand(command)) {
         return;
     }
 
-    if (!sliderMap[command.slider]) {
-        console.log("Unknown slider:", command.slider);
-        return;
-    }
+    if (command.command === "develop.adjust") {
+        const lastCommand = commandQueue[commandQueue.length - 1];
 
-    if (command.command === "develop.adjust" && typeof command.amount !== "number") {
-        console.log("Invalid amount");
-        return;
-    }
-
-    if (command.command === "develop.set" && typeof command.value !== "number") {
-        console.log("Invalid value");
-        return;
+        if (
+            lastCommand &&
+            lastCommand.command === "develop.adjust" &&
+            lastCommand.slider === command.slider
+        ) {
+            lastCommand.amount += command.amount;
+            console.log("Coalesced command:", lastCommand);
+            return;
+        }
     }
 
     commandQueue.push(command);
