@@ -26,6 +26,31 @@ function setPollingDisplay(value) {
     pollingInput.value = value;
 }
 
+function renderLanUrls(urls) {
+    controllerLanUrls.textContent = "";
+
+    if (!urls || urls.length === 0) {
+        controllerLanUrls.textContent = "No network addresses detected.";
+        return;
+    }
+
+    urls.forEach(function (url) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.textContent = url;
+        link.className = "url-pill";
+        controllerLanUrls.appendChild(link);
+    });
+
+    if (urls.length > 1) {
+        const note = document.createElement("div");
+        note.textContent = "If your PC has multiple network connections, more than one address may appear. To control Lightroom Classic from another device, use the address from the network that both devices are connected to.";
+        note.className = "network-note";
+        controllerLanUrls.appendChild(note);
+    }
+}
+
 async function init() {
     const state = await window.lrbridge.getInitialState();
 
@@ -39,27 +64,7 @@ async function init() {
     controllerUrl.textContent = currentControllerUrl;
     controllerUrl.href = currentControllerUrl;
 
-    if (state.controllerLanUrls && state.controllerLanUrls.length > 0) {
-        controllerLanUrls.textContent = "";
-
-        const label = document.createElement("span");
-        label.textContent = "LAN: ";
-        controllerLanUrls.appendChild(label);
-
-        state.controllerLanUrls.forEach(function (url, index) {
-            if (index > 0) {
-                controllerLanUrls.appendChild(document.createTextNode(" "));
-            }
-
-            const link = document.createElement("a");
-            link.href = url;
-            link.target = "_blank";
-            link.textContent = url;
-            controllerLanUrls.appendChild(link);
-        });
-    } else {
-        controllerLanUrls.textContent = "LAN: no LAN IP detected";
-    }
+    renderLanUrls(state.controllerLanUrls);
 
     for (const line of state.logs) {
         appendLog(line);
@@ -123,3 +128,4 @@ defaultSettingsButton.addEventListener("click", async function () {
 });
 
 init();
+

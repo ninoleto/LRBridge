@@ -69,9 +69,9 @@
             background: #8a5a2a;
         }
 
-        .status {
+        .dashboard {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 12px;
             padding: 16px 22px;
             background: #111820;
@@ -82,7 +82,11 @@
             background: #18212a;
             border: 1px solid #2b3744;
             border-radius: 8px;
-            padding: 12px;
+            padding: 14px;
+        }
+
+        .card.wide {
+            grid-column: 1 / -1;
         }
 
         .label {
@@ -90,18 +94,12 @@
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.08em;
+            margin-bottom: 8px;
         }
 
         .value {
-            margin-top: 6px;
             font-size: 15px;
             word-break: break-word;
-        }
-
-        .settings {
-            padding: 16px 22px;
-            background: #111820;
-            border-bottom: 1px solid #28323d;
         }
 
         .settings-row {
@@ -109,7 +107,7 @@
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
-            margin-top: 8px;
+            margin-top: 10px;
         }
 
         input {
@@ -131,9 +129,44 @@
 
         .settings-message {
             margin-top: 8px;
-            color: #d7e1ea;
+            color: #ffb454;
             font-size: 13px;
             min-height: 18px;
+        }
+
+        .url-section {
+            margin-top: 10px;
+        }
+
+        .url-title {
+            color: #9fb0bf;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .url-pill {
+            display: inline-block;
+            background: #101820;
+            border: 1px solid #2b3744;
+            border-radius: 7px;
+            padding: 7px 10px;
+            margin: 0 8px 8px 0;
+            color: #6dc8ff;
+            text-decoration: none;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+        }
+
+        .url-pill:hover {
+            background: #172331;
+            text-decoration: underline;
+        }
+
+        .network-note {
+            margin-top: 4px;
+            color: #9fb0bf;
+            font-size: 13px;
+            line-height: 1.45;
         }
 
         .main {
@@ -169,12 +202,22 @@
         a {
             color: #6dc8ff;
         }
+
+        @media (max-width: 760px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .card.wide {
+                grid-column: auto;
+            }
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>LRBridge</h1>
-        <div class="subtitle">Bridge is active. You can use Lightroom Classic with the LRBridge HTTP API.</div>
+        <div class="subtitle">Ready. HTTP API: <a href="http://127.0.0.1:17891/help">http://127.0.0.1:17891</a></div>
     </header>
 
     <section class="actions">
@@ -183,45 +226,41 @@
         <button id="openHelp" class="secondary">Open help</button>
     </section>
 
-    <section class="status">
-        <div class="card">
-            <div class="label">HTTP API</div>
-            <div class="value">http://127.0.0.1:17891</div>
-        </div>
-
-        <div class="card">
-            <div class="label">Web Controller</div>
-            <div class="value">
-                Local: <a id="controllerUrl" href="http://127.0.0.1:17892/" target="_blank">Loading...</a>
-                <div id="controllerLanUrls">LAN: Loading...</div>
-            </div>
-        </div>
-
+    <section class="dashboard">
         <div class="card">
             <div class="label">Polling</div>
-            <div class="value"><span id="polling">Loading...</span></div>
-        </div>
-    </section>
+            <div class="value">Current: <strong><span id="polling">Loading...</span></strong></div>
 
-    <section class="settings">
-        <div class="label">Settings</div>
+            <div class="settings-row">
+                <span>Polling interval</span>
+                <input id="pollingInput" type="number" min="10" max="1000" step="1">
+                <span>ms</span>
+                <button id="saveSettings">Save</button>
+                <button id="defaultSettings" class="warning">Default</button>
+            </div>
 
-        <div class="settings-row">
-            <span>Polling interval</span>
-            <input id="pollingInput" type="number" min="10" max="1000" step="1">
-            <span>ms</span>
-            <button id="saveSettings">Save settings</button>
-            <button id="defaultSettings" class="warning">Default settings</button>
-        </div>
+            <div class="polling-guide">
+                Default: <strong>100 ms</strong>. Use <strong>50 ms or lower</strong> if Lightroom feels too slow to react.
+                Use <strong>200 ms or higher</strong> if Lightroom stalls, skips, or feels overloaded.
+                Changes apply automatically within about 1 second.
+            </div>
 
-        <div class="polling-guide">
-            Default: <strong>100 ms</strong>. Use <strong>50 ms or lower</strong> if Lightroom feels too slow to react.
-            Use <strong>200 ms or higher</strong> if Lightroom stalls, skips, or feels overloaded.
-            Changes apply automatically within about 1 second.
-            Help endpoint: <a href="http://127.0.0.1:17891/help">/help</a>
+            <div class="settings-message" id="settingsMessage"></div>
         </div>
 
-        <div class="settings-message" id="settingsMessage"></div>
+        <div class="card wide">
+            <div class="label">Web Controller</div>
+
+            <div class="url-section">
+                <div class="url-title">Local access:</div>
+                <a class="url-pill" id="controllerUrl" href="http://127.0.0.1:17892/" target="_blank">Loading...</a>
+            </div>
+
+            <div class="url-section">
+                <div class="url-title">Access from other devices:</div>
+                <div id="controllerLanUrls">Loading...</div>
+            </div>
+        </div>
     </section>
 
     <main class="main">
@@ -230,8 +269,8 @@
     </main>
 
     <div class="footer">
-        <div>Keep LRBridge running while controlling Lightroom Classic through the LRBridge HTTP API.</div>
-        <div>You can use Bitfocus Companion or any HTTP-capable device/app.</div>
+        <div>Keep LRBridge running while controlling Lightroom Classic.</div>
+        <div>You can control it from Bitfocus Companion or any device/app that can send HTTP requests.</div>
         <div>
             LRBridge is open source. Support development:
             <a href="https://ko-fi.com/ninoleto">ko-fi.com/ninoleto</a>
@@ -241,4 +280,6 @@
     <script src="renderer.js"></script>
 </body>
 </html>
+
+
 
