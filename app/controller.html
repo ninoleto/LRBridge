@@ -1,0 +1,313 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>LRBridge Web Controller</title>
+    <style>
+        body {
+            margin: 0;
+            background: #101418;
+            color: #d7e1ea;
+            font-family: Segoe UI, Arial, sans-serif;
+        }
+
+        header {
+            padding: 18px 22px;
+            background: #161d24;
+            border-bottom: 1px solid #28323d;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            margin-top: 6px;
+            color: #9fb0bf;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 14px 22px;
+            background: #111820;
+            border-bottom: 1px solid #28323d;
+        }
+
+        .content {
+            padding: 16px 22px;
+        }
+
+        .group {
+            margin-bottom: 22px;
+        }
+
+        .group-title {
+            color: #8fa2b3;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 170px repeat(5, 70px);
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .slider-name {
+            background: #18212a;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        button {
+            background: #273442;
+            color: #ffffff;
+            border: 1px solid #3b4b5c;
+            border-radius: 7px;
+            padding: 10px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #314151;
+        }
+
+        button.positive {
+            background: #2a6f97;
+            border-color: #3a8cc0;
+        }
+
+        button.positive:hover {
+            background: #327eab;
+        }
+
+        button.negative {
+            background: #5c3442;
+            border-color: #7a4756;
+        }
+
+        button.negative:hover {
+            background: #6b3c4d;
+        }
+
+        button.reset {
+            background: #7a4f24;
+            border-color: #9b6530;
+        }
+
+        button.reset:hover {
+            background: #8a5a2a;
+        }
+
+        .status {
+            margin: 0 22px 16px 22px;
+            background: #050708;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            min-height: 20px;
+            white-space: pre-wrap;
+        }
+
+        a {
+            color: #6dc8ff;
+        }
+
+        @media (max-width: 760px) {
+            .row {
+                grid-template-columns: 1fr;
+                background: #18212a;
+                border: 1px solid #2b3744;
+                border-radius: 8px;
+                padding: 10px;
+            }
+
+            .slider-name {
+                border: 0;
+                padding: 0 0 6px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>LRBridge Web Controller</h1>
+        <div class="subtitle">
+            This page only sends commands to Lightroom Classic.
+            It does not read current slider positions or show live feedback.
+            Watch Lightroom Classic to see the real result.
+        </div>
+    </header>
+
+    <div class="toolbar">
+        <button id="openHelp">Open API Help</button>
+    </div>
+
+    <main class="content" id="content"></main>
+
+    <div class="status" id="status">Ready.</div>
+
+    <script>
+        const groups = [
+            {
+                name: "Basic",
+                sliders: [
+                    "Exposure",
+                    "Contrast",
+                    "Highlights",
+                    "Shadows",
+                    "Whites",
+                    "Blacks",
+                    "Temperature",
+                    "Tint"
+                ]
+            },
+            {
+                name: "Presence and Color",
+                sliders: [
+                    "Texture",
+                    "Clarity",
+                    "Dehaze",
+                    "Vibrance",
+                    "Saturation"
+                ]
+            },
+            {
+                name: "Detail",
+                sliders: [
+                    "Sharpness",
+                    "LuminanceNR",
+                    "ColorNR"
+                ]
+            }
+        ];
+
+        const labels = {
+            Exposure: "Exposure",
+            Contrast: "Contrast",
+            Highlights: "Highlights",
+            Shadows: "Shadows",
+            Whites: "Whites",
+            Blacks: "Blacks",
+            Temperature: "Temperature",
+            Tint: "Tint",
+            Texture: "Texture",
+            Clarity: "Clarity",
+            Dehaze: "Dehaze",
+            Vibrance: "Vibrance",
+            Saturation: "Saturation",
+            Sharpness: "Sharpness",
+            LuminanceNR: "Luminance NR",
+            ColorNR: "Color NR"
+        };
+
+        const content = document.getElementById("content");
+        const statusBox = document.getElementById("status");
+
+        function setStatus(message) {
+            statusBox.textContent = message;
+        }
+
+        async function sendCommand(path) {
+            setStatus("Sending: " + path);
+
+            try {
+                const response = await fetch(path, {
+                    cache: "no-store"
+                });
+
+                const text = await response.text();
+
+                if (!response.ok) {
+                    setStatus("ERROR " + response.status + ": " + text);
+                    return;
+                }
+
+                setStatus("OK: " + path);
+            } catch (err) {
+                setStatus("ERROR: " + err.message);
+            }
+        }
+
+        function makeButton(text, className, onClick) {
+            const button = document.createElement("button");
+            button.textContent = text;
+            button.className = className;
+            button.addEventListener("click", onClick);
+            return button;
+        }
+
+        function addSliderRow(groupElement, slider) {
+            const row = document.createElement("div");
+            row.className = "row";
+
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = labels[slider] || slider;
+
+            row.appendChild(name);
+
+            row.appendChild(makeButton("-5", "negative", function () {
+                sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=-5");
+            }));
+
+            row.appendChild(makeButton("-1", "negative", function () {
+                sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=-1");
+            }));
+
+            row.appendChild(makeButton("Reset", "reset", function () {
+                sendCommand("/api/reset?slider=" + encodeURIComponent(slider));
+            }));
+
+            row.appendChild(makeButton("+1", "positive", function () {
+                sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=1");
+            }));
+
+            row.appendChild(makeButton("+5", "positive", function () {
+                sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=5");
+            }));
+
+            groupElement.appendChild(row);
+        }
+
+        function render() {
+            for (const group of groups) {
+                const groupElement = document.createElement("section");
+                groupElement.className = "group";
+
+                const title = document.createElement("div");
+                title.className = "group-title";
+                title.textContent = group.name;
+
+                groupElement.appendChild(title);
+
+                for (const slider of group.sliders) {
+                    addSliderRow(groupElement, slider);
+                }
+
+                content.appendChild(groupElement);
+            }
+        }
+
+        document.getElementById("openHelp").addEventListener("click", function () {
+            window.open("/api/help", "_blank");
+        });
+
+        render();
+    </script>
+</body>
+</html>

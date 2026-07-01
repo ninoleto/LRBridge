@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld("lrbridge", {
     openHelp: function () {
         return ipcRenderer.invoke("open-help");
     },
+    openWebController: function () {
+        return ipcRenderer.invoke("open-web-controller");
+    },
     onLog: function (callback) {
         ipcRenderer.on("bridge-log", function (_event, line) {
             callback(line);

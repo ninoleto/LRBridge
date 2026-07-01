@@ -109,6 +109,7 @@
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
+            margin-top: 8px;
         }
 
         input {
@@ -121,10 +122,18 @@
             width: 110px;
         }
 
-        .hint {
-            margin-top: 8px;
+        .polling-guide {
+            margin-top: 10px;
             color: #9fb0bf;
             font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .settings-message {
+            margin-top: 8px;
+            color: #d7e1ea;
+            font-size: 13px;
+            min-height: 18px;
         }
 
         .main {
@@ -154,6 +163,7 @@
             padding: 0 22px 16px 22px;
             color: #8394a3;
             font-size: 13px;
+            line-height: 1.5;
         }
 
         a {
@@ -164,33 +174,35 @@
 <body>
     <header>
         <h1>LRBridge</h1>
-        <div class="subtitle">Bridge is active. You can use Lightroom Classic with Companion.</div>
+        <div class="subtitle">Bridge is active. You can use Lightroom Classic with the LRBridge HTTP API.</div>
     </header>
 
     <section class="actions">
         <button id="startLightroom">Start Lightroom Classic</button>
+        <button id="openWebController" class="secondary">Open web controller</button>
         <button id="openHelp" class="secondary">Open help</button>
     </section>
 
     <section class="status">
         <div class="card">
-            <div class="label">HTTP</div>
+            <div class="label">HTTP API</div>
             <div class="value">http://127.0.0.1:17891</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Web Controller</div>
+            <div class="value"><a id="controllerUrl" href="http://127.0.0.1:17892/" target="_blank">Loading...</a></div>
         </div>
 
         <div class="card">
             <div class="label">Polling</div>
             <div class="value"><span id="polling">Loading...</span></div>
         </div>
-
-        <div class="card">
-            <div class="label">Lightroom</div>
-            <div class="value" id="lightroomPath">Loading...</div>
-        </div>
     </section>
 
     <section class="settings">
         <div class="label">Settings</div>
+
         <div class="settings-row">
             <span>Polling interval</span>
             <input id="pollingInput" type="number" min="10" max="1000" step="1">
@@ -198,9 +210,15 @@
             <button id="saveSettings">Save settings</button>
             <button id="defaultSettings" class="warning">Default settings</button>
         </div>
-        <div class="hint" id="settingsHint">
-            Changes are saved to config/settings.txt and apply automatically within about 1 second.
+
+        <div class="polling-guide">
+            Default: <strong>100 ms</strong>. Use <strong>50 ms or lower</strong> if Lightroom feels too slow to react.
+            Use <strong>200 ms or higher</strong> if Lightroom stalls, skips, or feels overloaded.
+            Changes apply automatically within about 1 second.
+            Help endpoint: <a href="http://127.0.0.1:17891/help">/help</a>
         </div>
+
+        <div class="settings-message" id="settingsMessage"></div>
     </section>
 
     <main class="main">
@@ -209,8 +227,12 @@
     </main>
 
     <div class="footer">
-        Recommended default polling interval: <strong>50 ms</strong>.
-        Help endpoint: <a href="http://127.0.0.1:17891/help">/help</a>
+        <div>Keep LRBridge running while controlling Lightroom Classic through the LRBridge HTTP API.</div>
+        <div>You can use Bitfocus Companion or any HTTP-capable device/app.</div>
+        <div>
+            LRBridge is open source. Support development:
+            <a href="https://ko-fi.com/ninoleto">ko-fi.com/ninoleto</a>
+        </div>
     </div>
 
     <script src="renderer.js"></script>

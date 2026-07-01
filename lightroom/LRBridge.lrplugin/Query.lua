@@ -54,3 +54,5 @@ function Query.getDevelopValue(slider)
 end
 
 return Query
+
+

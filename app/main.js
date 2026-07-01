@@ -1,15 +1,21 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const http = require("http");
 
 const projectRoot = path.join(__dirname, "..");
 const bridgePath = path.join(projectRoot, "bridge.js");
 const settingsPath = path.join(projectRoot, "config", "settings.txt");
 const trayIconPath = path.join(__dirname, "tray.png");
+const controllerPath = path.join(__dirname, "controller.html");
 
-const defaultPollingMs = 50;
+const defaultPollingMs = 100;
 const minPollingMs = 10;
 const maxPollingMs = 1000;
+
+const bridgeHttpPort = 17891;
+const controllerPort = 17892;
+const controllerUrl = "http://127.0.0.1:" + controllerPort + "/";
 
 const defaultLightroomPath = path.join(
     process.env.ProgramFiles || "C:\\Program Files",
@@ -22,6 +28,8 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 let bridgeStarted = false;
+let controllerServerStarted = false;
+let controllerServer = null;
 
 const logLines = [];
 
@@ -92,7 +100,24 @@ function clampPollingMs(value) {
     return Math.round(numericValue);
 }
 
+function ensureSettingsFile() {
+    const settingsDir = path.dirname(settingsPath);
+
+    if (!fs.existsSync(settingsDir)) {
+        fs.mkdirSync(settingsDir, {
+            recursive: true
+        });
+    }
+
+    if (!fs.existsSync(settingsPath)) {
+        fs.writeFileSync(settingsPath, "poll_interval_ms=" + defaultPollingMs + "\n", "utf8");
+        console.log("Created missing settings file:", settingsPath);
+    }
+}
+
 function readPollingMs() {
+    ensureSettingsFile();
+
     try {
         const content = fs.readFileSync(settingsPath, "utf8");
         const match = content.match(/poll_interval_ms\s*=\s*(\d+)/);
@@ -104,6 +129,7 @@ function readPollingMs() {
         return defaultPollingMs;
     }
 
+    writePollingMs(defaultPollingMs);
     return defaultPollingMs;
 }
 
@@ -155,6 +181,169 @@ function startBridge() {
     }
 }
 
+function bridgeGet(pathAndQuery) {
+    return new Promise(function (resolve) {
+        const request = http.request(
+            {
+                hostname: "127.0.0.1",
+                port: bridgeHttpPort,
+                path: pathAndQuery,
+                method: "GET",
+                timeout: 10000
+            },
+            function (response) {
+                let body = "";
+
+                response.setEncoding("utf8");
+
+                response.on("data", function (chunk) {
+                    body += chunk;
+                });
+
+                response.on("end", function () {
+                    resolve({
+                        ok: response.statusCode >= 200 && response.statusCode < 300,
+                        statusCode: response.statusCode,
+                        body: body
+                    });
+                });
+            }
+        );
+
+        request.on("error", function (err) {
+            resolve({
+                ok: false,
+                statusCode: 500,
+                body: JSON.stringify({
+                    ok: false,
+                    error: err.message
+                })
+            });
+        });
+
+        request.on("timeout", function () {
+            request.destroy(new Error("Request timed out"));
+        });
+
+        request.end();
+    });
+}
+
+function sendControllerResponse(response, statusCode, contentType, body) {
+    response.writeHead(statusCode, {
+        "Content-Type": contentType,
+        "Cache-Control": "no-store"
+    });
+
+    response.end(body);
+}
+
+async function proxyBridgeRequest(response, bridgePathAndQuery) {
+    const result = await bridgeGet(bridgePathAndQuery);
+
+    sendControllerResponse(
+        response,
+        result.statusCode || 500,
+        "application/json; charset=utf-8",
+        result.body || "{}"
+    );
+}
+
+function startControllerServer() {
+    if (controllerServerStarted) {
+        return;
+    }
+
+    controllerServerStarted = true;
+
+    controllerServer = http.createServer(async function (request, response) {
+        const requestUrl = new URL(request.url, controllerUrl);
+
+        if (requestUrl.pathname === "/" || requestUrl.pathname === "/controller") {
+            try {
+                const html = fs.readFileSync(controllerPath, "utf8");
+                sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
+            } catch (err) {
+                sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
+            }
+
+            return;
+        }
+
+        if (requestUrl.pathname === "/api/help") {
+            await proxyBridgeRequest(response, "/help");
+            return;
+        }
+
+        if (requestUrl.pathname === "/api/sliders") {
+            await proxyBridgeRequest(response, "/sliders");
+            return;
+        }
+
+        if (requestUrl.pathname === "/api/groups") {
+            await proxyBridgeRequest(response, "/groups");
+            return;
+        }
+
+        if (requestUrl.pathname === "/api/adjust") {
+            const slider = requestUrl.searchParams.get("slider") || "";
+            const amount = requestUrl.searchParams.get("amount") || "";
+
+            await proxyBridgeRequest(
+                response,
+                "/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount)
+            );
+
+            return;
+        }
+
+        if (requestUrl.pathname === "/api/reset") {
+            const slider = requestUrl.searchParams.get("slider") || "";
+
+            await proxyBridgeRequest(
+                response,
+                "/reset?slider=" + encodeURIComponent(slider)
+            );
+
+            return;
+        }
+
+        if (requestUrl.pathname === "/api/reset-group") {
+            const group = requestUrl.searchParams.get("group") || "";
+
+            await proxyBridgeRequest(
+                response,
+                "/reset-group?group=" + encodeURIComponent(group)
+            );
+
+            return;
+        }
+
+        if (requestUrl.pathname === "/api/reset-all") {
+            await proxyBridgeRequest(response, "/reset-all");
+            return;
+        }
+
+        sendControllerResponse(
+            response,
+            404,
+            "application/json; charset=utf-8",
+            JSON.stringify({
+                ok: false,
+                error: "Not found"
+            })
+        );
+    });
+
+    controllerServer.on("error", function (err) {
+        console.error("Web controller server failed:", err.message);
+    });
+
+    controllerServer.listen(controllerPort, "127.0.0.1", function () {
+        console.log("LRBridge web controller listening on " + controllerUrl);
+    });
+}
+
 async function startLightroom() {
     if (!fs.existsSync(defaultLightroomPath)) {
         console.error("Lightroom Classic was not found:", defaultLightroomPath);
@@ -193,12 +382,24 @@ async function openHelp() {
     };
 }
 
+async function openWebController() {
+    startControllerServer();
+
+    console.log("Opening web controller:", controllerUrl);
+    await shell.openExternal(controllerUrl);
+
+    return {
+        ok: true,
+        url: controllerUrl
+    };
+}
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 940,
-        height: 680,
+        height: 700,
         minWidth: 760,
-        minHeight: 540,
+        minHeight: 560,
         title: "LRBridge",
         icon: trayIconPath,
         webPreferences: {
@@ -243,6 +444,12 @@ function createTray() {
             label: "Start Lightroom Classic",
             click: function () {
                 startLightroom();
+            }
+        },
+        {
+            label: "Open Web Controller",
+            click: function () {
+                openWebController();
             }
         },
         {
@@ -292,6 +499,7 @@ if (!gotLock) {
         createWindow();
         createTray();
         startBridge();
+        startControllerServer();
     });
 
     app.on("window-all-closed", function () {
@@ -300,6 +508,10 @@ if (!gotLock) {
 
     app.on("before-quit", function () {
         isQuitting = true;
+
+        if (controllerServer !== null) {
+            controllerServer.close();
+        }
     });
 }
 
@@ -312,6 +524,7 @@ ipcMain.handle("get-initial-state", function () {
         maxPollingMs: maxPollingMs,
         settingsPath: settingsPath,
         lightroomPath: defaultLightroomPath,
+        controllerUrl: controllerUrl,
         logs: logLines
     };
 });
@@ -336,5 +549,9 @@ ipcMain.handle("reset-settings", function () {
 
 ipcMain.handle("open-help", function () {
     return openHelp();
+});
+
+ipcMain.handle("open-web-controller", function () {
+    return openWebController();
 });
 

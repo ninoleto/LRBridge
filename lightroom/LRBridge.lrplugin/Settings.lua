@@ -2,6 +2,10 @@ local Settings = {}
 
 local settingsPath = "D:\\Projects\\LRBridge\\config\\settings.txt"
 
+local defaultPollIntervalMs = 100
+local minPollIntervalMs = 10
+local maxPollIntervalMs = 1000
+
 local function clamp(value, minValue, maxValue)
 
     if value < minValue then
@@ -16,33 +20,58 @@ local function clamp(value, minValue, maxValue)
 
 end
 
-function Settings.load()
+local function writeDefaultSettings()
 
-    local config = {
-        pollInterval = 0.05
-    }
+    local file = io.open(settingsPath, "w")
+
+    if file ~= nil then
+        file:write("poll_interval_ms=" .. tostring(defaultPollIntervalMs) .. "\n")
+        file:close()
+    end
+
+end
+
+local function readFile()
 
     local file = io.open(settingsPath, "r")
 
     if file == nil then
-        return config
+        writeDefaultSettings()
+        file = io.open(settingsPath, "r")
+    end
+
+    if file == nil then
+        return nil
     end
 
     local content = file:read("*all")
     file:close()
 
-    local pollMs = string.match(content, "poll_interval_ms%s*=%s*(%d+)")
+    return content
 
-    if pollMs ~= nil then
-        pollMs = tonumber(pollMs)
+end
 
-        if pollMs ~= nil then
-            pollMs = clamp(pollMs, 10, 1000)
-            config.pollInterval = pollMs / 1000
+function Settings.load()
+
+    local content = readFile()
+    local pollIntervalMs = defaultPollIntervalMs
+
+    if content ~= nil then
+
+        local value = string.match(content, "poll_interval_ms%s*=%s*(%d+)")
+
+        if value ~= nil then
+            pollIntervalMs = tonumber(value)
         end
+
     end
 
-    return config
+    pollIntervalMs = clamp(pollIntervalMs, minPollIntervalMs, maxPollIntervalMs)
+
+    return {
+        pollIntervalMs = pollIntervalMs,
+        pollInterval = pollIntervalMs / 1000
+    }
 
 end
 

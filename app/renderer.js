@@ -1,15 +1,17 @@
 const terminal = document.getElementById("terminal");
 const polling = document.getElementById("polling");
-const lightroomPath = document.getElementById("lightroomPath");
+const controllerUrl = document.getElementById("controllerUrl");
 const pollingInput = document.getElementById("pollingInput");
-const settingsHint = document.getElementById("settingsHint");
+const settingsMessage = document.getElementById("settingsMessage");
 
 const startLightroomButton = document.getElementById("startLightroom");
+const openWebControllerButton = document.getElementById("openWebController");
 const openHelpButton = document.getElementById("openHelp");
 const saveSettingsButton = document.getElementById("saveSettings");
 const defaultSettingsButton = document.getElementById("defaultSettings");
 
-let defaultPollingMs = 50;
+let defaultPollingMs = 100;
+let currentControllerUrl = "http://127.0.0.1:17892/";
 
 function appendLog(line) {
     const div = document.createElement("div");
@@ -27,11 +29,14 @@ async function init() {
     const state = await window.lrbridge.getInitialState();
 
     defaultPollingMs = state.defaultPollingMs;
+    currentControllerUrl = state.controllerUrl || currentControllerUrl;
 
     setPollingDisplay(state.pollingMs);
     pollingInput.min = state.minPollingMs;
     pollingInput.max = state.maxPollingMs;
-    lightroomPath.textContent = state.lightroomPath;
+
+    controllerUrl.textContent = currentControllerUrl;
+    controllerUrl.href = currentControllerUrl;
 
     for (const line of state.logs) {
         appendLog(line);
@@ -52,6 +57,11 @@ startLightroomButton.addEventListener("click", async function () {
     }
 });
 
+openWebControllerButton.addEventListener("click", function () {
+    appendLog("UI: Open web controller clicked.");
+    window.open(currentControllerUrl, "_blank");
+});
+
 openHelpButton.addEventListener("click", async function () {
     appendLog("UI: Open help clicked.");
     await window.lrbridge.openHelp();
@@ -66,11 +76,12 @@ saveSettingsButton.addEventListener("click", async function () {
 
     if (!result.ok) {
         appendLog("UI ERROR: " + result.error);
+        settingsMessage.textContent = "Error: " + result.error;
         return;
     }
 
     setPollingDisplay(result.pollingMs);
-    settingsHint.textContent = "Saved. Change applies automatically within about 1 second.";
+    settingsMessage.textContent = "Settings saved to " + result.pollingMs + " ms. Change applies automatically within about 1 second.";
 });
 
 defaultSettingsButton.addEventListener("click", async function () {
@@ -80,12 +91,12 @@ defaultSettingsButton.addEventListener("click", async function () {
 
     if (!result.ok) {
         appendLog("UI ERROR: " + result.error);
+        settingsMessage.textContent = "Error: " + result.error;
         return;
     }
 
     setPollingDisplay(result.pollingMs);
-    settingsHint.textContent = "Default settings restored. Change applies automatically within about 1 second.";
+    settingsMessage.textContent = "Default settings restored to " + result.pollingMs + " ms. Change applies automatically within about 1 second.";
 });
 
 init();
-
