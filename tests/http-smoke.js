@@ -49,6 +49,7 @@ async function main() {
     console.log("Base URL:", baseUrl);
     console.log("");
 
+    await expectOk("/help");
     await expectOk("/status");
     await expectOk("/sliders");
     await expectOk("/groups");
