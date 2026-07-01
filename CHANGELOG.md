@@ -1,5 +1,63 @@
 # Changelog
 
+## v0.2.0-autostart
+
+Autostart Lightroom polling with UI wake.
+
+Tagged version:
+
+```text
+v0.2.0-autostart
+```
+
+### Added
+
+- Lightroom plug-in startup using `PluginInit.lua`
+- Silent auto polling file:
+  - `AutoStartPolling.lua`
+- Windows Lightroom wake helper:
+  - `server/lightroomWake.js`
+- LRBridge Node startup watcher for Lightroom Classic
+- Automatic Lightroom wake to Library when Lightroom starts
+- Slider commands switch Lightroom back to Develop through the Lightroom driver
+- No manual `Plug-in Extras → Start LRBridge Polling` needed in normal use
+
+### Working startup flow
+
+```text
+Start LRBridge
+        ↓
+Start Lightroom Classic
+        ↓
+LRBridge detects Lightroom window
+        ↓
+LRBridge wakes Lightroom UI by switching to Library
+        ↓
+Lightroom plug-in autostarts polling
+        ↓
+First slider command switches to Develop and moves slider
+```
+
+### Important behavior
+
+When Lightroom starts directly into Develop, LRBridge wakes it by switching to Library first.
+
+This is intentional.
+
+Without that UI wake, Lightroom may receive commands but not apply Develop slider changes live.
+
+### Still kept as fallback
+
+Manual menu item still exists:
+
+```text
+Library → Plug-in Extras → Start LRBridge Polling
+```
+
+This is only a fallback now.
+
+Normal use should not require it.
+
 ## v0.1.1-help
 
 Adds the help endpoint and smoke test coverage.
