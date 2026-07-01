@@ -28,6 +28,7 @@ end
 _G.LRBridgePollingStarted = true
 
 local config = Settings.load()
+local lastSettingsReload = os.time()
 
 log("silent polling started, interval " .. tostring(config.pollInterval))
 
@@ -36,6 +37,23 @@ LrTasks.startAsyncTask(function()
     log("polling loop started")
 
     while _G.LRBridgePollingStarted == true do
+
+        local now = os.time()
+
+        if now ~= lastSettingsReload then
+
+            lastSettingsReload = now
+
+            local newConfig = Settings.load()
+
+            if newConfig.pollInterval ~= config.pollInterval then
+                config = newConfig
+                log("polling interval changed to " .. tostring(config.pollInterval))
+            else
+                config = newConfig
+            end
+
+        end
 
         local result = LrHttp.get("http://127.0.0.1:17891/next")
 

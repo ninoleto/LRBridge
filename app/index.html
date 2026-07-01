@@ -29,6 +29,46 @@
             font-size: 14px;
         }
 
+        .actions {
+            display: flex;
+            gap: 10px;
+            padding: 16px 22px;
+            background: #111820;
+            border-bottom: 1px solid #28323d;
+        }
+
+        button {
+            background: #2a6f97;
+            color: #ffffff;
+            border: 1px solid #3a8cc0;
+            border-radius: 7px;
+            padding: 10px 14px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #327eab;
+        }
+
+        button.secondary {
+            background: #273442;
+            border-color: #3b4b5c;
+        }
+
+        button.secondary:hover {
+            background: #314151;
+        }
+
+        button.warning {
+            background: #7a4f24;
+            border-color: #9b6530;
+        }
+
+        button.warning:hover {
+            background: #8a5a2a;
+        }
+
         .status {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -55,6 +95,36 @@
         .value {
             margin-top: 6px;
             font-size: 15px;
+            word-break: break-word;
+        }
+
+        .settings {
+            padding: 16px 22px;
+            background: #111820;
+            border-bottom: 1px solid #28323d;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input {
+            background: #050708;
+            color: #d7e1ea;
+            border: 1px solid #2b3744;
+            border-radius: 7px;
+            padding: 9px 10px;
+            font-size: 14px;
+            width: 110px;
+        }
+
+        .hint {
+            margin-top: 8px;
+            color: #9fb0bf;
+            font-size: 13px;
         }
 
         .main {
@@ -97,6 +167,11 @@
         <div class="subtitle">Bridge is active. You can use Lightroom Classic with Companion.</div>
     </header>
 
+    <section class="actions">
+        <button id="startLightroom">Start Lightroom Classic</button>
+        <button id="openHelp" class="secondary">Open help</button>
+    </section>
+
     <section class="status">
         <div class="card">
             <div class="label">HTTP</div>
@@ -110,7 +185,21 @@
 
         <div class="card">
             <div class="label">Lightroom</div>
-            <div class="value">Start Lightroom after LRBridge is running.</div>
+            <div class="value" id="lightroomPath">Loading...</div>
+        </div>
+    </section>
+
+    <section class="settings">
+        <div class="label">Settings</div>
+        <div class="settings-row">
+            <span>Polling interval</span>
+            <input id="pollingInput" type="number" min="10" max="1000" step="1">
+            <span>ms</span>
+            <button id="saveSettings">Save settings</button>
+            <button id="defaultSettings" class="warning">Default settings</button>
+        </div>
+        <div class="hint" id="settingsHint">
+            Changes are saved to config/settings.txt and apply automatically within about 1 second.
         </div>
     </section>
 
@@ -120,10 +209,11 @@
     </main>
 
     <div class="footer">
-        If controls feel slow, edit <strong>config/settings.txt</strong>.
+        Recommended default polling interval: <strong>50 ms</strong>.
         Help endpoint: <a href="http://127.0.0.1:17891/help">/help</a>
     </div>
 
     <script src="renderer.js"></script>
 </body>
 </html>
+

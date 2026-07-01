@@ -1,1 +1,1 @@
-poll_interval_ms=20
+poll_interval_ms=50

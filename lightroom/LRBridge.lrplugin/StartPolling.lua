@@ -20,6 +20,7 @@ end
 _G.LRBridgePollingStarted = true
 
 local config = Settings.load()
+local lastSettingsReload = os.time()
 
 LrDialogs.message(
     "LRBridge",
@@ -29,6 +30,13 @@ LrDialogs.message(
 LrTasks.startAsyncTask(function()
 
     while _G.LRBridgePollingStarted == true do
+
+        local now = os.time()
+
+        if now ~= lastSettingsReload then
+            lastSettingsReload = now
+            config = Settings.load()
+        end
 
         local result = LrHttp.get("http://127.0.0.1:17891/next")
 
