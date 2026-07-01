@@ -6,7 +6,8 @@
   "scripts": {
     "test": "npm run smoke",
     "start": "node bridge.js",
-    "smoke": "node tests/http-smoke.js"
+    "smoke": "node tests/http-smoke.js",
+    "app": "electron app/main.js"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +16,8 @@
   "dependencies": {
     "express": "^5.2.1",
     "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "electron": "^43.0.0"
   }
 }

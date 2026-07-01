@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>LRBridge</title>
+    <style>
+        body {
+            margin: 0;
+            background: #101418;
+            color: #d7e1ea;
+            font-family: Segoe UI, Arial, sans-serif;
+        }
+
+        header {
+            padding: 18px 22px;
+            background: #161d24;
+            border-bottom: 1px solid #28323d;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            margin-top: 6px;
+            color: #9fb0bf;
+            font-size: 14px;
+        }
+
+        .status {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            padding: 16px 22px;
+            background: #111820;
+            border-bottom: 1px solid #28323d;
+        }
+
+        .card {
+            background: #18212a;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .label {
+            color: #8fa2b3;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .value {
+            margin-top: 6px;
+            font-size: 15px;
+        }
+
+        .main {
+            padding: 16px 22px;
+        }
+
+        .terminal-title {
+            margin-bottom: 8px;
+            color: #9fb0bf;
+            font-size: 13px;
+        }
+
+        #terminal {
+            height: 300px;
+            overflow-y: auto;
+            background: #050708;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+
+        .footer {
+            padding: 0 22px 16px 22px;
+            color: #8394a3;
+            font-size: 13px;
+        }
+
+        a {
+            color: #6dc8ff;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>LRBridge</h1>
+        <div class="subtitle">Bridge is active. You can use Lightroom Classic with Companion.</div>
+    </header>
+
+    <section class="status">
+        <div class="card">
+            <div class="label">HTTP</div>
+            <div class="value">http://127.0.0.1:17891</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Polling</div>
+            <div class="value"><span id="polling">Loading...</span></div>
+        </div>
+
+        <div class="card">
+            <div class="label">Lightroom</div>
+            <div class="value">Start Lightroom after LRBridge is running.</div>
+        </div>
+    </section>
+
+    <main class="main">
+        <div class="terminal-title">Bridge log</div>
+        <div id="terminal"></div>
+    </main>
+
+    <div class="footer">
+        If controls feel slow, edit <strong>config/settings.txt</strong>.
+        Help endpoint: <a href="http://127.0.0.1:17891/help">/help</a>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
