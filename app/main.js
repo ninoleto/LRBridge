@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+const os = require("os");
 
 const projectRoot = path.join(__dirname, "..");
 const bridgePath = path.join(projectRoot, "bridge.js");
@@ -15,7 +16,48 @@ const maxPollingMs = 1000;
 
 const bridgeHttpPort = 17891;
 const controllerPort = 17892;
-const controllerUrl = "http://127.0.0.1:" + controllerPort + "/";
+const controllerListenHost = "0.0.0.0";
+const controllerLocalUrl = "http://127.0.0.1:" + controllerPort + "/";
+
+function isLikelyLanAddress(address) {
+    if (address.startsWith("192.168.")) {
+        return true;
+    }
+
+    if (address.startsWith("10.")) {
+        return true;
+    }
+
+    const match = address.match(/^172\.(\d+)\./);
+
+    if (match) {
+        const second = Number(match[1]);
+        return second >= 16 && second <= 31;
+    }
+
+    return false;
+}
+
+function getLanAddresses() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+
+    for (const interfaceName of Object.keys(interfaces)) {
+        for (const item of interfaces[interfaceName]) {
+            if (item.family === "IPv4" && !item.internal && isLikelyLanAddress(item.address)) {
+                addresses.push(item.address);
+            }
+        }
+    }
+
+    return addresses;
+}
+
+const controllerLanUrls = getLanAddresses().map(function (address) {
+    return "http://" + address + ":" + controllerPort + "/";
+});
+
+const controllerUrl = controllerLocalUrl;
 
 const defaultLightroomPath = path.join(
     process.env.ProgramFiles || "C:\\Program Files",
@@ -339,8 +381,17 @@ function startControllerServer() {
         console.error("Web controller server failed:", err.message);
     });
 
-    controllerServer.listen(controllerPort, "127.0.0.1", function () {
-        console.log("LRBridge web controller listening on " + controllerUrl);
+    controllerServer.listen(controllerPort, controllerListenHost, function () {
+        console.log("LRBridge web controller listening on LAN.");
+        console.log("Local web controller: " + controllerLocalUrl);
+
+        if (controllerLanUrls.length === 0) {
+            console.log("LAN web controller: no LAN IP detected");
+        } else {
+            for (const url of controllerLanUrls) {
+                console.log("LAN web controller: " + url);
+            }
+        }
     });
 }
 
@@ -524,7 +575,8 @@ ipcMain.handle("get-initial-state", function () {
         maxPollingMs: maxPollingMs,
         settingsPath: settingsPath,
         lightroomPath: defaultLightroomPath,
-        controllerUrl: controllerUrl,
+        controllerUrl: controllerLocalUrl,
+        controllerLanUrls: controllerLanUrls,
         logs: logLines
     };
 });

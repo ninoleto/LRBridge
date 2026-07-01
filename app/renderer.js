@@ -1,6 +1,7 @@
 const terminal = document.getElementById("terminal");
 const polling = document.getElementById("polling");
 const controllerUrl = document.getElementById("controllerUrl");
+const controllerLanUrls = document.getElementById("controllerLanUrls");
 const pollingInput = document.getElementById("pollingInput");
 const settingsMessage = document.getElementById("settingsMessage");
 
@@ -37,6 +38,28 @@ async function init() {
 
     controllerUrl.textContent = currentControllerUrl;
     controllerUrl.href = currentControllerUrl;
+
+    if (state.controllerLanUrls && state.controllerLanUrls.length > 0) {
+        controllerLanUrls.textContent = "";
+
+        const label = document.createElement("span");
+        label.textContent = "LAN: ";
+        controllerLanUrls.appendChild(label);
+
+        state.controllerLanUrls.forEach(function (url, index) {
+            if (index > 0) {
+                controllerLanUrls.appendChild(document.createTextNode(" "));
+            }
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.target = "_blank";
+            link.textContent = url;
+            controllerLanUrls.appendChild(link);
+        });
+    } else {
+        controllerLanUrls.textContent = "LAN: no LAN IP detected";
+    }
 
     for (const line of state.logs) {
         appendLog(line);
