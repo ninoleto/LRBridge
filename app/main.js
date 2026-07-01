@@ -174,7 +174,7 @@ function startBridge() {
     try {
         require(bridgePath);
         console.log("LRBridge is active.");
-        console.log("You can use Lightroom Classic with Companion.");
+        console.log("You can use Lightroom Classic through the LRBridge HTTP API.");
         console.log("If controls feel slow, edit polling settings in this app. Changes apply automatically.");
     } catch (err) {
         console.error("Failed to start LRBridge:", err.message);
