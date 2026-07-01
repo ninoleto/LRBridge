@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.1.1-help
+
+Adds the help endpoint and smoke test coverage.
+
+Tagged version:
+
+```text
+v0.1.1-help
+```
+
+### Added
+
+- `/help` endpoint
+- `/help` documentation in `README.md`
+- `/help` documentation in `PROJECT_STATE.md`
+- `/help` smoke test coverage
+
+### Help endpoint
+
+```text
+GET /help
+```
+
+Example:
+
+```text
+http://127.0.0.1:17891/help
+```
+
+LAN example:
+
+```text
+http://192.168.1.11:17891/help
+```
+
+The endpoint returns:
+
+- reliable endpoints
+- experimental endpoints
+- one-way control notes
+- amount behavior reminder
+
 ## v0.1.0-one-way
 
 Stable one-way Lightroom slider control.
