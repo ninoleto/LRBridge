@@ -3,6 +3,7 @@ const WebSocket = require("ws");
 
 const commands = require("./server/commands");
 const sliders = require("./server/sliders");
+const lightroomWake = require("./server/lightroomWake");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -69,13 +70,15 @@ app.get("/help", function (req, res) {
         mode: "one-way-lightroom-control",
         sourceOfTruth: "Lightroom visible UI",
         reliableEndpoints: {
+            help: "/help",
             status: "/status",
             sliders: "/sliders",
             groups: "/groups",
             adjust: "/adjust?slider=Exposure&amount=1",
             reset: "/reset?slider=Exposure",
             resetGroup: "/reset-group?group=Basic",
-            resetAll: "/reset-all"
+            resetAll: "/reset-all",
+            wakeLightroom: "/wake-lightroom"
         },
         experimentalEndpoints: {
             get: "/get?slider=Exposure",
@@ -86,9 +89,21 @@ app.get("/help", function (req, res) {
             "Use /adjust and /reset for Companion control.",
             "Do not depend on /get for feedback.",
             "Do not use /set for normal control.",
-            "amount means number of Lightroom increment steps."
+            "amount means number of Lightroom increment steps.",
+            "On Windows, LRBridge wakes Lightroom to Library on startup. Slider commands switch Lightroom to Develop."
         ]
     });
+});
+
+app.get("/wake-lightroom", async function (req, res) {
+    const result = await lightroomWake.wakeLightroom();
+
+    if (!result.ok) {
+        res.status(400).json(result);
+        return;
+    }
+
+    res.json(result);
 });
 
 app.get("/status", function (req, res) {
@@ -305,6 +320,7 @@ app.get("/last-result", function (req, res) {
 
 app.listen(HTTP_PORT, function () {
     console.log("LRBridge HTTP server listening on http://localhost:" + HTTP_PORT);
+    lightroomWake.startWatcher();
 });
 
 const wsServer = new WebSocket.Server({ port: WS_PORT });

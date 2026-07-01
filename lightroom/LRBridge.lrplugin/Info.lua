@@ -7,6 +7,9 @@ return {
     LrToolkitIdentifier = "com.nino.lrbridge",
     LrPluginName = "LRBridge",
 
+    LrInitPlugin = "PluginInit.lua",
+    LrForceInitPlugin = true,
+
     LrLibraryMenuItems = {
         {
             title = "Start LRBridge Polling",
