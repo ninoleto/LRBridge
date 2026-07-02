@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Tray, Menu, ipcMain, shell, clipboard } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -547,6 +547,7 @@ if (!gotLock) {
     patchConsole();
 
     app.whenReady().then(function () {
+        Menu.setApplicationMenu(null);
         createWindow();
         createTray();
         startBridge();
@@ -606,4 +607,22 @@ ipcMain.handle("open-help", function () {
 ipcMain.handle("open-web-controller", function () {
     return openWebController();
 });
+
+ipcMain.handle("copy-text", function (_event, text) {
+    clipboard.writeText(String(text));
+
+    return {
+        ok: true
+    };
+});
+
+ipcMain.handle("quit-app", function () {
+    isQuitting = true;
+    app.quit();
+
+    return {
+        ok: true
+    };
+});
+
 

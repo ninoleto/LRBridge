@@ -10,6 +10,9 @@ const openWebControllerButton = document.getElementById("openWebController");
 const openHelpButton = document.getElementById("openHelp");
 const saveSettingsButton = document.getElementById("saveSettings");
 const defaultSettingsButton = document.getElementById("defaultSettings");
+const quitAppButton = document.getElementById("quitApp");
+const shareLocalControllerButton = document.getElementById("shareLocalController");
+const shareLocalStatus = document.getElementById("shareLocalStatus");
 
 let defaultPollingMs = 100;
 let currentControllerUrl = "http://127.0.0.1:17892/";
@@ -26,6 +29,32 @@ function setPollingDisplay(value) {
     pollingInput.value = value;
 }
 
+async function shareLink(url, statusElement) {
+    await window.lrbridge.copyText(url);
+
+    if (statusElement) {
+        statusElement.textContent = "URL copied to clipboard: " + url;
+    }
+}
+
+function createShareIconButton(url, statusElement) {
+    const button = document.createElement("button");
+    button.className = "share-url";
+    button.title = "Copy share link";
+    button.setAttribute("aria-label", "Copy share link");
+
+    button.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M18 16.1C17.24 16.1 16.56 16.4 16.04 16.88L8.91 12.73C8.96 12.5 9 12.26 9 12C9 11.74 8.96 11.5 8.91 11.27L15.96 7.16C16.5 7.66 17.21 7.97 18 7.97C19.66 7.97 21 6.63 21 4.97C21 3.31 19.66 2 18 2C16.34 2 15 3.31 15 4.97C15 5.23 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.31 6.79 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.79 15 7.5 14.69 8.04 14.19L15.16 18.35C15.11 18.56 15.08 18.78 15.08 19C15.08 20.61 16.39 21.92 18 21.92C19.61 21.92 20.92 20.61 20.92 19C20.92 17.39 19.61 16.1 18 16.1Z"></path>' +
+        "</svg>";
+
+    button.addEventListener("click", function () {
+        shareLink(url, statusElement);
+    });
+
+    return button;
+}
+
 function renderLanUrls(urls) {
     controllerLanUrls.textContent = "";
 
@@ -35,12 +64,22 @@ function renderLanUrls(urls) {
     }
 
     urls.forEach(function (url) {
+        const row = document.createElement("div");
+        row.className = "url-row";
+
         const link = document.createElement("a");
         link.href = url;
         link.target = "_blank";
         link.textContent = url;
         link.className = "url-pill";
-        controllerLanUrls.appendChild(link);
+
+        const status = document.createElement("span");
+        status.className = "share-status";
+
+        row.appendChild(link);
+        row.appendChild(createShareIconButton(url, status));
+        row.appendChild(status);
+        controllerLanUrls.appendChild(row);
     });
 
     if (urls.length > 1) {
@@ -95,6 +134,15 @@ openHelpButton.addEventListener("click", async function () {
     await window.lrbridge.openHelp();
 });
 
+quitAppButton.addEventListener("click", async function () {
+    appendLog("UI: Quit LRBridge clicked.");
+    await window.lrbridge.quitApp();
+});
+
+shareLocalControllerButton.addEventListener("click", function () {
+    shareLink(currentControllerUrl, shareLocalStatus);
+});
+
 saveSettingsButton.addEventListener("click", async function () {
     appendLog("UI: Save settings clicked.");
 
@@ -128,4 +176,5 @@ defaultSettingsButton.addEventListener("click", async function () {
 });
 
 init();
+
 

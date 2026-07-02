@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld("lrbridge", {
     openWebController: function () {
         return ipcRenderer.invoke("open-web-controller");
     },
+    copyText: function (text) {
+        return ipcRenderer.invoke("copy-text", text);
+    },
+    quitApp: function () {
+        return ipcRenderer.invoke("quit-app");
+    },
     onLog: function (callback) {
         ipcRenderer.on("bridge-log", function (_event, line) {
             callback(line);

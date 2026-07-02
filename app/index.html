@@ -60,6 +60,15 @@
             background: #314151;
         }
 
+        #openWebController {
+            background: #1f766f;
+            border-color: #33a89a;
+        }
+
+        #openWebController:hover {
+            background: #258b82;
+        }
+
         button.warning {
             background: #7a4f24;
             border-color: #9b6530;
@@ -67,6 +76,15 @@
 
         button.warning:hover {
             background: #8a5a2a;
+        }
+
+        button.danger {
+            background: #6b2833;
+            border-color: #9a3c4b;
+        }
+
+        button.danger:hover {
+            background: #7c303d;
         }
 
         .dashboard {
@@ -162,6 +180,46 @@
             text-decoration: underline;
         }
 
+        .url-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .share-url {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 33px;
+            height: 33px;
+            padding: 0;
+            margin: 0 8px 8px 0;
+            background: #273442;
+            border: 1px solid #3b4b5c;
+            border-radius: 7px;
+            color: #d7e1ea;
+        }
+
+        .share-url:hover {
+            background: #314151;
+            color: #ffffff;
+        }
+
+        .share-url svg {
+            width: 17px;
+            height: 17px;
+            fill: currentColor;
+        }
+
+        .share-status {
+            color: #ffb454;
+            font-size: 13px;
+            margin: 0 0 8px 0;
+            min-width: 52px;
+        }
+
         .network-note {
             margin-top: 4px;
             color: #9fb0bf;
@@ -224,6 +282,7 @@
         <button id="startLightroom">Start Lightroom Classic</button>
         <button id="openWebController" class="secondary">Open web controller</button>
         <button id="openHelp" class="secondary">Open help</button>
+        <button id="quitApp" class="danger">Quit LRBridge</button>
     </section>
 
     <section class="dashboard">
@@ -253,7 +312,15 @@
 
             <div class="url-section">
                 <div class="url-title">Local access:</div>
-                <a class="url-pill" id="controllerUrl" href="http://127.0.0.1:17892/" target="_blank">Loading...</a>
+                <span class="url-row">
+                    <a class="url-pill" id="controllerUrl" href="http://127.0.0.1:17892/" target="_blank">Loading...</a>
+                    <button class="share-url" id="shareLocalController" title="Copy share link" aria-label="Copy share link">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M18 16.1C17.24 16.1 16.56 16.4 16.04 16.88L8.91 12.73C8.96 12.5 9 12.26 9 12C9 11.74 8.96 11.5 8.91 11.27L15.96 7.16C16.5 7.66 17.21 7.97 18 7.97C19.66 7.97 21 6.63 21 4.97C21 3.31 19.66 2 18 2C16.34 2 15 3.31 15 4.97C15 5.23 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.31 6.79 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.79 15 7.5 14.69 8.04 14.19L15.16 18.35C15.11 18.56 15.08 18.78 15.08 19C15.08 20.61 16.39 21.92 18 21.92C19.61 21.92 20.92 20.61 20.92 19C20.92 17.39 19.61 16.1 18 16.1Z"></path>
+                        </svg>
+                    </button>
+                    <span class="share-status" id="shareLocalStatus"></span>
+                </span>
             </div>
 
             <div class="url-section">
@@ -280,6 +347,7 @@
     <script src="renderer.js"></script>
 </body>
 </html>
+
 
 
 
