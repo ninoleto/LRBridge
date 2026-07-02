@@ -57,7 +57,7 @@
 
         .row {
             display: grid;
-            grid-template-columns: 170px repeat(5, 70px);
+            grid-template-columns: 240px repeat(5, 70px);
             gap: 8px;
             align-items: center;
             margin-bottom: 8px;
@@ -149,6 +149,7 @@
         <div class="subtitle">
             This page only sends commands to Lightroom Classic.
             It does not read current slider positions or show live feedback.
+            This experimental branch exposes many placeholder sliders for testing.
             Watch Lightroom Classic to see the real result.
         </div>
     </header>
@@ -163,56 +164,256 @@
 
     <script>
         const groups = [
-            {
-                name: "Basic",
-                sliders: [
-                    "Exposure",
-                    "Contrast",
-                    "Highlights",
-                    "Shadows",
-                    "Whites",
-                    "Blacks",
-                    "Temperature",
-                    "Tint"
-                ]
-            },
-            {
-                name: "Presence and Color",
-                sliders: [
-                    "Texture",
-                    "Clarity",
-                    "Dehaze",
-                    "Vibrance",
-                    "Saturation"
-                ]
-            },
-            {
-                name: "Detail",
-                sliders: [
-                    "Sharpness",
-                    "LuminanceNR",
-                    "ColorNR"
-                ]
-            }
+                  {
+                            "name": "Basic",
+                            "sliders": [
+                                      "Exposure",
+                                      "Contrast",
+                                      "Highlights",
+                                      "Shadows",
+                                      "Whites",
+                                      "Blacks"
+                            ]
+                  },
+                  {
+                            "name": "Color",
+                            "sliders": [
+                                      "Temperature",
+                                      "Tint",
+                                      "Vibrance",
+                                      "Saturation"
+                            ]
+                  },
+                  {
+                            "name": "Presence",
+                            "sliders": [
+                                      "Texture",
+                                      "Clarity",
+                                      "Dehaze"
+                            ]
+                  },
+                  {
+                            "name": "Detail",
+                            "sliders": [
+                                      "Sharpness",
+                                      "SharpenRadius",
+                                      "SharpenDetail",
+                                      "SharpenEdgeMasking",
+                                      "LuminanceNR",
+                                      "LuminanceNoiseReductionDetail",
+                                      "LuminanceNoiseReductionContrast",
+                                      "ColorNR",
+                                      "ColorNoiseReductionDetail",
+                                      "ColorNoiseReductionSmoothness"
+                            ]
+                  },
+                  {
+                            "name": "Color Mixer / HSL",
+                            "sliders": [
+                                      "HueAdjustmentRed",
+                                      "HueAdjustmentOrange",
+                                      "HueAdjustmentYellow",
+                                      "HueAdjustmentGreen",
+                                      "HueAdjustmentAqua",
+                                      "HueAdjustmentBlue",
+                                      "HueAdjustmentPurple",
+                                      "HueAdjustmentMagenta",
+                                      "SaturationAdjustmentRed",
+                                      "SaturationAdjustmentOrange",
+                                      "SaturationAdjustmentYellow",
+                                      "SaturationAdjustmentGreen",
+                                      "SaturationAdjustmentAqua",
+                                      "SaturationAdjustmentBlue",
+                                      "SaturationAdjustmentPurple",
+                                      "SaturationAdjustmentMagenta",
+                                      "LuminanceAdjustmentRed",
+                                      "LuminanceAdjustmentOrange",
+                                      "LuminanceAdjustmentYellow",
+                                      "LuminanceAdjustmentGreen",
+                                      "LuminanceAdjustmentAqua",
+                                      "LuminanceAdjustmentBlue",
+                                      "LuminanceAdjustmentPurple",
+                                      "LuminanceAdjustmentMagenta"
+                            ]
+                  },
+                  {
+                            "name": "B&W Mixer",
+                            "sliders": [
+                                      "GrayMixerRed",
+                                      "GrayMixerOrange",
+                                      "GrayMixerYellow",
+                                      "GrayMixerGreen",
+                                      "GrayMixerAqua",
+                                      "GrayMixerBlue",
+                                      "GrayMixerPurple",
+                                      "GrayMixerMagenta"
+                            ]
+                  },
+                  {
+                            "name": "Effects",
+                            "sliders": [
+                                      "PostCropVignetteAmount",
+                                      "PostCropVignetteMidpoint",
+                                      "PostCropVignetteFeather",
+                                      "PostCropVignetteRoundness",
+                                      "PostCropVignetteHighlightContrast",
+                                      "GrainAmount",
+                                      "GrainSize",
+                                      "GrainFrequency"
+                            ]
+                  },
+                  {
+                            "name": "Calibration",
+                            "sliders": [
+                                      "ShadowTint",
+                                      "RedHue",
+                                      "RedSaturation",
+                                      "GreenHue",
+                                      "GreenSaturation",
+                                      "BlueHue",
+                                      "BlueSaturation"
+                            ]
+                  },
+                  {
+                            "name": "Lens / Defringe",
+                            "sliders": [
+                                      "LensProfileDistortionScale",
+                                      "LensProfileEnable",
+                                      "AutoLateralCA",
+                                      "LensProfileChromaticAberrationScale",
+                                      "LensProfileVignettingScale",
+                                      "LensManualDistortionAmount",
+                                      "DefringePurpleAmount",
+                                      "DefringePurpleHueLo",
+                                      "DefringePurpleHueHi",
+                                      "DefringeGreenAmount",
+                                      "DefringeGreenHueLo",
+                                      "DefringeGreenHueHi"
+                            ]
+                  },
+                  {
+                            "name": "Transform",
+                            "sliders": [
+                                      "PerspectiveVertical",
+                                      "PerspectiveHorizontal",
+                                      "PerspectiveRotate",
+                                      "PerspectiveScale",
+                                      "PerspectiveAspect",
+                                      "PerspectiveX",
+                                      "PerspectiveY"
+                            ]
+                  },
+                  {
+                            "name": "Tone Curve",
+                            "sliders": [
+                                      "ParametricDarks",
+                                      "ParametricLights",
+                                      "ParametricShadows",
+                                      "ParametricHighlights",
+                                      "ParametricShadowSplit",
+                                      "ParametricMidtoneSplit",
+                                      "ParametricHighlightSplit"
+                            ]
+                  }
         ];
 
         const labels = {
-            Exposure: "Exposure",
-            Contrast: "Contrast",
-            Highlights: "Highlights",
-            Shadows: "Shadows",
-            Whites: "Whites",
-            Blacks: "Blacks",
-            Temperature: "Temperature",
-            Tint: "Tint",
-            Texture: "Texture",
-            Clarity: "Clarity",
-            Dehaze: "Dehaze",
-            Vibrance: "Vibrance",
-            Saturation: "Saturation",
-            Sharpness: "Sharpness",
-            LuminanceNR: "Luminance NR",
-            ColorNR: "Color NR"
+                  "Exposure": "Exposure",
+                  "Contrast": "Contrast",
+                  "Highlights": "Highlights",
+                  "Shadows": "Shadows",
+                  "Whites": "Whites",
+                  "Blacks": "Blacks",
+                  "Temperature": "Temperature",
+                  "Tint": "Tint",
+                  "Vibrance": "Vibrance",
+                  "Saturation": "Saturation",
+                  "Texture": "Texture",
+                  "Clarity": "Clarity",
+                  "Dehaze": "Dehaze",
+                  "Sharpness": "Sharpness",
+                  "SharpenRadius": "Sharpen Radius",
+                  "SharpenDetail": "Sharpen Detail",
+                  "SharpenEdgeMasking": "Sharpen Masking",
+                  "LuminanceNR": "Luminance Noise Reduction",
+                  "LuminanceNoiseReductionDetail": "Luminance NR Detail",
+                  "LuminanceNoiseReductionContrast": "Luminance NR Contrast",
+                  "ColorNR": "Color Noise Reduction",
+                  "ColorNoiseReductionDetail": "Color NR Detail",
+                  "ColorNoiseReductionSmoothness": "Color NR Smoothness",
+                  "HueAdjustmentRed": "Hue Red",
+                  "HueAdjustmentOrange": "Hue Orange",
+                  "HueAdjustmentYellow": "Hue Yellow",
+                  "HueAdjustmentGreen": "Hue Green",
+                  "HueAdjustmentAqua": "Hue Aqua",
+                  "HueAdjustmentBlue": "Hue Blue",
+                  "HueAdjustmentPurple": "Hue Purple",
+                  "HueAdjustmentMagenta": "Hue Magenta",
+                  "SaturationAdjustmentRed": "Saturation Red",
+                  "SaturationAdjustmentOrange": "Saturation Orange",
+                  "SaturationAdjustmentYellow": "Saturation Yellow",
+                  "SaturationAdjustmentGreen": "Saturation Green",
+                  "SaturationAdjustmentAqua": "Saturation Aqua",
+                  "SaturationAdjustmentBlue": "Saturation Blue",
+                  "SaturationAdjustmentPurple": "Saturation Purple",
+                  "SaturationAdjustmentMagenta": "Saturation Magenta",
+                  "LuminanceAdjustmentRed": "Luminance Red",
+                  "LuminanceAdjustmentOrange": "Luminance Orange",
+                  "LuminanceAdjustmentYellow": "Luminance Yellow",
+                  "LuminanceAdjustmentGreen": "Luminance Green",
+                  "LuminanceAdjustmentAqua": "Luminance Aqua",
+                  "LuminanceAdjustmentBlue": "Luminance Blue",
+                  "LuminanceAdjustmentPurple": "Luminance Purple",
+                  "LuminanceAdjustmentMagenta": "Luminance Magenta",
+                  "GrayMixerRed": "B&W Red",
+                  "GrayMixerOrange": "B&W Orange",
+                  "GrayMixerYellow": "B&W Yellow",
+                  "GrayMixerGreen": "B&W Green",
+                  "GrayMixerAqua": "B&W Aqua",
+                  "GrayMixerBlue": "B&W Blue",
+                  "GrayMixerPurple": "B&W Purple",
+                  "GrayMixerMagenta": "B&W Magenta",
+                  "PostCropVignetteAmount": "Vignette Amount",
+                  "PostCropVignetteMidpoint": "Vignette Midpoint",
+                  "PostCropVignetteFeather": "Vignette Feather",
+                  "PostCropVignetteRoundness": "Vignette Roundness",
+                  "PostCropVignetteHighlightContrast": "Vignette Highlights",
+                  "GrainAmount": "Grain Amount",
+                  "GrainSize": "Grain Size",
+                  "GrainFrequency": "Grain Roughness",
+                  "ShadowTint": "Shadow Tint",
+                  "RedHue": "Red Primary Hue",
+                  "RedSaturation": "Red Primary Saturation",
+                  "GreenHue": "Green Primary Hue",
+                  "GreenSaturation": "Green Primary Saturation",
+                  "BlueHue": "Blue Primary Hue",
+                  "BlueSaturation": "Blue Primary Saturation",
+                  "LensProfileDistortionScale": "Profile Distortion",
+                  "LensProfileEnable": "Enable Profile Corrections",
+                  "AutoLateralCA": "Remove Chromatic Aberration",
+                  "LensProfileChromaticAberrationScale": "Profile Chromatic Aberration Scale (old SDK / unsolved)",
+                  "LensProfileVignettingScale": "Profile Vignetting",
+                  "LensManualDistortionAmount": "Manual Distortion",
+                  "DefringePurpleAmount": "Purple Defringe Amount",
+                  "DefringePurpleHueLo": "Purple Hue Low",
+                  "DefringePurpleHueHi": "Purple Hue High",
+                  "DefringeGreenAmount": "Green Defringe Amount",
+                  "DefringeGreenHueLo": "Green Hue Low",
+                  "DefringeGreenHueHi": "Green Hue High",
+                  "PerspectiveVertical": "Transform Vertical",
+                  "PerspectiveHorizontal": "Transform Horizontal",
+                  "PerspectiveRotate": "Transform Rotate",
+                  "PerspectiveScale": "Transform Scale",
+                  "PerspectiveAspect": "Transform Aspect",
+                  "PerspectiveX": "Transform X Offset",
+                  "PerspectiveY": "Transform Y Offset",
+                  "ParametricDarks": "Curve Darks",
+                  "ParametricLights": "Curve Lights",
+                  "ParametricShadows": "Curve Shadows",
+                  "ParametricHighlights": "Curve Highlights",
+                  "ParametricShadowSplit": "Curve Shadow Split",
+                  "ParametricMidtoneSplit": "Curve Midtone Split",
+                  "ParametricHighlightSplit": "Curve Highlight Split"
         };
 
         const content = document.getElementById("content");
