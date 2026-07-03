@@ -11,7 +11,8 @@ const allowedActions = [
     "resetSpotRemoval",
     "resetRedeye",
     "selectCropTool",
-    "selectHealingTool"
+    "selectHealingTool",
+    "selectRedEyeTool"
 ];
 
 function validateCommand(command) {

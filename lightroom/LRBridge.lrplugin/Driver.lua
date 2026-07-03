@@ -201,6 +201,10 @@ local actionMap = {
     selectHealingTool = function()
         LrDevelopController.selectTool("dust")
     end,
+
+    selectRedEyeTool = function()
+        LrDevelopController.selectTool("redeye")
+    end,
 }
 
 function Driver.runAction(action)
