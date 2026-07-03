@@ -181,6 +181,10 @@ local actionMap = {
     setAutoTone = function()
         LrDevelopController.setAutoTone()
     end,
+
+    setAutoWhiteBalance = function()
+        LrDevelopController.setAutoWhiteBalance()
+    end,
 }
 
 function Driver.runAction(action)
