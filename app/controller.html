@@ -439,19 +439,34 @@
         const actionGroups = [
                 {
                         "name": "Crop",
+                        "placement": "top",
                         "actions": [
                                 {
                                         "label": "Reset Crop",
-                                        "action": "resetCrop"
+                                        "action": "resetCrop",
+                                        "button": "Reset"
+                                }
+                        ]
+                },
+                {
+                        "name": "Basic",
+                        "placement": "before:Basic",
+                        "actions": [
+                                {
+                                        "label": "Auto Tone",
+                                        "action": "setAutoTone",
+                                        "button": "Set"
                                 }
                         ]
                 },
                 {
                         "name": "Transform",
+                        "placement": "before:Transform",
                         "actions": [
                                 {
                                         "label": "Reset Transform",
-                                        "action": "resetTransforms"
+                                        "action": "resetTransforms",
+                                        "button": "Reset"
                                 }
                         ]
                 }
@@ -527,7 +542,7 @@
                 status.textContent = "Set OFF";
             }));
 
-            row.appendChild(makeButton("On", "positive", function () {
+            row.appendChild(makeButton(item.button || "Send", "positive", function () {
                 sendCommand("/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=5");
                 status.textContent = "Set ON";
             }));
@@ -583,7 +598,7 @@
 
             row.appendChild(name);
 
-            row.appendChild(makeButton("Reset", "positive", function () {
+            row.appendChild(makeButton(item.button || "Send", "positive", function () {
                 sendCommand("/api/action?action=" + encodeURIComponent(item.action));
                 status.textContent = "Sent to Lightroom";
             }));
@@ -593,22 +608,28 @@
             groupElement.appendChild(row);
         }
 
-        function renderActions() {
+        function renderActionGroup(group) {
+            const groupElement = document.createElement("section");
+            groupElement.className = "group";
+
+            const title = document.createElement("div");
+            title.className = "group-title";
+            title.textContent = group.name;
+
+            groupElement.appendChild(title);
+
+            for (const item of group.actions) {
+                addActionRow(groupElement, item);
+            }
+
+            content.appendChild(groupElement);
+        }
+
+        function renderActionsForPlacement(placement) {
             for (const group of actionGroups) {
-                const groupElement = document.createElement("section");
-                groupElement.className = "group";
-
-                const title = document.createElement("div");
-                title.className = "group-title";
-                title.textContent = group.name;
-
-                groupElement.appendChild(title);
-
-                for (const item of group.actions) {
-                    addActionRow(groupElement, item);
+                if ((group.placement || "top") === placement) {
+                    renderActionGroup(group);
                 }
-
-                content.appendChild(groupElement);
             }
         }
 
@@ -632,7 +653,10 @@
         }
 
         function renderSliders() {
+            renderActionsForPlacement("top");
+
             for (const group of groups) {
+                renderActionsForPlacement("before:" + group.name);
                 if (group.name === "Lens / Defringe") {
                     renderSwitches();
                 }
@@ -658,7 +682,6 @@
             window.open("/api/help", "_blank");
         });
 
-        renderActions();
         renderSliders();
     </script>
 </body>
