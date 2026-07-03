@@ -39,6 +39,25 @@
             border-bottom: 1px solid #28323d;
         }
 
+        .tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 12px 22px;
+            background: #0d131a;
+            border-bottom: 1px solid #28323d;
+        }
+
+        .tab-button {
+            background: #18212a;
+            border-color: #2b3744;
+        }
+
+        .tab-button.active {
+            background: #2a6f97;
+            border-color: #3a8cc0;
+        }
+
         .content {
             padding: 16px 22px;
         }
@@ -150,7 +169,8 @@
 
         @media (max-width: 760px) {
             .row,
-            .switch-row {
+            .switch-row,
+            .action-row {
                 grid-template-columns: 1fr;
                 background: #18212a;
                 border: 1px solid #2b3744;
@@ -171,7 +191,6 @@
         <div class="subtitle">
             This page only sends commands to Lightroom Classic.
             It does not read current slider positions or show live feedback.
-            This experimental branch exposes many placeholder sliders for testing.
             Watch Lightroom Classic to see the real result.
         </div>
     </header>
@@ -180,12 +199,14 @@
         <button id="openHelp">Open API Help</button>
     </div>
 
+    <nav class="tabs" id="tabs"></nav>
+
     <main class="content" id="content"></main>
 
     <div class="status" id="status">Ready.</div>
 
     <script>
-        const groups = [
+        const sliderGroups = [
         {
                 "name": "Basic",
                 "sliders": [
@@ -436,98 +457,108 @@
         "ParametricHighlightSplit": "Curve Highlight Split"
 };
 
-        const actionGroups = [
-                {
-                        "name": "Crop",
-                        "placement": "top",
-                        "actions": [
-                                {
-                                        "label": "Crop Tool",
-                                        "action": "selectCropTool",
-                                        "button": "Select"
-                                },
-                                {
-                                        "label": "Reset Crop",
-                                        "action": "resetCrop",
-                                        "button": "Reset"
-                                }
-                        ]
-                },
-                {
-                        "name": "Healing",
-                        "placement": "top",
-                        "actions": [
-                                {
-                                        "label": "Reset Spot Removal",
-                                        "action": "resetSpotRemoval",
-                                        "button": "Reset"
-                                }
-                        ]
-                },
-                {
-                        "name": "Red Eye",
-                        "placement": "top",
-                        "actions": [
-                                {
-                                        "label": "Reset Red Eye",
-                                        "action": "resetRedeye",
-                                        "button": "Reset"
-                                }
-                        ]
-                },
-                {
-                        "name": "Basic",
-                        "placement": "before:Basic",
-                        "actions": [
-                                {
-                                        "label": "Auto Tone",
-                                        "action": "setAutoTone",
-                                        "button": "Set"
-                                }
-                        ]
-                },
-                {
-                        "name": "Color",
-                        "placement": "before:Color",
-                        "actions": [
-                                {
-                                        "label": "Auto White Balance",
-                                        "action": "setAutoWhiteBalance",
-                                        "button": "Set"
-                                }
-                        ]
-                },
-                {
-                        "name": "Transform",
-                        "placement": "before:Transform",
-                        "actions": [
-                                {
-                                        "label": "Reset Transform",
-                                        "action": "resetTransforms",
-                                        "button": "Reset"
-                                }
-                        ]
-                }
-        ];
+        const sliderActionGroups = [
+        {
+                "name": "Basic",
+                "placement": "before:Basic",
+                "actions": [
+                        {
+                                "label": "Auto Tone",
+                                "action": "setAutoTone",
+                                "button": "Set"
+                        }
+                ]
+        },
+        {
+                "name": "Color",
+                "placement": "before:Color",
+                "actions": [
+                        {
+                                "label": "Auto White Balance",
+                                "action": "setAutoWhiteBalance",
+                                "button": "Set"
+                        }
+                ]
+        },
+        {
+                "name": "Transform",
+                "placement": "before:Transform",
+                "actions": [
+                        {
+                                "label": "Reset Transform",
+                                "action": "resetTransforms",
+                                "button": "Reset"
+                        }
+                ]
+        }
+];
 
         const switchGroups = [
-                {
-                        "name": "Lens / Defringe",
-                        "switches": [
-                                {
-                                        "label": "Remove Chromatic Aberration",
-                                        "slider": "AutoLateralCA"
-                                },
-                                {
-                                        "label": "Enable Profile Corrections",
-                                        "slider": "LensProfileEnable"
-                                }
-                        ]
-                }
-        ];
+        {
+                "name": "Lens / Defringe",
+                "placement": "before:Lens / Defringe",
+                "switches": [
+                        {
+                                "label": "Remove Chromatic Aberration",
+                                "slider": "AutoLateralCA"
+                        },
+                        {
+                                "label": "Enable Profile Corrections",
+                                "slider": "LensProfileEnable"
+                        }
+                ]
+        }
+];
 
+        const toolTabs = [
+        {
+                "id": "crop",
+                "label": "Crop",
+                "title": "Crop",
+                "actions": [
+                        {
+                                "label": "Crop Tool",
+                                "action": "selectCropTool",
+                                "button": "Select"
+                        },
+                        {
+                                "label": "Reset Crop",
+                                "action": "resetCrop",
+                                "button": "Reset"
+                        }
+                ]
+        },
+        {
+                "id": "healing",
+                "label": "Healing",
+                "title": "Healing",
+                "actions": [
+                        {
+                                "label": "Reset Spot Removal",
+                                "action": "resetSpotRemoval",
+                                "button": "Reset"
+                        }
+                ]
+        },
+        {
+                "id": "redEye",
+                "label": "Red Eye",
+                "title": "Red Eye",
+                "actions": [
+                        {
+                                "label": "Reset Red Eye",
+                                "action": "resetRedeye",
+                                "button": "Reset"
+                        }
+                ]
+        }
+];
+
+        const tabsElement = document.getElementById("tabs");
         const content = document.getElementById("content");
         const statusBox = document.getElementById("status");
+
+        let activeTab = "sliders";
 
         function setStatus(message) {
             statusBox.textContent = message;
@@ -548,7 +579,7 @@
                     return;
                 }
 
-                setStatus("OK: " + path);
+                setStatus("Sent to Lightroom: " + path);
             } catch (err) {
                 setStatus("ERROR: " + err.message);
             }
@@ -560,6 +591,62 @@
             button.className = className;
             button.addEventListener("click", onClick);
             return button;
+        }
+
+        function clearContent() {
+            content.innerHTML = "";
+        }
+
+        function renderTabs() {
+            tabsElement.innerHTML = "";
+
+            const allTabs = [
+                {
+                    id: "sliders",
+                    label: "Sliders"
+                }
+            ].concat(toolTabs.map(function (tab) {
+                return {
+                    id: tab.id,
+                    label: tab.label
+                };
+            }));
+
+            for (const tab of allTabs) {
+                const button = document.createElement("button");
+                button.textContent = tab.label;
+                button.className = "tab-button" + (tab.id === activeTab ? " active" : "");
+
+                button.addEventListener("click", function () {
+                    activeTab = tab.id;
+                    render();
+                });
+
+                tabsElement.appendChild(button);
+            }
+        }
+
+        function addActionRow(groupElement, item) {
+            const row = document.createElement("div");
+            row.className = "action-row";
+
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = item.label;
+
+            const status = document.createElement("div");
+            status.className = "switch-status";
+
+            row.appendChild(name);
+
+            row.appendChild(makeButton(item.button || "Send", "positive", function () {
+                sendCommand("/api/action?action=" + encodeURIComponent(item.action));
+                status.textContent = "Sent to Lightroom";
+            }));
+
+            row.appendChild(status);
+
+            groupElement.appendChild(row);
         }
 
         function addSwitchRow(groupElement, item) {
@@ -577,12 +664,12 @@
 
             row.appendChild(makeButton("Off", "negative", function () {
                 sendCommand("/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=-5");
-                status.textContent = "Set OFF";
+                status.textContent = "Sent OFF";
             }));
 
-            row.appendChild(makeButton(item.button || "Send", "positive", function () {
+            row.appendChild(makeButton("On", "positive", function () {
                 sendCommand("/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=5");
-                status.textContent = "Set ON";
+                status.textContent = "Sent ON";
             }));
 
             row.appendChild(status);
@@ -623,29 +710,6 @@
             groupElement.appendChild(row);
         }
 
-        function addActionRow(groupElement, item) {
-            const row = document.createElement("div");
-            row.className = "action-row";
-
-            const name = document.createElement("div");
-            name.className = "slider-name";
-            name.textContent = item.label;
-
-            const status = document.createElement("div");
-            status.className = "switch-status";
-
-            row.appendChild(name);
-
-            row.appendChild(makeButton(item.button || "Send", "positive", function () {
-                sendCommand("/api/action?action=" + encodeURIComponent(item.action));
-                status.textContent = "Sent to Lightroom";
-            }));
-
-            row.appendChild(status);
-
-            groupElement.appendChild(row);
-        }
-
         function renderActionGroup(group) {
             const groupElement = document.createElement("section");
             groupElement.className = "group";
@@ -663,41 +727,43 @@
             content.appendChild(groupElement);
         }
 
+        function renderSwitchGroup(group) {
+            const groupElement = document.createElement("section");
+            groupElement.className = "group";
+
+            const title = document.createElement("div");
+            title.className = "group-title";
+            title.textContent = "Switches - " + group.name;
+
+            groupElement.appendChild(title);
+
+            for (const item of group.switches) {
+                addSwitchRow(groupElement, item);
+            }
+
+            content.appendChild(groupElement);
+        }
+
         function renderActionsForPlacement(placement) {
-            for (const group of actionGroups) {
+            for (const group of sliderActionGroups) {
                 if ((group.placement || "top") === placement) {
                     renderActionGroup(group);
                 }
             }
         }
 
-        function renderSwitches() {
+        function renderSwitchesForPlacement(placement) {
             for (const group of switchGroups) {
-                const groupElement = document.createElement("section");
-                groupElement.className = "group";
-
-                const title = document.createElement("div");
-                title.className = "group-title";
-                title.textContent = "Switches - " + group.name;
-
-                groupElement.appendChild(title);
-
-                for (const item of group.switches) {
-                    addSwitchRow(groupElement, item);
+                if ((group.placement || "top") === placement) {
+                    renderSwitchGroup(group);
                 }
-
-                content.appendChild(groupElement);
             }
         }
 
-        function renderSliders() {
-            renderActionsForPlacement("top");
-
-            for (const group of groups) {
+        function renderSlidersTab() {
+            for (const group of sliderGroups) {
                 renderActionsForPlacement("before:" + group.name);
-                if (group.name === "Lens / Defringe") {
-                    renderSwitches();
-                }
+                renderSwitchesForPlacement("before:" + group.name);
 
                 const groupElement = document.createElement("section");
                 groupElement.className = "group";
@@ -716,11 +782,46 @@
             }
         }
 
+        function renderToolTab(tab) {
+            const groupElement = document.createElement("section");
+            groupElement.className = "group";
+
+            const title = document.createElement("div");
+            title.className = "group-title";
+            title.textContent = tab.title;
+
+            groupElement.appendChild(title);
+
+            for (const item of tab.actions) {
+                addActionRow(groupElement, item);
+            }
+
+            content.appendChild(groupElement);
+        }
+
+        function render() {
+            renderTabs();
+            clearContent();
+
+            if (activeTab === "sliders") {
+                renderSlidersTab();
+                return;
+            }
+
+            const tab = toolTabs.find(function (item) {
+                return item.id === activeTab;
+            });
+
+            if (tab) {
+                renderToolTab(tab);
+            }
+        }
+
         document.getElementById("openHelp").addEventListener("click", function () {
             window.open("/api/help", "_blank");
         });
 
-        renderSliders();
+        render();
     </script>
 </body>
 </html>
