@@ -173,6 +173,10 @@ local actionMap = {
     resetCrop = function()
         LrDevelopController.resetCrop()
     end,
+
+    resetTransforms = function()
+        LrDevelopController.resetTransforms()
+    end,
 }
 
 function Driver.runAction(action)

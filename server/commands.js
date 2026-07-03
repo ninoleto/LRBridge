@@ -4,7 +4,8 @@ const commandQueue = [];
 let latestResult = null;
 
 const allowedActions = [
-    "resetCrop"
+    "resetCrop",
+    "resetTransforms"
 ];
 
 function validateCommand(command) {
