@@ -225,6 +225,112 @@
             pointer-events: none;
         }
 
+        .slider-jump-control {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0 12px;
+            margin: 0 0 14px;
+            background: #101820;
+            border-bottom: 1px solid #26313d;
+        }
+
+        .slider-jump-label {
+            color: #9fb4c8;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .slider-jump-main-button {
+            min-width: 190px;
+            min-height: 44px;
+            border: 1px solid #d18a36;
+            border-radius: 12px;
+            background: #111111;
+            color: #f4f4f4;
+            padding: 10px 14px;
+            font-size: 15px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .slider-jump-main-button:hover {
+            background: #1a1a1a;
+            border-color: #f0a64a;
+        }
+
+        .slider-jump-main-button.active {
+            background: #111111;
+            border-color: #f0a64a;
+            color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(240, 166, 74, 0.22);
+        }
+
+        .slider-jump-popover {
+            position: absolute;
+            left: 0;
+            top: calc(100% - 2px);
+            width: min(620px, calc(100vw - 42px));
+            max-height: min(70vh, 620px);
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            padding: 14px;
+            border: 2px solid #d18a36;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #7a4c18 0%, #5f3912 100%);
+            box-shadow: 0 20px 55px rgba(0, 0, 0, 0.68), 0 0 0 2px rgba(209, 138, 54, 0.22);
+        }
+
+        .slider-jump-popover[hidden] {
+            display: none;
+        }
+
+        .slider-jump-option {
+            min-height: 54px;
+            border: 1px solid #2a2a2a;
+            border-radius: 13px;
+            background: #101010;
+            color: #f4f4f4;
+            padding: 10px 12px;
+            font-size: 15px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .slider-jump-option:hover,
+        .slider-jump-option:focus {
+            background: #1a1a1a;
+            border-color: #f0a64a;
+        }
+
+        .slider-jump-target {
+            scroll-margin-top: 78px;
+        }
+
+        @media (max-width: 720px) {
+            .slider-jump-control {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .slider-jump-main-button {
+                width: 100%;
+            }
+
+            .slider-jump-popover {
+                width: calc(100vw - 42px);
+                grid-template-columns: 1fr;
+            }
+        }
+
         .status {
             margin: 0 22px 16px 22px;
             background: #050708;
@@ -694,6 +800,200 @@
             return button;
         }
 
+
+
+        function getSliderJumpSections() {
+            const names = [];
+
+            function add(name) {
+                if (!name || names.includes(name)) {
+                    return;
+                }
+
+                names.push(name);
+            }
+
+            if (typeof sliderGroups !== "undefined") {
+                sliderGroups.forEach(function (group) {
+                    add(group.name);
+                });
+            }
+
+            if (typeof switchGroups !== "undefined") {
+                switchGroups.forEach(function (group) {
+                    add(group.name);
+                });
+            }
+
+            return names;
+        }
+
+        function findSliderJumpHeading(content, name) {
+            const candidates = Array.from(content.querySelectorAll(
+                "h1, h2, h3, h4, .group-title, .section-title, .slider-group-title, .action-group-title, [class*='title'], [class*='Title']"
+            ));
+
+            return candidates.find(function (element) {
+                return !element.closest(".slider-jump-control") &&
+                    element.textContent.trim() === name;
+            });
+        }
+
+        function installSliderJumpMenu() {
+            const content = typeof contentElement !== "undefined"
+                ? contentElement
+                : document.getElementById("content");
+
+            if (!content) {
+                return;
+            }
+
+            const existing = content.querySelector(".slider-jump-control");
+
+            if (!content.querySelector(".drag-strip")) {
+                if (existing) {
+                    existing.remove();
+                }
+
+                return;
+            }
+
+            if (existing) {
+                return;
+            }
+
+            const sections = getSliderJumpSections()
+                .map(function (name, index) {
+                    const heading = findSliderJumpHeading(content, name);
+
+                    if (!heading) {
+                        return null;
+                    }
+
+                    const id = "slider-jump-section-" + index + "-" + name
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/^-|-$/g, "");
+
+                    heading.id = id;
+                    heading.classList.add("slider-jump-target");
+
+                    return {
+                        id: id,
+                        name: name
+                    };
+                })
+                .filter(Boolean);
+
+            if (sections.length === 0) {
+                return;
+            }
+
+            const control = document.createElement("div");
+            control.className = "slider-jump-control";
+
+            const label = document.createElement("span");
+            label.className = "slider-jump-label";
+            label.textContent = "Jump to:";
+
+            const mainButton = document.createElement("button");
+            mainButton.type = "button";
+            mainButton.className = "slider-jump-main-button";
+            mainButton.textContent = "Section ▾";
+            mainButton.setAttribute("aria-expanded", "false");
+
+            const popover = document.createElement("div");
+            popover.className = "slider-jump-popover";
+            popover.hidden = true;
+
+            function closeMenu() {
+                popover.hidden = true;
+                mainButton.classList.remove("active");
+                mainButton.setAttribute("aria-expanded", "false");
+            }
+
+            function openMenu() {
+                popover.hidden = false;
+                mainButton.classList.add("active");
+                mainButton.setAttribute("aria-expanded", "true");
+            }
+
+            mainButton.addEventListener("click", function () {
+                if (popover.hidden) {
+                    openMenu();
+                } else {
+                    closeMenu();
+                }
+            });
+
+            sections.forEach(function (section) {
+                const option = document.createElement("button");
+                option.type = "button";
+                option.className = "slider-jump-option";
+                option.textContent = section.name;
+
+                option.addEventListener("click", function () {
+                    const target = document.getElementById(section.id);
+
+                    mainButton.textContent = section.name + " ▾";
+                    closeMenu();
+
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
+                    }
+                });
+
+                popover.appendChild(option);
+            });
+
+            document.addEventListener("pointerdown", function (event) {
+                if (!control.contains(event.target)) {
+                    closeMenu();
+                }
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    closeMenu();
+                }
+            });
+
+            control.appendChild(label);
+            control.appendChild(mainButton);
+            control.appendChild(popover);
+
+            content.insertBefore(control, content.firstChild);
+        }
+
+        function startSliderJumpMenuObserver() {
+            const content = typeof contentElement !== "undefined"
+                ? contentElement
+                : document.getElementById("content");
+
+            if (!content || typeof MutationObserver === "undefined") {
+                installSliderJumpMenu();
+                return;
+            }
+
+            const observer = new MutationObserver(function () {
+                window.requestAnimationFrame(installSliderJumpMenu);
+            });
+
+            observer.observe(content, {
+                childList: true
+            });
+
+            installSliderJumpMenu();
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", startSliderJumpMenuObserver);
+        } else {
+            window.requestAnimationFrame(startSliderJumpMenuObserver);
+        }
 
         function sendAdjust(slider, amount) {
             sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount));
