@@ -13,7 +13,8 @@ const allowedActions = [
     "selectCropTool",
     "selectHealingTool",
     "selectRedEyeTool",
-    "selectUprightTool"
+    "selectUprightTool",
+    "selectMaskingTool"
 ];
 
 function validateCommand(command) {

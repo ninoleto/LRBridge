@@ -209,6 +209,10 @@ local actionMap = {
     selectUprightTool = function()
         LrDevelopController.selectTool("upright")
     end,
+
+    selectMaskingTool = function()
+        LrDevelopController.selectTool("masking")
+    end,
 }
 
 function Driver.runAction(action)
