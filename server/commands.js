@@ -8,7 +8,8 @@ const allowedActions = [
     "resetTransforms",
     "setAutoTone",
     "setAutoWhiteBalance",
-    "resetSpotRemoval"
+    "resetSpotRemoval",
+    "resetRedeye"
 ];
 
 function validateCommand(command) {

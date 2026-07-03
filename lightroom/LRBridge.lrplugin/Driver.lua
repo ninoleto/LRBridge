@@ -189,6 +189,10 @@ local actionMap = {
     resetSpotRemoval = function()
         LrDevelopController.resetSpotRemoval()
     end,
+
+    resetRedeye = function()
+        LrDevelopController.resetRedeye()
+    end,
 }
 
 function Driver.runAction(action)
