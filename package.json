@@ -2,12 +2,13 @@
   "name": "lrbridge",
   "version": "1.0.0",
   "description": "",
-  "main": "bridge.js",
+  "main": "app/main.js",
   "scripts": {
     "test": "npm run smoke",
-    "start": "node bridge.js",
+    "start": "electron app/main.js",
     "smoke": "node tests/http-smoke.js",
-    "app": "electron app/main.js"
+    "app": "electron app/main.js",
+    "server": "node bridge.js"
   },
   "keywords": [],
   "author": "",

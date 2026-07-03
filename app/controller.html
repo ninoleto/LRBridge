@@ -771,6 +771,36 @@
             statusBox.textContent = message;
         }
 
+        function formatResponseText(text) {
+            if (!text) {
+                return "";
+            }
+
+            try {
+                const data = JSON.parse(text);
+
+                if (data.error) {
+                    return data.error;
+                }
+
+                if (data.queued && data.queued.command) {
+                    const slider = data.queued.slider ? " " + data.queued.slider : "";
+                    const amount = data.queued.amount !== undefined ? " " + data.queued.amount : "";
+                    const action = data.queued.action ? " " + data.queued.action : "";
+
+                    return data.queued.command + slider + amount + action;
+                }
+
+                if (data.ok === true) {
+                    return "Command accepted";
+                }
+
+                return JSON.stringify(data);
+            } catch (err) {
+                return text;
+            }
+        }
+
         async function sendCommand(path) {
             setStatus("Sending: " + path);
 
@@ -780,18 +810,18 @@
                 });
 
                 const text = await response.text();
+                const detail = formatResponseText(text);
 
                 if (!response.ok) {
-                    setStatus("ERROR " + response.status + ": " + text);
+                    setStatus("ERROR " + response.status + ": " + detail);
                     return;
                 }
 
-                setStatus("Sent to Lightroom: " + path);
+                setStatus("OK: " + detail);
             } catch (err) {
                 setStatus("ERROR: " + err.message);
             }
         }
-
         function makeButton(text, className, onClick) {
             const button = document.createElement("button");
             button.textContent = text;
@@ -840,17 +870,15 @@
         }
 
         function installSliderJumpMenu() {
-            const content = typeof contentElement !== "undefined"
-                ? contentElement
-                : document.getElementById("content");
+            const contentHost = document.getElementById("content");
 
-            if (!content) {
+            if (!contentHost) {
                 return;
             }
 
-            const existing = content.querySelector(".slider-jump-control");
+            const existing = contentHost.querySelector(".slider-jump-control");
 
-            if (!content.querySelector(".drag-strip")) {
+            if (!contentHost.querySelector(".drag-strip")) {
                 if (existing) {
                     existing.remove();
                 }
@@ -864,7 +892,7 @@
 
             const sections = getSliderJumpSections()
                 .map(function (name, index) {
-                    const heading = findSliderJumpHeading(content, name);
+                    const heading = findSliderJumpHeading(contentHost, name);
 
                     if (!heading) {
                         return null;
@@ -965,15 +993,13 @@
             control.appendChild(mainButton);
             control.appendChild(popover);
 
-            content.insertBefore(control, content.firstChild);
+            contentHost.insertBefore(control, contentHost.firstChild);
         }
 
         function startSliderJumpMenuObserver() {
-            const content = typeof contentElement !== "undefined"
-                ? contentElement
-                : document.getElementById("content");
+            const contentHost = document.getElementById("content");
 
-            if (!content || typeof MutationObserver === "undefined") {
+            if (!contentHost || typeof MutationObserver === "undefined") {
                 installSliderJumpMenu();
                 return;
             }
@@ -982,7 +1008,7 @@
                 window.requestAnimationFrame(installSliderJumpMenu);
             });
 
-            observer.observe(content, {
+            observer.observe(contentHost, {
                 childList: true
             });
 
