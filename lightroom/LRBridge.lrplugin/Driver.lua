@@ -193,6 +193,10 @@ local actionMap = {
     resetRedeye = function()
         LrDevelopController.resetRedeye()
     end,
+
+    selectCropTool = function()
+        LrDevelopController.selectTool("crop")
+    end,
 }
 
 function Driver.runAction(action)

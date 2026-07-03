@@ -9,7 +9,8 @@ const allowedActions = [
     "setAutoTone",
     "setAutoWhiteBalance",
     "resetSpotRemoval",
-    "resetRedeye"
+    "resetRedeye",
+    "selectCropTool"
 ];
 
 function validateCommand(command) {
