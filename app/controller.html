@@ -71,6 +71,14 @@
             margin-bottom: 8px;
         }
 
+        .action-row {
+            display: grid;
+            grid-template-columns: 240px 140px 1fr;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
         .slider-name {
             background: #18212a;
             border: 1px solid #2b3744;
@@ -428,6 +436,18 @@
         "ParametricHighlightSplit": "Curve Highlight Split"
 };
 
+        const actionGroups = [
+                {
+                        "name": "Crop",
+                        "actions": [
+                                {
+                                        "label": "Reset Crop",
+                                        "action": "resetCrop"
+                                }
+                        ]
+                }
+        ];
+
         const switchGroups = [
                 {
                         "name": "Lens / Defringe",
@@ -541,6 +561,48 @@
             groupElement.appendChild(row);
         }
 
+        function addActionRow(groupElement, item) {
+            const row = document.createElement("div");
+            row.className = "action-row";
+
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = item.label;
+
+            const status = document.createElement("div");
+            status.className = "switch-status";
+
+            row.appendChild(name);
+
+            row.appendChild(makeButton("Reset", "positive", function () {
+                sendCommand("/api/action?action=" + encodeURIComponent(item.action));
+                status.textContent = "Sent to Lightroom";
+            }));
+
+            row.appendChild(status);
+
+            groupElement.appendChild(row);
+        }
+
+        function renderActions() {
+            for (const group of actionGroups) {
+                const groupElement = document.createElement("section");
+                groupElement.className = "group";
+
+                const title = document.createElement("div");
+                title.className = "group-title";
+                title.textContent = group.name;
+
+                groupElement.appendChild(title);
+
+                for (const item of group.actions) {
+                    addActionRow(groupElement, item);
+                }
+
+                content.appendChild(groupElement);
+            }
+        }
+
         function renderSwitches() {
             for (const group of switchGroups) {
                 const groupElement = document.createElement("section");
@@ -587,6 +649,7 @@
             window.open("/api/help", "_blank");
         });
 
+        renderActions();
         renderSliders();
     </script>
 </body>
