@@ -5,7 +5,8 @@ let latestResult = null;
 
 const allowedActions = [
     "resetCrop",
-    "resetTransforms"
+    "resetTransforms",
+    "setAutoTone"
 ];
 
 function validateCommand(command) {

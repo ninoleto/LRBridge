@@ -177,6 +177,10 @@ local actionMap = {
     resetTransforms = function()
         LrDevelopController.resetTransforms()
     end,
+
+    setAutoTone = function()
+        LrDevelopController.setAutoTone()
+    end,
 }
 
 function Driver.runAction(action)
