@@ -205,6 +205,10 @@ local actionMap = {
     selectRedEyeTool = function()
         LrDevelopController.selectTool("redeye")
     end,
+
+    selectUprightTool = function()
+        LrDevelopController.selectTool("upright")
+    end,
 }
 
 function Driver.runAction(action)
