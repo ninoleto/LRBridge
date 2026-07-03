@@ -3,17 +3,31 @@ const sliders = require("./sliders");
 const commandQueue = [];
 let latestResult = null;
 
+const allowedActions = [
+    "resetCrop"
+];
+
 function validateCommand(command) {
     const allowedCommands = [
         "develop.adjust",
         "develop.get",
         "develop.set",
-        "develop.reset"
+        "develop.reset",
+        "develop.action"
     ];
 
     if (!allowedCommands.includes(command.command)) {
         console.log("Unknown command:", command.command);
         return false;
+    }
+
+    if (command.command === "develop.action") {
+        if (!allowedActions.includes(command.action)) {
+            console.log("Unknown action:", command.action);
+            return false;
+        }
+
+        return true;
     }
 
     if (!sliders.exists(command.slider)) {

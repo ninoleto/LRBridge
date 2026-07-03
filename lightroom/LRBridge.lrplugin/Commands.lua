@@ -51,6 +51,15 @@ function Commands.execute(command)
         return
     end
 
+    if command.command == "develop.action" then
+
+        Driver.runAction(
+            command.action
+        )
+
+        return
+    end
+
     if command.command == "develop.get" then
 
         local value = Query.getDevelopValue(command.slider)

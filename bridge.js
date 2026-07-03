@@ -208,6 +208,17 @@ app.get("/set", function (req, res) {
     });
 });
 
+app.get("/action", function (req, res) {
+    const action = req.query.action;
+
+    const command = {
+        command: "develop.action",
+        action: action
+    };
+
+    queueOrReject(res, command);
+});
+
 app.get("/reset", function (req, res) {
     const slider = req.query.slider;
 

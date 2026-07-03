@@ -4,6 +4,7 @@ function Parser.parse(json)
 
     local command = string.match(json, [["command":"([^"]+)"]])
     local slider = string.match(json, [["slider":"([^"]+)"]])
+    local action = string.match(json, [["action":"([^"]+)"]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
     local value = string.match(json, [["value":([%-]?%d+%.?%d*)]])
 
@@ -22,6 +23,7 @@ function Parser.parse(json)
     return {
         command = command,
         slider = slider,
+        action = action,
         amount = amount,
         value = value
     }

@@ -169,6 +169,29 @@ function Driver.resetSlider(slider)
 
 end
 
+local actionMap = {
+    resetCrop = function()
+        LrDevelopController.resetCrop()
+    end,
+}
+
+function Driver.runAction(action)
+
+    local run = actionMap[action]
+
+    if run == nil then
+        return false
+    end
+
+    LrApplicationView.switchToModule("develop")
+    LrTasks.sleep(0.2)
+
+    run()
+
+    return true
+
+end
+
 return Driver
 
 

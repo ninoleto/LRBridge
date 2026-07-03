@@ -339,6 +339,17 @@ function startControllerServer() {
             return;
         }
 
+        if (requestUrl.pathname === "/api/action") {
+            const action = requestUrl.searchParams.get("action") || "";
+
+            await proxyBridgeRequest(
+                response,
+                "/action?action=" + encodeURIComponent(action)
+            );
+
+            return;
+        }
+
         if (requestUrl.pathname === "/api/reset") {
             const slider = requestUrl.searchParams.get("slider") || "";
 
