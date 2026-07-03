@@ -8,7 +8,8 @@
     "start": "electron app/main.js",
     "smoke": "node tests/http-smoke.js",
     "app": "electron app/main.js",
-    "server": "node bridge.js"
+    "server": "node bridge.js",
+    "generate:cheatsheet": "node tools/generate-companion-cheatsheet.js"
   },
   "keywords": [],
   "author": "",

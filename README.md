@@ -680,6 +680,18 @@ Avoid for now:
 /set
 ```
 
+For a full copy/paste list of Companion HTTP paths for every supported slider and action, see:
+
+```text
+docs/COMPANION_HTTP_CHEATSHEET.md
+```
+
+Regenerate it after slider/action changes with:
+
+```powershell
+npm run generate:cheatsheet
+```
+
 ---
 
 ## 24. Native Companion module roadmap
