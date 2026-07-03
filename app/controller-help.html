@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>LRBridge Web Controller Help</title>
+    <style>
+        body {
+            margin: 0;
+            background: #101418;
+            color: #d7e1ea;
+            font-family: Segoe UI, Arial, sans-serif;
+            line-height: 1.55;
+        }
+
+        header {
+            padding: 22px 28px;
+            background: #161d24;
+            border-bottom: 1px solid #28323d;
+        }
+
+        main {
+            max-width: 980px;
+            padding: 24px 28px 48px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 650;
+        }
+
+        h2 {
+            margin-top: 30px;
+            color: #ffb454;
+            font-size: 20px;
+        }
+
+        h3 {
+            margin-top: 22px;
+            color: #ffffff;
+        }
+
+        p, li {
+            color: #c7d4df;
+            font-size: 15px;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            color: #9fb0bf;
+            font-size: 14px;
+        }
+
+        .box {
+            border: 1px solid #2b3744;
+            border-radius: 10px;
+            background: #141b22;
+            padding: 14px 16px;
+            margin: 14px 0;
+        }
+
+        .warning {
+            border-color: #9b6530;
+            background: #241a10;
+        }
+
+        code {
+            background: #050708;
+            color: #f4f4f4;
+            border: 1px solid #2b3744;
+            border-radius: 5px;
+            padding: 2px 5px;
+            font-family: Consolas, monospace;
+        }
+
+        pre {
+            overflow-x: auto;
+            background: #050708;
+            color: #f4f4f4;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+        }
+
+        a {
+            color: #6dc8ff;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 14px 0;
+        }
+
+        th, td {
+            border: 1px solid #2b3744;
+            padding: 9px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #18212a;
+            color: #ffffff;
+        }
+
+        td {
+            color: #c7d4df;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>LRBridge Web Controller Help</h1>
+        <div class="subtitle">Local browser control surface for Adobe Lightroom Classic through LRBridge.</div>
+    </header>
+
+    <main>
+        <section class="box warning">
+            <strong>Current limitation:</strong>
+            the Web Controller sends commands to Lightroom Classic, but it does not yet show live Lightroom slider feedback.
+            Watch Lightroom Classic for the real result. Feedback/readback will be added through the future LRBridge state API.
+        </section>
+
+        <h2>How it works</h2>
+        <p>
+            LRBridge runs a local HTTP server. The Web Controller is a browser page that sends commands to that local server.
+            The Lightroom plugin polls LRBridge, receives the next command, and applies it inside Lightroom Classic.
+        </p>
+
+        <pre>Web Controller → LRBridge App → LRBridge Lightroom Plugin → Lightroom Classic</pre>
+
+        <h2>Local addresses</h2>
+        <table>
+            <tr>
+                <th>Service</th>
+                <th>Address</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td>Web Controller</td>
+                <td><code>http://127.0.0.1:17892/</code></td>
+                <td>Browser control surface.</td>
+            </tr>
+            <tr>
+                <td>LRBridge HTTP API</td>
+                <td><code>http://127.0.0.1:17891/</code></td>
+                <td>Command API used by the Web Controller and future Companion plugin.</td>
+            </tr>
+            <tr>
+                <td>LRBridge WebSocket</td>
+                <td><code>ws://127.0.0.1:17890/</code></td>
+                <td>Experimental command input. HTTP is the recommended path for now.</td>
+            </tr>
+        </table>
+
+        <h2>Basic use</h2>
+        <ol>
+            <li>Start LRBridge.</li>
+            <li>Open Lightroom Classic and select a photo.</li>
+            <li>Open the Web Controller.</li>
+            <li>Use slider buttons, drag strips, tool buttons, reset buttons, and actions.</li>
+        </ol>
+
+        <h2>Slider controls</h2>
+        <p>
+            Each slider row contains <code>-5</code>, <code>-1</code>, <code>Reset</code>, <code>+1</code>, <code>+5</code>, and a drag strip.
+            Amounts are Lightroom increment steps, not absolute numeric values.
+        </p>
+
+        <pre>Exposure +1  → /adjust?slider=Exposure&amp;amount=1
+Exposure -5  → /adjust?slider=Exposure&amp;amount=-5
+Reset        → /reset?slider=Exposure</pre>
+
+        <h2>Drag strips</h2>
+        <p>
+            Drag left or right on a strip to send repeated small adjustments.
+            LRBridge coalesces repeated slider adjustments in the command queue, so dragging should feel smoother than sending every tiny movement as a separate command.
+        </p>
+
+        <h2>Switches</h2>
+        <p>
+            Some Lightroom boolean-style controls are currently handled as slider adjustments.
+            For example, profile corrections and chromatic aberration controls use On/Off buttons that send positive or negative adjustment steps.
+        </p>
+
+        <h2>Actions and tools</h2>
+        <p>
+            Action buttons call Lightroom develop actions such as Auto Tone, Auto White Balance, tool selection, Reset Crop, and Reset Transform.
+        </p>
+
+        <pre>/action?action=setAutoTone
+/action?action=setAutoWhiteBalance
+/action?action=selectCropTool
+/action?action=resetCrop
+/action?action=resetTransforms</pre>
+
+        <h2>HTTP API examples</h2>
+        <table>
+            <tr>
+                <th>Command</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>Adjust slider</td>
+                <td><code>/adjust?slider=Exposure&amp;amount=1</code></td>
+            </tr>
+            <tr>
+                <td>Reset slider</td>
+                <td><code>/reset?slider=Exposure</code></td>
+            </tr>
+            <tr>
+                <td>Reset group</td>
+                <td><code>/reset-group?group=Basic</code></td>
+            </tr>
+            <tr>
+                <td>Reset all known sliders</td>
+                <td><code>/reset-all</code></td>
+            </tr>
+            <tr>
+                <td>Run action</td>
+                <td><code>/action?action=setAutoTone</code></td>
+            </tr>
+            <tr>
+                <td>Raw API help</td>
+                <td><code>/api/help</code> from the Web Controller server or <code>/help</code> from the LRBridge API server.</td>
+            </tr>
+        </table>
+
+        <h2>Companion direction</h2>
+        <p>
+            The future Bitfocus Companion module should use the same HTTP API as the Web Controller.
+            First target: reliable actions and slider control through HTTP.
+            Second target: feedback through a stable <code>/state</code> endpoint.
+        </p>
+
+        <h2>Troubleshooting</h2>
+        <table>
+            <tr>
+                <th>Problem</th>
+                <th>Check</th>
+            </tr>
+            <tr>
+                <td>Buttons do nothing</td>
+                <td>Make sure LRBridge is running and Lightroom Classic is open.</td>
+            </tr>
+            <tr>
+                <td>Commands are queued but Lightroom does not move</td>
+                <td>Make sure the LRBridge Lightroom plugin polling is running.</td>
+            </tr>
+            <tr>
+                <td>Web Controller does not open</td>
+                <td>Open <code>http://127.0.0.1:17892/</code> manually.</td>
+            </tr>
+            <tr>
+                <td>Need server-only mode</td>
+                <td>Use <code>npm run server</code>. Use <code>npm start</code> for the full app.</td>
+            </tr>
+        </table>
+    </main>
+</body>
+</html>

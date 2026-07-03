@@ -501,7 +501,6 @@
                 "name": "Lens / Defringe",
                 "sliders": [
                         "LensProfileDistortionScale",
-                        "LensProfileChromaticAberrationScale",
                         "LensProfileVignettingScale",
                         "LensManualDistortionAmount",
                         "DefringePurpleAmount",
@@ -612,7 +611,6 @@
         "LensProfileDistortionScale": "Profile Distortion",
         "LensProfileEnable": "Enable Profile Corrections",
         "AutoLateralCA": "Remove Chromatic Aberration",
-        "LensProfileChromaticAberrationScale": "Profile Chromatic Aberration Scale (old SDK / unsolved)",
         "LensProfileVignettingScale": "Profile Vignetting",
         "LensManualDistortionAmount": "Manual Distortion",
         "DefringePurpleAmount": "Purple Defringe Amount",
@@ -1384,7 +1382,7 @@
         }
 
         document.getElementById("openHelp").addEventListener("click", function () {
-            window.open("/api/help", "_blank");
+            window.open("/help", "_blank");
         });
 
         render();
