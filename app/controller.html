@@ -93,7 +93,7 @@
 
         .row {
             display: grid;
-            grid-template-columns: 240px repeat(5, 70px);
+            grid-template-columns: 240px repeat(5, 70px) minmax(180px, 1fr);
             gap: 8px;
             align-items: center;
             margin-bottom: 8px;
@@ -166,6 +166,63 @@
 
         button.reset:hover {
             background: #8a5a2a;
+        }
+
+        .drag-strip {
+            position: relative;
+            min-height: 40px;
+            border: 1px solid #3b4b5c;
+            border-radius: 999px;
+            background: #0b1117;
+            color: #8fa2b3;
+            cursor: ew-resize;
+            user-select: none;
+            touch-action: none;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .drag-strip::before {
+            content: "";
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            top: 50%;
+            height: 2px;
+            background: #33414f;
+            transform: translateY(-50%);
+        }
+
+        .drag-strip::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: #506173;
+            transform: translateX(-50%);
+        }
+
+        .drag-strip.active {
+            border-color: #ffb454;
+            background: #111820;
+            color: #ffffff;
+        }
+
+        .drag-strip-label {
+            position: relative;
+            z-index: 1;
+            background: #0b1117;
+            border-radius: 999px;
+            padding: 2px 9px;
+            pointer-events: none;
         }
 
         .status {
@@ -637,6 +694,143 @@
             return button;
         }
 
+
+        function sendAdjust(slider, amount) {
+            sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount));
+        }
+
+        function makeDragStrip(slider) {
+            const strip = document.createElement("div");
+            strip.className = "drag-strip";
+            strip.title = "Drag left or right to adjust " + (labels[slider] || slider);
+
+            const label = document.createElement("div");
+            label.className = "drag-strip-label";
+            label.textContent = "Drag";
+
+            strip.appendChild(label);
+
+            const pixelsPerStep = 18;
+            const flushDelayMs = 50;
+
+            let active = false;
+            let pointerId = null;
+            let lastX = 0;
+            let remainder = 0;
+            let pendingAmount = 0;
+            let flushTimer = null;
+
+            function flushPending() {
+                if (flushTimer !== null) {
+                    clearTimeout(flushTimer);
+                    flushTimer = null;
+                }
+
+                const amount = pendingAmount;
+                pendingAmount = 0;
+
+                if (amount !== 0) {
+                    sendAdjust(slider, amount);
+                }
+            }
+
+            function scheduleFlush() {
+                if (flushTimer !== null) {
+                    return;
+                }
+
+                flushTimer = setTimeout(function () {
+                    flushTimer = null;
+
+                    const amount = pendingAmount;
+                    pendingAmount = 0;
+
+                    if (amount !== 0) {
+                        sendAdjust(slider, amount);
+                    }
+                }, flushDelayMs);
+            }
+
+            function queueSteps(steps) {
+                if (steps === 0) {
+                    return;
+                }
+
+                pendingAmount += steps;
+                label.textContent = steps > 0 ? "+" + steps : String(steps);
+                strip.classList.add("active");
+                scheduleFlush();
+            }
+
+            function stopDragging(event) {
+                if (!active) {
+                    return;
+                }
+
+                if (event && pointerId !== null && event.pointerId !== pointerId) {
+                    return;
+                }
+
+                flushPending();
+
+                active = false;
+
+                if (pointerId !== null && strip.releasePointerCapture) {
+                    try {
+                        strip.releasePointerCapture(pointerId);
+                    } catch (err) {
+                        /* Pointer may already be released. */
+                    }
+                }
+
+                pointerId = null;
+                remainder = 0;
+                label.textContent = "Drag";
+                strip.classList.remove("active");
+            }
+
+            strip.addEventListener("pointerdown", function (event) {
+                active = true;
+                pointerId = event.pointerId;
+                lastX = event.clientX;
+                remainder = 0;
+                pendingAmount = 0;
+                label.textContent = "Drag";
+                strip.classList.add("active");
+
+                if (strip.setPointerCapture) {
+                    strip.setPointerCapture(pointerId);
+                }
+
+                event.preventDefault();
+            });
+
+            strip.addEventListener("pointermove", function (event) {
+                if (!active || event.pointerId !== pointerId) {
+                    return;
+                }
+
+                const dx = event.clientX - lastX;
+                lastX = event.clientX;
+                remainder += dx;
+
+                const steps = Math.trunc(remainder / pixelsPerStep);
+
+                if (steps !== 0) {
+                    remainder -= steps * pixelsPerStep;
+                    queueSteps(steps);
+                }
+
+                event.preventDefault();
+            });
+
+            strip.addEventListener("pointerup", stopDragging);
+            strip.addEventListener("pointercancel", stopDragging);
+            strip.addEventListener("lostpointercapture", stopDragging);
+
+            return strip;
+        }
+
         function clearContent() {
             content.innerHTML = "";
         }
@@ -750,6 +944,8 @@
             row.appendChild(makeButton("+5", "positive", function () {
                 sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=5");
             }));
+
+            row.appendChild(makeDragStrip(slider));
 
             groupElement.appendChild(row);
         }
