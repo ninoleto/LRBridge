@@ -197,6 +197,10 @@ local actionMap = {
     selectCropTool = function()
         LrDevelopController.selectTool("crop")
     end,
+
+    selectHealingTool = function()
+        LrDevelopController.selectTool("dust")
+    end,
 }
 
 function Driver.runAction(action)

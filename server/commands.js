@@ -10,7 +10,8 @@ const allowedActions = [
     "setAutoWhiteBalance",
     "resetSpotRemoval",
     "resetRedeye",
-    "selectCropTool"
+    "selectCropTool",
+    "selectHealingTool"
 ];
 
 function validateCommand(command) {
