@@ -528,48 +528,53 @@
 ];
 
         const toolTabs = [
-        {
-                "id": "crop",
-                "label": "Crop",
-                "title": "Crop",
-                "actions": [
-                        {
-                                "label": "Crop Tool",
-                                "action": "selectCropTool",
-                                "button": "Select"
-                        },
-                        {
-                                "label": "Reset Crop",
-                                "action": "resetCrop",
-                                "button": "Reset"
-                        }
-                ]
-        },
-        {
-                "id": "healing",
-                "label": "Healing",
-                "title": "Healing",
-                "actions": [
-                        {
-                                "label": "Reset Spot Removal",
-                                "action": "resetSpotRemoval",
-                                "button": "Reset"
-                        }
-                ]
-        },
-        {
-                "id": "redEye",
-                "label": "Red Eye",
-                "title": "Red Eye",
-                "actions": [
-                        {
-                                "label": "Reset Red Eye",
-                                "action": "resetRedeye",
-                                "button": "Reset"
-                        }
-                ]
-        }
-];
+                {
+                        "id": "crop",
+                        "label": "Crop",
+                        "title": "Crop",
+                        "actions": [
+                                {
+                                        "label": "Crop Tool",
+                                        "action": "selectCropTool",
+                                        "button": "Select"
+                                },
+                                {
+                                        "label": "Reset Crop",
+                                        "action": "resetCrop",
+                                        "button": "Reset"
+                                }
+                        ]
+                },
+                {
+                        "id": "healing",
+                        "label": "Healing",
+                        "title": "Healing",
+                        "actions": [
+                                {
+                                        "label": "Healing Tool",
+                                        "action": "selectHealingTool",
+                                        "button": "Select"
+                                },
+                                {
+                                        "label": "Reset Spot Removal",
+                                        "action": "resetSpotRemoval",
+                                        "button": "Reset"
+                                }
+                        ]
+                },
+                {
+                        "id": "redEye",
+                        "label": "Red Eye",
+                        "title": "Red Eye",
+                        "actions": [
+                                {
+                                        "label": "Reset Red Eye",
+                                        "action": "resetRedeye",
+                                        "button": "Reset"
+                                }
+                        ]
+                }
+        ];
 
         const tabsElement = document.getElementById("tabs");
         const content = document.getElementById("content");
