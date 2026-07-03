@@ -7,7 +7,8 @@ const allowedActions = [
     "resetCrop",
     "resetTransforms",
     "setAutoTone",
-    "setAutoWhiteBalance"
+    "setAutoWhiteBalance",
+    "resetSpotRemoval"
 ];
 
 function validateCommand(command) {

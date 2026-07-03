@@ -185,6 +185,10 @@ local actionMap = {
     setAutoWhiteBalance = function()
         LrDevelopController.setAutoWhiteBalance()
     end,
+
+    resetSpotRemoval = function()
+        LrDevelopController.resetSpotRemoval()
+    end,
 }
 
 function Driver.runAction(action)
