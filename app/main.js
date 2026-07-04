@@ -464,7 +464,7 @@ async function startLightroom() {
 
 async function openHelp() {
     console.log("Opening help endpoint.");
-    await shell.openExternal("http://127.0.0.1:17891/help");
+    await shell.openExternal("http://127.0.0.1:17892/help");
 
     return {
         ok: true

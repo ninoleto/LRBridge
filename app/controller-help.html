@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <title>LRBridge Web Controller Help</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             background: #101418;
@@ -13,41 +17,99 @@
         }
 
         header {
-            padding: 22px 28px;
+            padding: 24px 28px;
             background: #161d24;
             border-bottom: 1px solid #28323d;
         }
 
         main {
-            max-width: 980px;
-            padding: 24px 28px 48px;
+            max-width: 1120px;
+            padding: 24px 28px 70px;
         }
 
         h1 {
             margin: 0;
-            font-size: 28px;
-            font-weight: 650;
+            color: #ffffff;
+            font-size: 30px;
         }
 
         h2 {
-            margin-top: 30px;
+            margin-top: 32px;
+            padding-bottom: 8px;
             color: #ffb454;
-            font-size: 20px;
+            border-bottom: 1px solid #28323d;
+            font-size: 22px;
         }
 
         h3 {
-            margin-top: 22px;
+            margin: 0 0 8px;
             color: #ffffff;
+            font-size: 18px;
         }
 
-        p, li {
+        p,
+        li {
             color: #c7d4df;
             font-size: 15px;
         }
 
+        a {
+            color: #7cc7ff;
+        }
+
+        code {
+            background: #050708;
+            color: #ffffff;
+            border: 1px solid #2b3744;
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+        }
+
+        pre {
+            background: #050708;
+            color: #ffffff;
+            border: 1px solid #2b3744;
+            border-radius: 10px;
+            padding: 14px;
+            overflow-x: auto;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 14px 0;
+            background: #141b22;
+            border: 1px solid #2b3744;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid #2b3744;
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+
+        th {
+            color: #ffffff;
+            background: #1b242d;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
         .subtitle {
-            margin-top: 8px;
             color: #9fb0bf;
+            margin-top: 6px;
             font-size: 14px;
         }
 
@@ -55,8 +117,13 @@
             border: 1px solid #2b3744;
             border-radius: 10px;
             background: #141b22;
-            padding: 14px 16px;
+            padding: 16px;
             margin: 14px 0;
+        }
+
+        .soft {
+            border-color: #35495a;
+            background: #131a21;
         }
 
         .warning {
@@ -64,152 +131,218 @@
             background: #241a10;
         }
 
-        code {
-            background: #050708;
-            color: #f4f4f4;
-            border: 1px solid #2b3744;
-            border-radius: 5px;
-            padding: 2px 5px;
-            font-family: Consolas, monospace;
+        .danger {
+            border-color: #b04343;
+            background: #2a1111;
         }
 
-        pre {
-            overflow-x: auto;
-            background: #050708;
-            color: #f4f4f4;
-            border: 1px solid #2b3744;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: Consolas, monospace;
-            font-size: 13px;
+        .danger strong,
+        .danger h3 {
+            color: #ffd2d2;
         }
 
-        a {
-            color: #6dc8ff;
-        }
-
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 14px 0;
-        }
-
-        th, td {
-            border: 1px solid #2b3744;
-            padding: 9px 10px;
-            text-align: left;
-            vertical-align: top;
-        }
-
-        th {
-            background: #18212a;
+        .button-link {
+            display: inline-block;
             color: #ffffff;
+            background: #2a6f97;
+            border: 1px solid #3a8cc0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            text-decoration: none;
+            font-weight: 700;
+            margin: 8px 0;
         }
 
-        td {
-            color: #c7d4df;
+        .muted {
+            color: #9fb0bf;
         }
     </style>
 </head>
 <body>
-    <header>
-        <h1>LRBridge Web Controller Help</h1>
-        <div class="subtitle">Local browser control surface for Adobe Lightroom Classic through LRBridge.</div>
-    </header>
+<header>
+    <h1>LRBridge Web Controller Help</h1>
+    <div class="subtitle">
+        Local browser control surface for Adobe Lightroom Classic through LRBridge.
+    </div>
+</header>
 
-    <main>
-        <section class="box warning">
-            <strong>Current limitation:</strong>
-            the Web Controller sends commands to Lightroom Classic, but it does not yet show live Lightroom slider feedback.
-            Watch Lightroom Classic for the real result. Feedback/readback will be added through the future LRBridge state API.
-        </section>
-
-        <h2>How it works</h2>
+<main>
+    <section class="box">
+        <h3>What the Web Controller is for</h3>
         <p>
-            LRBridge runs a local HTTP server. The Web Controller is a browser page that sends commands to that local server.
-            The Lightroom plugin polls LRBridge, receives the next command, and applies it inside Lightroom Classic.
+            LRBridge Web Controller is a local browser control panel for Lightroom Classic.
+            It can move Develop sliders left or right, reset one slider, and run supported Lightroom actions.
+        </p>
+        <p>
+            It works like a simple button surface for Lightroom:
+            press a button, LRBridge sends a command, Lightroom responds.
+        </p>
+    </section>
+
+    <h2>Feedback is not implemented yet</h2>
+
+    <section class="box warning">
+        <h3>LRBridge sends commands, but it does not read Lightroom values yet</h3>
+        <p>
+            The Web Controller does not know the current Exposure, Contrast, Tint, Temperature,
+            or other slider values inside Lightroom.
+        </p>
+        <p>
+            For now, LRBridge only sends commands.
+            It does not receive live slider values back from Lightroom yet.
+        </p>
+        <p>
+            If you press <code>+1</code>, LRBridge tells Lightroom to move that slider one small step to the right.
+            It does not know what the final Lightroom value became.
+        </p>
+    </section>
+
+    <h2>Safe everyday commands</h2>
+
+    <table>
+        <tr>
+            <th>What you want</th>
+            <th>Command</th>
+            <th>Meaning</th>
+        </tr>
+        <tr>
+            <td>Move slider right</td>
+            <td><code>/adjust?slider=Exposure&amp;amount=1</code></td>
+            <td>Positive amount moves the Lightroom slider to the right.</td>
+        </tr>
+        <tr>
+            <td>Move slider left</td>
+            <td><code>/adjust?slider=Exposure&amp;amount=-1</code></td>
+            <td>Negative amount moves the Lightroom slider to the left.</td>
+        </tr>
+        <tr>
+            <td>Reset one slider</td>
+            <td><code>/reset?slider=Exposure</code></td>
+            <td>Returns one Lightroom slider to its default value.</td>
+        </tr>
+        <tr>
+            <td>Run Lightroom action</td>
+            <td><code>/action?action=setAutoTone</code></td>
+            <td>Runs a supported Lightroom action through LRBridge.</td>
+        </tr>
+    </table>
+
+    <h2>Bitfocus Companion, Stream Deck, Loupedeck, and other control surfaces</h2>
+
+    <section class="box soft">
+        <h3>The built-in Web Controller is not the only way to use LRBridge</h3>
+        <p>
+            LRBridge can also be controlled by any app, device, script, or hardware controller that can send HTTP requests.
+        </p>
+        <p>
+            That includes Bitfocus Companion, Stream Deck HTTP/request plugins, PowerShell, curl, scripts,
+            browser shortcuts, and other HTTP-capable tools.
+        </p>
+        <p>
+            Loupedeck hardware was one of the reasons LRBridge was created.
+            Loupedeck devices have excellent knobs for photo editing, but Loupedeck support is fading.
+            Good hardware should not become useless just because the original software is no longer moving in the right direction.
+        </p>
+        <p>
+            LRBridge helps keep that hardware alive.
+        </p>
+        <p>
+            Bitfocus Companion is the main target for this workflow.
+            With Companion and the <strong>Generic: HTTP Requests</strong> plugin/add-on,
+            LRBridge commands can be mapped to Companion buttons, pages, and supported hardware devices.
+        </p>
+        <p>
+            The detailed Companion setup and copy-ready commands are on the Builder page.
         </p>
 
-        <pre>Web Controller → LRBridge App → LRBridge Lightroom Plugin → Lightroom Classic</pre>
+        <a class="button-link" href="/bitfocus-companion-cheatsheet">Open Bitfocus Companion HTTP Builder</a>
 
-        <h2>Local addresses</h2>
+        <p class="muted">
+            The Builder is mainly for Bitfocus Companion Generic HTTP setup.
+            But other HTTP-capable tools can use the same commands too.
+        </p>
+        <p class="muted">
+            We are also working on a native Bitfocus Companion plugin.
+            That should let users choose LRBridge sliders and actions from dropdown menus instead of copying commands manually.
+        </p>
+    </section>
+
+    <h2>PowerShell example</h2>
+
+    <section class="box">
+        <p>
+            PowerShell can send a command directly to Lightroom through LRBridge:
+        </p>
+
+        <pre>curl.exe "http://127.0.0.1:17891/adjust?slider=Exposure&amp;amount=1"</pre>
+    </section>
+
+    <h2>Web Controller and API ports</h2>
+
+    <table>
+        <tr>
+            <th>Service</th>
+            <th>Local URL</th>
+            <th>Purpose</th>
+        </tr>
+        <tr>
+            <td>Web Controller</td>
+            <td><code>http://127.0.0.1:17892</code></td>
+            <td>Readable browser controller and human help pages.</td>
+        </tr>
+        <tr>
+            <td>Readable Help</td>
+            <td><code>http://127.0.0.1:17892/help</code></td>
+            <td>This page.</td>
+        </tr>
+        <tr>
+            <td>Raw API Help through Web Controller</td>
+            <td><code>http://127.0.0.1:17892/api/help</code></td>
+            <td>Raw JSON API information proxied from the LRBridge API server.</td>
+        </tr>
+        <tr>
+            <td>LRBridge API server</td>
+            <td><code>http://127.0.0.1:17891</code></td>
+            <td>The command API used by Companion, scripts, PowerShell, curl, and other HTTP-capable tools.</td>
+        </tr>
+    </table>
+
+    <h2>Raw API help</h2>
+
+    <section class="box">
+        <p>
+            The readable help page is here:
+        </p>
+        <pre>http://127.0.0.1:17892/help</pre>
+
+        <p>
+            Raw API help is available here:
+        </p>
+        <pre>http://127.0.0.1:17892/api/help</pre>
+        <pre>http://127.0.0.1:17891/help</pre>
+    </section>
+
+    <h2>Advanced dangerous commands</h2>
+
+    <section class="box danger">
+        <h3>Reset group and Reset all are use-at-your-own-risk commands</h3>
+        <p>
+            <strong>/reset-group</strong> and <strong>/reset-all</strong> are not available in the Web Controller UI.
+        </p>
+        <p>
+            LRBridge still supports these endpoints for advanced users who want to call them manually from PowerShell,
+            scripts, Bitfocus Companion, or another HTTP-capable tool.
+        </p>
+        <p>
+            They can send many commands to Lightroom very quickly.
+            This can overload Lightroom and may freeze or crash Lightroom.
+            Use them at your own risk.
+        </p>
+
         <table>
             <tr>
-                <th>Service</th>
-                <th>Address</th>
-                <th>Purpose</th>
-            </tr>
-            <tr>
-                <td>Web Controller</td>
-                <td><code>http://127.0.0.1:17892/</code></td>
-                <td>Browser control surface.</td>
-            </tr>
-            <tr>
-                <td>LRBridge HTTP API</td>
-                <td><code>http://127.0.0.1:17891/</code></td>
-                <td>Command API used by the Web Controller and future Companion plugin.</td>
-            </tr>
-            <tr>
-                <td>LRBridge WebSocket</td>
-                <td><code>ws://127.0.0.1:17890/</code></td>
-                <td>Experimental command input. HTTP is the recommended path for now.</td>
-            </tr>
-        </table>
-
-        <h2>Basic use</h2>
-        <ol>
-            <li>Start LRBridge.</li>
-            <li>Open Lightroom Classic and select a photo.</li>
-            <li>Open the Web Controller.</li>
-            <li>Use slider buttons, drag strips, tool buttons, reset buttons, and actions.</li>
-        </ol>
-
-        <h2>Slider controls</h2>
-        <p>
-            Each slider row contains <code>-5</code>, <code>-1</code>, <code>Reset</code>, <code>+1</code>, <code>+5</code>, and a drag strip.
-            Amounts are Lightroom increment steps, not absolute numeric values.
-        </p>
-
-        <pre>Exposure +1  → /adjust?slider=Exposure&amp;amount=1
-Exposure -5  → /adjust?slider=Exposure&amp;amount=-5
-Reset        → /reset?slider=Exposure</pre>
-
-        <h2>Drag strips</h2>
-        <p>
-            Drag left or right on a strip to send repeated small adjustments.
-            LRBridge coalesces repeated slider adjustments in the command queue, so dragging should feel smoother than sending every tiny movement as a separate command.
-        </p>
-
-        <h2>Switches</h2>
-        <p>
-            Some Lightroom boolean-style controls are currently handled as slider adjustments.
-            For example, profile corrections and chromatic aberration controls use On/Off buttons that send positive or negative adjustment steps.
-        </p>
-
-        <h2>Actions and tools</h2>
-        <p>
-            Action buttons call Lightroom develop actions such as Auto Tone, Auto White Balance, tool selection, Reset Crop, and Reset Transform.
-        </p>
-
-        <pre>/action?action=setAutoTone
-/action?action=setAutoWhiteBalance
-/action?action=selectCropTool
-/action?action=resetCrop
-/action?action=resetTransforms</pre>
-
-        <h2>HTTP API examples</h2>
-        <table>
-            <tr>
-                <th>Command</th>
+                <th>Advanced command</th>
                 <th>Example</th>
-            </tr>
-            <tr>
-                <td>Adjust slider</td>
-                <td><code>/adjust?slider=Exposure&amp;amount=1</code></td>
-            </tr>
-            <tr>
-                <td>Reset slider</td>
-                <td><code>/reset?slider=Exposure</code></td>
             </tr>
             <tr>
                 <td>Reset group</td>
@@ -219,56 +352,15 @@ Reset        → /reset?slider=Exposure</pre>
                 <td>Reset all known sliders</td>
                 <td><code>/reset-all</code></td>
             </tr>
-            <tr>
-                <td>Run action</td>
-                <td><code>/action?action=setAutoTone</code></td>
-            </tr>
-            <tr>
-                <td>Raw API help</td>
-                <td><code>/api/help</code> from the Web Controller server or <code>/help</code> from the LRBridge API server.</td>
-            </tr>
         </table>
 
-        <h2>Bitfocus Companion HTTP cheat sheet</h2>
         <p>
-            Open the readable Bitfocus Companion HTTP command builder here:
-        </p>
-        <p>
-            <a href="/bitfocus-companion-cheatsheet" target="_blank">Open Bitfocus Companion HTTP Cheat Sheet</a>
-        </p>
-        <p>
-            It has search, grouped sliders, action buttons, reset buttons, and copy buttons for every supported command.
-        </p>
-        <h2>Companion direction</h2>
-        <p>
-            The future Bitfocus Companion module should use the same HTTP API as the Web Controller.
-            First target: reliable actions and slider control through HTTP.
-            Second target: feedback through a stable <code>/state</code> endpoint.
+            PowerShell examples:
         </p>
 
-        <h2>Troubleshooting</h2>
-        <table>
-            <tr>
-                <th>Problem</th>
-                <th>Check</th>
-            </tr>
-            <tr>
-                <td>Buttons do nothing</td>
-                <td>Make sure LRBridge is running and Lightroom Classic is open.</td>
-            </tr>
-            <tr>
-                <td>Commands are queued but Lightroom does not move</td>
-                <td>Make sure the LRBridge Lightroom plugin polling is running.</td>
-            </tr>
-            <tr>
-                <td>Web Controller does not open</td>
-                <td>Open <code>http://127.0.0.1:17892/</code> manually.</td>
-            </tr>
-            <tr>
-                <td>Need server-only mode</td>
-                <td>Use <code>npm run server</code>. Use <code>npm start</code> for the full app.</td>
-            </tr>
-        </table>
-    </main>
+        <pre>curl.exe "http://127.0.0.1:17891/reset-group?group=Basic"</pre>
+        <pre>curl.exe "http://127.0.0.1:17891/reset-all"</pre>
+    </section>
+</main>
 </body>
 </html>
