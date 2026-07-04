@@ -9,7 +9,9 @@
     "smoke": "node tests/http-smoke.js",
     "app": "electron app/main.js",
     "server": "node bridge.js",
-    "generate:cheatsheet": "node tools/generate-companion-cheatsheet.js"
+    "generate:cheatsheet": "node tools/generate-companion-cheatsheet.js",
+    "pack:win": "electron-builder --win --x64 --dir",
+    "dist:win": "npm run pack:win && powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-portable-zip.ps1"
   },
   "keywords": [
     "lightroom",
@@ -37,6 +39,7 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
-    "electron": "^43.0.0"
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3"
   }
 }

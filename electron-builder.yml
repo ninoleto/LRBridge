@@ -1,0 +1,31 @@
+appId: com.nino.lrbridge
+productName: LRBridge
+asar: true
+
+directories:
+  output: dist
+
+files:
+  - app/**/*
+  - bridge.js
+  - server/**/*
+  - config/sliders.json
+  - package.json
+
+extraFiles:
+  - from: config
+    to: config
+  - from: lightroom
+    to: lightroom
+  - from: README.md
+    to: README.md
+  - from: docs
+    to: docs
+  - from: llms.txt
+    to: llms.txt
+
+win:
+  target:
+    - target: dir
+      arch:
+        - x64
