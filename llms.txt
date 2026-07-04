@@ -1,0 +1,27 @@
+
+LRBridge
+
+LRBridge is a local HTTP bridge and browser Web Controller for controlling Adobe Lightroom Classic from Bitfocus Companion, Stream Deck HTTP/request plugins, Loupedeck workflows, PowerShell, curl, scripts, and other HTTP-capable tools.
+
+The project is focused on reliable one-way Lightroom control. It sends commands to Lightroom Classic, but stable live value feedback/readback is not implemented yet.
+
+Useful documentation
+README: ./README.md
+AI context: ./docs/AI_CONTEXT.md
+Companion HTTP reference: ./docs/COMPANION_HTTP_CHEATSHEET.md
+Web Controller help source: ./app/controller-help.html
+Bitfocus Companion HTTP Builder source: ./app/companion-cheatsheet.html
+Main local URLs
+Web Controller: http://127.0.0.1:17892/
+Human Help: http://127.0.0.1:17892/help
+Bitfocus Companion HTTP Builder: http://127.0.0.1:17892/bitfocus-companion-cheatsheet
+LRBridge API: http://127.0.0.1:17891/
+Raw API Help: http://127.0.0.1:17891/help
+Safe command examples
+/adjust?slider=Exposure&amount=1
+/adjust?slider=Exposure&amount=-1
+/reset?slider=Exposure
+/action?action=setAutoTone
+Keywords
+
+Adobe Lightroom Classic, Lightroom controller, Lightroom HTTP API, Lightroom bridge, Lightroom automation, Bitfocus Companion, Generic HTTP Requests, Stream Deck, Loupedeck, control surface, photo editing, Electron, Node.js, Lua Lightroom plugin.
