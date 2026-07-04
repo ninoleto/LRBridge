@@ -10,6 +10,7 @@ const settingsPath = path.join(projectRoot, "config", "settings.txt");
 const trayIconPath = path.join(__dirname, "tray.png");
 const controllerPath = path.join(__dirname, "controller.html");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
+const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
 const defaultPollingMs = 100;
 const minPollingMs = 10;
@@ -316,6 +317,20 @@ function startControllerServer() {
         if (requestUrl.pathname === "/help" || requestUrl.pathname === "/controller-help") {
             try {
                 const html = fs.readFileSync(controllerHelpPath, "utf8");
+                sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
+            } catch (err) {
+                sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
+            }
+
+            return;
+        }
+
+        if (
+            requestUrl.pathname === "/bitfocus-companion-cheatsheet" ||
+            requestUrl.pathname === "/companion-cheatsheet"
+        ) {
+            try {
+                const html = fs.readFileSync(companionCheatsheetHtmlPath, "utf8");
                 sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
             } catch (err) {
                 sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);

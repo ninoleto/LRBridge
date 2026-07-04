@@ -1,0 +1,807 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Bitfocus Companion HTTP Builder - LRBridge</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #101418;
+            color: #d7e1ea;
+            font-family: Segoe UI, Arial, sans-serif;
+            line-height: 1.5;
+        }
+
+        header {
+            padding: 22px 28px;
+            background: #161d24;
+            border-bottom: 1px solid #28323d;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        main {
+            max-width: 1240px;
+            padding: 22px 28px 70px;
+        }
+
+        h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 28px;
+        }
+
+        h2 {
+            margin-top: 32px;
+            color: #ffb454;
+            border-bottom: 1px solid #28323d;
+            padding-bottom: 7px;
+            font-size: 21px;
+        }
+
+        h3 {
+            margin: 0 0 10px;
+            color: #ffffff;
+            font-size: 17px;
+        }
+
+        p {
+            color: #c7d4df;
+            font-size: 15px;
+        }
+
+        .subtitle {
+            color: #9fb0bf;
+            margin-top: 6px;
+            font-size: 14px;
+        }
+
+        .box {
+            border: 1px solid #2b3744;
+            border-radius: 10px;
+            background: #141b22;
+            padding: 16px;
+            margin: 14px 0;
+        }
+
+        .warning {
+            border-color: #9b6530;
+            background: #241a10;
+        }
+
+        .plain-examples {
+            background: #080b0f;
+            border-color: #1a222b;
+            opacity: 0.76;
+        }
+
+        .plain-examples h2 {
+            margin-top: 0;
+            color: #80909f;
+            border-bottom-color: #1a222b;
+        }
+
+        .plain-examples p {
+            color: #80909f;
+        }
+
+        .setup-list {
+            margin: 0;
+            padding-left: 22px;
+        }
+
+        .setup-list li {
+            margin: 6px 0;
+            color: #c7d4df;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        input {
+            background: #050708;
+            color: #f4f4f4;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 11px 12px;
+            font-size: 15px;
+        }
+
+        #search {
+            width: 100%;
+            margin-top: 16px;
+        }
+
+        #hostInput {
+            width: 310px;
+            max-width: 100%;
+        }
+
+        #stepInput {
+            width: 120px;
+        }
+
+        button {
+            background: #22303d;
+            color: #ffffff;
+            border: 1px solid #35495a;
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #314151;
+        }
+
+        .primary {
+            background: #2a6f97;
+            border-color: #3a8cc0;
+        }
+
+        .base-url {
+            background: #050708;
+            color: #ffffff;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 13px;
+            font-family: Consolas, monospace;
+            font-size: 15px;
+            overflow-wrap: anywhere;
+            margin: 12px 0;
+        }
+
+        .value-pill {
+            display: inline-block;
+            background: #050708;
+            color: #ffffff;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-family: Consolas, monospace;
+            font-size: 15px;
+            min-width: 56px;
+            text-align: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            background: #141b22;
+            border: 1px solid #2b3744;
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .meta {
+            color: #9fb0bf;
+            font-size: 12px;
+            margin-bottom: 10px;
+            overflow-wrap: anywhere;
+        }
+
+        .command {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #26313c;
+        }
+
+        .command-label {
+            color: #ffb454;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .path {
+            background: #050708;
+            color: #f4f4f4;
+            border: 1px solid #2b3744;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: normal;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .small {
+            font-size: 12px;
+            padding: 7px 9px;
+        }
+
+        .reset-all-warning {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border: 1px solid #b04343;
+            border-radius: 8px;
+            background: #2a1111;
+            color: #ffd2d2;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .status {
+            color: #7ee787;
+            font-size: 13px;
+            margin-top: 8px;
+            min-height: 18px;
+        }
+
+        .group-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 20px;
+        }
+
+        .group-nav a {
+            color: #d7e1ea;
+            background: #22303d;
+            border: 1px solid #35495a;
+            border-radius: 8px;
+            padding: 8px 10px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .group-nav a:hover {
+            background: #314151;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        body.searching .hide-when-searching {
+            display: none !important;
+        }
+
+        body.searching main {
+            padding-top: 16px;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Bitfocus Companion HTTP Builder</h1>
+    <div class="subtitle">
+        For Bitfocus Companion with the <strong>Generic: HTTP Requests</strong> plugin/add-on.
+    </div>
+    <input id="search" placeholder="Search slider or action, example: Tint, Exposure, Auto White Balance...">
+    <div id="status" class="status"></div>
+</header>
+
+<main>
+    <section class="box warning hide-when-searching">
+        <h3>How to use this page with Bitfocus Companion</h3>
+        <ol class="setup-list">
+            <li>Open Bitfocus Companion.</li>
+            <li>Go to <strong>Connections</strong>.</li>
+            <li>Add the connection/plugin called <strong>Generic: HTTP Requests</strong>.</li>
+            <li>In that connection, set the <strong>Base URL</strong> to your LRBridge address. You can use the Base URL helper below to copy it.</li>
+            <li>Save/apply the connection.</li>
+            <li>Go to your Companion button page.</li>
+            <li>Create or edit a button.</li>
+            <li>Add a press action called <strong>http: GET</strong>.</li>
+            <li>In the <strong>URI</strong> field, paste only the command from this page.</li>
+        </ol>
+        <p>
+            The Base URL is set once in the Generic: HTTP Requests connection.
+            Each button only needs the URI.
+        </p>
+        <div class="path">Example URI: /adjust?slider=Exposure&amp;amount=-1</div>
+    </section>
+
+    <section class="box hide-when-searching">
+        <h3>Copy path or copy full URL?</h3>
+        <p>
+            <strong>Copy path</strong> is for Bitfocus Companion button actions.
+            Paste it into the <strong>URI</strong> field of an <strong>http: GET</strong> action.
+        </p>
+        <p>
+            <strong>Copy full URL</strong> is for PowerShell, browser testing, curl, scripts, or other HTTP-capable devices/apps.
+            PowerShell can send a command directly to Lightroom through LRBridge.
+        </p>
+        <div class="path">curl.exe "http://127.0.0.1:17891/adjust?slider=Exposure&amp;amount=1"</div>
+    </section>
+
+    <section class="hide-when-searching">
+        <h2>1. Base URL helper</h2>
+
+        <div class="box">
+            <p>
+                This section only helps you generate the Base URL for Bitfocus Companion or PowerShell.
+            </p>
+
+            <p>
+                If Bitfocus Companion runs on the same PC as LRBridge, use <strong>localhost</strong>.
+                If Bitfocus Companion runs on another PC, type the <strong>LAN IP</strong> of the LRBridge PC.
+            </p>
+
+            <p>
+                All <strong>Copy full URL</strong> buttons on this page are generated from this Base URL.
+            </p>
+
+            <div class="controls">
+                <button id="useLocalhost">Use localhost</button>
+                <input id="hostInput" placeholder="Type your LAN IP, example: 192.168.1.11">
+                <button id="useTypedHost" class="primary">Use typed LAN IP</button>
+            </div>
+
+            <p><strong>Current Base URL:</strong></p>
+            <div id="baseUrl" class="base-url">http://127.0.0.1:17891</div>
+
+            <div class="button-row">
+                <button id="copyBaseUrl" class="primary">Copy Base URL</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="hide-when-searching">
+        <h2>2. Step size</h2>
+
+        <div class="box">
+            <p>
+                Step size controls how strong each slider button is.
+                Default is <strong>1</strong>.
+            </p>
+
+            <p>
+                If you type <strong>4</strong>, slider buttons will generate:
+                <strong>-4</strong>, <strong>Reset</strong>, and <strong>+4</strong>.
+            </p>
+
+            <p>
+                Reset is always included for every slider.
+            </p>
+
+            <div class="controls">
+                <input id="stepInput" type="number" min="1" step="1" value="1">
+                <button id="applyStep" class="primary">Use this step size</button>
+                <span>Current step size:</span>
+                <span id="stepDisplay" class="value-pill">1</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="box plain-examples hide-when-searching">
+        <h2>Plain examples</h2>
+        <p>Same PC Base URL:</p>
+        <div class="path">http://127.0.0.1:17891</div>
+        <p>LAN Base URL example:</p>
+        <div class="path">http://192.168.1.11:17891</div>
+        <p>Companion button URI example:</p>
+        <div class="path">/adjust?slider=Exposure&amp;amount=1</div>
+    </section>
+
+    <section id="quickSection" class="hide-when-searching">
+        <h2>3. Fast setup examples</h2>
+        <div id="quick" class="grid"></div>
+    </section>
+
+    <section id="groupsSection" class="hide-when-searching">
+        <h2>4. Reset groups</h2>
+        <div id="groups" class="grid"></div>
+    </section>
+
+    <section id="actionsSection">
+        <h2 class="hide-when-searching">5. Lightroom actions</h2>
+        <div id="actions" class="grid"></div>
+    </section>
+
+    <section id="slidersSection">
+        <h2 class="hide-when-searching">6. Sliders</h2>
+        <div id="groupNav" class="group-nav hide-when-searching"></div>
+        <div id="sliders"></div>
+    </section>
+</main>
+
+<script>
+    let apiBase = "http://127.0.0.1:17891";
+    let stepSize = 1;
+    let sliders = [];
+
+    const searchEl = document.getElementById("search");
+    const statusEl = document.getElementById("status");
+    const baseUrlEl = document.getElementById("baseUrl");
+    const hostInput = document.getElementById("hostInput");
+    const stepInput = document.getElementById("stepInput");
+    const stepDisplay = document.getElementById("stepDisplay");
+
+    const actions = [
+        ["Auto Tone", "/action?action=setAutoTone"],
+        ["Auto White Balance", "/action?action=setAutoWhiteBalance"],
+        ["Reset Crop", "/action?action=resetCrop"],
+        ["Reset Transforms", "/action?action=resetTransforms"],
+        ["Reset Spot Removal", "/action?action=resetSpotRemoval"],
+        ["Reset Redeye", "/action?action=resetRedeye"],
+        ["Select Crop Tool", "/action?action=selectCropTool"],
+        ["Select Healing Tool", "/action?action=selectHealingTool"],
+        ["Select Red Eye Tool", "/action?action=selectRedEyeTool"],
+        ["Select Upright Tool", "/action?action=selectUprightTool"],
+        ["Select Masking Tool", "/action?action=selectMaskingTool"]
+    ];
+
+    function getQuickCommands() {
+        return [
+            ["Exposure +" + stepSize, "/adjust?slider=Exposure&amount=" + stepSize],
+            ["Exposure -" + stepSize, "/adjust?slider=Exposure&amount=-" + stepSize],
+            ["Exposure Reset", "/reset?slider=Exposure"],
+            ["Auto Tone", "/action?action=setAutoTone"],
+            ["Auto White Balance", "/action?action=setAutoWhiteBalance"],
+            ["Reset Basic Group", "/reset-group?group=Basic"],
+            ["Reset All", "/reset-all"]
+        ];
+    }
+
+    function normalizeHost(value) {
+        let host = String(value || "").trim();
+
+        if (!host) {
+            return "127.0.0.1";
+        }
+
+        host = host.replace(/^https?:\/\//i, "");
+        host = host.split("/")[0];
+
+        if (host.includes(":")) {
+            host = host.split(":")[0];
+        }
+
+        return host || "127.0.0.1";
+    }
+
+    function normalizeStep(value) {
+        let number = Number(value);
+
+        if (!Number.isFinite(number) || number < 1) {
+            number = 1;
+        }
+
+        number = Math.round(number);
+
+        return number;
+    }
+
+    function setBaseHost(host) {
+        const cleanHost = normalizeHost(host);
+        apiBase = "http://" + cleanHost + ":17891";
+        baseUrlEl.textContent = apiBase;
+        renderAll();
+    }
+
+    function setStep(value) {
+        stepSize = normalizeStep(value);
+        stepInput.value = String(stepSize);
+        stepDisplay.textContent = String(stepSize);
+        renderAll();
+    }
+
+    function setStatus(text) {
+        statusEl.textContent = text;
+
+        if (text) {
+            setTimeout(function () {
+                if (statusEl.textContent === text) {
+                    statusEl.textContent = "";
+                }
+            }, 1600);
+        }
+    }
+
+    async function copyText(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            setStatus("Copied: " + text);
+        } catch (err) {
+            const area = document.createElement("textarea");
+            area.value = text;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            document.body.removeChild(area);
+            setStatus("Copied: " + text);
+        }
+    }
+
+    function makeCommand(label, path) {
+        const command = document.createElement("div");
+        command.className = "command";
+
+        const labelEl = document.createElement("div");
+        labelEl.className = "command-label";
+        labelEl.textContent = label;
+
+        const pathEl = document.createElement("div");
+        pathEl.className = "path";
+        pathEl.textContent = path;
+        pathEl.title = path;
+
+        const buttons = document.createElement("div");
+        buttons.className = "button-row";
+
+        const copyPath = document.createElement("button");
+        copyPath.className = "primary small";
+        copyPath.textContent = "Copy path";
+        copyPath.addEventListener("click", function () {
+            copyText(path);
+        });
+
+        const copyFull = document.createElement("button");
+        copyFull.className = "small";
+        copyFull.textContent = "Copy full URL";
+        copyFull.addEventListener("click", function () {
+            copyText(apiBase + path);
+        });
+
+        buttons.appendChild(copyPath);
+        buttons.appendChild(copyFull);
+
+        command.appendChild(labelEl);
+        command.appendChild(pathEl);
+        command.appendChild(buttons);
+
+        if (path === "/reset-all") {
+            const warning = document.createElement("div");
+            warning.className = "reset-all-warning";
+            warning.textContent = "Warning: Don't use. It can break Lightroom.";
+            command.appendChild(warning);
+        }
+
+        return command;
+    }
+
+    function makeCard(title, commands, meta) {
+        const card = document.createElement("div");
+        card.className = "card search-card";
+
+        const searchableParts = [title, meta || ""];
+        for (const command of commands) {
+            searchableParts.push(command[0], command[1]);
+        }
+
+        card.dataset.search = searchableParts.join(" ").toLowerCase();
+
+        const titleEl = document.createElement("div");
+        titleEl.className = "card-title";
+        titleEl.textContent = title;
+
+        const metaEl = document.createElement("div");
+        metaEl.className = "meta";
+        metaEl.textContent = meta || "";
+
+        card.appendChild(titleEl);
+
+        if (meta) {
+            card.appendChild(metaEl);
+        }
+
+        for (const command of commands) {
+            card.appendChild(makeCommand(command[0], command[1]));
+        }
+
+        return card;
+    }
+
+    function renderSimple(containerId, items) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = "";
+
+        for (const item of items) {
+            container.appendChild(makeCard(item[0], [["Path", item[1]]], apiBase + item[1]));
+        }
+    }
+
+    function groupBy(items, key) {
+        const map = new Map();
+
+        for (const item of items) {
+            const group = item[key] || "Other";
+
+            if (!map.has(group)) {
+                map.set(group, []);
+            }
+
+            map.get(group).push(item);
+        }
+
+        return map;
+    }
+
+    function sliderCommands(id) {
+        const encoded = encodeURIComponent(id);
+
+        return [
+            ["-" + stepSize, "/adjust?slider=" + encoded + "&amount=-" + stepSize],
+            ["Reset", "/reset?slider=" + encoded],
+            ["+" + stepSize, "/adjust?slider=" + encoded + "&amount=" + stepSize]
+        ];
+    }
+
+    function renderSliderCard(slider) {
+        return makeCard(
+            slider.label || slider.id,
+            sliderCommands(slider.id),
+            "ID: " + slider.id + " | group: " + slider.group
+        );
+    }
+
+    function renderGroups() {
+        const cleanSliders = sliders.filter(function (slider) {
+            return slider.id !== "LensProfileChromaticAberrationScale";
+        });
+
+        const grouped = groupBy(cleanSliders, "group");
+        const items = [];
+
+        for (const groupName of grouped.keys()) {
+            items.push([groupName, "/reset-group?group=" + encodeURIComponent(groupName)]);
+        }
+
+        renderSimple("groups", items);
+    }
+
+    function renderSliders() {
+        const root = document.getElementById("sliders");
+        const nav = document.getElementById("groupNav");
+
+        root.innerHTML = "";
+        nav.innerHTML = "";
+
+        const cleanSliders = sliders.filter(function (slider) {
+            return slider.id !== "LensProfileChromaticAberrationScale";
+        });
+
+        const grouped = groupBy(cleanSliders, "group");
+
+        for (const groupName of grouped.keys()) {
+            const groupId = "group-" + groupName.replace(/[^A-Za-z0-9]+/g, "-");
+
+            const link = document.createElement("a");
+            link.href = "#" + groupId;
+            link.textContent = groupName;
+            nav.appendChild(link);
+        }
+
+        for (const entry of grouped.entries()) {
+            const groupName = entry[0];
+            const items = entry[1];
+            const groupId = "group-" + groupName.replace(/[^A-Za-z0-9]+/g, "-");
+
+            const heading = document.createElement("h2");
+            heading.id = groupId;
+            heading.className = "slider-group-heading hide-when-searching";
+            heading.textContent = groupName;
+            root.appendChild(heading);
+
+            const grid = document.createElement("div");
+            grid.className = "grid slider-group-grid";
+
+            for (const slider of items) {
+                grid.appendChild(renderSliderCard(slider));
+            }
+
+            root.appendChild(grid);
+        }
+    }
+
+    function renderAll() {
+        renderSimple("quick", getQuickCommands());
+        renderSimple("actions", actions);
+        renderGroups();
+        renderSliders();
+        filterCards();
+    }
+
+    function filterCards() {
+        const query = searchEl.value.trim().toLowerCase();
+        const searching = Boolean(query);
+
+        document.body.classList.toggle("searching", searching);
+
+        for (const card of document.querySelectorAll(".search-card")) {
+            card.classList.toggle("hidden", searching && !card.dataset.search.includes(query));
+        }
+
+        for (const grid of document.querySelectorAll(".slider-group-grid")) {
+            const visibleCards = grid.querySelectorAll(".search-card:not(.hidden)").length;
+            grid.classList.toggle("hidden", searching && visibleCards === 0);
+        }
+
+        document.getElementById("actionsSection").classList.toggle(
+            "hidden",
+            searching && document.querySelectorAll("#actions .search-card:not(.hidden)").length === 0
+        );
+
+        document.getElementById("slidersSection").classList.toggle(
+            "hidden",
+            searching && document.querySelectorAll("#sliders .search-card:not(.hidden)").length === 0
+        );
+    }
+
+    async function loadSliders() {
+        const response = await fetch("/api/sliders");
+        const data = await response.json();
+
+        sliders = Array.isArray(data) ? data : data.sliders || [];
+        renderAll();
+    }
+
+    document.getElementById("useLocalhost").addEventListener("click", function () {
+        hostInput.value = "";
+        setBaseHost("127.0.0.1");
+    });
+
+    document.getElementById("useTypedHost").addEventListener("click", function () {
+        setBaseHost(hostInput.value);
+    });
+
+    hostInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+            setBaseHost(hostInput.value);
+        }
+    });
+
+    document.getElementById("applyStep").addEventListener("click", function () {
+        setStep(stepInput.value);
+    });
+
+    stepInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+            setStep(stepInput.value);
+        }
+    });
+
+    document.getElementById("copyBaseUrl").addEventListener("click", function () {
+        copyText(apiBase);
+    });
+
+    searchEl.addEventListener("input", filterCards);
+
+    setBaseHost("127.0.0.1");
+    setStep(1);
+
+    loadSliders().catch(function (err) {
+        document.getElementById("sliders").innerHTML =
+            '<div class="box warning">Could not load sliders from /api/sliders. Make sure LRBridge backend is running.<br>' +
+            String(err.message || err) +
+            '</div>';
+
+        renderSimple("quick", getQuickCommands());
+        renderSimple("actions", actions);
+    });
+</script>
+</body>
+</html>

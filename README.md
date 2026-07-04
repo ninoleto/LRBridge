@@ -680,10 +680,16 @@ Avoid for now:
 /set
 ```
 
-For a full copy/paste list of Companion HTTP paths for every supported slider and action, see:
+For a full copy/paste list of Bitfocus Companion HTTP paths for every supported slider and action, see:
 
 ```text
 docs/COMPANION_HTTP_CHEATSHEET.md
+```
+
+When the Web Controller server is running, it is also available in the browser:
+
+```text
+http://127.0.0.1:17892/bitfocus-companion-cheatsheet
 ```
 
 Regenerate it after slider/action changes with:
