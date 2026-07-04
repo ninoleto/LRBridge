@@ -1,32 +1,39 @@
-
-LRBridge
+# LRBridge
 
 LRBridge is a local bridge for controlling Adobe Lightroom Classic from external control surfaces and automation tools.
 
 It is designed for:
 
-Lightroom Classic users who want physical or browser-based controls.
-Bitfocus Companion users who want Lightroom slider/action control.
-Stream Deck and Loupedeck users who want HTTP-based Lightroom control.
-Developers and AI coding agents that need a clear project map before making forks, patches, or Companion modules.
+- Lightroom Classic users who want physical or browser-based controls.
+- Bitfocus Companion users who want Lightroom slider/action control.
+- Stream Deck and Loupedeck users who want HTTP-based Lightroom control.
+- Developers and AI coding agents that need a clear project map before making forks, patches, or Companion modules.
 
 LRBridge is currently focused on reliable one-way Lightroom control. Live feedback/readback is planned, but not yet treated as stable.
 
 Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightroom bridge, Bitfocus Companion Lightroom control, Generic HTTP Requests, Stream Deck Lightroom control, Loupedeck Lightroom knobs, photo editing control surface, Lightroom slider control, Lightroom automation, Electron, Node.js, Lua Lightroom plugin.
 
-Quick links
-Web Controller: http://127.0.0.1:17892/
-Human help page: http://127.0.0.1:17892/help
-Bitfocus Companion HTTP Builder: http://127.0.0.1:17892/bitfocus-companion-cheatsheet
-LRBridge API: http://127.0.0.1:17891/
-Raw API help: http://127.0.0.1:17891/help
-What LRBridge is good for
+---
+
+## Quick links
+
+- Web Controller: http://127.0.0.1:17892/
+- Human help page: http://127.0.0.1:17892/help
+- Bitfocus Companion HTTP Builder: http://127.0.0.1:17892/bitfocus-companion-cheatsheet
+- LRBridge API: http://127.0.0.1:17891/
+- Raw API help: http://127.0.0.1:17891/help
+
+---
+
+## What LRBridge is good for
 
 LRBridge lets Lightroom Classic users control Develop sliders and actions from browser buttons, Bitfocus Companion, Stream Deck HTTP plugins, Loupedeck workflows, PowerShell, curl, scripts, and other HTTP-capable tools.
 
 It is useful when you want physical buttons, knobs, tablets, browser shortcuts, or automation tools to send simple commands to Lightroom Classic.
 
 Feedback is not implemented yet. LRBridge sends commands to Lightroom, but it does not read live slider values back from Lightroom yet.
+
+---
 ## 1. Project summary
 
 LRBridge connects external controllers to Adobe Lightroom Classic.
@@ -49,15 +56,13 @@ Lightroom SDK / LrDevelopController
 Lightroom Classic Develop UI
 ```
 
-The Lightroom Classic visible UI is currently the source of truth.
+LRBridge currently sends commands to Lightroom, but it does not read live slider values back yet.
 
 That means:
 
-```text
-LRBridge sends commands.
-Lightroom applies the commands.
-The user watches Lightroom Classic for the real current value.
-```
+- LRBridge sends commands.
+- Lightroom applies the commands.
+- The user watches Lightroom Classic for the real current value.
 
 Do not assume controller-side slider feedback is accurate yet.
 
@@ -72,9 +77,7 @@ Stable enough for normal use:
 - Web Controller.
 - Lightroom Classic plugin polling.
 - Slider adjustments.
-- Slider reset.
-- Reset group.
-- Reset all mapped sliders.
+- Slider reset for one slider.
 - Lightroom Develop actions.
 - Command queue.
 - Repeated slider adjustment coalescing.
@@ -86,6 +89,7 @@ Stable enough for normal use:
 
 Experimental or not trusted yet:
 
+- /reset-group and /reset-all for normal UI use. They exist as advanced HTTP endpoints, but can overload Lightroom if abused.
 - `/get`
 - `/set`
 - `/last-result`
