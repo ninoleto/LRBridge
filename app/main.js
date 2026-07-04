@@ -5,8 +5,9 @@ const http = require("http");
 const os = require("os");
 
 const projectRoot = path.join(__dirname, "..");
+const portableRoot = app.isPackaged ? path.dirname(process.execPath) : projectRoot;
 const bridgePath = path.join(projectRoot, "bridge.js");
-const settingsPath = path.join(projectRoot, "config", "settings.txt");
+const settingsPath = path.join(portableRoot, "config", "settings.txt");
 const trayIconPath = path.join(__dirname, "tray.png");
 const controllerPath = path.join(__dirname, "controller.html");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
@@ -212,6 +213,7 @@ function startBridge() {
 
     console.log("Starting LRBridge app...");
     console.log("Project root:", projectRoot);
+    console.log("Portable root:", portableRoot);
     console.log("Polling interval:", readPollingMs() + " ms");
     console.log("Loading bridge:", bridgePath);
 

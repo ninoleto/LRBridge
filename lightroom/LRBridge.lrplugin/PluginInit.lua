@@ -1,6 +1,19 @@
 local LrTasks = import "LrTasks"
 
-local logPath = "D:\\Projects\\LRBridge\\lrplugin-log.txt"
+local function getPortableRoot()
+
+    local pluginPath = _PLUGIN.path or ""
+    local root = string.gsub(pluginPath, "[/\\]lightroom[/\\]LRBridge%.lrplugin$", "")
+
+    if root == pluginPath then
+        root = pluginPath .. "\\..\\.."
+    end
+
+    return root
+
+end
+
+local logPath = getPortableRoot() .. "\\lrplugin-log.txt"
 
 local function log(message)
 

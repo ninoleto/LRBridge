@@ -1,10 +1,25 @@
 local Settings = {}
 
-local settingsPath = "D:\\Projects\\LRBridge\\config\\settings.txt"
-
 local defaultPollIntervalMs = 100
 local minPollIntervalMs = 10
 local maxPollIntervalMs = 1000
+
+local function getPortableRoot()
+
+    local pluginPath = _PLUGIN.path or ""
+    local root = string.gsub(pluginPath, "[/\\]lightroom[/\\]LRBridge%.lrplugin$", "")
+
+    if root == pluginPath then
+        root = pluginPath .. "\\..\\.."
+    end
+
+    return root
+
+end
+
+local portableRoot = getPortableRoot()
+local settingsDir = portableRoot .. "\\config"
+local settingsPath = settingsDir .. "\\settings.txt"
 
 local function clamp(value, minValue, maxValue)
 
@@ -70,7 +85,9 @@ function Settings.load()
 
     return {
         pollIntervalMs = pollIntervalMs,
-        pollInterval = pollIntervalMs / 1000
+        pollInterval = pollIntervalMs / 1000,
+        settingsPath = settingsPath,
+        portableRoot = portableRoot
     }
 
 end
