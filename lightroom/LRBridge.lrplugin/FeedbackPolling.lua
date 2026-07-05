@@ -79,6 +79,21 @@ LrTasks.startAsyncTask(function()
             local id = parseRequestId(result)
             log("feedback request received: " .. tostring(slider))
 
+            local waitStartedAt = os.clock()
+
+            while _G.LRBridgeCommandBusy == true do
+
+                LrTasks.sleep(0.05)
+
+                if os.clock() - waitStartedAt > 3 then
+                    log("feedback busy wait timeout, reading anyway: " .. tostring(slider))
+                    break
+                end
+
+            end
+
+            LrTasks.sleep(0.15)
+
             local value = Query.getDevelopValue(slider)
 
             local url =

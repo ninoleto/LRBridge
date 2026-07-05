@@ -371,7 +371,22 @@
                 border: 0;
                 padding: 0 0 6px 0;
             }
+        }        .slider-feedback {
+            display: block;
+            margin-top: 4px;
+            color: #9fb0bf;
+            font-size: 12px;
+            font-weight: 400;
         }
+
+        .slider-feedback.active {
+            color: #7cc7ff;
+        }
+
+        .slider-feedback.error {
+            color: #ff9b9b;
+        }
+
     </style>
 </head>
 <body>
@@ -1095,9 +1110,314 @@
             window.requestAnimationFrame(startSliderJumpMenuObserver);
         }
 
+        const feedbackSupportedSliders = new Set([
+
+
+            "Exposure",
+
+
+            "Contrast",
+
+
+            "Highlights",
+
+
+            "Shadows",
+
+
+            "Whites",
+
+
+            "Blacks",
+
+
+            "Texture",
+
+
+            "Clarity",
+
+
+            "Dehaze",
+
+
+            "Vibrance",
+
+
+            "Saturation",
+
+
+            "Sharpness",
+
+
+            "LuminanceNR",
+
+
+            "ColorNR",
+
+
+            "Temperature",
+
+
+            "Tint"
+
+
+        ]);
+
+
+
+        const sliderFeedbackElements = {};
+
+
+        const sliderFeedbackUiRequestIds = {};
+
+
+
+        function sleep(ms) {
+
+
+            return new Promise(function (resolve) {
+
+
+                setTimeout(resolve, ms);
+
+
+            });
+
+
+        }
+
+
+
+        function formatSliderFeedbackValue(value) {
+
+
+            const numericValue = Number(value);
+
+
+
+            if (Number.isFinite(numericValue)) {
+
+
+                return String(Math.round(numericValue * 100) / 100);
+
+
+            }
+
+
+
+            if (value === null || value === undefined || value === "nil") {
+
+
+                return "not available";
+
+
+            }
+
+
+
+            return String(value);
+
+
+        }
+
+
+
+        function setSliderFeedback(slider, text, className) {
+
+
+            const element = sliderFeedbackElements[slider];
+
+
+
+            if (!element) {
+
+
+                return;
+
+
+            }
+
+
+
+            element.className = "slider-feedback" + (className ? " " + className : "");
+
+
+            element.textContent = text;
+
+
+        }
+
+
+
+        async function pollFeedbackValue(slider, requestId, timeoutMs) {
+
+
+            const startedAt = Date.now();
+
+
+
+            while (Date.now() - startedAt < timeoutMs) {
+
+
+                const response = await fetch("/api/feedback/value?slider=" + encodeURIComponent(slider), {
+
+
+                    cache: "no-store"
+
+
+                });
+
+
+
+                const data = await response.json();
+
+
+                const result = data && data.result ? data.result : null;
+
+
+
+                if (result && result.id === requestId) {
+
+
+                    return result;
+
+
+                }
+
+
+
+                await sleep(120);
+
+
+            }
+
+
+
+            return null;
+
+
+        }
+
+
+
+        async function requestSliderFeedback(slider) {
+
+
+            if (!feedbackSupportedSliders.has(slider)) {
+
+
+                return;
+
+
+            }
+
+
+
+            sliderFeedbackUiRequestIds[slider] = (sliderFeedbackUiRequestIds[slider] || 0) + 1;
+
+
+            const uiRequestId = sliderFeedbackUiRequestIds[slider];
+
+
+
+            setSliderFeedback(slider, "Lightroom: waiting...", "active");
+
+
+
+            try {
+
+
+                await sleep(300);
+
+
+
+                if (sliderFeedbackUiRequestIds[slider] !== uiRequestId) {
+
+
+                    return;
+
+
+                }
+
+
+
+                const requestResponse = await fetch("/api/feedback/request?slider=" + encodeURIComponent(slider), {
+
+
+                    cache: "no-store"
+
+
+                });
+
+
+
+                const requestData = await requestResponse.json();
+
+
+                const request = requestData && requestData.request ? requestData.request : null;
+
+
+
+                if (!request || !request.id) {
+
+
+                    setSliderFeedback(slider, "Lightroom: feedback request failed", "error");
+
+
+                    return;
+
+
+                }
+
+
+
+                const result = await pollFeedbackValue(slider, request.id, 3000);
+
+
+
+                if (sliderFeedbackUiRequestIds[slider] !== uiRequestId) {
+
+
+                    return;
+
+
+                }
+
+
+
+                if (!result) {
+
+
+                    setSliderFeedback(slider, "Lightroom: timeout", "error");
+
+
+                    return;
+
+
+                }
+
+
+
+                setSliderFeedback(slider, "Lightroom: " + formatSliderFeedbackValue(result.value), "active");
+
+
+            } catch (err) {
+
+
+                setSliderFeedback(slider, "Lightroom: feedback error", "error");
+
+
+            }
+
+
+        }
+
+
+
         function sendAdjust(slider, amount) {
             markSliderCommandSent();
             sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount));
+            requestSliderFeedback(slider);
         }
 
         function makeDragStrip(slider) {
@@ -1333,7 +1653,15 @@
             name.className = "slider-name";
             name.textContent = labels[slider] || slider;
 
-            row.appendChild(name);
+            
+            if (feedbackSupportedSliders.has(slider)) {
+                const feedback = document.createElement("span");
+                feedback.className = "slider-feedback";
+                feedback.textContent = "Lightroom: --";
+                name.appendChild(feedback);
+                sliderFeedbackElements[slider] = feedback;
+            }
+row.appendChild(name);
 
             row.appendChild(makeButton("-5", "negative", function () {
                 sendAdjust(slider, -5);
@@ -1346,6 +1674,7 @@
             row.appendChild(makeButton("Reset", "reset", function () {
                 markSliderCommandSent();
                 sendCommand("/api/reset?slider=" + encodeURIComponent(slider));
+                            requestSliderFeedback(slider);
             }));
 
             row.appendChild(makeButton("+1", "positive", function () {

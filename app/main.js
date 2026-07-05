@@ -406,6 +406,12 @@ function startControllerServer() {
             return;
         }
 
+        if (requestUrl.pathname.startsWith("/api/")) {
+            const bridgePathAndQuery = requestUrl.pathname.slice(4) + requestUrl.search;
+            await proxyBridgeRequest(response, bridgePathAndQuery);
+            return;
+        }
+
         sendControllerResponse(
             response,
             404,

@@ -1,17 +1,17 @@
-local LrApplication = import "LrApplication"
+local LrDevelopController = import "LrDevelopController"
 
 local Query = {}
 
-local developSettingsMap = {
-    Exposure = "Exposure2012",
-    Contrast = "Contrast2012",
-    Highlights = "Highlights2012",
-    Shadows = "Shadows2012",
-    Whites = "Whites2012",
-    Blacks = "Blacks2012",
+local developControllerMap = {
+    Exposure = "Exposure",
+    Contrast = "Contrast",
+    Highlights = "Highlights",
+    Shadows = "Shadows",
+    Whites = "Whites",
+    Blacks = "Blacks",
 
     Texture = "Texture",
-    Clarity = "Clarity2012",
+    Clarity = "Clarity",
     Dehaze = "Dehaze",
 
     Vibrance = "Vibrance",
@@ -21,38 +21,28 @@ local developSettingsMap = {
     LuminanceNR = "LuminanceSmoothing",
     ColorNR = "ColorNoiseReduction",
 
-    Temperature = "IncrementalTemperature",
-    Tint = "IncrementalTint",
+    Temperature = "Temperature",
+    Tint = "Tint",
 }
 
 function Query.getDevelopValue(slider)
 
-    local settingName = developSettingsMap[slider]
+    local param = developControllerMap[slider]
 
-    if settingName == nil then
+    if param == nil then
         return nil
     end
 
-    local catalog = LrApplication.activeCatalog()
-    local value = nil
-
-    catalog:withReadAccessDo(function()
-
-        local photo = catalog:getTargetPhoto()
-
-        if photo == nil then
-            return
-        end
-
-        local settings = photo:getDevelopSettings()
-        value = settings[settingName]
-
+    local ok, value = pcall(function()
+        return LrDevelopController.getValue(param)
     end)
+
+    if ok ~= true then
+        return nil
+    end
 
     return value
 
 end
 
 return Query
-
-
