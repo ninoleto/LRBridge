@@ -836,61 +836,74 @@
             button.addEventListener("click", onClick);
             return button;
         }
+        const autoActionCooldownMs = 2200;
+        const autoActionCooldownActions = new Set(["setAutoTone", "setAutoWhiteBalance"]);
 
+        const autoActionButtons = {};
+        let autoActionCooldownUntil = 0;
+        let autoActionCooldownTimer = null;
 
-
-        const autoWhiteBalanceCooldownMs = 2200;
-        const autoWhiteBalanceTrackedSliders = new Set(["Temperature", "Tint"]);
-
-        let autoWhiteBalanceButton = null;
-        let autoWhiteBalanceCooldownUntil = 0;
-        let autoWhiteBalanceCooldownTimer = null;
-
-        function isAutoWhiteBalanceCooldownActive() {
-            return Date.now() < autoWhiteBalanceCooldownUntil;
+        function isAutoActionCooldownActive() {
+            return Date.now() < autoActionCooldownUntil;
         }
 
-        function updateAutoWhiteBalanceButton() {
-            if (!autoWhiteBalanceButton) {
-                return;
-            }
-
-            const remainingMs = Math.max(0, autoWhiteBalanceCooldownUntil - Date.now());
-
-            if (remainingMs > 0) {
-                const remainingSeconds = Math.ceil(remainingMs / 1000);
-                autoWhiteBalanceButton.disabled = true;
-                autoWhiteBalanceButton.textContent = "Wait " + remainingSeconds + "s";
-                return;
-            }
-
-            autoWhiteBalanceButton.disabled = false;
-            autoWhiteBalanceButton.textContent = autoWhiteBalanceButton.dataset.originalText || "Set";
+        function isAutoActionCooldownActiveFor(action) {
+            return autoActionCooldownActions.has(action) && isAutoActionCooldownActive();
         }
 
-        function startAutoWhiteBalanceCooldown() {
-            autoWhiteBalanceCooldownUntil = Date.now() + autoWhiteBalanceCooldownMs;
+        function updateAutoActionButtons() {
+            const remainingMs = Math.max(0, autoActionCooldownUntil - Date.now());
 
-            if (autoWhiteBalanceCooldownTimer !== null) {
-                clearInterval(autoWhiteBalanceCooldownTimer);
+            Object.keys(autoActionButtons).forEach(function (action) {
+                const button = autoActionButtons[action];
+
+                if (!button) {
+                    return;
+                }
+
+                if (remainingMs > 0) {
+                    const remainingSeconds = Math.ceil(remainingMs / 1000);
+                    button.disabled = true;
+                    button.textContent = "Wait " + remainingSeconds + "s";
+                    return;
+                }
+
+                button.disabled = false;
+                button.textContent = button.dataset.originalText || "Set";
+            });
+        }
+
+        function startAutoActionCooldown() {
+            autoActionCooldownUntil = Date.now() + autoActionCooldownMs;
+
+            if (autoActionCooldownTimer !== null) {
+                clearInterval(autoActionCooldownTimer);
             }
 
-            updateAutoWhiteBalanceButton();
+            updateAutoActionButtons();
 
-            autoWhiteBalanceCooldownTimer = setInterval(function () {
-                updateAutoWhiteBalanceButton();
+            autoActionCooldownTimer = setInterval(function () {
+                updateAutoActionButtons();
 
-                if (!isAutoWhiteBalanceCooldownActive()) {
-                    clearInterval(autoWhiteBalanceCooldownTimer);
-                    autoWhiteBalanceCooldownTimer = null;
+                if (!isAutoActionCooldownActive()) {
+                    clearInterval(autoActionCooldownTimer);
+                    autoActionCooldownTimer = null;
                 }
             }, 250);
         }
 
-        function markWhiteBalanceSliderTouched(slider) {
-            if (autoWhiteBalanceTrackedSliders.has(slider)) {
-                startAutoWhiteBalanceCooldown();
+        function markSliderCommandSent() {
+            startAutoActionCooldown();
+        }
+
+        function registerAutoActionButton(action, button) {
+            if (!autoActionCooldownActions.has(action)) {
+                return;
             }
+
+            autoActionButtons[action] = button;
+            button.dataset.originalText = button.dataset.originalText || button.textContent || "Set";
+            updateAutoActionButtons();
         }
 
         function getSliderJumpSections() {
@@ -1083,7 +1096,7 @@
         }
 
         function sendAdjust(slider, amount) {
-            markWhiteBalanceSliderTouched(slider);
+            markSliderCommandSent();
             sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount));
         }
 
@@ -1266,20 +1279,15 @@
             row.appendChild(name);
 
             const actionButton = makeButton(item.button || "Send", "positive", function () {
-                if (item.action === "setAutoWhiteBalance" && isAutoWhiteBalanceCooldownActive()) {
-                    setStatus("Auto White Balance is waiting for Lightroom to finish Temperature/Tint tracking.");
+                if (isAutoActionCooldownActiveFor(item.action)) {
+                    setStatus("Auto Tone / Auto White Balance is waiting for Lightroom to finish the last slider command.");
                     return;
                 }
 
                 sendCommand("/api/action?action=" + encodeURIComponent(item.action));
                 status.textContent = "Sent to Lightroom";
             });
-
-            if (item.action === "setAutoWhiteBalance") {
-                autoWhiteBalanceButton = actionButton;
-                autoWhiteBalanceButton.dataset.originalText = item.button || "Set";
-                updateAutoWhiteBalanceButton();
-            }
+            registerAutoActionButton(item.action, actionButton);
 
             row.appendChild(actionButton);
             row.appendChild(status);
@@ -1301,11 +1309,13 @@
             row.appendChild(name);
 
             row.appendChild(makeButton("Off", "negative", function () {
+                markSliderCommandSent();
                 sendCommand("/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=-5");
                 status.textContent = "Sent OFF";
             }));
 
             row.appendChild(makeButton("On", "positive", function () {
+                markSliderCommandSent();
                 sendCommand("/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=5");
                 status.textContent = "Sent ON";
             }));
@@ -1334,7 +1344,7 @@
             }));
 
             row.appendChild(makeButton("Reset", "reset", function () {
-                markWhiteBalanceSliderTouched(slider);
+                markSliderCommandSent();
                 sendCommand("/api/reset?slider=" + encodeURIComponent(slider));
             }));
 
