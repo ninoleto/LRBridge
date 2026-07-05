@@ -10,6 +10,10 @@ const WS_PORT = 17890;
 
 const app = express();
 
+const feedbackRequests = [];
+const feedbackValues = {};
+let feedbackRequestId = 0;
+
 function queueCommand(command) {
     return commands.setLatestCommand(JSON.stringify(command));
 }
@@ -327,6 +331,97 @@ app.get("/result", function (req, res) {
 app.get("/last-result", function (req, res) {
     const result = commands.getLatestResult();
     res.json({ result: result });
+});
+
+
+app.get("/feedback/request", function (req, res) {
+    const slider = req.query.slider;
+
+    if (!sliders.exists(slider)) {
+        res.status(400).json({
+            ok: false,
+            error: "Unknown slider",
+            slider: slider
+        });
+        return;
+    }
+
+    for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
+        if (feedbackRequests[i].slider === slider) {
+            feedbackRequests.splice(i, 1);
+        }
+    }
+
+    feedbackRequestId += 1;
+
+    const request = {
+        id: feedbackRequestId,
+        slider: slider,
+        requestedAt: Date.now()
+    };
+
+    feedbackRequests.push(request);
+
+    res.json({
+        ok: true,
+        request: request
+    });
+});
+
+app.get("/feedback/next", function (req, res) {
+    const request = feedbackRequests.shift() || null;
+
+    res.json({
+        ok: true,
+        request: request
+    });
+});
+
+app.get("/feedback/result", function (req, res) {
+    const slider = req.query.slider;
+    const rawValue = req.query.value;
+    const numericValue = Number(rawValue);
+
+    if (!sliders.exists(slider)) {
+        res.status(400).json({
+            ok: false,
+            error: "Unknown slider",
+            slider: slider
+        });
+        return;
+    }
+
+    const result = {
+        id: Number(req.query.id) || null,
+        slider: slider,
+        value: Number.isNaN(numericValue) ? rawValue : numericValue,
+        receivedAt: Date.now()
+    };
+
+    feedbackValues[slider] = result;
+
+    res.json({
+        ok: true,
+        result: result
+    });
+});
+
+app.get("/feedback/value", function (req, res) {
+    const slider = req.query.slider;
+
+    if (!sliders.exists(slider)) {
+        res.status(400).json({
+            ok: false,
+            error: "Unknown slider",
+            slider: slider
+        });
+        return;
+    }
+
+    res.json({
+        ok: true,
+        result: feedbackValues[slider] || null
+    });
 });
 
 app.listen(HTTP_PORT, function () {

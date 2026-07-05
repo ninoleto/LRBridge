@@ -45,4 +45,15 @@ LrTasks.startAsyncTask(function()
 
     log("AutoStartPolling.lua loaded")
 
+    local feedbackOk, feedbackResult = pcall(function()
+        dofile(_PLUGIN.path .. "\\FeedbackPolling.lua")
+    end)
+
+    if feedbackOk ~= true then
+        log("ERROR loading FeedbackPolling.lua: " .. tostring(feedbackResult))
+        return
+    end
+
+    log("FeedbackPolling.lua loaded")
+
 end)
