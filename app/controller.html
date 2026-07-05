@@ -1414,6 +1414,68 @@
 
 
 
+        let liveFeedbackPollingStarted = false;
+        let liveFeedbackSnapshotInFlight = false;
+
+        async function updateSliderFeedbackFromCache() {
+            try {
+                const response = await fetch("/api/feedback/all", {
+                    cache: "no-store"
+                });
+
+                const data = await response.json();
+                const values = data && data.values ? data.values : {};
+
+                Object.keys(sliderFeedbackElements).forEach(function (slider) {
+                    const result = values[slider];
+
+                    if (!result || result.value === null || result.value === undefined || result.value === "nil") {
+                        return;
+                    }
+
+                    setSliderFeedback(slider, "Lightroom: " + formatSliderFeedbackValue(result.value), "active");
+                });
+            } catch (err) {
+                /* Ignore temporary feedback polling errors. */
+            }
+        }
+
+        async function requestLiveFeedbackSnapshot() {
+            if (liveFeedbackSnapshotInFlight) {
+                return;
+            }
+
+            liveFeedbackSnapshotInFlight = true;
+
+            try {
+                await fetch("/api/feedback/request-all", {
+                    cache: "no-store"
+                });
+
+                await sleep(250);
+
+                await updateSliderFeedbackFromCache();
+            } catch (err) {
+                /* Ignore temporary feedback request errors. */
+            } finally {
+                liveFeedbackSnapshotInFlight = false;
+            }
+        }
+
+        function startLiveFeedbackPolling() {
+            if (liveFeedbackPollingStarted) {
+                return;
+            }
+
+            liveFeedbackPollingStarted = true;
+
+            requestLiveFeedbackSnapshot();
+
+            setInterval(function () {
+                requestLiveFeedbackSnapshot();
+            }, 700);
+        }
+
         function sendAdjust(slider, amount) {
             markSliderCommandSent();
             sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount));
@@ -1579,7 +1641,7 @@
                 button.addEventListener("click", function () {
                     activeTab = tab.id;
                     render();
-                });
+});
 
                 tabsElement.appendChild(button);
             }
@@ -1802,6 +1864,7 @@ row.appendChild(name);
         });
 
         render();
+        startLiveFeedbackPolling();
     </script>
 </body>
 </html>

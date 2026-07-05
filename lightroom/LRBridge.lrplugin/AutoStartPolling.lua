@@ -76,7 +76,13 @@ LrTasks.startAsyncTask(function()
 
             if command ~= nil then
                 log("command received: " .. tostring(command.command) .. " " .. tostring(command.slider))
+
+                _G.LRBridgeCommandBusy = true
+
                 Commands.execute(command)
+
+                _G.LRBridgeCommandBusy = false
+                _G.LRBridgeLastCommandFinishedAt = os.clock()
             end
 
         end

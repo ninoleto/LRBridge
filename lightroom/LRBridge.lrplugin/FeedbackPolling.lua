@@ -29,6 +29,25 @@ local function log(message)
 
 end
 
+local watchedSliders = {
+    "Exposure",
+    "Contrast",
+    "Highlights",
+    "Shadows",
+    "Whites",
+    "Blacks",
+    "Texture",
+    "Clarity",
+    "Dehaze",
+    "Vibrance",
+    "Saturation",
+    "Sharpness",
+    "LuminanceNR",
+    "ColorNR",
+    "Temperature",
+    "Tint",
+}
+
 local function parseRequestId(json)
 
     if json == nil then
@@ -55,6 +74,74 @@ local function parseSlider(json)
 
 end
 
+local function waitForNormalCommandToFinish()
+
+    local safety = 0
+
+    while _G.LRBridgeCommandBusy == true and safety < 100 do
+        LrTasks.sleep(0.02)
+        safety = safety + 1
+    end
+
+    LrTasks.sleep(0.08)
+
+end
+
+local function sendValue(id, slider, value)
+
+    local url =
+        "http://127.0.0.1:17891/feedback/result" ..
+        "?id=" .. tostring(id) ..
+        "&slider=" .. tostring(slider) ..
+        "&value=" .. tostring(value)
+
+    LrHttp.get(url)
+
+end
+
+local function sendRequestedValue(id, slider)
+
+    waitForNormalCommandToFinish()
+
+    local value = Query.getDevelopValue(slider)
+
+    sendValue(id, slider, value)
+
+    log("feedback result sent: " .. tostring(slider) .. "=" .. tostring(value))
+
+end
+
+local function sendAllRequestedValues(id)
+
+    waitForNormalCommandToFinish()
+
+    local changedCount = 0
+    local firstValue = nil
+
+    for i, slider in ipairs(watchedSliders) do
+
+        local value = Query.getDevelopValue(slider)
+
+        if value ~= nil then
+
+            sendValue(id, slider, value)
+
+            changedCount = changedCount + 1
+
+            if firstValue == nil then
+                firstValue = tostring(slider) .. "=" .. tostring(value)
+            end
+
+            LrTasks.sleep(0.005)
+
+        end
+
+    end
+
+    log("feedback all sent " .. tostring(changedCount) .. " values, " .. tostring(firstValue))
+
+end
+
 if _G.LRBridgeFeedbackPollingStarted == true then
 
     log("feedback polling already running")
@@ -66,52 +153,31 @@ _G.LRBridgeFeedbackPollingStarted = true
 
 LrTasks.startAsyncTask(function()
 
-    log("feedback polling loop started")
+    log("feedback request polling loop started")
 
     while _G.LRBridgeFeedbackPollingStarted == true do
 
         local result = LrHttp.get("http://127.0.0.1:17891/feedback/next")
-
         local slider = parseSlider(result)
 
         if slider ~= nil then
 
             local id = parseRequestId(result)
-            log("feedback request received: " .. tostring(slider))
 
-            local waitStartedAt = os.clock()
-
-            while _G.LRBridgeCommandBusy == true do
-
-                LrTasks.sleep(0.05)
-
-                if os.clock() - waitStartedAt > 3 then
-                    log("feedback busy wait timeout, reading anyway: " .. tostring(slider))
-                    break
-                end
-
+            if slider == "__all__" then
+                log("feedback all request received")
+                sendAllRequestedValues(id)
+            else
+                log("feedback request received: " .. tostring(slider))
+                sendRequestedValue(id, slider)
             end
-
-            LrTasks.sleep(0.15)
-
-            local value = Query.getDevelopValue(slider)
-
-            local url =
-                "http://127.0.0.1:17891/feedback/result" ..
-                "?id=" .. tostring(id) ..
-                "&slider=" .. tostring(slider) ..
-                "&value=" .. tostring(value)
-
-            LrHttp.get(url)
-
-            log("feedback result sent: " .. tostring(slider) .. "=" .. tostring(value))
 
         end
 
-        LrTasks.sleep(0.2)
+        LrTasks.sleep(0.1)
 
     end
 
-    log("feedback polling loop stopped")
+    log("feedback request polling loop stopped")
 
 end)

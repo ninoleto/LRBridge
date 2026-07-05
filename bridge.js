@@ -368,6 +368,29 @@ app.get("/feedback/request", function (req, res) {
     });
 });
 
+app.get("/feedback/request-all", function (req, res) {
+    for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
+        if (feedbackRequests[i].slider === "__all__") {
+            feedbackRequests.splice(i, 1);
+        }
+    }
+
+    feedbackRequestId += 1;
+
+    const request = {
+        id: feedbackRequestId,
+        slider: "__all__",
+        requestedAt: Date.now()
+    };
+
+    feedbackRequests.push(request);
+
+    res.json({
+        ok: true,
+        request: request
+    });
+});
+
 app.get("/feedback/next", function (req, res) {
     const request = feedbackRequests.shift() || null;
 
@@ -421,6 +444,13 @@ app.get("/feedback/value", function (req, res) {
     res.json({
         ok: true,
         result: feedbackValues[slider] || null
+    });
+});
+
+app.get("/feedback/all", function (req, res) {
+    res.json({
+        ok: true,
+        values: feedbackValues
     });
 });
 
