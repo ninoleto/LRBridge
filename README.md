@@ -804,27 +804,11 @@ This unsupported control is intentionally not shown in the Web Controller.
 
 Bitfocus Companion can use LRBridge in two ways.
 
-### Method 1: Native LRBridge Companion module
+### Method 1: Companion Generic HTTP Requests
 
-Native Companion module repo:
+Use Companion's built-in HTTP request tools to map LRBridge commands to Companion buttons, pages, and supported hardware controllers.
 
-```text
-https://github.com/ninoleto/companion-module-ninoleto-lrbridge
-```
-
-Use this path for a cleaner Companion setup with LRBridge sliders and actions available from Companion dropdown menus.
-
-The native module is maintained as a separate project. It is not bundled inside the LRBridge portable ZIP.
-
-If the module is not available in the official Companion build yet, use the GitHub repo for the current development version and setup instructions.
-
-### Method 2: Companion Generic HTTP Requests
-
-Use:
-
-```text
-Generic HTTP Requests
-```
+This method works with tools already integrated in Companion and does not require the native LRBridge Companion module. The Builder page provides copy-ready commands for slider adjustment, slider reset, and Lightroom actions.
 
 Recommended Companion base URL when Companion runs on the same Windows PC as LRBridge:
 
@@ -865,6 +849,20 @@ Regenerate it after slider/action changes with:
 ```bash
 npm run generate:cheatsheet
 ```
+
+### Method 2: Native LRBridge Companion module
+
+Native Companion module repo:
+
+```text
+https://github.com/ninoleto/companion-module-ninoleto-lrbridge
+```
+
+Use this path for a cleaner Companion setup with LRBridge sliders and actions available from Companion dropdown menus.
+
+The native module is maintained as a separate project. It is not bundled inside the LRBridge portable ZIP.
+
+If the module is not available in the official Companion build yet, use the GitHub repo for the current development version and setup instructions.
 
 ---
 
