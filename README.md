@@ -9,7 +9,7 @@ It is designed for:
 - Stream Deck and Loupedeck users who want HTTP-based Lightroom control.
 - Developers and AI coding agents that need a clear project map before making forks, patches, or Companion modules.
 
-LRBridge is currently focused on reliable one-way Lightroom control. Live feedback/readback is planned, but not yet treated as stable.
+LRBridge is focused on reliable Lightroom slider/action control through a local HTTP bridge. The Web Controller now supports polling-based feedback for visible sliders. Feedback is useful, but it is not true native realtime readback.
 
 Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightroom bridge, Bitfocus Companion Lightroom control, Generic HTTP Requests, Stream Deck Lightroom control, Loupedeck Lightroom knobs, photo editing control surface, Lightroom slider control, Lightroom automation, Electron, Node.js, Lua Lightroom plugin.
 
@@ -27,44 +27,60 @@ Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightro
 
 ## What LRBridge is good for
 
-LRBridge lets Lightroom Classic users control Develop sliders and actions from browser buttons, Bitfocus Companion, Stream Deck HTTP plugins, Loupedeck workflows, PowerShell, curl, scripts, and other HTTP-capable tools.
+LRBridge lets Lightroom Classic users control Develop sliders and actions from the Web Controller, Bitfocus Companion, Stream Deck HTTP/request plugins, PowerShell, curl, scripts, and other HTTP-capable tools.
 
-It is useful when you want physical buttons, knobs, tablets, browser shortcuts, or automation tools to send simple commands to Lightroom Classic.
+Original use case:
 
-Feedback is not implemented yet. LRBridge sends commands to Lightroom, but it does not read live slider values back from Lightroom yet.
+```text
+Loupedeck device -> Bitfocus Companion -> LRBridge app -> LRBridge Lightroom plugin -> Lightroom Classic
+```
+
+LRBridge was originally built so Loupedeck Live hardware could be used with Lightroom Classic through Bitfocus Companion, without depending on the official Loupedeck/Logitech software for slider control.
+
+It is also useful when you want a tablet, touchscreen monitor, old phone, browser shortcut, Stream Deck HTTP setup, or automation script to send simple commands to Lightroom Classic.
+
+The Web Controller includes polling-based feedback for visible sliders. This means it can show current Lightroom slider values, but small delays are normal.
 
 ---
 ## 1. Project summary
 
 LRBridge connects external controllers to Adobe Lightroom Classic.
 
-Current control path:
+Command path:
 
 ```text
-Web Controller / HTTP Client / Companion Generic HTTP
+Web Controller / HTTP client / Bitfocus Companion
         ↓
-LRBridge Electron App
+LRBridge app
         ↓
 LRBridge local HTTP API
         ↓
-Command Queue
+Command queue
         ↓
-Lightroom Classic Plugin Polling
+LRBridge Lightroom plugin polling
         ↓
 Lightroom SDK / LrDevelopController
         ↓
 Lightroom Classic Develop UI
 ```
 
-LRBridge currently sends commands to Lightroom, but it does not read live slider values back yet.
+Web Controller feedback path:
 
-That means:
+```text
+Web Controller asks for visible slider values
+        ↓
+LRBridge feedback queue
+        ↓
+LRBridge Lightroom plugin feedback polling
+        ↓
+Lightroom SDK / LrDevelopController.getValue()
+        ↓
+LRBridge feedback state
+        ↓
+Web Controller value display
+```
 
-- LRBridge sends commands.
-- Lightroom applies the commands.
-- The user watches Lightroom Classic for the real current value.
-
-Do not assume controller-side slider feedback is accurate yet.
+Feedback is polling-based. It is designed to be useful and lightweight, not perfect realtime feedback.
 
 ---
 
@@ -77,7 +93,7 @@ Stable enough for normal use:
 - Web Controller.
 - Lightroom Classic plugin polling.
 - Slider adjustments.
-- Slider reset for one slider.
+- Slider reset for an individual slider.
 - Lightroom Develop actions.
 - Command queue.
 - Repeated slider adjustment coalescing.
@@ -85,22 +101,29 @@ Stable enough for normal use:
 - Smoke test.
 - Human Web Controller Help page.
 - Companion Generic HTTP support.
+- Polling-based Web Controller feedback for visible sliders.
 - Auto White Balance cooldown in the Web Controller after Temperature/Tint changes.
 
-Experimental or not trusted yet:
+Advanced or use with care:
 
 - /reset-group and /reset-all for normal UI use. They exist as advanced HTTP endpoints, but can overload Lightroom if abused.
 - `/get`
 - `/set`
 - `/last-result`
-- live controller feedback
-- native Bitfocus Companion module
+- WebSocket command input
+
+Companion integration:
+
+- Generic HTTP Requests works now.
+- Native LRBridge Companion module is available as a separate project:
+  `https://github.com/ninoleto/companion-module-ninoleto-lrbridge`
+- The native module may not be included in official Companion builds yet.
 
 Important design decision:
 
 ```text
-LRBridge v0.x is one-way control first.
-Feedback/readback must be added carefully later through a stable state API.
+LRBridge v0.x stays HTTP-first and Lightroom-plugin controlled.
+Do not build normal workflows on /get, /set, or /last-result.
 ```
 
 ---
@@ -125,12 +148,13 @@ LRBridge/
   lightroom/
     LRBridge.lrplugin/
       AutoStartPolling.lua   Silent polling startup
+      FeedbackPolling.lua     Side-channel feedback polling
       Commands.lua           Executes parsed commands
       Driver.lua             Lightroom SDK control layer
       Info.lua               Lightroom plugin manifest
       Parser.lua             Minimal JSON command parser
       PluginInit.lua         Plugin initialization
-      Query.lua              Experimental readback helpers
+      Query.lua              Slider feedback/readback helpers
       Settings.lua           Reads config/settings.txt
       StartPolling.lua       Manual polling command
       Test.lua               Plugin test command
@@ -339,13 +363,27 @@ and directly from the LRBridge API:
 http://127.0.0.1:17891/help
 ```
 
-### Web Controller limitation
+### Web Controller feedback note
 
-The Web Controller currently sends commands only.
+The Web Controller can show Lightroom slider feedback values below supported sliders.
 
-It does not yet show reliable live Lightroom slider feedback.
+Feedback behavior:
 
-Use Lightroom Classic itself as the visible source of truth.
+```text
+The browser asks for values only for sliders currently visible on screen.
+Lightroom reads those values through the LRBridge Lightroom plugin.
+LRBridge sends changed values back to the browser.
+```
+
+This keeps feedback lighter than reading every known slider all the time.
+
+Important:
+
+```text
+Feedback is polling-based.
+It is not true native realtime feedback.
+Small delays are normal, especially while moving sliders quickly.
+```
 
 ---
 
@@ -583,20 +621,24 @@ Important:
 /get is experimental.
 /last-result is a single temporary result slot.
 /last-result clears after read.
-Do not build Companion feedback on this.
+Do not build Companion feedback or Web Controller feedback on this.
 ```
 
-Reason:
+The Web Controller uses dedicated feedback endpoints instead of `/get` and `/last-result`.
+
+Dedicated feedback endpoints used by LRBridge:
 
 ```text
-If Web Controller and Companion both read /last-result, one client can consume the value before the other sees it.
+GET /feedback/request?slider=Exposure
+GET /feedback/request-many?sliders=Exposure,Contrast
+GET /feedback/request-all
+GET /feedback/next
+GET /feedback/result?id=...&slider=...&value=...
+GET /feedback/value?slider=Exposure
+GET /feedback/all
 ```
 
-Future feedback should use a stable state API, for example:
-
-```text
-GET /state
-```
+These endpoints are for LRBridge feedback polling and may change while the feedback system is still being refined.
 
 ---
 
@@ -661,7 +703,11 @@ This unsupported control is intentionally not shown in the Web Controller.
 
 ## 23. Companion usage today
 
-Until the native Companion module exists, use:
+Bitfocus Companion can use LRBridge in two ways.
+
+### Method 1: Companion Generic HTTP Requests
+
+Use:
 
 ```text
 Generic HTTP Requests
@@ -673,7 +719,7 @@ Recommended Companion base URL:
 http://127.0.0.1:17891
 ```
 
-or from another machine:
+For another machine on the LAN:
 
 ```text
 http://YOUR_LRBRIDGE_PC_IP:17891
@@ -685,18 +731,8 @@ Recommended Companion actions:
 /adjust?slider=Exposure&amount=1
 /adjust?slider=Exposure&amount=-1
 /reset?slider=Exposure
-/reset-group?group=Basic
-/reset-all
 /action?action=setAutoTone
 /action?action=setAutoWhiteBalance
-```
-
-Avoid for now:
-
-```text
-/get
-/last-result
-/set
 ```
 
 For a full copy/paste list of Bitfocus Companion HTTP paths for every supported slider and action, see:
@@ -713,28 +749,40 @@ http://127.0.0.1:17892/bitfocus-companion-cheatsheet
 
 Regenerate it after slider/action changes with:
 
-```powershell
+```bash
 npm run generate:cheatsheet
 ```
 
+### Method 2: Native LRBridge Companion module
+
+Native Companion module repo:
+
+```text
+https://github.com/ninoleto/companion-module-ninoleto-lrbridge
+```
+
+Use this path for a cleaner Companion setup with LRBridge sliders and actions available from Companion dropdown menus.
+
+If the module is not available in the official Companion build yet, use the GitHub repo for the current development version and setup instructions.
+
 ---
 
-## 24. Native Companion module roadmap
+## 24. Native Companion module architecture
 
 The native Bitfocus Companion module should not contain Lightroom logic.
 
-Correct future architecture:
+Correct architecture:
 
 ```text
-Companion Module
+Companion module
         ↓
 HTTP requests
         ↓
-LRBridge API
+LRBridge app
         ↓
-Lightroom plugin
+LRBridge Lightroom plugin
         ↓
-Lightroom Classic
+Lightroom Classic SDK
 ```
 
 The Companion module should:
@@ -742,11 +790,11 @@ The Companion module should:
 - configure LRBridge host/IP
 - configure LRBridge port
 - expose slider adjustment actions
-- expose reset actions
-- expose Lightroom action buttons
+- expose slider reset actions
+- expose Lightroom action commands
 - optionally load slider metadata from `/sliders`
 - optionally load groups from `/groups`
-- later poll `/state` for feedback
+- use LRBridge feedback endpoints if value feedback is added to the Companion module later
 
 The Companion module should not:
 
@@ -754,28 +802,12 @@ The Companion module should not:
 - duplicate Lightroom SDK logic
 - assume `/get` is reliable
 - depend on `/last-result`
+- include generic keyboard shortcut sending
 
-Future feedback design should be based on a stable API:
+Current module repo:
 
 ```text
-GET /state
-```
-
-Potential state shape:
-
-```json
-{
-  "ok": true,
-  "connected": true,
-  "photoSelected": true,
-  "sliders": {
-    "Exposure": 0.35,
-    "Contrast": 12,
-    "Temperature": 5000,
-    "Tint": 8
-  },
-  "lastUpdate": 1780000000000
-}
+https://github.com/ninoleto/companion-module-ninoleto-lrbridge
 ```
 
 ---
@@ -858,7 +890,7 @@ Do not assume:
 
 - `/get` is reliable.
 - `/set` is reliable.
-- controller feedback exists.
+- controller feedback is instant or event-based. It is polling-based.
 - WebSocket is preferred over HTTP.
 - Lightroom SDK calls always behave immediately.
 - every item in `Driver.lua` should automatically appear in the Web Controller.
@@ -1072,9 +1104,20 @@ not `/set`.
 
 ### Feedback does not work
 
-Expected for now.
+Check these first:
 
-Do not rely on `/get` or `/last-result`.
+```text
+1. LRBridge app is running.
+2. Lightroom Classic is running.
+3. LRBridge Lightroom plugin polling is running.
+4. FeedbackPolling.lua is included in the plugin.
+5. The Web Controller page was refreshed after starting LRBridge.
+```
+
+Feedback is polling-based, so a small delay is normal.
+
+Do not use `/get` or `/last-result` as the source of truth for Web Controller or Companion feedback.
+
 
 ---
 
@@ -1142,8 +1185,8 @@ v0.7.0-state-api-feedback
 ## 32. Known limitations
 
 - Lightroom plugin polling must be running.
-- No stable live feedback yet.
-- Native Companion module does not exist yet.
+- Web Controller feedback is polling-based, not true realtime.
+- Native Companion module lives in a separate GitHub repo and may not be included in official Companion builds yet.
 - `/get` is experimental.
 - `/set` is experimental.
 - Lightroom SDK calls can have timing quirks.

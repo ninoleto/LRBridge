@@ -171,29 +171,52 @@
         <h3>What the Web Controller is for</h3>
         <p>
             LRBridge Web Controller is a local browser control panel for Lightroom Classic.
-            It can move Develop sliders left or right, reset one slider, and run supported Lightroom actions.
+            It can move Develop sliders left or right, reset an individual slider, run supported Lightroom actions,
+            and show Lightroom feedback values for visible sliders.
         </p>
         <p>
-            It works like a simple button surface for Lightroom:
-            press a button, LRBridge sends a command, Lightroom responds.
+            The Web Controller can run on the same PC as Lightroom, or from another browser device on the local network.
+            That means a tablet, touchscreen monitor, old phone, laptop, or another computer can become a simple Lightroom control surface.
+        </p>
+        <p>
+            The Web Controller started as a practical side tool for testing LRBridge without configuring external hardware.
+            It became useful on its own, especially for touchscreens and spare browser devices.
         </p>
     </section>
 
-    <h2>Feedback is not implemented yet</h2>
+    <section class="box soft">
+        <h3>The original idea behind LRBridge</h3>
+        <p>
+            LRBridge started from a real problem: Loupedeck Live had exactly the kind of knobs Lightroom Classic needs,
+            but the official software did not give that hardware the workflow it deserved.
+        </p>
+        <p>
+            After Logitech took over Loupedeck, the software became the weak link.
+            The answer was to keep the good hardware, but stop depending on the vendor software for control.
+        </p>
+        <p>
+            Bitfocus Companion made the hardware useful again.
+            It reads input from the control surface and sends a command over HTTP.
+            The LRBridge app receives that command, then its Lightroom plugin applies it inside Lightroom Classic through the SDK.
+        </p>
+        <pre>Loupedeck device -> Bitfocus Companion -> LRBridge app -> LRBridge Lightroom plugin -> Lightroom Classic</pre>
+    </section>
+
+    <h2>Lightroom feedback in the Web Controller</h2>
 
     <section class="box warning">
-        <h3>LRBridge sends commands, but it does not read Lightroom values yet</h3>
+        <h3>LRBridge can show current Lightroom slider values</h3>
         <p>
-            The Web Controller does not know the current Exposure, Contrast, Tint, Temperature,
-            or other slider values inside Lightroom.
+            The Web Controller can show feedback values below supported Lightroom sliders.
+            Feedback works for slider changes made from the Web Controller and for slider changes made directly inside Lightroom.
         </p>
         <p>
-            For now, LRBridge only sends commands.
-            It does not receive live slider values back from Lightroom yet.
+            To keep Lightroom responsive, LRBridge requests feedback only for sliders that are currently visible
+            in the Web Controller, and it sends changed values back to the browser.
         </p>
         <p>
-            If you press <code>+1</code>, LRBridge tells Lightroom to move that slider one small step to the right.
-            It does not know what the final Lightroom value became.
+            Feedback is polling-based, not true native realtime feedback.
+            A small delay is normal while moving sliders quickly.
         </p>
     </section>
 
@@ -216,7 +239,7 @@
             <td>Negative amount moves the Lightroom slider to the left.</td>
         </tr>
         <tr>
-            <td>Reset one slider</td>
+            <td>Reset an individual slider</td>
             <td><code>/reset?slider=Exposure</code></td>
             <td>Returns one Lightroom slider to its default value.</td>
         </tr>
@@ -227,43 +250,49 @@
         </tr>
     </table>
 
-    <h2>Bitfocus Companion, Stream Deck, Loupedeck, and other control surfaces</h2>
+    <h2>Bitfocus Companion integration methods</h2>
 
     <section class="box soft">
-        <h3>The built-in Web Controller is not the only way to use LRBridge</h3>
+        <h3>Use LRBridge with Companion in one of two ways</h3>
         <p>
-            LRBridge can also be controlled by any app, device, script, or hardware controller that can send HTTP requests.
-        </p>
-        <p>
-            That includes Bitfocus Companion, Stream Deck HTTP/request plugins, PowerShell, curl, scripts,
-            browser shortcuts, and other HTTP-capable tools.
-        </p>
-        <p>
-            Loupedeck hardware was one of the reasons LRBridge was created.
-            Loupedeck devices have excellent knobs for photo editing, but Loupedeck support is fading.
-            Good hardware should not become useless just because the original software is no longer moving in the right direction.
-        </p>
-        <p>
-            LRBridge helps keep that hardware alive.
-        </p>
-        <p>
-            Bitfocus Companion is the main target for this workflow.
-            With Companion and the <strong>Generic: HTTP Requests</strong> plugin/add-on,
-            LRBridge commands can be mapped to Companion buttons, pages, and supported hardware devices.
-        </p>
-        <p>
-            The detailed Companion setup and copy-ready commands are on the Builder page.
+            This section is only about Bitfocus Companion.
+            Companion can control LRBridge through plain HTTP commands or through the native LRBridge Companion module.
         </p>
 
-        <a class="button-link" href="/bitfocus-companion-cheatsheet">Open Bitfocus Companion HTTP Builder</a>
+        <div class="box">
+            <h3>Method 1: Companion Generic HTTP Requests</h3>
+            <p>
+                Use Companion's <strong>Generic: HTTP Requests</strong> plugin/add-on and map LRBridge HTTP commands
+                to Companion buttons, pages, and supported hardware devices.
+            </p>
+            <p>
+                This method works now and does not require the native LRBridge Companion module.
+                The Builder page provides copy-ready HTTP commands for slider adjust, slider reset, and Lightroom actions.
+            </p>
+            <a class="button-link" href="/bitfocus-companion-cheatsheet">Open Bitfocus Companion HTTP Builder</a>
+        </div>
+
+        <div class="box">
+            <h3>Method 2: Native LRBridge Companion module</h3>
+            <p>
+                Use the native LRBridge Companion module for a cleaner Companion setup.
+                This lets you choose LRBridge sliders and actions from Companion dropdown menus,
+                instead of manually copying HTTP paths.
+            </p>
+            <p>
+                Companion module GitHub repo:
+                <br>
+                <a href="https://github.com/ninoleto/companion-module-ninoleto-lrbridge">https://github.com/ninoleto/companion-module-ninoleto-lrbridge</a>
+            </p>
+            <p>
+                If the module is not available in the official Companion build yet,
+                use the GitHub repo for the current development version and setup instructions.
+            </p>
+        </div>
 
         <p class="muted">
-            The Builder is mainly for Bitfocus Companion Generic HTTP setup.
-            But other HTTP-capable tools can use the same commands too.
-        </p>
-        <p class="muted">
-            We are also working on a native Bitfocus Companion plugin.
-            That should let users choose LRBridge sliders and actions from dropdown menus instead of copying commands manually.
+            Beyond Companion setup, the HTTP Builder is also useful for testing, scripting, curl, PowerShell,
+            browser shortcuts, Stream Deck HTTP/request plugins, and any other tool that can send HTTP requests.
         </p>
     </section>
 
