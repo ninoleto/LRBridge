@@ -1495,7 +1495,7 @@
                     cache: "no-store"
                 });
 
-                await sleep(250);
+                await sleep(120);
 
                 await updateSliderFeedbackFromCache();
             } catch (err) {
@@ -1516,7 +1516,7 @@
 
             setInterval(function () {
                 requestLiveFeedbackSnapshot();
-            }, 700);
+            }, 350);
         }
 
         function sendAdjust(slider, amount) {

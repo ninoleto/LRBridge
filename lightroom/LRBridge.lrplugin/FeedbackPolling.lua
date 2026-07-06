@@ -125,6 +125,8 @@ local watchedSliders = {
     "ParametricHighlightSplit"
 }
 
+local lastSentValues = {}
+
 local function parseRequestId(json)
 
     if json == nil then
@@ -182,6 +184,10 @@ local function sendRequestedValue(id, slider)
 
     local value = Query.getDevelopValue(slider)
 
+    if value ~= nil then
+        lastSentValues[slider] = tostring(value)
+    end
+
     sendValue(id, slider, value)
 
     log("feedback result sent: " .. tostring(slider) .. "=" .. tostring(value))
@@ -192,8 +198,9 @@ local function sendAllRequestedValues(id)
 
     waitForNormalCommandToFinish()
 
-    local changedCount = 0
-    local firstValue = nil
+    local readCount = 0
+    local sentCount = 0
+    local firstSent = nil
 
     for i, slider in ipairs(watchedSliders) do
 
@@ -201,21 +208,28 @@ local function sendAllRequestedValues(id)
 
         if value ~= nil then
 
-            sendValue(id, slider, value)
+            readCount = readCount + 1
 
-            changedCount = changedCount + 1
+            local valueKey = tostring(value)
 
-            if firstValue == nil then
-                firstValue = tostring(slider) .. "=" .. tostring(value)
+            if lastSentValues[slider] ~= valueKey then
+
+                lastSentValues[slider] = valueKey
+                sendValue(id, slider, value)
+
+                sentCount = sentCount + 1
+
+                if firstSent == nil then
+                    firstSent = tostring(slider) .. "=" .. tostring(value)
+                end
+
             end
-
-            LrTasks.sleep(0.005)
 
         end
 
     end
 
-    log("feedback all sent " .. tostring(changedCount) .. " values, " .. tostring(firstValue))
+    log("feedback all read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " changed, " .. tostring(firstSent))
 
 end
 
