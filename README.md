@@ -1,27 +1,36 @@
 # LRBridge
 
-LRBridge is a local bridge for controlling Adobe Lightroom Classic from external control surfaces and automation tools.
+LRBridge is a local Windows bridge for controlling Adobe Lightroom Classic from external control surfaces, browser controls, Bitfocus Companion, Stream Deck-style devices, Loupedeck / Razer Stream Controller setups, scripts, and other HTTP-capable automation tools.
 
 It is designed for:
 
 - Lightroom Classic users who want physical or browser-based controls.
-- Bitfocus Companion users who want Lightroom slider/action control.
+- Bitfocus Companion users who want Lightroom slider and action control.
 - Stream Deck and Loupedeck users who want HTTP-based Lightroom control.
+- Users who want to control Lightroom from a tablet, touchscreen monitor, old phone, or LAN browser.
 - Developers and AI coding agents that need a clear project map before making forks, patches, or Companion modules.
 
-LRBridge is focused on reliable Lightroom slider/action control through a local HTTP bridge. The Web Controller now supports polling-based feedback for visible sliders. Feedback is useful, but it is not true native realtime readback.
+LRBridge is focused on reliable Lightroom slider and action control through a local HTTP bridge. The Web Controller supports polling-based feedback for visible sliders. Feedback is useful, but it is not true native realtime readback.
 
-Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightroom bridge, Bitfocus Companion Lightroom control, Generic HTTP Requests, Stream Deck Lightroom control, Loupedeck Lightroom knobs, photo editing control surface, Lightroom slider control, Lightroom automation, Electron, Node.js, Lua Lightroom plugin.
+Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightroom bridge, Bitfocus Companion Lightroom control, Generic HTTP Requests, Stream Deck Lightroom control, Loupedeck Lightroom knobs, Razer Stream Controller Lightroom, photo editing control surface, Lightroom slider control, Lightroom automation, Electron, Node.js, Lua Lightroom plugin.
 
 ---
 
 ## Quick links
+
+When LRBridge is running:
 
 - Web Controller: http://127.0.0.1:17892/
 - Human help page: http://127.0.0.1:17892/help
 - Bitfocus Companion HTTP Builder: http://127.0.0.1:17892/bitfocus-companion-cheatsheet
 - LRBridge API: http://127.0.0.1:17891/
 - Raw API help: http://127.0.0.1:17891/help
+
+Project links:
+
+- LRBridge releases: https://github.com/ninoleto/LRBridge/releases
+- Native Companion module: https://github.com/ninoleto/companion-module-ninoleto-lrbridge
+- Support LRBridge development on Ko-fi: https://ko-fi.com/ninoleto
 
 ---
 
@@ -32,16 +41,25 @@ LRBridge lets Lightroom Classic users control Develop sliders and actions from t
 Original use case:
 
 ```text
-Loupedeck device -> Bitfocus Companion -> LRBridge app -> LRBridge Lightroom plugin -> Lightroom Classic
+Loupedeck Live / Razer Stream Controller
+        ↓
+Bitfocus Companion
+        ↓
+LRBridge app
+        ↓
+LRBridge Lightroom plugin
+        ↓
+Lightroom Classic
 ```
 
-LRBridge was originally built so Loupedeck Live hardware could be used with Lightroom Classic through Bitfocus Companion, without depending on the official Loupedeck/Logitech software for slider control.
+LRBridge was originally built so Loupedeck Live hardware could be used with Lightroom Classic through Bitfocus Companion, without depending on the official Loupedeck / Logitech software for slider control.
 
 It is also useful when you want a tablet, touchscreen monitor, old phone, browser shortcut, Stream Deck HTTP setup, or automation script to send simple commands to Lightroom Classic.
 
 The Web Controller includes polling-based feedback for visible sliders. This means it can show current Lightroom slider values, but small delays are normal.
 
 ---
+
 ## 1. Project summary
 
 LRBridge connects external controllers to Adobe Lightroom Classic.
@@ -86,9 +104,19 @@ Feedback is polling-based. It is designed to be useful and lightweight, not perf
 
 ## 2. Current status
 
+Current public package:
+
+```text
+v0.4.41 RC2, visible slider feedback
+Windows portable release candidate
+```
+
+A Windows portable ZIP package is available from GitHub Releases. The package includes the LRBridge Windows app, Web Controller, Lightroom Classic plugin, configuration files, Companion HTTP Builder, README documentation, and development context documentation.
+
 Stable enough for normal use:
 
 - LRBridge Electron app.
+- Windows portable ZIP package.
 - Local HTTP API.
 - Web Controller.
 - Lightroom Classic plugin polling.
@@ -102,11 +130,11 @@ Stable enough for normal use:
 - Human Web Controller Help page.
 - Companion Generic HTTP support.
 - Polling-based Web Controller feedback for visible sliders.
-- Auto White Balance cooldown in the Web Controller after Temperature/Tint changes.
+- Auto Tone and Auto White Balance cooldown in the Web Controller after slider changes.
 
 Advanced or use with care:
 
-- /reset-group and /reset-all for normal UI use. They exist as advanced HTTP endpoints, but can overload Lightroom if abused.
+- `/reset-group` and `/reset-all` exist as HTTP endpoints, but can overload Lightroom if abused.
 - `/get`
 - `/set`
 - `/last-result`
@@ -115,9 +143,8 @@ Advanced or use with care:
 Companion integration:
 
 - Generic HTTP Requests works now.
-- Native LRBridge Companion module is available as a separate project:
-  `https://github.com/ninoleto/companion-module-ninoleto-lrbridge`
-- The native module may not be included in official Companion builds yet.
+- Native LRBridge Companion module is available as a separate project: `https://github.com/ninoleto/companion-module-ninoleto-lrbridge`
+- The native module may need manual installation until it is included in official Companion builds.
 
 Important design decision:
 
@@ -145,10 +172,13 @@ LRBridge/
     settings.txt             Polling interval configuration
     sliders.json             Slider metadata registry
 
+  docs/
+    COMPANION_HTTP_CHEATSHEET.md
+
   lightroom/
     LRBridge.lrplugin/
       AutoStartPolling.lua   Silent polling startup
-      FeedbackPolling.lua     Side-channel feedback polling
+      FeedbackPolling.lua    Side-channel feedback polling
       Commands.lua           Executes parsed commands
       Driver.lua             Lightroom SDK control layer
       Info.lua               Lightroom plugin manifest
@@ -177,19 +207,28 @@ LRBridge/
 
 ## 4. Requirements
 
-Required:
+For normal packaged use:
+
+- Windows PC.
+- Adobe Lightroom Classic.
+- Lightroom Classic plugin support.
+- A writable folder for the portable LRBridge package.
+
+For development from source:
 
 - Windows PC.
 - Adobe Lightroom Classic.
 - Node.js.
 - npm.
+- Git.
 - Lightroom Classic plugin support.
 
 Optional:
 
 - Bitfocus Companion.
 - Browser or tablet/phone for Web Controller.
-- Git for development.
+- Stream Deck-style device with HTTP request support.
+- Loupedeck / Razer Stream Controller through Bitfocus Companion.
 
 Known development environment:
 
@@ -238,9 +277,56 @@ Example:
 http://192.168.1.11:17892/
 ```
 
+Windows Firewall may ask for permission the first time LRBridge runs. Allow access if you want the Web Controller to be available from another device on the same LAN.
+
 ---
 
 ## 6. Install and run
+
+### Option A: use the Windows portable package
+
+This is the recommended option for normal users.
+
+1. Download the latest Windows portable ZIP from:
+
+```text
+https://github.com/ninoleto/LRBridge/releases
+```
+
+2. Extract the ZIP to a writable folder.
+
+Recommended locations:
+
+```text
+Documents\LRBridge
+Desktop\LRBridge
+```
+
+Avoid extracting to:
+
+```text
+C:\Program Files
+```
+
+3. Run:
+
+```text
+LRBridge.exe
+```
+
+4. Open the Web Controller:
+
+```text
+http://127.0.0.1:17892/
+```
+
+5. Add the included Lightroom plugin in Lightroom Classic:
+
+```text
+lightroom\LRBridge.lrplugin
+```
+
+### Option B: run from source for development
 
 Install dependencies:
 
@@ -276,8 +362,8 @@ Smoke test passed.
 Important:
 
 ```text
-npm start opens the Electron app.
-npm run server starts bridge.js only.
+Normal packaged users should run LRBridge.exe.
+Developers can use npm start or npm run server.
 ```
 
 ---
@@ -290,7 +376,13 @@ In Lightroom Classic:
 File → Plug-in Manager
 ```
 
-Add this plugin folder:
+Add this plugin folder from the extracted portable package:
+
+```text
+LRBridge\lightroom\LRBridge.lrplugin
+```
+
+Development example:
 
 ```text
 D:\Projects\LRBridge\lightroom\LRBridge.lrplugin
@@ -344,6 +436,7 @@ The Web Controller provides:
 - Lightroom action buttons
 - crop/healing/red-eye/masking tool tabs
 - human help page
+- visible slider feedback values
 
 The Help button opens:
 
@@ -387,25 +480,21 @@ Small delays are normal, especially while moving sliders quickly.
 
 ---
 
-## 9. Auto White Balance cooldown
+## 9. Auto Tone and Auto White Balance cooldown
 
-Lightroom Classic can ignore `setAutoWhiteBalance()` for a short time after Temperature or Tint changes.
+Lightroom Classic can ignore Auto Tone and Auto White Balance commands for a short time after Develop sliders are changed.
+
+This is a Lightroom timing limitation. After slider movement, Lightroom may need about 2 seconds before it reliably accepts Auto Tone or Auto White Balance commands again.
 
 Practical Web Controller fix:
 
 ```text
-If the user changes Temperature or Tint, the Auto White Balance Set button is disabled for about 2.2 seconds.
+If the user changes a Develop slider, Auto Tone and Auto White Balance buttons are disabled for about 2.2 seconds.
 ```
 
-During cooldown the button text changes to:
+During cooldown, the Web Controller shows a short wait state before the buttons become available again.
 
-```text
-Wait 2s
-Wait 1s
-Set
-```
-
-This avoids sending Auto White Balance while Lightroom is still internally tracking Temperature/Tint changes.
+This avoids sending Auto Tone or Auto White Balance while Lightroom is still internally processing recent slider changes.
 
 This is a Web Controller usability workaround, not a backend API change.
 
@@ -421,7 +510,7 @@ http://127.0.0.1:17891/
 
 All current stable commands are HTTP GET requests.
 
-This is intentional for easy testing, browser use, curl use, Companion Generic HTTP, and future Companion plugin development.
+This is intentional for easy testing, browser use, curl use, Companion Generic HTTP, Stream Deck HTTP plugins, and future Companion plugin development.
 
 ---
 
@@ -559,6 +648,8 @@ http://127.0.0.1:17891/reset-group?group=Basic
 
 Queues reset commands for every slider in that group.
 
+Use carefully.
+
 ---
 
 ## 18. API: reset all
@@ -604,6 +695,14 @@ Executed by:
 
 ```text
 lightroom/LRBridge.lrplugin/Driver.lua
+```
+
+Note:
+
+```text
+Auto Tone and Auto White Balance may need a short cooldown after slider changes.
+The Web Controller handles this automatically.
+Direct API clients should avoid sending these commands immediately after slider movement.
 ```
 
 ---
@@ -705,7 +804,21 @@ This unsupported control is intentionally not shown in the Web Controller.
 
 Bitfocus Companion can use LRBridge in two ways.
 
-### Method 1: Companion Generic HTTP Requests
+### Method 1: Native LRBridge Companion module
+
+Native Companion module repo:
+
+```text
+https://github.com/ninoleto/companion-module-ninoleto-lrbridge
+```
+
+Use this path for a cleaner Companion setup with LRBridge sliders and actions available from Companion dropdown menus.
+
+The native module is maintained as a separate project. It is not bundled inside the LRBridge portable ZIP.
+
+If the module is not available in the official Companion build yet, use the GitHub repo for the current development version and setup instructions.
+
+### Method 2: Companion Generic HTTP Requests
 
 Use:
 
@@ -713,13 +826,13 @@ Use:
 Generic HTTP Requests
 ```
 
-Recommended Companion base URL:
+Recommended Companion base URL when Companion runs on the same Windows PC as LRBridge:
 
 ```text
 http://127.0.0.1:17891
 ```
 
-For another machine on the LAN:
+For Companion running on another machine on the LAN:
 
 ```text
 http://YOUR_LRBRIDGE_PC_IP:17891
@@ -752,18 +865,6 @@ Regenerate it after slider/action changes with:
 ```bash
 npm run generate:cheatsheet
 ```
-
-### Method 2: Native LRBridge Companion module
-
-Native Companion module repo:
-
-```text
-https://github.com/ninoleto/companion-module-ninoleto-lrbridge
-```
-
-Use this path for a cleaner Companion setup with LRBridge sliders and actions available from Companion dropdown menus.
-
-If the module is not available in the official Companion build yet, use the GitHub repo for the current development version and setup instructions.
 
 ---
 
@@ -893,6 +994,7 @@ Do not assume:
 - controller feedback is instant or event-based. It is polling-based.
 - WebSocket is preferred over HTTP.
 - Lightroom SDK calls always behave immediately.
+- Auto Tone or Auto White Balance can be sent immediately after slider changes.
 - every item in `Driver.lua` should automatically appear in the Web Controller.
 
 ### Step 4: prefer small branches
@@ -937,7 +1039,7 @@ affected slider/action
 Good commit messages:
 
 ```text
-Add Auto White Balance cooldown after WB slider changes
+Add cooldown after Lightroom slider changes
 Polish web controller help and remove unsupported lens control
 Fix web controller startup and UI status handling
 ```
@@ -972,13 +1074,19 @@ Follow these rules unless explicitly told otherwise:
 
 ## 28. Testing
 
-Start app:
+Start packaged app:
+
+```text
+LRBridge.exe
+```
+
+Start development app:
 
 ```powershell
 npm start
 ```
 
-Start server only:
+Start development server only:
 
 ```powershell
 npm run server
@@ -1015,19 +1123,25 @@ Smoke test passed.
 
 ### App does not open
 
-Use:
+For packaged use, run:
+
+```text
+LRBridge.exe
+```
+
+For development use:
 
 ```powershell
 npm start
 ```
 
-If only the backend is needed:
+If only the backend is needed during development:
 
 ```powershell
 npm run server
 ```
 
-If Electron or Node is stuck:
+If Electron or Node is stuck during development:
 
 ```powershell
 taskkill /IM electron.exe /F
@@ -1041,14 +1155,14 @@ The LRBridge HTTP API is not running.
 
 Start the app or server first:
 
-```powershell
-npm start
+```text
+LRBridge.exe
 ```
 
-or:
+or, for development:
 
 ```powershell
-npm run server
+npm start
 ```
 
 Then rerun:
@@ -1075,19 +1189,15 @@ Check:
 - Polling has started from Plug-in Extras.
 - The LRBridge app is running.
 
-### Auto White Balance sometimes does nothing
+### Auto Tone or Auto White Balance sometimes does nothing
 
-Lightroom can ignore Auto White Balance shortly after Temperature/Tint changes.
+Lightroom can ignore Auto Tone and Auto White Balance shortly after slider changes.
 
 The Web Controller has a cooldown workaround.
 
-After changing Temperature or Tint, wait until the button changes back to:
+After changing sliders, wait until the Auto Tone and Auto White Balance buttons are enabled again.
 
-```text
-Set
-```
-
-Then press Auto White Balance.
+Direct API clients should avoid sending these commands immediately after slider movement.
 
 ### `/set` does not work reliably
 
@@ -1118,15 +1228,14 @@ Feedback is polling-based, so a small delay is normal.
 
 Do not use `/get` or `/last-result` as the source of truth for Web Controller or Companion feedback.
 
-
 ---
 
-## 30. Packaging plan
+## 30. Windows portable package
 
-Preferred first release format:
+Current public package format:
 
 ```text
-Portable Windows ZIP
+Windows portable ZIP
 ```
 
 Reason:
@@ -1138,14 +1247,7 @@ Reason:
 - easier to share with Lightroom/Companion users
 - simpler rollback
 
-Possible future formats:
-
-```text
-LRBridge-portable-v1.0.0.zip
-LRBridge-installer-v1.0.0.exe
-```
-
-Portable target layout:
+Portable package layout:
 
 ```text
 LRBridge/
@@ -1157,7 +1259,16 @@ LRBridge/
     LRBridge.lrplugin/
   app/
   docs/
+  README.md
 ```
+
+Possible future format:
+
+```text
+LRBridge-installer-v1.0.0.exe
+```
+
+The installer is optional for the future. The portable ZIP is the current release format.
 
 ---
 
@@ -1167,17 +1278,24 @@ Useful known tags:
 
 ```text
 v0.4.31-auto-wb-cooldown
+v0.4.32-readme-human-ai
+v0.4.38-windows-portable-build
+v0.4.41-rc2-feedback-docs
 ```
 
-Add future checkpoint tags after stable milestones.
+Current public test release:
+
+```text
+v0.4.41-rc2-feedback-docs
+Windows portable release candidate with visible slider feedback
+```
 
 Suggested next milestones:
 
 ```text
-v0.4.32-readme-human-ai
-v0.5.0-portable-package
-v0.6.0-companion-plugin-initial-http
-v0.7.0-state-api-feedback
+v0.4.x-bugfixes
+v0.5.0-stable-portable-release
+v0.6.0-companion-polish
 ```
 
 ---
@@ -1185,15 +1303,16 @@ v0.7.0-state-api-feedback
 ## 32. Known limitations
 
 - Lightroom plugin polling must be running.
-- Web Controller feedback is polling-based, not true realtime.
-- Native Companion module lives in a separate GitHub repo and may not be included in official Companion builds yet.
+- Web Controller feedback is polling-based, not true native realtime feedback.
+- Auto Tone and Auto White Balance need a short cooldown after slider movement because of Lightroom timing behavior.
+- Native Companion module lives in a separate GitHub repo and may need manual installation until it is included in official Companion builds.
 - `/get` is experimental.
 - `/set` is experimental.
 - Lightroom SDK calls can have timing quirks.
 - Some Lightroom controls are not mapped.
 - Some mapped Lightroom controls may be SDK-version dependent.
-- No packaged release yet.
-- Windows is the primary target.
+- Windows is the primary packaged and tested target.
+- No macOS package is currently provided.
 
 ---
 
