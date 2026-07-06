@@ -194,6 +194,64 @@ local function sendRequestedValue(id, slider)
 
 end
 
+local function splitManySliderRequest(slider)
+
+    local sliders = {}
+    local prefix = "__many__:"
+
+    if string.sub(slider, 1, string.len(prefix)) ~= prefix then
+        return sliders
+    end
+
+    local body = string.sub(slider, string.len(prefix) + 1)
+
+    for item in string.gmatch(body, "([^,]+)") do
+        table.insert(sliders, item)
+    end
+
+    return sliders
+
+end
+
+local function sendManyRequestedValues(id, requestedSliders)
+
+    waitForNormalCommandToFinish()
+
+    local readCount = 0
+    local sentCount = 0
+    local firstSent = nil
+
+    for i, slider in ipairs(requestedSliders) do
+
+        local value = Query.getDevelopValue(slider)
+
+        if value ~= nil then
+
+            readCount = readCount + 1
+
+            local valueKey = tostring(value)
+
+            if lastSentValues[slider] ~= valueKey then
+
+                lastSentValues[slider] = valueKey
+                sendValue(id, slider, value)
+
+                sentCount = sentCount + 1
+
+                if firstSent == nil then
+                    firstSent = tostring(slider) .. "=" .. tostring(value)
+                end
+
+            end
+
+        end
+
+    end
+
+    log("feedback many read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " changed, " .. tostring(firstSent))
+
+end
+
 local function sendAllRequestedValues(id)
 
     waitForNormalCommandToFinish()
@@ -258,6 +316,10 @@ LrTasks.startAsyncTask(function()
             if slider == "__all__" then
                 log("feedback all request received")
                 sendAllRequestedValues(id)
+            elseif string.sub(slider, 1, 9) == "__many__:" then
+                local requestedSliders = splitManySliderRequest(slider)
+                log("feedback many request received: " .. tostring(#requestedSliders) .. " sliders")
+                sendManyRequestedValues(id, requestedSliders)
             else
                 log("feedback request received: " .. tostring(slider))
                 sendRequestedValue(id, slider)

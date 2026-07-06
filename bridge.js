@@ -391,6 +391,59 @@ app.get("/feedback/request-all", function (req, res) {
     });
 });
 
+app.get("/feedback/request-many", function (req, res) {
+    const rawSliders = String(req.query.sliders || "");
+
+    const requestedSliders = rawSliders
+        .split(",")
+        .map(function (slider) {
+            return slider.trim();
+        })
+        .filter(function (slider) {
+            return slider.length > 0;
+        });
+
+    const validSliders = [];
+
+    requestedSliders.forEach(function (slider) {
+        if (sliders.exists(slider) && !validSliders.includes(slider)) {
+            validSliders.push(slider);
+        }
+    });
+
+    if (validSliders.length === 0) {
+        res.status(400).json({
+            ok: false,
+            error: "No valid sliders",
+            sliders: requestedSliders
+        });
+        return;
+    }
+
+    for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
+        if (String(feedbackRequests[i].slider || "").startsWith("__many__:")) {
+            feedbackRequests.splice(i, 1);
+        }
+    }
+
+    feedbackRequestId += 1;
+
+    const request = {
+        id: feedbackRequestId,
+        slider: "__many__:" + validSliders.join(","),
+        requestedAt: Date.now()
+    };
+
+    feedbackRequests.push(request);
+
+    res.json({
+        ok: true,
+        request: request,
+        count: validSliders.length,
+        sliders: validSliders
+    });
+});
+
 app.get("/feedback/next", function (req, res) {
     const request = feedbackRequests.shift() || null;
 

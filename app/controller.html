@@ -1483,19 +1483,54 @@
             }
         }
 
+        function getVisibleFeedbackSliders() {
+            const visibleSliders = [];
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+            const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+            const buffer = 160;
+
+            Object.keys(sliderFeedbackElements).forEach(function (slider) {
+                const element = sliderFeedbackElements[slider];
+
+                if (!element || !element.getBoundingClientRect) {
+                    return;
+                }
+
+                const rect = element.getBoundingClientRect();
+
+                if (
+                    rect.bottom >= -buffer &&
+                    rect.top <= viewportHeight + buffer &&
+                    rect.right >= -buffer &&
+                    rect.left <= viewportWidth + buffer
+                ) {
+                    visibleSliders.push(slider);
+                }
+            });
+
+            return visibleSliders;
+        }
+
         async function requestLiveFeedbackSnapshot() {
             if (liveFeedbackSnapshotInFlight) {
+                return;
+            }
+
+            const visibleSliders = getVisibleFeedbackSliders();
+
+            if (visibleSliders.length === 0) {
+                await updateSliderFeedbackFromCache();
                 return;
             }
 
             liveFeedbackSnapshotInFlight = true;
 
             try {
-                await fetch("/api/feedback/request-all", {
+                await fetch("/api/feedback/request-many?sliders=" + encodeURIComponent(visibleSliders.join(",")), {
                     cache: "no-store"
                 });
 
-                await sleep(120);
+                await sleep(80);
 
                 await updateSliderFeedbackFromCache();
             } catch (err) {
@@ -1516,7 +1551,7 @@
 
             setInterval(function () {
                 requestLiveFeedbackSnapshot();
-            }, 350);
+            }, 250);
         }
 
         function sendAdjust(slider, amount) {
