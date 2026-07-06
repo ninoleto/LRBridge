@@ -107,8 +107,8 @@ Feedback is polling-based. It is designed to be useful and lightweight, not perf
 Current public package:
 
 ```text
-v0.4.41 RC2, visible slider feedback
-Windows portable release candidate
+v0.5.0
+Stable Windows portable release with visible slider feedback
 ```
 
 A Windows portable ZIP package is available from GitHub Releases. The package includes the LRBridge Windows app, Web Controller, Lightroom Classic plugin, configuration files, Companion HTTP Builder, README documentation, and development context documentation.
@@ -1281,19 +1281,19 @@ v0.4.38-windows-portable-build
 v0.4.41-rc2-feedback-docs
 ```
 
-Current public test release:
+Current public release:
 
 ```text
-v0.4.41-rc2-feedback-docs
-Windows portable release candidate with visible slider feedback
+v0.5.0
+Stable Windows portable release with visible slider feedback
 ```
 
 Suggested next milestones:
 
 ```text
-v0.4.x-bugfixes
-v0.5.0-stable-portable-release
+v0.5.x-bugfixes
 v0.6.0-companion-polish
+v0.7.0-companion-feedback
 ```
 
 ---
@@ -1338,3 +1338,4 @@ external controller → Lightroom Classic
 ```
 
 not a full duplicate of Lightroom's Develop panel.
+
