@@ -1,5 +1,8 @@
 local LrHttp = import "LrHttp"
 local LrTasks = import "LrTasks"
+local LrApplication = import "LrApplication"
+local LrApplicationView = import "LrApplicationView"
+local LrDate = import "LrDate"
 
 local Query = require "Query"
 
@@ -126,6 +129,175 @@ local watchedSliders = {
 }
 
 local lastSentValues = {}
+local lastContextSentAt = 0
+local contextIntervalSeconds = 0.75
+
+local function urlEncode(value)
+
+    value = tostring(value or "")
+    value = string.gsub(value, "\n", "\r\n")
+    value = string.gsub(value, "([^%w%-_%.~])", function(char)
+        return string.format("%%%02X", string.byte(char))
+    end)
+
+    return value
+
+end
+
+local function hashString(value)
+
+    value = tostring(value or "")
+    local hash = 5381
+
+    for i = 1, string.len(value) do
+        hash = ((hash * 33) + string.byte(value, i)) % 2147483647
+    end
+
+    return tostring(hash)
+
+end
+
+local function getActiveModule()
+
+    local ok, moduleName = pcall(function()
+        return LrApplicationView.getCurrentModuleName()
+    end)
+
+    if ok == true and moduleName ~= nil then
+        return string.lower(tostring(moduleName))
+    end
+
+    return "unknown"
+
+end
+
+local function getPhotoKey(photo)
+
+    if photo == nil then
+        return ""
+    end
+
+    local okUuid, uuid = pcall(function()
+        return photo:getRawMetadata("uuid")
+    end)
+
+    if okUuid == true and uuid ~= nil and tostring(uuid) ~= "" then
+        return tostring(uuid)
+    end
+
+    local okPath, path = pcall(function()
+        return photo:getRawMetadata("path")
+    end)
+
+    if okPath == true and path ~= nil and tostring(path) ~= "" then
+        return tostring(path)
+    end
+
+    local okDirectPath, directPath = pcall(function()
+        return photo.path
+    end)
+
+    if okDirectPath == true and directPath ~= nil and tostring(directPath) ~= "" then
+        return tostring(directPath)
+    end
+
+    return tostring(photo)
+
+end
+
+local function getSelectedPhotoKey()
+
+    local catalog = LrApplication.activeCatalog()
+
+    if catalog == nil then
+        return ""
+    end
+
+    local okTargetPhoto, targetPhoto = pcall(function()
+        return catalog:getTargetPhoto()
+    end)
+
+    local targetKey = ""
+
+    if okTargetPhoto == true and targetPhoto ~= nil then
+        targetKey = getPhotoKey(targetPhoto)
+    end
+
+    if targetKey ~= nil and targetKey ~= "" then
+        return targetKey
+    end
+
+    local okTargetPhotos, targetPhotos = pcall(function()
+        return catalog:getTargetPhotos()
+    end)
+
+    if okTargetPhotos == true and targetPhotos ~= nil and #targetPhotos > 0 then
+        return getPhotoKey(targetPhotos[1])
+    end
+
+    return ""
+
+end
+
+local function getDevelopFingerprint(activeModule)
+
+    if activeModule ~= "develop" then
+        return ""
+    end
+
+    local parts = {}
+
+    for i, slider in ipairs(watchedSliders) do
+
+        local value = Query.getDevelopValue(slider)
+
+        if value ~= nil then
+            table.insert(parts, tostring(slider) .. "=" .. tostring(value))
+        end
+
+    end
+
+    if #parts == 0 then
+        return ""
+    end
+
+    return hashString(table.concat(parts, "|"))
+
+end
+
+local function sendContextHeartbeat()
+
+    if _G.LRBridgeCommandBusy == true then
+        return
+    end
+
+    local activeModule = getActiveModule()
+    local selectedPhotoKey = getSelectedPhotoKey()
+    local developFingerprint = getDevelopFingerprint(activeModule)
+
+    local url =
+        "http://127.0.0.1:17891/context/update" ..
+        "?activeModule=" .. urlEncode(activeModule) ..
+        "&selectedPhotoKey=" .. urlEncode(selectedPhotoKey) ..
+        "&developFingerprint=" .. urlEncode(developFingerprint)
+
+    LrHttp.get(url)
+
+end
+
+local function maybeSendContextHeartbeat()
+
+    local now = LrDate.currentTime()
+
+    if now - lastContextSentAt < contextIntervalSeconds then
+        return
+    end
+
+    lastContextSentAt = now
+
+    sendContextHeartbeat()
+
+end
 
 local function parseRequestId(json)
 
@@ -326,6 +498,8 @@ LrTasks.startAsyncTask(function()
             end
 
         end
+
+        maybeSendContextHeartbeat()
 
         LrTasks.sleep(0.1)
 

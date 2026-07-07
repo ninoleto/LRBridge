@@ -50,7 +50,7 @@ async function main() {
     console.log("");
 
     await expectOk("/help");
-    await expectOk("/status");
+    await expectOk("/status"); await expectOk("/context");
     await expectOk("/sliders");
     await expectOk("/groups");
 

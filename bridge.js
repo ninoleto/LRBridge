@@ -3,7 +3,7 @@ const WebSocket = require("ws");
 
 const commands = require("./server/commands");
 const sliders = require("./server/sliders");
-const lightroomWake = require("./server/lightroomWake");
+const lightroomWake = require("./server/lightroomWake"); const context = require("./server/context");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -111,7 +111,28 @@ app.get("/wake-lightroom", async function (req, res) {
 });
 
 app.get("/status", function (req, res) {
-    res.json(commands.getStatus());
+    res.json(Object.assign(commands.getStatus(), context.getContextFields()));
+});
+
+app.get("/context", function (req, res) {
+    const status = commands.getStatus();
+
+    res.json(context.getContext(status.queueLength));
+});
+
+app.get("/context/update", function (req, res) {
+    const status = commands.getStatus();
+
+    const updated = context.updateContext({
+        activeModule: req.query.activeModule,
+        selectedPhotoKey: req.query.selectedPhotoKey,
+        developFingerprint: req.query.developFingerprint
+    });
+
+    res.json(Object.assign({
+        ok: true,
+        queueLength: status.queueLength
+    }, updated));
 });
 
 app.get("/sliders", function (req, res) {
