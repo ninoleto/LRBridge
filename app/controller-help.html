@@ -379,6 +379,24 @@
         <pre>http://127.0.0.1:17891/help</pre>
     </section>
 
+    <h2>Known Lightroom issue</h2>
+
+    <section class="box warning">
+        <h3>Lightroom does not respond to Web Controller or Companion commands</h3>
+        <p>
+            For LRBridge to work properly, Lightroom Classic should be in <strong>Library</strong> mode when LRBridge starts.
+            LRBridge normally switches Lightroom to Library automatically on startup.
+        </p>
+        <p>
+            In rare cases, especially after a Lightroom crash, plugin reload, problematic photo file,
+            or on slower computers, this automatic switch may not happen.
+        </p>
+        <p>
+            If LRBridge is running but Lightroom does not respond to Web Controller or Bitfocus Companion commands,
+            switch Lightroom manually to <strong>Library</strong>, then back to <strong>Develop</strong>, and try again.
+        </p>
+    </section>
+
     <h2>Advanced dangerous commands</h2>
 
     <section class="box danger">

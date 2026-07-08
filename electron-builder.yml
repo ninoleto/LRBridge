@@ -25,6 +25,7 @@ extraFiles:
     to: llms.txt
 
 win:
+  icon: build/icon.ico
   target:
     - target: dir
       arch:

@@ -16,8 +16,14 @@ contextBridge.exposeInMainWorld("lrbridge", {
     openHelp: function () {
         return ipcRenderer.invoke("open-help");
     },
+    openKoFi: function () {
+        return ipcRenderer.invoke("open-kofi");
+    },
     openWebController: function () {
         return ipcRenderer.invoke("open-web-controller");
+    },
+    openHttpBuilder: function () {
+        return ipcRenderer.invoke("open-http-builder");
     },
     copyText: function (text) {
         return ipcRenderer.invoke("copy-text", text);

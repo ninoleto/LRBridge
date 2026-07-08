@@ -479,6 +479,18 @@ async function openHelp() {
     };
 }
 
+async function openKoFi() {
+    const url = "https://ko-fi.com/ninoleto";
+
+    console.log("Opening Ko-fi support page:", url);
+    await shell.openExternal(url);
+
+    return {
+        ok: true,
+        url: url
+    };
+}
+
 async function openWebController() {
     startControllerServer();
 
@@ -488,6 +500,20 @@ async function openWebController() {
     return {
         ok: true,
         url: controllerUrl
+    };
+}
+
+async function openHttpBuilder() {
+    startControllerServer();
+
+    const url = controllerLocalUrl.replace(/\/$/, "") + "/bitfocus-companion-cheatsheet";
+
+    console.log("Opening HTTP Builder:", url);
+    await shell.openExternal(url);
+
+    return {
+        ok: true,
+        url: url
     };
 }
 
@@ -553,6 +579,12 @@ function createTray() {
             label: "Open Help",
             click: function () {
                 openHelp();
+            }
+        },
+        {
+            label: "Open HTTP Builder",
+            click: function () {
+                openHttpBuilder();
             }
         },
         { type: "separator" },
@@ -650,8 +682,16 @@ ipcMain.handle("open-help", function () {
     return openHelp();
 });
 
+ipcMain.handle("open-kofi", function () {
+    return openKoFi();
+});
+
 ipcMain.handle("open-web-controller", function () {
     return openWebController();
+});
+
+ipcMain.handle("open-http-builder", function () {
+    return openHttpBuilder();
 });
 
 ipcMain.handle("copy-text", function (_event, text) {

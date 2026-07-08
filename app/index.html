@@ -257,6 +257,38 @@
             line-height: 1.5;
         }
 
+        .footer-divider {
+            border: 0;
+            border-top: 1px solid #28323d;
+            margin: 12px 0 12px 0;
+        }
+
+        .support-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 0;
+        }
+
+        .support-text {
+            color: #c7d4df;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        #openKoFi {
+            background: #2a6f97;
+            border-color: #3a8cc0;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        #openKoFi:hover {
+            background: #327eab;
+        }
+
         a {
             color: #6dc8ff;
         }
@@ -270,18 +302,29 @@
                 grid-column: auto;
             }
         }
-    </style>
+    
+        /* LRBridge v0.5.1 button polish */
+        #startLightroom {
+            background: #4b2a6f;
+            border-color: #7a4ab0;
+        }
+
+        #startLightroom:hover {
+            background: #5d3488;
+        }
+</style>
 </head>
 <body>
     <header>
         <h1>LRBridge</h1>
-        <div class="subtitle">Ready. HTTP API: <a href="http://127.0.0.1:17891/help">http://127.0.0.1:17891</a></div>
+        <div class="subtitle">Ready. HTTP API port: <strong>17891</strong></div>
     </header>
 
     <section class="actions">
         <button id="startLightroom">Start Lightroom Classic</button>
-        <button id="openWebController" class="secondary">Open web controller</button>
+        <button id="openWebController">Open web controller</button>
         <button id="openHelp" class="secondary">Open help</button>
+        <button id="openHttpBuilder">HTTP Builder</button>
         <button id="quitApp" class="danger">Quit LRBridge</button>
     </section>
 
@@ -336,11 +379,13 @@
     </main>
 
     <div class="footer">
+        <hr class="footer-divider">
         <div>Keep LRBridge running while controlling Lightroom Classic.</div>
         <div>You can control it from Bitfocus Companion or any device/app that can send HTTP requests.</div>
-        <div>
-            LRBridge is open source. Support development:
-            <a href="https://ko-fi.com/ninoleto">ko-fi.com/ninoleto</a>
+        <hr class="footer-divider">
+        <div class="support-row">
+            <span class="support-text">LRBridge is open source. Support development:</span>
+            <button id="openKoFi">ko-fi.com/ninoleto</button>
         </div>
     </div>
 

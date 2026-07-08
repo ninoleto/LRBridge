@@ -8,9 +8,11 @@ const settingsMessage = document.getElementById("settingsMessage");
 const startLightroomButton = document.getElementById("startLightroom");
 const openWebControllerButton = document.getElementById("openWebController");
 const openHelpButton = document.getElementById("openHelp");
+const openHttpBuilderButton = document.getElementById("openHttpBuilder");
 const saveSettingsButton = document.getElementById("saveSettings");
 const defaultSettingsButton = document.getElementById("defaultSettings");
 const quitAppButton = document.getElementById("quitApp");
+const openKoFiButton = document.getElementById("openKoFi");
 const shareLocalControllerButton = document.getElementById("shareLocalController");
 const shareLocalStatus = document.getElementById("shareLocalStatus");
 
@@ -134,9 +136,19 @@ openHelpButton.addEventListener("click", async function () {
     await window.lrbridge.openHelp();
 });
 
+openHttpBuilderButton.addEventListener("click", async function () {
+    appendLog("UI: Open HTTP Builder clicked.");
+    await window.lrbridge.openHttpBuilder();
+});
+
 quitAppButton.addEventListener("click", async function () {
     appendLog("UI: Quit LRBridge clicked.");
     await window.lrbridge.quitApp();
+});
+
+openKoFiButton.addEventListener("click", async function () {
+    appendLog("UI: Open Ko-fi support clicked.");
+    await window.lrbridge.openKoFi();
 });
 
 shareLocalControllerButton.addEventListener("click", function () {
