@@ -1,0 +1,100 @@
+{
+  "version": "0.5.1",
+  "ports": {
+    "webSocket": 17890,
+    "http": 17891,
+    "webController": 17892
+  },
+  "routes": [
+    "/",
+    "/help",
+    "/wake-lightroom",
+    "/status",
+    "/context",
+    "/context/update",
+    "/sliders",
+    "/groups",
+    "/next",
+    "/command",
+    "/adjust",
+    "/set",
+    "/action",
+    "/reset",
+    "/reset-group",
+    "/reset-all",
+    "/get",
+    "/result",
+    "/last-result",
+    "/feedback/request",
+    "/feedback/request-all",
+    "/feedback/request-many",
+    "/feedback/next",
+    "/feedback/result",
+    "/feedback/value",
+    "/feedback/all"
+  ],
+  "commands": [
+    "develop.adjust",
+    "develop.get",
+    "develop.set",
+    "develop.reset",
+    "develop.action"
+  ],
+  "actions": [
+    "resetCrop",
+    "resetTransforms",
+    "setAutoTone",
+    "setAutoWhiteBalance",
+    "resetSpotRemoval",
+    "resetRedeye",
+    "selectCropTool",
+    "selectHealingTool",
+    "selectRedEyeTool",
+    "selectUprightTool",
+    "selectMaskingTool"
+  ],
+  "groups": [
+    "Basic",
+    "Color",
+    "Presence",
+    "Detail",
+    "Color Mixer / HSL",
+    "B&W Mixer",
+    "Effects",
+    "Calibration",
+    "Lens / Defringe",
+    "Transform",
+    "Tone Curve"
+  ],
+  "sliderCount": 96,
+  "sliderIdsSha256": "e2bfd3f358986aa3d535867028f8da29f19a2b21aa264c025254f74c33eb1267",
+  "groupsSha256": "29fceb62a482ed4e583d8d168a6139df7305bda3f4b792a562f411884e3040f6",
+  "nonReadableSliders": [
+    "LensProfileEnable",
+    "AutoLateralCA",
+    "LensProfileChromaticAberrationScale"
+  ],
+  "webControllerExcludedSliders": [
+    "LensProfileChromaticAberrationScale"
+  ],
+  "settings": {
+    "field": "poll_interval_ms",
+    "defaultMs": 100,
+    "minimumMs": 10,
+    "maximumMs": 1000,
+    "path": "config\\settings.txt"
+  },
+  "portable": {
+    "unpackedDirectory": "dist\\win-unpacked",
+    "folderPattern": "dist\\LRBridge-<version>-win-x64-portable",
+    "zipPattern": "dist\\LRBridge-<version>-win-x64-portable.zip",
+    "required": [
+      "LRBridge.exe",
+      "config\\settings.txt",
+      "config\\sliders.json",
+      "lightroom\\LRBridge.lrplugin\\Info.lua",
+      "README.md",
+      "llms.txt"
+    ]
+  }
+}

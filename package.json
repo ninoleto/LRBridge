@@ -4,9 +4,11 @@
   "description": "Local HTTP bridge and Web Controller for controlling Adobe Lightroom Classic from Bitfocus Companion, Stream Deck, Loupedeck, PowerShell, curl, scripts, and other HTTP-capable tools.",
   "main": "app/main.js",
   "scripts": {
-    "test": "npm run smoke",
+    "test": "npm run test:contract",
     "start": "electron app/main.js",
     "smoke": "node tests/http-smoke.js",
+    "test:contract": "node tests/contract-baseline.js",
+    "test:smoke-live": "node tests/http-smoke.js",
     "app": "electron app/main.js",
     "server": "node bridge.js",
     "generate:cheatsheet": "node tools/generate-companion-cheatsheet.js",
