@@ -158,6 +158,10 @@ app.get("/status", function (req, res) {
     res.json(Object.assign(commands.getStatus(), context.getContextFields()));
 });
 
+app.get("/diagnostics/queue", function (req, res) {
+    res.set("Cache-Control", "no-store").json(commands.getQueueDiagnostics());
+});
+
 app.get("/context", function (req, res) {
     const status = commands.getStatus();
 

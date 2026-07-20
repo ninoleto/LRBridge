@@ -266,8 +266,13 @@ function fakeResponse() {
     return {
         statusCode: 200,
         body: undefined,
+        headers: {},
         status(code) {
             this.statusCode = code;
+            return this;
+        },
+        set(name, value) {
+            this.headers[name.toLowerCase()] = value;
             return this;
         },
         json(body) {
@@ -316,6 +321,10 @@ async function validateHttpAndWebSocketContract() {
     result = await request(captured, "/status");
     assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "hasLatestResult", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "supportedSliders"]);
     assert.deepEqual(result.body.supportedSliders, sliders.map((slider) => slider.id));
+
+    result = await request(captured, "/diagnostics/queue");
+    assert.equal(result.headers["cache-control"], "no-store");
+    assert.deepEqual(keys(result.body), ["counters", "ok", "queue", "scope", "timestamps"]);
 
     result = await request(captured, "/context");
     assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey"]);
@@ -432,7 +441,7 @@ async function main() {
     validateStaticContract();
     await validateHttpAndWebSocketContract();
     console.log("LRBridge v0.5.1 contract baseline passed.");
-    console.log("Validated 26 HTTP routes, 5 command formats, 11 actions, 11 groups, and 96 sliders.");
+    console.log("Validated 27 HTTP routes, 5 command formats, 11 actions, 11 groups, and 96 sliders.");
 }
 
 main().catch(function (error) {

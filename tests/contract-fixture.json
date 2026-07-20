@@ -10,6 +10,7 @@
     "/help",
     "/wake-lightroom",
     "/status",
+    "/diagnostics/queue",
     "/context",
     "/context/update",
     "/sliders",

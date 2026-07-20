@@ -8,6 +8,17 @@ const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
 const PROTECTED_QUEUE_RESERVE = 128;
 
+const queueEntryMetadata = [];
+let highWaterMark = 0;
+let enqueuedEntries = 0;
+let coalescedCommands = 0;
+let dequeuedEntries = 0;
+let queueFullRejections = 0;
+let lastEnqueuedAt = null;
+let lastCoalescedAt = null;
+let lastDequeuedAt = null;
+let lastQueueFullRejectionAt = null;
+
 const ADMISSION_ACCEPTED = "accepted";
 const ADMISSION_COALESCED = "coalesced";
 const ADMISSION_INVALID = "invalid";
@@ -113,6 +124,8 @@ function tryEnqueueCommand(command) {
 
             if (Number.isFinite(combinedAmount)) {
                 lastCommand.amount = combinedAmount;
+                coalescedCommands += 1;
+                lastCoalescedAt = Date.now();
                 console.log("Coalesced command:", lastCommand);
                 return admissionResult(ADMISSION_COALESCED);
             }
@@ -124,10 +137,17 @@ function tryEnqueueCommand(command) {
         : ORDINARY_ADMISSION_CEILING;
 
     if (commandQueue.length >= limit) {
+        queueFullRejections += 1;
+        lastQueueFullRejectionAt = Date.now();
         return admissionResult(ADMISSION_QUEUE_FULL);
     }
 
+    const admittedAt = Date.now();
     commandQueue.push(command);
+    queueEntryMetadata.push({ enqueuedAt: admittedAt });
+    enqueuedEntries += 1;
+    lastEnqueuedAt = admittedAt;
+    highWaterMark = Math.max(highWaterMark, commandQueue.length);
 
     console.log("Queued command:", command);
     console.log("Queue length:", commandQueue.length);
@@ -145,11 +165,21 @@ function tryEnqueueBatch(batch) {
     }
 
     if (commandQueue.length + batch.length > HARD_QUEUE_CAPACITY) {
+        queueFullRejections += 1;
+        lastQueueFullRejectionAt = Date.now();
         return admissionResult(ADMISSION_QUEUE_FULL);
     }
 
+    const admittedAt = Date.now();
     for (const command of batch) {
         commandQueue.push(command);
+        queueEntryMetadata.push({ enqueuedAt: admittedAt });
+    }
+
+    if (batch.length > 0) {
+        enqueuedEntries += batch.length;
+        lastEnqueuedAt = admittedAt;
+        highWaterMark = Math.max(highWaterMark, commandQueue.length);
     }
 
     console.log("Queued command batch:", batch.length);
@@ -175,7 +205,69 @@ function getNextCommand() {
         return null;
     }
 
-    return commandQueue.shift();
+    const command = commandQueue.shift();
+    queueEntryMetadata.shift();
+    dequeuedEntries += 1;
+    lastDequeuedAt = Date.now();
+    return command;
+}
+
+function getQueueDiagnostics(nowMs) {
+    const queueLength = commandQueue.length;
+    const pendingByCommand = {
+        "develop.adjust": 0,
+        "develop.set": 0,
+        "develop.get": 0,
+        "develop.reset": 0,
+        "develop.action": 0
+    };
+
+    for (const command of commandQueue) {
+        if (Object.prototype.hasOwnProperty.call(pendingByCommand, command.command)) {
+            pendingByCommand[command.command] += 1;
+        }
+    }
+
+    const oldestMetadata = queueLength > 0 ? queueEntryMetadata[0] : null;
+    const observedAt = nowMs === undefined ? Date.now() : nowMs;
+    const oldestCommandAgeMs = oldestMetadata
+        ? Math.max(0, observedAt - oldestMetadata.enqueuedAt)
+        : null;
+
+    return {
+        ok: true,
+        scope: "process",
+        queue: {
+            length: queueLength,
+            ordinaryAdmissionCeiling: ORDINARY_ADMISSION_CEILING,
+            protectedReserve: PROTECTED_QUEUE_RESERVE,
+            hardCapacity: HARD_QUEUE_CAPACITY,
+            ordinaryCapacityAvailable: Math.max(0, ORDINARY_ADMISSION_CEILING - queueLength),
+            protectedReserveAvailable: Math.max(0, HARD_QUEUE_CAPACITY - Math.max(queueLength, ORDINARY_ADMISSION_CEILING)),
+            totalCapacityAvailable: Math.max(0, HARD_QUEUE_CAPACITY - queueLength),
+            ordinarySaturated: queueLength >= ORDINARY_ADMISSION_CEILING,
+            hardSaturated: queueLength >= HARD_QUEUE_CAPACITY,
+            highWaterMark: highWaterMark,
+            oldestCommandAgeMs: oldestCommandAgeMs,
+            pending: {
+                ordinary: pendingByCommand["develop.adjust"] + pendingByCommand["develop.set"] + pendingByCommand["develop.get"],
+                protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"],
+                byCommand: pendingByCommand
+            }
+        },
+        counters: {
+            enqueuedEntries: enqueuedEntries,
+            coalescedCommands: coalescedCommands,
+            dequeuedEntries: dequeuedEntries,
+            queueFullRejections: queueFullRejections
+        },
+        timestamps: {
+            lastEnqueuedAt: lastEnqueuedAt,
+            lastCoalescedAt: lastCoalescedAt,
+            lastDequeuedAt: lastDequeuedAt,
+            lastQueueFullRejectionAt: lastQueueFullRejectionAt
+        }
+    };
 }
 
 function clearLatestResult() {
@@ -212,6 +304,16 @@ function getSliderMetadata() {
 
 function resetQueueForTests() {
     commandQueue.length = 0;
+    queueEntryMetadata.length = 0;
+    highWaterMark = 0;
+    enqueuedEntries = 0;
+    coalescedCommands = 0;
+    dequeuedEntries = 0;
+    queueFullRejections = 0;
+    lastEnqueuedAt = null;
+    lastCoalescedAt = null;
+    lastDequeuedAt = null;
+    lastQueueFullRejectionAt = null;
     latestResult = null;
 }
 
@@ -229,6 +331,7 @@ module.exports = {
     tryEnqueueBatch,
     setLatestCommand,
     getNextCommand,
+    getQueueDiagnostics,
     clearLatestResult,
     setLatestResult,
     getLatestResult,
