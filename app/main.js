@@ -204,7 +204,7 @@ function resetSettings() {
     };
 }
 
-function startBridge() {
+async function startBridge() {
     if (bridgeStarted) {
         return;
     }
@@ -218,12 +218,15 @@ function startBridge() {
     console.log("Loading bridge:", bridgePath);
 
     try {
-        require(bridgePath);
+        const bridge = require(bridgePath);
+        await bridge.startPromise;
         console.log("LRBridge is active.");
         console.log("You can use Lightroom Classic through the LRBridge HTTP API.");
         console.log("If controls feel slow, edit polling settings in this app. Changes apply automatically.");
     } catch (err) {
+        bridgeStarted = false;
         console.error("Failed to start LRBridge:", err.message);
+        throw err;
     }
 }
 
@@ -624,12 +627,15 @@ if (!gotLock) {
 
     patchConsole();
 
-    app.whenReady().then(function () {
+    app.whenReady().then(async function () {
         Menu.setApplicationMenu(null);
         createWindow();
         createTray();
-        startBridge();
+        await startBridge();
         startControllerServer();
+    }).catch(function (err) {
+        console.error("LRBridge app startup failed:", err.message);
+        app.quit();
     });
 
     app.on("window-all-closed", function () {
@@ -710,5 +716,4 @@ ipcMain.handle("quit-app", function () {
         ok: true
     };
 });
-
 

@@ -3,6 +3,11 @@ const { execFile } = require("child_process");
 let watcherStarted = false;
 let watcherBusy = false;
 let lastWokenPid = null;
+let watcherOwners = 0;
+let initialTimer = null;
+let watcherInterval = null;
+const retryTimers = new Set();
+let watcherGeneration = 0;
 
 function isSupported() {
     return process.platform === "win32";
@@ -119,8 +124,8 @@ Write-Output "Wake complete"
     };
 }
 
-async function checkAndWake() {
-    if (watcherBusy) {
+async function checkAndWake(generation) {
+    if (!watcherStarted || generation !== watcherGeneration || watcherBusy) {
         return;
     }
 
@@ -128,6 +133,8 @@ async function checkAndWake() {
 
     try {
         const pid = await getLightroomPid();
+
+        if (!watcherStarted || generation !== watcherGeneration) return;
 
         if (pid === null) {
             lastWokenPid = null;
@@ -142,8 +149,12 @@ async function checkAndWake() {
 
         console.log("Detected Lightroom Classic window. Waking Lightroom UI, PID:", pid);
 
-        setTimeout(async function () {
+        const retryTimer = setTimeout(async function () {
+            retryTimers.delete(retryTimer);
+            if (!watcherStarted || generation !== watcherGeneration) return;
             const result = await wakeLightroom(pid);
+
+            if (!watcherStarted || generation !== watcherGeneration) return;
 
             if (result.ok) {
                 console.log("Lightroom wake complete.");
@@ -151,12 +162,15 @@ async function checkAndWake() {
                 console.log("Lightroom wake failed:", result.error || result.stderr);
             }
         }, 4000);
+        retryTimers.add(retryTimer);
     } finally {
         watcherBusy = false;
     }
 }
 
 function startWatcher() {
+    watcherOwners += 1;
+
     if (!isSupported()) {
         console.log("Lightroom wake watcher disabled: not Windows.");
         return;
@@ -167,15 +181,42 @@ function startWatcher() {
     }
 
     watcherStarted = true;
+    watcherGeneration += 1;
+    const generation = watcherGeneration;
 
     console.log("Lightroom wake watcher started.");
 
-    setTimeout(checkAndWake, 2000);
-    setInterval(checkAndWake, 5000);
+    initialTimer = setTimeout(function () {
+        initialTimer = null;
+        checkAndWake(generation);
+    }, 2000);
+    watcherInterval = setInterval(function () { checkAndWake(generation); }, 5000);
+}
+
+function stopWatcher() {
+    if (watcherOwners > 0) watcherOwners -= 1;
+    if (watcherOwners > 0 || !watcherStarted) return;
+
+    watcherStarted = false;
+    watcherGeneration += 1;
+    watcherBusy = false;
+    lastWokenPid = null;
+
+    if (initialTimer !== null) {
+        clearTimeout(initialTimer);
+        initialTimer = null;
+    }
+    if (watcherInterval !== null) {
+        clearInterval(watcherInterval);
+        watcherInterval = null;
+    }
+    for (const timer of retryTimers) clearTimeout(timer);
+    retryTimers.clear();
 }
 
 module.exports = {
     isSupported,
     wakeLightroom,
-    startWatcher
+    startWatcher,
+    stopWatcher
 };

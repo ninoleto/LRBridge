@@ -179,7 +179,7 @@ function validateStaticContract() {
     }
 }
 
-function captureBridge() {
+async function captureBridge() {
     const routes = new Map();
     let websocketServer = null;
     let httpListenPort = null;
@@ -190,8 +190,14 @@ function captureBridge() {
         },
         listen(port, callback) {
             httpListenPort = port;
-            if (callback) callback();
-            return { close() {} };
+            const server = new (require("events").EventEmitter)();
+            server.address = function () { return { port: port }; };
+            server.close = function (closeCallback) { if (closeCallback) closeCallback(); };
+            queueMicrotask(function () {
+                server.emit("listening");
+                if (callback) callback();
+            });
+            return server;
         }
     };
 
@@ -199,27 +205,33 @@ function captureBridge() {
         return fakeApp;
     }
 
-    class FakeWebSocketServer {
+    class FakeWebSocketServer extends (require("events").EventEmitter) {
         constructor(options) {
+            super();
             this.options = options;
-            this.handlers = {};
             websocketServer = this;
+            this.clients = new Set();
+            queueMicrotask(() => this.emit("listening"));
         }
 
         on(event, handler) {
-            this.handlers[event] = handler;
+            return super.on(event, handler);
         }
+
+        address() { return { port: this.options.port }; }
+        close(callback) { if (callback) callback(); }
     }
 
     const originalLoad = Module._load;
     const originalLog = console.log;
     Module._load = function (request, parent, isMain) {
-        if (parent && parent.filename === path.join(root, "bridge.js")) {
+        if (parent && parent.filename === path.join(root, "server/bridge.js")) {
             if (request === "express") return expressMock;
             if (request === "ws") return { Server: FakeWebSocketServer };
-            if (request === "./server/lightroomWake") {
+            if (request === "./lightroomWake") {
                 return {
                     startWatcher() {},
+                    stopWatcher() {},
                     async wakeLightroom() {
                         return { ok: true, pid: 1234, stdout: "Wake complete", stderr: "", error: null };
                     }
@@ -231,15 +243,22 @@ function captureBridge() {
     console.log = function () {};
 
     try {
-        delete require.cache[require.resolve(path.join(root, "bridge.js"))];
+        delete require.cache[require.resolve(path.join(root, "server/bridge.js"))];
         delete require.cache[require.resolve(path.join(root, "server/commands.js"))];
         delete require.cache[require.resolve(path.join(root, "server/context.js"))];
-        require(path.join(root, "bridge.js"));
+        const bridgeModule = require(path.join(root, "server/bridge.js"));
+        const bridge = bridgeModule.createBridge();
+        await bridge.start();
     } finally {
         Module._load = originalLoad;
         console.log = originalLog;
     }
 
+    websocketServer.handlers = {};
+    for (const event of websocketServer.eventNames()) {
+        const listeners = websocketServer.listeners(event);
+        if (listeners.length > 0) websocketServer.handlers[event] = listeners[listeners.length - 1];
+    }
     return { routes, websocketServer, httpListenPort };
 }
 
@@ -283,7 +302,7 @@ async function drainCommands(captured, expectedCount) {
 }
 
 async function validateHttpAndWebSocketContract() {
-    const captured = captureBridge();
+    const captured = await captureBridge();
     assert.equal(captured.httpListenPort, fixture.ports.http, "HTTP default port drifted");
     assert.equal(captured.websocketServer.options.port, fixture.ports.webSocket, "WebSocket default port drifted");
     assert.deepEqual(Array.from(captured.routes.keys()), fixture.routes, "HTTP route set or order drifted");
