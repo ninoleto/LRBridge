@@ -26,7 +26,7 @@ const feedbackValues = {};
 let feedbackRequestId = 0;
 
 function queueCommand(command) {
-    return commands.enqueueCommand(command);
+    return commands.tryEnqueueCommand(command);
 }
 
 function isExperimentalEnabled(req) {
@@ -49,18 +49,51 @@ function rejectInvalidCommand(res, command) {
     });
 }
 
-function queueOrReject(res, command, responseExtra) {
-    const queued = queueCommand(command);
+function queueOrReject(res, command, responseExtra, onAccepted) {
+    const admission = queueCommand(command);
 
-    if (!queued) {
+    if (admission.status === commands.ADMISSION_QUEUE_FULL) {
+        rejectQueueFull(res, admission.queueLength);
+        return;
+    }
+
+    if (!admission.accepted) {
         rejectInvalidCommand(res, command);
         return;
     }
+
+    if (onAccepted) onAccepted();
 
     res.json(Object.assign({
         ok: true,
         queued: command
     }, responseExtra || {}));
+}
+
+function rejectQueueFull(res, queueLength) {
+    res.set("Retry-After", "1").status(503).json({
+        ok: false,
+        error: "Command queue full",
+        queueLength: queueLength,
+        queueLimit: commands.HARD_QUEUE_CAPACITY,
+        retryable: true
+    });
+}
+
+function queueBatchOrReject(res, batch, successBody) {
+    const admission = commands.tryEnqueueBatch(batch);
+
+    if (admission.status === commands.ADMISSION_QUEUE_FULL) {
+        rejectQueueFull(res, admission.queueLength);
+        return;
+    }
+
+    if (!admission.accepted) {
+        rejectInvalidCommand(res, batch);
+        return;
+    }
+
+    res.json(successBody);
 }
 
 function getSlidersByGroup(groupName) {
@@ -185,11 +218,9 @@ app.get("/command", function (req, res) {
         command.value = numbers.parseFiniteNumber(req.query.value);
     }
 
-    if (command.command === "develop.get") {
-        commands.clearLatestResult();
-    }
-
-    queueOrReject(res, command);
+    queueOrReject(res, command, null, command.command === "develop.get"
+        ? commands.clearLatestResult
+        : null);
 });
 
 app.get("/adjust", function (req, res) {
@@ -278,7 +309,6 @@ app.get("/reset", function (req, res) {
 app.get("/reset-group", function (req, res) {
     const group = req.query.group;
     const groupSliders = getSlidersByGroup(group);
-    const queued = [];
 
     if (groupSliders.length === 0) {
         res.status(400).json({
@@ -289,20 +319,14 @@ app.get("/reset-group", function (req, res) {
         return;
     }
 
-    for (const slider of groupSliders) {
-        const command = {
+    const queued = groupSliders.map(function (slider) {
+        return {
             command: "develop.reset",
             slider: slider.id
         };
+    });
 
-        const wasQueued = queueCommand(command);
-
-        if (wasQueued) {
-            queued.push(command);
-        }
-    }
-
-    res.json({
+    queueBatchOrReject(res, queued, {
         ok: true,
         group: group,
         queuedCount: queued.length,
@@ -312,22 +336,14 @@ app.get("/reset-group", function (req, res) {
 
 app.get("/reset-all", function (req, res) {
     const sliderIds = sliders.getIds();
-    const queued = [];
-
-    for (const slider of sliderIds) {
-        const command = {
+    const queued = sliderIds.map(function (slider) {
+        return {
             command: "develop.reset",
             slider: slider
         };
+    });
 
-        const wasQueued = queueCommand(command);
-
-        if (wasQueued) {
-            queued.push(command);
-        }
-    }
-
-    res.json({
+    queueBatchOrReject(res, queued, {
         ok: true,
         queuedCount: queued.length,
         queued: queued
@@ -335,14 +351,12 @@ app.get("/reset-all", function (req, res) {
 });
 
 app.get("/get", function (req, res) {
-    commands.clearLatestResult();
-
     const command = {
         command: "develop.get",
         slider: req.query.slider
     };
 
-    queueOrReject(res, command);
+    queueOrReject(res, command, null, commands.clearLatestResult);
 });
 
 app.get("/result", function (req, res) {
@@ -583,7 +597,26 @@ server.on("connection", function (socket) {
     console.log("Client connected.");
 
     socket.on("message", function (message) {
-        commands.setLatestCommand(message.toString());
+        let command;
+
+        try {
+            command = JSON.parse(message.toString());
+        } catch (err) {
+            console.log("Invalid JSON");
+            return;
+        }
+
+        const admission = commands.tryEnqueueCommand(command);
+        if (admission.status === commands.ADMISSION_QUEUE_FULL) {
+            socket.send(JSON.stringify({
+                type: "error",
+                code: "COMMAND_QUEUE_FULL",
+                error: "Command queue full",
+                queueLength: admission.queueLength,
+                queueLimit: commands.HARD_QUEUE_CAPACITY,
+                retryable: true
+            }));
+        }
     });
 
     socket.on("close", function () {

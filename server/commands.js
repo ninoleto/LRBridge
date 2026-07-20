@@ -4,6 +4,15 @@ const numbers = require("./numbers");
 const commandQueue = [];
 let latestResult = null;
 
+const HARD_QUEUE_CAPACITY = 1024;
+const ORDINARY_ADMISSION_CEILING = 896;
+const PROTECTED_QUEUE_RESERVE = 128;
+
+const ADMISSION_ACCEPTED = "accepted";
+const ADMISSION_COALESCED = "coalesced";
+const ADMISSION_INVALID = "invalid";
+const ADMISSION_QUEUE_FULL = "queue_full";
+
 const allowedActions = [
     "resetCrop",
     "resetTransforms",
@@ -84,8 +93,12 @@ function setLatestCommand(message) {
 }
 
 function enqueueCommand(command) {
+    return tryEnqueueCommand(command).accepted;
+}
+
+function tryEnqueueCommand(command) {
     if (!validateCommand(command)) {
-        return false;
+        return admissionResult(ADMISSION_INVALID);
     }
 
     if (command.command === "develop.adjust") {
@@ -101,9 +114,17 @@ function enqueueCommand(command) {
             if (Number.isFinite(combinedAmount)) {
                 lastCommand.amount = combinedAmount;
                 console.log("Coalesced command:", lastCommand);
-                return true;
+                return admissionResult(ADMISSION_COALESCED);
             }
         }
+    }
+
+    const limit = isProtectedCommand(command)
+        ? HARD_QUEUE_CAPACITY
+        : ORDINARY_ADMISSION_CEILING;
+
+    if (commandQueue.length >= limit) {
+        return admissionResult(ADMISSION_QUEUE_FULL);
     }
 
     commandQueue.push(command);
@@ -111,7 +132,42 @@ function enqueueCommand(command) {
     console.log("Queued command:", command);
     console.log("Queue length:", commandQueue.length);
 
-    return true;
+    return admissionResult(ADMISSION_ACCEPTED);
+}
+
+function tryEnqueueBatch(batch) {
+    if (!Array.isArray(batch) || !batch.every(validateCommand)) {
+        return admissionResult(ADMISSION_INVALID);
+    }
+
+    if (!batch.every(isProtectedCommand)) {
+        return admissionResult(ADMISSION_INVALID);
+    }
+
+    if (commandQueue.length + batch.length > HARD_QUEUE_CAPACITY) {
+        return admissionResult(ADMISSION_QUEUE_FULL);
+    }
+
+    for (const command of batch) {
+        commandQueue.push(command);
+    }
+
+    console.log("Queued command batch:", batch.length);
+    console.log("Queue length:", commandQueue.length);
+    return admissionResult(ADMISSION_ACCEPTED);
+}
+
+function isProtectedCommand(command) {
+    return command.command === "develop.reset" || command.command === "develop.action";
+}
+
+function admissionResult(status) {
+    return {
+        accepted: status === ADMISSION_ACCEPTED || status === ADMISSION_COALESCED,
+        coalesced: status === ADMISSION_COALESCED,
+        status: status,
+        queueLength: commandQueue.length
+    };
 }
 
 function getNextCommand() {
@@ -154,9 +210,23 @@ function getSliderMetadata() {
     return sliders.getAll();
 }
 
+function resetQueueForTests() {
+    commandQueue.length = 0;
+    latestResult = null;
+}
+
 module.exports = {
+    HARD_QUEUE_CAPACITY,
+    ORDINARY_ADMISSION_CEILING,
+    PROTECTED_QUEUE_RESERVE,
+    ADMISSION_ACCEPTED,
+    ADMISSION_COALESCED,
+    ADMISSION_INVALID,
+    ADMISSION_QUEUE_FULL,
     validateCommand,
     enqueueCommand,
+    tryEnqueueCommand,
+    tryEnqueueBatch,
     setLatestCommand,
     getNextCommand,
     clearLatestResult,
@@ -164,5 +234,6 @@ module.exports = {
     getLatestResult,
     getStatus,
     getSupportedSliders,
-    getSliderMetadata
+    getSliderMetadata,
+    resetQueueForTests
 };
