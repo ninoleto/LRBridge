@@ -5,6 +5,7 @@ const commands = require("./commands");
 const sliders = require("./sliders");
 const defaultLightroomWake = require("./lightroomWake");
 const context = require("./context");
+const numbers = require("./numbers");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -25,7 +26,7 @@ const feedbackValues = {};
 let feedbackRequestId = 0;
 
 function queueCommand(command) {
-    return commands.setLatestCommand(JSON.stringify(command));
+    return commands.enqueueCommand(command);
 }
 
 function isExperimentalEnabled(req) {
@@ -177,11 +178,11 @@ app.get("/command", function (req, res) {
     };
 
     if (req.query.amount !== undefined) {
-        command.amount = Number(req.query.amount);
+        command.amount = numbers.parseFiniteNumber(req.query.amount);
     }
 
     if (req.query.value !== undefined) {
-        command.value = Number(req.query.value);
+        command.value = numbers.parseFiniteNumber(req.query.value);
     }
 
     if (command.command === "develop.get") {
@@ -193,9 +194,9 @@ app.get("/command", function (req, res) {
 
 app.get("/adjust", function (req, res) {
     const slider = req.query.slider;
-    const amount = Number(req.query.amount);
+    const amount = numbers.parseFiniteNumber(req.query.amount);
 
-    if (req.query.amount === undefined || Number.isNaN(amount)) {
+    if (amount === null) {
         res.status(400).json({
             ok: false,
             error: "Missing or invalid amount",
@@ -220,9 +221,9 @@ app.get("/set", function (req, res) {
     }
 
     const slider = req.query.slider;
-    const value = Number(req.query.value);
+    const value = numbers.parseFiniteNumber(req.query.value);
 
-    if (req.query.value === undefined || Number.isNaN(value)) {
+    if (value === null) {
         res.status(400).json({
             ok: false,
             error: "Missing or invalid value",
@@ -346,12 +347,21 @@ app.get("/get", function (req, res) {
 
 app.get("/result", function (req, res) {
     const rawValue = req.query.value;
-    const numericValue = Number(rawValue);
+    const numericValue = numbers.parseFiniteNumber(rawValue);
+
+    if (numericValue === null) {
+        res.status(400).json({
+            ok: false,
+            error: "Missing or invalid value",
+            slider: req.query.slider || null
+        });
+        return;
+    }
 
     const result = {
         command: req.query.command || "develop.get.result",
         slider: req.query.slider || null,
-        value: Number.isNaN(numericValue) ? rawValue : numericValue
+        value: numericValue
     };
 
     commands.setLatestResult(result);
@@ -487,7 +497,8 @@ app.get("/feedback/next", function (req, res) {
 app.get("/feedback/result", function (req, res) {
     const slider = req.query.slider;
     const rawValue = req.query.value;
-    const numericValue = Number(rawValue);
+    const numericValue = numbers.parseFiniteNumber(rawValue);
+    const requestId = numbers.parseFiniteInteger(req.query.id);
 
     if (!sliders.exists(slider)) {
         res.status(400).json({
@@ -498,10 +509,28 @@ app.get("/feedback/result", function (req, res) {
         return;
     }
 
+    if (requestId === null) {
+        res.status(400).json({
+            ok: false,
+            error: "Missing or invalid id",
+            slider: slider
+        });
+        return;
+    }
+
+    if (numericValue === null) {
+        res.status(400).json({
+            ok: false,
+            error: "Missing or invalid value",
+            slider: slider
+        });
+        return;
+    }
+
     const result = {
-        id: Number(req.query.id) || null,
+        id: requestId,
         slider: slider,
-        value: Number.isNaN(numericValue) ? rawValue : numericValue,
+        value: numericValue,
         receivedAt: Date.now()
     };
 

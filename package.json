@@ -9,6 +9,7 @@
     "smoke": "node tests/http-smoke.js",
     "test:contract": "node tests/contract-baseline.js",
     "test:lifecycle": "node tests/lifecycle.js",
+    "test:input": "node tests/input-validation.js",
     "test:smoke-live": "node tests/http-smoke.js",
     "app": "electron app/main.js",
     "server": "node bridge.js",

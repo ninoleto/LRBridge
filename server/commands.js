@@ -1,4 +1,5 @@
 const sliders = require("./sliders");
+const numbers = require("./numbers");
 
 const commandQueue = [];
 let latestResult = null;
@@ -26,6 +27,11 @@ function validateCommand(command) {
         "develop.action"
     ];
 
+    if (!command || typeof command !== "object" || Array.isArray(command)) {
+        console.log("Invalid command");
+        return false;
+    }
+
     if (!allowedCommands.includes(command.command)) {
         console.log("Unknown command:", command.command);
         return false;
@@ -47,7 +53,7 @@ function validateCommand(command) {
 
     if (
         command.command === "develop.adjust" &&
-        (typeof command.amount !== "number" || Number.isNaN(command.amount))
+        !numbers.isFiniteNumber(command.amount)
     ) {
         console.log("Invalid amount");
         return false;
@@ -55,7 +61,7 @@ function validateCommand(command) {
 
     if (
         command.command === "develop.set" &&
-        (typeof command.value !== "number" || Number.isNaN(command.value))
+        !numbers.isFiniteNumber(command.value)
     ) {
         console.log("Invalid value");
         return false;
@@ -74,6 +80,10 @@ function setLatestCommand(message) {
         return false;
     }
 
+    return enqueueCommand(command);
+}
+
+function enqueueCommand(command) {
     if (!validateCommand(command)) {
         return false;
     }
@@ -86,9 +96,13 @@ function setLatestCommand(message) {
             lastCommand.command === "develop.adjust" &&
             lastCommand.slider === command.slider
         ) {
-            lastCommand.amount += command.amount;
-            console.log("Coalesced command:", lastCommand);
-            return true;
+            const combinedAmount = lastCommand.amount + command.amount;
+
+            if (Number.isFinite(combinedAmount)) {
+                lastCommand.amount = combinedAmount;
+                console.log("Coalesced command:", lastCommand);
+                return true;
+            }
         }
     }
 
@@ -141,6 +155,8 @@ function getSliderMetadata() {
 }
 
 module.exports = {
+    validateCommand,
+    enqueueCommand,
     setLatestCommand,
     getNextCommand,
     clearLatestResult,
