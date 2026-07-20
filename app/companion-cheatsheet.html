@@ -305,6 +305,16 @@
 
 <main>
     <section class="box warning hide-when-searching">
+        <h3>Security and network exposure</h3>
+        <p>
+            LRBridge has no login or built-in authentication. Use this API only on a trusted private LAN or a restricted Tailscale network.
+            <strong>127.0.0.1 works only when Companion and LRBridge run on the same computer.</strong>
+            For another computer, use the LRBridge computer's stable LAN or Tailscale address and scope Windows Firewall access to the Companion computer where practical.
+            Never publicly forward ports 17890, 17891, or 17892, and do not use Tailscale Funnel, a public reverse proxy, or a public cloud tunnel.
+        </p>
+    </section>
+
+    <section class="box warning hide-when-searching">
         <h3>How to use this page with Bitfocus Companion</h3>
         <ol class="setup-list">
             <li>Open Bitfocus Companion.</li>

@@ -167,6 +167,15 @@
 </header>
 
 <main>
+    <section class="box danger">
+        <h3>Security and network exposure</h3>
+        <p>
+            The Web Controller and API are intended only for trusted private networks. No login or password is currently required.
+            Do not expose ports 17890, 17891, or 17892 publicly, including through Tailscale Funnel, a public reverse proxy,
+            or a public cloud tunnel. On shared or event Wi-Fi, restrict access with the operating-system firewall or do not run remote access.
+        </p>
+    </section>
+
     <section class="box">
         <h3>What the Web Controller is for</h3>
         <p>

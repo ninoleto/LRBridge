@@ -30,6 +30,12 @@ If testing locally on the Windows PC:
 http://127.0.0.1:17891
 ```
 
+`127.0.0.1` is valid only when Companion and LRBridge run on the same computer. If Companion runs on another computer, use the LRBridge computer's trusted LAN address or Tailscale address. Give the LRBridge computer a stable DHCP reservation or static address so the Companion connection does not break when its address changes.
+
+LRBridge has no authentication or authorization. Configuring a remote address makes its API reachable to every other device that can access that address and port, and those devices may be able to control Lightroom or read bridge information. Treat the connection as trusted-network-only.
+
+Where practical, scope Windows Firewall access to the Companion computer's IP address and permit only the Private network profile. For Tailscale, use restrictive ACLs or grants so only the intended Companion device can connect. Do not use Tailscale Funnel, and do not publicly forward LRBridge ports 17890, 17891, or 17892 through a router, reverse proxy, or cloud tunnel.
+
 ## Companion module
 
 Use:

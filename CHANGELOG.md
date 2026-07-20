@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Clarified LRBridge network exposure, trusted-network use, Companion addressing, Windows Firewall scoping, Tailscale restrictions, and public-exposure warnings. No authentication or security feature was added.
+
 ## v0.2.0-autostart
 
 Autostart Lightroom polling with UI wake.

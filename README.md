@@ -302,6 +302,23 @@ http://192.168.1.11:17892/
 
 Windows Firewall may ask for permission the first time LRBridge runs. Allow access if you want the Web Controller to be available from another device on the same LAN.
 
+### Security and network exposure
+
+Ports 17890–17892 are trusted-network services. The HTTP API listens on port 17891, the WebSocket command server listens on port 17890, and the Web Controller listens on port 17892. In production, these services are reachable on available network interfaces, subject to Windows Firewall and routing; LRBridge does not bind only to localhost. The Web Controller proxies API requests from port 17892 to port 17891.
+
+LRBridge currently has no built-in authentication or authorization. Any device that can reach these ports can potentially control Lightroom or read bridge information. Many state-changing commands use GET URLs. CORS is not authentication and does not prevent links, images, forms, redirects, or WebSocket clients from sending requests. HTTPS/TLS alone also does not authenticate LRBridge commands.
+
+Treat LRBridge as a trusted-network-only service. Public exposure is unsupported and unsafe:
+
+* Do not forward ports 17890, 17891, or 17892 through your router.
+* Do not expose them through Caddy or another reverse proxy, a public cloud tunnel, or Tailscale Funnel.
+* Avoid guest Wi-Fi, shared office networks, event networks, hotel Wi-Fi, and other partially trusted networks.
+* Normal home-LAN use assumes that every device able to reach LRBridge is trusted.
+
+If remote LAN access is needed, configure Windows Firewall to permit LRBridge only on the Private profile. Ideally, scope access to the Companion computer's IP address or to a trusted subnet. If using Tailscale, apply restrictive ACLs or grants so only intended devices can connect, and do not use Funnel. A firewall or Tailscale policy limits who can reach LRBridge; it does not add LRBridge authentication.
+
+Information endpoints can disclose bridge or Lightroom state. Selected-photo information returned by `/status` or `/context` may sometimes contain a local file path. `/diagnostics/queue` exposes aggregate queue information, but not queued command arguments.
+
 ---
 
 ## 6. Install and run

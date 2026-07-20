@@ -41,6 +41,10 @@ Path: /adjust?slider=Exposure&amount=1
 Method: GET
 ```
 
+`127.0.0.1` is valid only when Companion and LRBridge run on the same computer. If Companion runs on another computer, use the LRBridge computer's trusted LAN address or Tailscale address. Use a stable DHCP reservation or static address for the LRBridge computer so the Companion connection remains valid.
+
+> **Security warning:** LRBridge has no authentication or authorization. Configuring a remote address makes the API reachable to every other device that can access that address and port. Treat it as trusted-network-only, scope Windows Firewall access to the Companion computer where practical, and permit only the Private profile. With Tailscale, use restrictive ACLs or grants and do not use Funnel. Never publicly forward ports 17890, 17891, or 17892 through a router, reverse proxy, or cloud tunnel.
+
 ---
 
 ## Important notes
