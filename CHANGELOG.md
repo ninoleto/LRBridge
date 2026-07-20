@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- WebSocket command payloads are now limited to 64 KiB to reduce resource abuse. Normal LRBridge and Companion commands are unaffected.
+
 ### Documentation
 
 - Clarified LRBridge network exposure, trusted-network use, Companion addressing, Windows Firewall scoping, Tailscale restrictions, and public-exposure warnings. No authentication or security feature was added.

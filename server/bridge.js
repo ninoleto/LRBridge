@@ -9,6 +9,7 @@ const numbers = require("./numbers");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
+const WS_MAX_PAYLOAD_BYTES = 64 * 1024;
 
 function createBridge(options) {
 options = options || {};
@@ -16,6 +17,12 @@ const httpPort = options.httpPort === undefined ? HTTP_PORT : options.httpPort;
 const wsPort = options.wsPort === undefined ? WS_PORT : options.wsPort;
 const httpHost = options.httpHost;
 const wsHost = options.wsHost;
+const wsMaxPayloadBytes = options.wsMaxPayloadBytes === undefined
+    ? WS_MAX_PAYLOAD_BYTES
+    : options.wsMaxPayloadBytes;
+if (!Number.isFinite(wsMaxPayloadBytes) || !Number.isInteger(wsMaxPayloadBytes) || wsMaxPayloadBytes <= 0) {
+    throw new TypeError("wsMaxPayloadBytes must be a positive finite integer");
+}
 const startLightroomWatcher = options.startLightroomWatcher !== false;
 const lightroomWake = options.lightroomWake || defaultLightroomWake;
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
@@ -626,6 +633,10 @@ server.on("connection", function (socket) {
     socket.on("close", function () {
         console.log("Client disconnected.");
     });
+
+    socket.on("error", function (err) {
+        console.log("WebSocket client error: " + err.message);
+    });
 });
 }
 
@@ -708,7 +719,7 @@ function listenHttp() {
 
 function listenWebSocket() {
     return new Promise(function (resolve, reject) {
-        const wsOptions = { port: wsPort };
+        const wsOptions = { port: wsPort, maxPayload: wsMaxPayloadBytes };
         if (wsHost !== undefined) wsOptions.host = wsHost;
         const server = new WebSocket.Server(wsOptions);
         wsServer = server;
@@ -822,4 +833,4 @@ const api = {
 return api;
 }
 
-module.exports = { createBridge, HTTP_PORT, WS_PORT };
+module.exports = { createBridge, HTTP_PORT, WS_PORT, WS_MAX_PAYLOAD_BYTES };
