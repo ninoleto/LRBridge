@@ -31,6 +31,45 @@ local function log(message)
 
 end
 
+local function formatExecutionError(failure)
+
+    local success, message = pcall(tostring, failure)
+
+    if success ~= true then
+        return "[unprintable error]"
+    end
+
+    message = string.gsub(message, "https?://%S+", "[redacted URL]")
+    message = string.gsub(message, "%a:[/\\][^%c]+", "[redacted path]")
+    message = string.gsub(message, "/[^%s]+", "[redacted path]")
+    message = string.gsub(message, "%?[^%s]+", "?[redacted]")
+
+    return message
+
+end
+
+local function executeCommand(command)
+
+    _G.LRBridgeCommandBusy = true
+
+    local success, failure = LrTasks.pcall(Commands.execute, command)
+
+    _G.LRBridgeCommandBusy = false
+
+    local clockSuccess, finishedAt = pcall(os.clock)
+
+    if clockSuccess == true then
+        _G.LRBridgeLastCommandFinishedAt = finishedAt
+    end
+
+    if success ~= true then
+        pcall(function()
+            log("command execution failed: " .. formatExecutionError(failure))
+        end)
+    end
+
+end
+
 if _G.LRBridgePollingStarted == true then
 
     log("polling already running")
@@ -77,12 +116,7 @@ LrTasks.startAsyncTask(function()
             if command ~= nil then
                 log("command received: " .. tostring(command.command) .. " " .. tostring(command.slider))
 
-                _G.LRBridgeCommandBusy = true
-
-                Commands.execute(command)
-
-                _G.LRBridgeCommandBusy = false
-                _G.LRBridgeLastCommandFinishedAt = os.clock()
+                executeCommand(command)
             end
 
         end
