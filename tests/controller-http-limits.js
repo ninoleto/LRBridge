@@ -1,7 +1,9 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const http = require("node:http");
+const net = require("node:net");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const {
     CONTROLLER_HTTP_REQUEST_TIMEOUT_MS,
@@ -67,6 +69,148 @@ function withDeadline(promise, message, timeoutMs = 1500) {
             setTimeout(function () { reject(new Error(message)); }, timeoutMs).unref();
         })
     ]);
+}
+
+function loadControllerServerForTest(onUpstreamRequest) {
+    let source = fs.readFileSync(path.join(root, "app", "main.js"), "utf8");
+    source = source.slice(0, source.indexOf("const gotLock = app.requestSingleInstanceLock();"));
+    source = source.replace("const controllerPort = 17892;", "const controllerPort = 0;");
+    source += "\nmodule.exports = { handleControllerRequestError, startControllerServer, getControllerServer: function () { return controllerServer; } };\n";
+
+    const electron = {
+        app: { isPackaged: false, quit() {} },
+        BrowserWindow: function () {},
+        Tray: function () {},
+        Menu: {},
+        ipcMain: {},
+        shell: {},
+        clipboard: {}
+    };
+    const moduleForTest = { exports: {} };
+    const context = vm.createContext({
+        Buffer,
+        URL,
+        clearTimeout,
+        console,
+        module: moduleForTest,
+        exports: moduleForTest.exports,
+        __dirname: path.join(root, "app"),
+        process,
+        require(requestName) {
+            if (requestName === "electron") return electron;
+            if (requestName === "./controller-proxy") {
+                return {
+                    proxyControllerRequest(_request, response) {
+                        onUpstreamRequest();
+                        response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+                        response.end('{"ok":true}');
+                        return Promise.resolve();
+                    }
+                };
+            }
+            if (requestName.startsWith("./")) return require(path.join(root, "app", requestName));
+            return require(requestName);
+        },
+        setImmediate,
+        setTimeout
+    });
+    vm.runInContext(source, context, { filename: path.join(root, "app", "main.js") });
+    return moduleForTest.exports;
+}
+
+function testControllerErrorResponseStates() {
+    const controller = loadControllerServerForTest(function () {});
+
+    for (const response of [
+        { destroyed: true, writableEnded: false },
+        { destroyed: false, writableEnded: true }
+    ]) {
+        response.destroy = function () { assert.fail("terminal response must not be destroyed again"); };
+        response.writeHead = function () { assert.fail("terminal response must not be written"); };
+        response.end = function () { assert.fail("terminal response must not be ended again"); };
+        controller.handleControllerRequestError(response);
+    }
+
+    let destroyCalls = 0;
+    const headersSent = {
+        destroyed: false,
+        writableEnded: false,
+        headersSent: true,
+        destroy() { destroyCalls += 1; this.destroyed = true; },
+        writeHead() { assert.fail("headers must not be written twice"); },
+        end() { assert.fail("headers-sent response must be destroyed"); }
+    };
+    controller.handleControllerRequestError(headersSent);
+    assert.equal(destroyCalls, 1);
+
+    const writeFailure = {
+        destroyed: false,
+        writableEnded: false,
+        headersSent: false,
+        writeHead() { throw new Error("client disconnected during error response"); },
+        end() { assert.fail("failed response write must not continue"); },
+        destroy() { destroyCalls += 1; this.destroyed = true; }
+    };
+    controller.handleControllerRequestError(writeFailure);
+    assert.equal(destroyCalls, 2);
+}
+
+function rawRequest(port, target) {
+    return new Promise(function (resolve, reject) {
+        const socket = net.connect(port, "127.0.0.1");
+        let data = "";
+        const timer = setTimeout(function () {
+            socket.destroy();
+            reject(new Error("Raw Controller response remained open"));
+        }, 1500);
+        socket.setEncoding("utf8");
+        socket.once("connect", function () {
+            socket.write("GET " + target + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+        });
+        socket.on("data", function (chunk) { data += chunk; });
+        socket.once("end", function () { clearTimeout(timer); resolve(data); });
+        socket.once("error", function (error) { clearTimeout(timer); reject(error); });
+    });
+}
+
+async function testMalformedControllerTargetBoundary() {
+    let upstreamRequests = 0;
+    const controller = loadControllerServerForTest(function () { upstreamRequests += 1; });
+    const unhandled = [];
+    const uncaught = [];
+    function onUnhandled(error) { unhandled.push(error); }
+    function onUncaught(error) { uncaught.push(error); }
+    process.on("unhandledRejection", onUnhandled);
+    process.on("uncaughtException", onUncaught);
+    controller.startControllerServer();
+    const server = controller.getControllerServer();
+    try {
+        if (!server.listening) await new Promise(function (resolve) { server.once("listening", resolve); });
+        const port = server.address().port;
+        const malformed = await rawRequest(port, "//%");
+        assert.match(malformed, /^HTTP\/1\.1 400 /);
+        assert.match(malformed, /\r\nBad Request\r\n/);
+        assert.doesNotMatch(malformed, /TypeError|Invalid URL|app\\main|LRBridge|stack/i);
+        assert.equal(upstreamRequests, 0);
+
+        const page = await request(port, { path: "/" });
+        assert.equal(page.statusCode, 200);
+        assert.match(page.body, /LRBridge Web Controller/);
+        const proxy = await request(port, { path: "/api/status" });
+        assert.equal(proxy.statusCode, 200);
+        assert.equal(proxy.body, '{"ok":true}');
+        assert.equal(upstreamRequests, 1);
+        const unknown = await request(port, { path: "/unknown-valid-path" });
+        assert.equal(unknown.statusCode, 404);
+        assert.deepEqual(JSON.parse(unknown.body), { ok: false, error: "Not found" });
+        await new Promise(function (resolve) { setImmediate(resolve); });
+        assert.deepEqual(unhandled, []);
+        assert.deepEqual(uncaught, []);
+    } finally {
+        process.removeListener("unhandledRejection", onUnhandled);
+        process.removeListener("uncaughtException", onUncaught);
+        if (server.listening) await closeServer(server);
+    }
 }
 
 function testConstantsDefaultsAndPreservedProperties() {
@@ -261,6 +405,8 @@ async function main() {
     testConstantsDefaultsAndPreservedProperties();
     testOverridesValidationAndAtomicity();
     testSourceIntegrationAndProductionCompatibility();
+    testControllerErrorResponseStates();
+    await testMalformedControllerTargetBoundary();
     await testHttpCompatibilityAndVolume();
     console.log("Web Controller HTTP limit tests passed.");
 }

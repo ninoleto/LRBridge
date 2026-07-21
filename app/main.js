@@ -253,6 +253,154 @@ function sendControllerResponse(response, statusCode, contentType, body) {
     response.end(body);
 }
 
+function handleControllerRequestError(response) {
+    try {
+        if (response.destroyed || response.writableEnded) {
+            return;
+        }
+
+        if (response.headersSent) {
+            response.destroy();
+            return;
+        }
+
+        sendControllerResponse(response, 400, "text/plain; charset=utf-8", "Bad Request");
+    } catch (err) {
+        if (!response.destroyed) {
+            try {
+                response.destroy();
+            } catch (destroyErr) {
+                // The client connection is already unusable.
+            }
+        }
+    }
+}
+
+async function handleControllerRequest(request, response) {
+    const requestUrl = new URL(request.url, controllerUrl);
+
+    if (requestUrl.pathname === "/" || requestUrl.pathname === "/controller") {
+        try {
+            const html = fs.readFileSync(controllerPath, "utf8");
+            sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
+        } catch (err) {
+            sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
+        }
+
+        return;
+    }
+
+    if (requestUrl.pathname === "/help" || requestUrl.pathname === "/controller-help") {
+        try {
+            const html = fs.readFileSync(controllerHelpPath, "utf8");
+            sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
+        } catch (err) {
+            sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
+        }
+
+        return;
+    }
+
+    if (
+        requestUrl.pathname === "/bitfocus-companion-cheatsheet" ||
+        requestUrl.pathname === "/companion-cheatsheet"
+    ) {
+        try {
+            const html = fs.readFileSync(companionCheatsheetHtmlPath, "utf8");
+            sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
+        } catch (err) {
+            sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
+        }
+
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/help") {
+        await proxyControllerRequest(request, response, "/help");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/sliders") {
+        await proxyControllerRequest(request, response, "/sliders");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/groups") {
+        await proxyControllerRequest(request, response, "/groups");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/adjust") {
+        const slider = requestUrl.searchParams.get("slider") || "";
+        const amount = requestUrl.searchParams.get("amount") || "";
+
+        await proxyControllerRequest(
+            request,
+            response,
+            "/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount)
+        );
+
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/action") {
+        const action = requestUrl.searchParams.get("action") || "";
+
+        await proxyControllerRequest(
+            request,
+            response,
+            "/action?action=" + encodeURIComponent(action)
+        );
+
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/reset") {
+        const slider = requestUrl.searchParams.get("slider") || "";
+
+        await proxyControllerRequest(
+            request,
+            response,
+            "/reset?slider=" + encodeURIComponent(slider)
+        );
+
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/reset-group") {
+        const group = requestUrl.searchParams.get("group") || "";
+
+        await proxyControllerRequest(
+            request,
+            response,
+            "/reset-group?group=" + encodeURIComponent(group)
+        );
+
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/reset-all") {
+        await proxyControllerRequest(request, response, "/reset-all");
+        return;
+    }
+
+    if (requestUrl.pathname.startsWith("/api/")) {
+        const bridgePathAndQuery = requestUrl.pathname.slice(4) + requestUrl.search;
+        await proxyControllerRequest(request, response, bridgePathAndQuery);
+        return;
+    }
+
+    sendControllerResponse(
+        response,
+        404,
+        "application/json; charset=utf-8",
+        JSON.stringify({
+            ok: false,
+            error: "Not found"
+        })
+    );
+}
+
 function startControllerServer() {
     if (controllerServerStarted) {
         return;
@@ -260,129 +408,10 @@ function startControllerServer() {
 
     controllerServerStarted = true;
 
-    controllerServer = http.createServer(async function (request, response) {
-        const requestUrl = new URL(request.url, controllerUrl);
-
-        if (requestUrl.pathname === "/" || requestUrl.pathname === "/controller") {
-            try {
-                const html = fs.readFileSync(controllerPath, "utf8");
-                sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
-            } catch (err) {
-                sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
-            }
-
-            return;
-        }
-
-        if (requestUrl.pathname === "/help" || requestUrl.pathname === "/controller-help") {
-            try {
-                const html = fs.readFileSync(controllerHelpPath, "utf8");
-                sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
-            } catch (err) {
-                sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
-            }
-
-            return;
-        }
-
-        if (
-            requestUrl.pathname === "/bitfocus-companion-cheatsheet" ||
-            requestUrl.pathname === "/companion-cheatsheet"
-        ) {
-            try {
-                const html = fs.readFileSync(companionCheatsheetHtmlPath, "utf8");
-                sendControllerResponse(response, 200, "text/html; charset=utf-8", html);
-            } catch (err) {
-                sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
-            }
-
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/help") {
-            await proxyControllerRequest(request, response, "/help");
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/sliders") {
-            await proxyControllerRequest(request, response, "/sliders");
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/groups") {
-            await proxyControllerRequest(request, response, "/groups");
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/adjust") {
-            const slider = requestUrl.searchParams.get("slider") || "";
-            const amount = requestUrl.searchParams.get("amount") || "";
-
-            await proxyControllerRequest(
-                request,
-                response,
-                "/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount)
-            );
-
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/action") {
-            const action = requestUrl.searchParams.get("action") || "";
-
-            await proxyControllerRequest(
-                request,
-                response,
-                "/action?action=" + encodeURIComponent(action)
-            );
-
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/reset") {
-            const slider = requestUrl.searchParams.get("slider") || "";
-
-            await proxyControllerRequest(
-                request,
-                response,
-                "/reset?slider=" + encodeURIComponent(slider)
-            );
-
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/reset-group") {
-            const group = requestUrl.searchParams.get("group") || "";
-
-            await proxyControllerRequest(
-                request,
-                response,
-                "/reset-group?group=" + encodeURIComponent(group)
-            );
-
-            return;
-        }
-
-        if (requestUrl.pathname === "/api/reset-all") {
-            await proxyControllerRequest(request, response, "/reset-all");
-            return;
-        }
-
-        if (requestUrl.pathname.startsWith("/api/")) {
-            const bridgePathAndQuery = requestUrl.pathname.slice(4) + requestUrl.search;
-            await proxyControllerRequest(request, response, bridgePathAndQuery);
-            return;
-        }
-
-        sendControllerResponse(
-            response,
-            404,
-            "application/json; charset=utf-8",
-            JSON.stringify({
-                ok: false,
-                error: "Not found"
-            })
-        );
+    controllerServer = http.createServer(function (request, response) {
+        handleControllerRequest(request, response).catch(function () {
+            handleControllerRequestError(response);
+        });
     });
 
     stopControllerServer.register(controllerServer);
