@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Prematurely closed LRBridge upstream responses now terminate Web Controller proxy requests cleanly instead of leaving them pending.
 - Malformed Web Controller request targets now receive a controlled client error instead of causing an unhandled request-handler rejection.
 - Lightroom adjustment amounts are now limited to safe integer step counts, preventing fractional or out-of-range values from being interpreted differently by the app and Lightroom plug-in.
 - Lightroom command polling now isolates command execution failures so one failing SDK operation cannot permanently stop subsequent command processing.

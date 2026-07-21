@@ -71,14 +71,135 @@ function createProxyServer(upstreamPort, options = {}) {
             stats.end += 1;
             return originalEnd.apply(this, args);
         };
-        proxyControllerRequest(request, response, request.url, {
+        const operation = proxyControllerRequest(request, response, request.url, {
             upstreamHost: "127.0.0.1",
             upstreamPort,
             timeoutMs: options.timeoutMs || 1000,
             httpRequest: options.httpRequest
         });
+        if (options.onProxyOperation) options.onProxyOperation(operation);
     });
     return { server, stats };
+}
+
+async function testPrematureUpstreamCloseSettles() {
+    const operationSeen = deferred();
+    const upstreamClosed = deferred();
+    let upstreamCount = 0;
+    await withServers(function (_request, response) {
+        upstreamCount += 1;
+        if (upstreamCount > 1) {
+            response.end('{"ok":true}');
+            return;
+        }
+        response.writeHead(200, {
+            "Content-Type": "application/json",
+            "Content-Length": "32"
+        });
+        response.write('{"ok":false', function () {
+            response.socket.destroy();
+        });
+        response.once("close", upstreamClosed.resolve);
+    }, async function ({ proxyPort, stats }) {
+        const downstreamTerminated = new Promise(function (resolve) {
+            const outgoing = http.request({ hostname: "127.0.0.1", port: proxyPort, path: "/truncated" });
+            outgoing.once("error", function (error) { resolve({ event: "error", error }); });
+            outgoing.once("response", function (response) {
+                let body = "";
+                response.setEncoding("utf8");
+                response.on("data", function (chunk) { body += chunk; });
+                response.once("end", function () {
+                    resolve({ event: "end", statusCode: response.statusCode, body });
+                });
+                response.once("aborted", function () { resolve({ event: "aborted" }); });
+            });
+            outgoing.end();
+        });
+
+        await withDeadline(upstreamClosed.promise, "Upstream connection did not close");
+        const { operation } = await withDeadline(operationSeen.promise, "Proxy operation was not captured");
+        let settlements = 0;
+        operation.then(function () { settlements += 1; });
+        await withDeadline(operation, "Proxy promise remained pending after premature upstream close", 250);
+        const terminated = await withDeadline(downstreamTerminated, "Downstream response remained pending after premature upstream close", 250);
+        assert.deepEqual(terminated, {
+            event: "end",
+            statusCode: 500,
+            body: '{"ok":false,"error":"Upstream response failed"}'
+        });
+        await new Promise(function (resolve) { setImmediate(resolve); });
+        assert.equal(settlements, 1);
+        assert.deepEqual(stats, { writeHead: 1, end: 1 });
+
+        const recovered = await withDeadline(request(proxyPort, "/valid"), "Later valid proxy request did not complete", 250);
+        assert.equal(recovered.statusCode, 200);
+        assert.equal(recovered.body, '{"ok":true}');
+        assert.equal(upstreamCount, 2);
+        assert.deepEqual(stats, { writeHead: 2, end: 2 });
+    }, {
+        timeoutMs: 5000,
+        onProxyOperation(operation) { operationSeen.resolve({ operation }); }
+    });
+}
+
+async function testRepeatedUpstreamFailureAfterHeadersDestroysOnce() {
+    const incoming = new EventEmitter();
+    incoming.aborted = false;
+    const downstream = new EventEmitter();
+    downstream.destroyed = false;
+    downstream.writableEnded = false;
+    downstream.headersSent = true;
+    let writeHeadCount = 0;
+    let endCount = 0;
+    let downstreamDestroyCount = 0;
+    downstream.writeHead = function () { writeHeadCount += 1; };
+    downstream.end = function () { endCount += 1; };
+    downstream.destroy = function () {
+        downstreamDestroyCount += 1;
+        downstream.destroyed = true;
+    };
+
+    const response = new EventEmitter();
+    response.destroyed = false;
+    response.complete = false;
+    response.readableEnded = false;
+    response.setEncoding = function () {};
+    let responseDestroyCount = 0;
+    response.destroy = function () {
+        responseDestroyCount += 1;
+        response.destroyed = true;
+    };
+
+    const outgoing = new EventEmitter();
+    outgoing.destroyed = false;
+    outgoing.end = function () {};
+    let requestDestroyCount = 0;
+    outgoing.destroy = function () {
+        requestDestroyCount += 1;
+        outgoing.destroyed = true;
+    };
+
+    const operation = proxyControllerRequest(incoming, downstream, "/partial-downstream", {
+        timeoutMs: 1000,
+        httpRequest(_options, onResponse) {
+            setImmediate(function () { onResponse(response); });
+            return outgoing;
+        }
+    });
+    let settlements = 0;
+    operation.then(function () { settlements += 1; });
+    await new Promise(function (resolve) { setImmediate(resolve); });
+    response.emit("aborted");
+    response.emit("error", new Error("repeated response error"));
+    response.emit("close");
+    await withDeadline(operation, "Header-sent response failure did not settle");
+    await new Promise(function (resolve) { setImmediate(resolve); });
+    assert.equal(settlements, 1);
+    assert.equal(writeHeadCount, 0);
+    assert.equal(endCount, 0);
+    assert.equal(downstreamDestroyCount, 1);
+    assert.equal(responseDestroyCount, 1);
+    assert.equal(requestDestroyCount, 1);
 }
 
 function request(port, requestPath, options = {}) {
@@ -332,6 +453,8 @@ async function main() {
     try {
         testDefaultsAndValidation();
         testProductionConfiguration();
+        await testPrematureUpstreamCloseSettles();
+        await testRepeatedUpstreamFailureAfterHeadersDestroysOnce();
         await testNormalForwarding();
         await testDisconnectBeforeUpstreamResponse();
         await testDisconnectAfterUpstreamHeaders();

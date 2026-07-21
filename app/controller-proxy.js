@@ -27,7 +27,7 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
         let upstreamRequest = null;
         let upstreamResponse = null;
 
-        function finish() {
+        function settle(action) {
             if (terminal) {
                 return false;
             }
@@ -35,15 +35,15 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
             terminal = true;
             incomingRequest.removeListener("aborted", handleDownstreamDisconnect);
             downstreamResponse.removeListener("close", handleDownstreamClose);
-            resolve();
+            try {
+                action();
+            } finally {
+                resolve();
+            }
             return true;
         }
 
-        function cancelUpstream() {
-            if (!finish()) {
-                return;
-            }
-
+        function destroyUpstream() {
             if (upstreamResponse !== null && !upstreamResponse.destroyed) {
                 upstreamResponse.destroy();
             }
@@ -51,6 +51,10 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
             if (upstreamRequest !== null && !upstreamRequest.destroyed) {
                 upstreamRequest.destroy();
             }
+        }
+
+        function cancelUpstream() {
+            settle(destroyUpstream);
         }
 
         function handleDownstreamDisconnect() {
@@ -64,25 +68,41 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
         }
 
         function sendResponse(statusCode, body) {
-            if (terminal || !isResponseUsable(downstreamResponse) || downstreamResponse.headersSent) {
+            if (terminal || !isResponseUsable(downstreamResponse)) {
                 cancelUpstream();
                 return;
             }
 
-            terminal = true;
-            incomingRequest.removeListener("aborted", handleDownstreamDisconnect);
-            downstreamResponse.removeListener("close", handleDownstreamClose);
-
-            downstreamResponse.writeHead(statusCode || 500, {
-                "Content-Type": "application/json; charset=utf-8",
-                "Cache-Control": "no-store"
-            });
-
-            if (isResponseUsable(downstreamResponse)) {
-                downstreamResponse.end(body || "{}");
+            if (downstreamResponse.headersSent) {
+                settle(function () {
+                    destroyUpstream();
+                    if (!downstreamResponse.destroyed) {
+                        downstreamResponse.destroy();
+                    }
+                });
+                return;
             }
 
-            resolve();
+            settle(function () {
+                downstreamResponse.writeHead(statusCode || 500, {
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Cache-Control": "no-store"
+                });
+
+                if (isResponseUsable(downstreamResponse)) {
+                    downstreamResponse.end(body || "{}");
+                }
+            });
+        }
+
+        function handleUpstreamResponseFailure() {
+            sendResponse(
+                500,
+                JSON.stringify({
+                    ok: false,
+                    error: "Upstream response failed"
+                })
+            );
         }
 
         incomingRequest.once("aborted", handleDownstreamDisconnect);
@@ -121,6 +141,14 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
                 response.on("end", function () {
                     if (!terminal) {
                         sendResponse(response.statusCode, body);
+                    }
+                });
+
+                response.on("error", handleUpstreamResponseFailure);
+                response.on("aborted", handleUpstreamResponseFailure);
+                response.on("close", function () {
+                    if (!response.complete && !response.readableEnded) {
+                        handleUpstreamResponseFailure();
                     }
                 });
             }
