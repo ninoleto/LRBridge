@@ -10,7 +10,7 @@ It is designed for:
 * Users who want to control Lightroom from a tablet, touchscreen monitor, old phone, or LAN browser.
 * Developers and AI coding agents that need a clear project map before making forks, patches, or Companion modules.
 
-LRBridge is focused on reliable Lightroom slider and action control through a local HTTP bridge. The Web Controller supports polling-based feedback for visible sliders. LRBridge v0.5.1 also adds a Lightroom context API so external tools can detect active module changes, selected photo changes, and Develop value changes.
+LRBridge is focused on reliable Lightroom slider and action control through a local HTTP bridge. The Web Controller supports polling-based feedback for visible sliders. LRBridge exposes a Lightroom context API so external tools can detect active module changes, selected photo changes, and Develop value changes.
 
 Feedback and context updates are useful, but they are polling-based. They are not true native realtime Lightroom events.
 
@@ -126,8 +126,8 @@ Feedback and context detection are polling-based. They are designed to be useful
 Current public package:
 
 ```text
-v0.5.1
-Stable Windows portable release with Lightroom context API and visible slider feedback
+v0.5.2
+Stability and hardening checkpoint for the Windows portable release, preserving the existing Lightroom context API and visible slider feedback
 ```
 
 A Windows portable ZIP package is available from GitHub Releases. The package includes the LRBridge Windows app, Web Controller, Lightroom Classic plugin, configuration files, Companion HTTP Builder, README documentation, and development context documentation.
@@ -988,7 +988,7 @@ The native module is maintained as a separate project. It is not bundled inside 
 
 If the module is not available in the official Companion build yet, use the GitHub repo for the current development version and setup instructions.
 
-LRBridge v0.5.1 exposes context fields through `/status` and `/context`. The native Companion module can use these fields to detect when Lightroom changes active module, selected photo, or Develop values, and then refresh Companion variables or slider feedback.
+LRBridge exposes context fields through `/status` and `/context`. The native Companion module can use these fields to detect when Lightroom changes active module, selected photo, or Develop values, and then refresh Companion variables or slider feedback.
 
 ---
 
@@ -1507,13 +1507,14 @@ v0.4.38-windows-portable-build
 v0.4.41-rc2-feedback-docs
 v0.5.0
 v0.5.1
+v0.5.2
 ```
 
 Current public release:
 
 ```text
-v0.5.1
-Stable Windows portable release with Lightroom context API and visible slider feedback
+v0.5.2
+Stability and hardening checkpoint for the Windows portable release, preserving the existing Lightroom context API and visible slider feedback
 ```
 
 Suggested next milestones:

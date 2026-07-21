@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.5.2
+
+Stability and hardening checkpoint for the existing LRBridge feature set. This is a maintenance release, not a feature release.
+
 ### Changed
 
 - Prematurely closed LRBridge upstream responses now terminate Web Controller proxy requests cleanly instead of leaving them pending.
