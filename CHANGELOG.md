@@ -7,6 +7,7 @@
 - WebSocket command payloads are now limited to 64 KiB to reduce resource abuse. Normal LRBridge and Companion commands are unaffected.
 - The Bridge HTTP API now uses explicit conservative request, header, keep-alive, and header-count limits to reduce slow-client resource use. This does not add authentication or rate limiting.
 - The Web Controller now cancels abandoned API proxy requests and avoids writing responses after clients disconnect.
+- The Web Controller HTTP server now uses explicit conservative request, header, keep-alive, and header-count limits to reduce slow-client resource use. This does not add authentication or rate limiting.
 
 ### Documentation
 

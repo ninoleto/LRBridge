@@ -4,6 +4,7 @@ const fs = require("fs");
 const http = require("http");
 const os = require("os");
 const { proxyControllerRequest } = require("./controller-proxy");
+const { applyControllerHttpSettings } = require("./controller-http-settings");
 
 const projectRoot = path.join(__dirname, "..");
 const portableRoot = app.isPackaged ? path.dirname(process.execPath) : projectRoot;
@@ -371,6 +372,8 @@ function startControllerServer() {
             })
         );
     });
+
+    applyControllerHttpSettings(controllerServer);
 
     controllerServer.on("error", function (err) {
         console.error("Web controller server failed:", err.message);
