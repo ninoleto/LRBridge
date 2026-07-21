@@ -73,7 +73,7 @@ function validateCommand(command) {
 
     if (
         command.command === "develop.adjust" &&
-        !numbers.isFiniteNumber(command.amount)
+        !numbers.isSafeIntegerNumber(command.amount)
     ) {
         console.log("Invalid amount");
         return false;
@@ -122,7 +122,7 @@ function tryEnqueueCommand(command) {
         ) {
             const combinedAmount = lastCommand.amount + command.amount;
 
-            if (Number.isFinite(combinedAmount)) {
+            if (Number.isSafeInteger(combinedAmount)) {
                 lastCommand.amount = combinedAmount;
                 coalescedCommands += 1;
                 lastCoalescedAt = Date.now();

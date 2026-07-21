@@ -68,7 +68,9 @@ async function main() {
         let result;
 
         const adjustCases = [
-            ["1", 1], ["-2", -2], ["1.25", 1.25], ["0", 0], ["1e2", 100]
+            ["0", 0], ["1", 1], ["-1", -1], ["25", 25], ["-25", -25],
+            // Safe exponent notation is accepted after HTTP numeric normalization.
+            ["1e3", 1000]
         ];
         for (const [raw, expected] of adjustCases) {
             const result = await getJson(httpPort, "/adjust?slider=Exposure&amount=" + encodeURIComponent(raw));
@@ -84,7 +86,12 @@ async function main() {
             "/adjust?slider=Exposure&amount=NaN",
             "/adjust?slider=Exposure&amount=Infinity",
             "/adjust?slider=Exposure&amount=-Infinity",
-            "/adjust?slider=Exposure&amount=1e309"
+            "/adjust?slider=Exposure&amount=1e309",
+            "/adjust?slider=Exposure&amount=1.25",
+            "/adjust?slider=Exposure&amount=-2.5",
+            "/adjust?slider=Exposure&amount=1e308",
+            "/adjust?slider=Exposure&amount=9007199254740992",
+            "/adjust?slider=Exposure&amount=-9007199254740992"
         ]) {
             const before = commands.getStatus().queueLength;
             const result = await getJson(httpPort, path);
@@ -92,18 +99,11 @@ async function main() {
             assert.equal(commands.getStatus().queueLength, before, path + " changed queue length");
         }
 
-        result = await getJson(httpPort, "/adjust?slider=Exposure&amount=1e308");
-        assert.equal(result.statusCode, 200);
-        result = await getJson(httpPort, "/adjust?slider=Exposure&amount=1e308");
-        assert.equal(result.statusCode, 200);
-        assert.deepEqual(commands.getNextCommand(), { command: "develop.adjust", slider: "Exposure", amount: 1e308 });
-        assert.deepEqual(commands.getNextCommand(), { command: "develop.adjust", slider: "Exposure", amount: 1e308 });
-
         result = await getJson(httpPort, "/adjust?slider=BadSlider&amount=1");
         assert.equal(result.statusCode, 400);
         assert.equal(commands.getStatus().queueLength, 0);
 
-        for (const [raw, expected] of [["2.5", 2.5], ["0", 0], ["-3", -3]]) {
+        for (const [raw, expected] of [["0.25", 0.25], ["-1.5", -1.5], ["6500.5", 6500.5]]) {
             result = await getJson(httpPort, "/set?slider=Exposure&experimental=1&value=" + encodeURIComponent(raw));
             const queued = { command: "develop.set", slider: "Exposure", value: expected };
             assert.deepEqual(result, { statusCode: 200, body: { ok: true, queued, experimental: true } });
@@ -154,8 +154,11 @@ async function main() {
 
         const socket = await openWebSocket(wsPort);
         for (const command of [
-            { command: "develop.adjust", slider: "Exposure", amount: 1.5 },
-            { command: "develop.set", slider: "Exposure", value: -2 }
+            { command: "develop.adjust", slider: "Exposure", amount: 0 },
+            { command: "develop.adjust", slider: "Exposure", amount: -25 },
+            // JSON.parse normalizes numeric 1e3 to the safe integer 1000.
+            { command: "develop.adjust", slider: "Exposure", amount: 1e3 },
+            { command: "develop.set", slider: "Exposure", value: -1.5 }
         ]) {
             socket.send(JSON.stringify(command));
             await waitForQueueLength(1);
@@ -164,6 +167,11 @@ async function main() {
         for (const command of [
             { command: "develop.adjust", slider: "Exposure" },
             { command: "develop.adjust", slider: "Exposure", amount: "1" },
+            { command: "develop.adjust", slider: "Exposure", amount: 1.25 },
+            { command: "develop.adjust", slider: "Exposure", amount: -2.5 },
+            { command: "develop.adjust", slider: "Exposure", amount: 1e308 },
+            { command: "develop.adjust", slider: "Exposure", amount: Number.MAX_SAFE_INTEGER + 1 },
+            { command: "develop.adjust", slider: "Exposure", amount: Number.MIN_SAFE_INTEGER - 1 },
             { command: "develop.set", slider: "Exposure" }
         ]) {
             const sentinel = { command: "develop.reset", slider: "Exposure" };
@@ -183,6 +191,22 @@ async function main() {
         assert.deepEqual(commands.getNextCommand(), sentinel);
         await closeWebSocket(socket);
 
+        for (const amount of [0, 1, -1, 25, -25, 1e3, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER]) {
+            const command = { command: "develop.adjust", slider: "Exposure", amount };
+            assert.equal(commands.validateCommand(command), true);
+            assert.equal(commands.enqueueCommand(command), true);
+            assert.deepEqual(commands.getNextCommand(), command);
+        }
+
+        for (const amount of [1.25, -2.5, 1e308, Number.MAX_SAFE_INTEGER + 1, Number.MIN_SAFE_INTEGER - 1]) {
+            const command = { command: "develop.adjust", slider: "Exposure", amount };
+            const before = commands.getQueueDiagnostics();
+            assert.equal(commands.validateCommand(command), false);
+            assert.equal(commands.enqueueCommand(command), false);
+            assert.equal(commands.getStatus().queueLength, before.queue.length);
+            assert.equal(commands.getQueueDiagnostics().counters.coalescedCommands, before.counters.coalescedCommands);
+        }
+
         for (const nonFinite of [NaN, Infinity, -Infinity]) {
             for (const command of [
                 { command: "develop.adjust", slider: "Exposure", amount: nonFinite },
@@ -194,6 +218,26 @@ async function main() {
                 assert.equal(commands.getStatus().queueLength, before);
             }
         }
+
+        commands.enqueueCommand({ command: "develop.adjust", slider: "Exposure", amount: 2 });
+        const coalesced = commands.tryEnqueueCommand({ command: "develop.adjust", slider: "Exposure", amount: 3 });
+        assert.equal(coalesced.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(commands.getNextCommand(), { command: "develop.adjust", slider: "Exposure", amount: 5 });
+
+        commands.enqueueCommand({
+            command: "develop.adjust", slider: "Exposure", amount: Number.MAX_SAFE_INTEGER
+        });
+        const safeOverflow = commands.tryEnqueueCommand({
+            command: "develop.adjust", slider: "Exposure", amount: 1
+        });
+        assert.equal(safeOverflow.status, commands.ADMISSION_ACCEPTED);
+        assert.equal(safeOverflow.coalesced, false);
+        assert.deepEqual(commands.getNextCommand(), {
+            command: "develop.adjust", slider: "Exposure", amount: Number.MAX_SAFE_INTEGER
+        });
+        assert.deepEqual(commands.getNextCommand(), {
+            command: "develop.adjust", slider: "Exposure", amount: 1
+        });
     } finally {
         await bridge.stop();
         console.log = originalLog;

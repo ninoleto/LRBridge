@@ -16,8 +16,13 @@ function isFiniteNumber(value) {
     return typeof value === "number" && Number.isFinite(value);
 }
 
+function isSafeIntegerNumber(value) {
+    return typeof value === "number" && Number.isSafeInteger(value);
+}
+
 module.exports = {
     parseFiniteNumber,
     parseFiniteInteger,
-    isFiniteNumber
+    isFiniteNumber,
+    isSafeIntegerNumber
 };

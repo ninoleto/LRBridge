@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Lightroom adjustment amounts are now limited to safe integer step counts, preventing fractional or out-of-range values from being interpreted differently by the app and Lightroom plug-in.
 - Lightroom command polling now isolates command execution failures so one failing SDK operation cannot permanently stop subsequent command processing.
 - WebSocket command payloads are now limited to 64 KiB to reduce resource abuse. Normal LRBridge and Companion commands are unaffected.
 - The Bridge HTTP API now uses explicit conservative request, header, keep-alive, and header-count limits to reduce slow-client resource use. This does not add authentication or rate limiting.

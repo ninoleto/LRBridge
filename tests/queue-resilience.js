@@ -166,12 +166,26 @@ async function testCoreQueue() {
         acrossType.forEach(commands.enqueueCommand);
         assert.deepEqual(drain(), acrossType);
 
-        const max = Number.MAX_VALUE;
-        commands.enqueueCommand({ command: "develop.adjust", slider: "Exposure", amount: max });
-        commands.enqueueCommand({ command: "develop.adjust", slider: "Exposure", amount: max });
+        const beforeUnsafeAdjustments = snapshot();
+        assert.equal(commands.enqueueCommand({
+            command: "develop.adjust", slider: "Exposure", amount: Number.MAX_SAFE_INTEGER + 1
+        }), false);
+        assert.equal(commands.enqueueCommand({
+            command: "develop.adjust", slider: "Exposure", amount: Number.MIN_SAFE_INTEGER - 1
+        }), false);
+        assert.deepEqual(snapshot(), beforeUnsafeAdjustments, "unsafe adjustments must not mutate queue state or counters");
+
+        commands.enqueueCommand({
+            command: "develop.adjust", slider: "Exposure", amount: Number.MAX_SAFE_INTEGER
+        });
+        const unsafeCombinedAmount = commands.tryEnqueueCommand({
+            command: "develop.adjust", slider: "Exposure", amount: 1
+        });
+        assert.equal(unsafeCombinedAmount.status, commands.ADMISSION_ACCEPTED);
+        assert.equal(unsafeCombinedAmount.coalesced, false);
         assert.deepEqual(drain(), [
-            { command: "develop.adjust", slider: "Exposure", amount: max },
-            { command: "develop.adjust", slider: "Exposure", amount: max }
+            { command: "develop.adjust", slider: "Exposure", amount: Number.MAX_SAFE_INTEGER },
+            { command: "develop.adjust", slider: "Exposure", amount: 1 }
         ]);
         assert.equal(commands.enqueueCommand({ command: "develop.adjust", slider: "Exposure", amount: NaN }), false);
         assert.equal(commands.enqueueCommand({ command: "develop.set", slider: "Exposure", value: "1" }), false);
