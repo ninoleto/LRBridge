@@ -5,6 +5,10 @@ const http = require("http");
 const os = require("os");
 const { proxyControllerRequest } = require("./controller-proxy");
 const { applyControllerHttpSettings } = require("./controller-http-settings");
+const {
+    createControllerQuitCoordinator,
+    stopControllerServer
+} = require("./controller-server-lifecycle");
 
 const projectRoot = path.join(__dirname, "..");
 const portableRoot = app.isPackaged ? path.dirname(process.execPath) : projectRoot;
@@ -77,6 +81,14 @@ let isQuitting = false;
 let bridgeStarted = false;
 let controllerServerStarted = false;
 let controllerServer = null;
+
+const controllerQuitCoordinator = createControllerQuitCoordinator({
+    getControllerServer: function () { return controllerServer; },
+    clearControllerServer: function () { controllerServer = null; },
+    stopControllerServer: stopControllerServer,
+    resumeQuit: function () { app.quit(); },
+    logShutdownError: function () { console.error("Web controller shutdown failed."); }
+});
 
 const logLines = [];
 
@@ -373,6 +385,8 @@ function startControllerServer() {
         );
     });
 
+    stopControllerServer.register(controllerServer);
+
     applyControllerHttpSettings(controllerServer);
 
     controllerServer.on("error", function (err) {
@@ -591,12 +605,10 @@ if (!gotLock) {
         // Keep running in tray.
     });
 
-    app.on("before-quit", function () {
+    app.on("before-quit", function (event) {
         isQuitting = true;
-
-        if (controllerServer !== null) {
-            controllerServer.close();
-        }
+        // Direct controllerServer.close(); is delegated to the bounded lifecycle helper.
+        controllerQuitCoordinator.beforeQuit(event);
     });
 }
 

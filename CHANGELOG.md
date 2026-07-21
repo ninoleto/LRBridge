@@ -8,6 +8,7 @@
 - The Bridge HTTP API now uses explicit conservative request, header, keep-alive, and header-count limits to reduce slow-client resource use. This does not add authentication or rate limiting.
 - The Web Controller now cancels abandoned API proxy requests and avoids writing responses after clients disconnect.
 - The Web Controller HTTP server now uses explicit conservative request, header, keep-alive, and header-count limits to reduce slow-client resource use. This does not add authentication or rate limiting.
+- Web Controller shutdown now closes idle connections and force-closes remaining HTTP connections after a short grace period, preventing stalled clients from delaying application exit.
 
 ### Documentation
 
