@@ -10,6 +10,20 @@ const numbers = require("./numbers");
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
 const WS_MAX_PAYLOAD_BYTES = 64 * 1024;
+const HTTP_REQUEST_TIMEOUT_MS = 60_000;
+const HTTP_HEADERS_TIMEOUT_MS = 15_000;
+const HTTP_KEEP_ALIVE_TIMEOUT_MS = 5_000;
+const HTTP_MAX_HEADERS_COUNT = 64;
+
+function positiveFiniteIntegerOption(options, name, defaultValue) {
+    const value = options[name] === undefined ? defaultValue : options[name];
+
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value <= 0) {
+        throw new TypeError(name + " must be a positive finite integer");
+    }
+
+    return value;
+}
 
 function createBridge(options) {
 options = options || {};
@@ -22,6 +36,21 @@ const wsMaxPayloadBytes = options.wsMaxPayloadBytes === undefined
     : options.wsMaxPayloadBytes;
 if (!Number.isFinite(wsMaxPayloadBytes) || !Number.isInteger(wsMaxPayloadBytes) || wsMaxPayloadBytes <= 0) {
     throw new TypeError("wsMaxPayloadBytes must be a positive finite integer");
+}
+const httpRequestTimeoutMs = positiveFiniteIntegerOption(
+    options, "httpRequestTimeoutMs", HTTP_REQUEST_TIMEOUT_MS
+);
+const httpHeadersTimeoutMs = positiveFiniteIntegerOption(
+    options, "httpHeadersTimeoutMs", HTTP_HEADERS_TIMEOUT_MS
+);
+const httpKeepAliveTimeoutMs = positiveFiniteIntegerOption(
+    options, "httpKeepAliveTimeoutMs", HTTP_KEEP_ALIVE_TIMEOUT_MS
+);
+const httpMaxHeadersCount = positiveFiniteIntegerOption(
+    options, "httpMaxHeadersCount", HTTP_MAX_HEADERS_COUNT
+);
+if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
+    throw new RangeError("httpHeadersTimeoutMs must not exceed httpRequestTimeoutMs");
 }
 const startLightroomWatcher = options.startLightroomWatcher !== false;
 const lightroomWake = options.lightroomWake || defaultLightroomWake;
@@ -695,6 +724,10 @@ function listenHttp() {
         const server = httpHost === undefined
             ? app.listen(httpPort)
             : app.listen(httpPort, httpHost);
+        server.requestTimeout = httpRequestTimeoutMs;
+        server.headersTimeout = httpHeadersTimeoutMs;
+        server.keepAliveTimeout = httpKeepAliveTimeoutMs;
+        server.maxHeadersCount = httpMaxHeadersCount;
         httpServer = server;
         server.on("connection", function (socket) {
             httpSockets.add(socket);
@@ -833,4 +866,13 @@ const api = {
 return api;
 }
 
-module.exports = { createBridge, HTTP_PORT, WS_PORT, WS_MAX_PAYLOAD_BYTES };
+module.exports = {
+    createBridge,
+    HTTP_PORT,
+    WS_PORT,
+    WS_MAX_PAYLOAD_BYTES,
+    HTTP_REQUEST_TIMEOUT_MS,
+    HTTP_HEADERS_TIMEOUT_MS,
+    HTTP_KEEP_ALIVE_TIMEOUT_MS,
+    HTTP_MAX_HEADERS_COUNT
+};
