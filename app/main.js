@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const os = require("os");
+const { proxyControllerRequest } = require("./controller-proxy");
 
 const projectRoot = path.join(__dirname, "..");
 const portableRoot = app.isPackaged ? path.dirname(process.execPath) : projectRoot;
@@ -230,54 +231,6 @@ async function startBridge() {
     }
 }
 
-function bridgeGet(pathAndQuery) {
-    return new Promise(function (resolve) {
-        const request = http.request(
-            {
-                hostname: "127.0.0.1",
-                port: bridgeHttpPort,
-                path: pathAndQuery,
-                method: "GET",
-                timeout: 10000
-            },
-            function (response) {
-                let body = "";
-
-                response.setEncoding("utf8");
-
-                response.on("data", function (chunk) {
-                    body += chunk;
-                });
-
-                response.on("end", function () {
-                    resolve({
-                        ok: response.statusCode >= 200 && response.statusCode < 300,
-                        statusCode: response.statusCode,
-                        body: body
-                    });
-                });
-            }
-        );
-
-        request.on("error", function (err) {
-            resolve({
-                ok: false,
-                statusCode: 500,
-                body: JSON.stringify({
-                    ok: false,
-                    error: err.message
-                })
-            });
-        });
-
-        request.on("timeout", function () {
-            request.destroy(new Error("Request timed out"));
-        });
-
-        request.end();
-    });
-}
-
 function sendControllerResponse(response, statusCode, contentType, body) {
     response.writeHead(statusCode, {
         "Content-Type": contentType,
@@ -285,17 +238,6 @@ function sendControllerResponse(response, statusCode, contentType, body) {
     });
 
     response.end(body);
-}
-
-async function proxyBridgeRequest(response, bridgePathAndQuery) {
-    const result = await bridgeGet(bridgePathAndQuery);
-
-    sendControllerResponse(
-        response,
-        result.statusCode || 500,
-        "application/json; charset=utf-8",
-        result.body || "{}"
-    );
 }
 
 function startControllerServer() {
@@ -345,17 +287,17 @@ function startControllerServer() {
         }
 
         if (requestUrl.pathname === "/api/help") {
-            await proxyBridgeRequest(response, "/help");
+            await proxyControllerRequest(request, response, "/help");
             return;
         }
 
         if (requestUrl.pathname === "/api/sliders") {
-            await proxyBridgeRequest(response, "/sliders");
+            await proxyControllerRequest(request, response, "/sliders");
             return;
         }
 
         if (requestUrl.pathname === "/api/groups") {
-            await proxyBridgeRequest(response, "/groups");
+            await proxyControllerRequest(request, response, "/groups");
             return;
         }
 
@@ -363,7 +305,8 @@ function startControllerServer() {
             const slider = requestUrl.searchParams.get("slider") || "";
             const amount = requestUrl.searchParams.get("amount") || "";
 
-            await proxyBridgeRequest(
+            await proxyControllerRequest(
+                request,
                 response,
                 "/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount)
             );
@@ -374,7 +317,8 @@ function startControllerServer() {
         if (requestUrl.pathname === "/api/action") {
             const action = requestUrl.searchParams.get("action") || "";
 
-            await proxyBridgeRequest(
+            await proxyControllerRequest(
+                request,
                 response,
                 "/action?action=" + encodeURIComponent(action)
             );
@@ -385,7 +329,8 @@ function startControllerServer() {
         if (requestUrl.pathname === "/api/reset") {
             const slider = requestUrl.searchParams.get("slider") || "";
 
-            await proxyBridgeRequest(
+            await proxyControllerRequest(
+                request,
                 response,
                 "/reset?slider=" + encodeURIComponent(slider)
             );
@@ -396,7 +341,8 @@ function startControllerServer() {
         if (requestUrl.pathname === "/api/reset-group") {
             const group = requestUrl.searchParams.get("group") || "";
 
-            await proxyBridgeRequest(
+            await proxyControllerRequest(
+                request,
                 response,
                 "/reset-group?group=" + encodeURIComponent(group)
             );
@@ -405,13 +351,13 @@ function startControllerServer() {
         }
 
         if (requestUrl.pathname === "/api/reset-all") {
-            await proxyBridgeRequest(response, "/reset-all");
+            await proxyControllerRequest(request, response, "/reset-all");
             return;
         }
 
         if (requestUrl.pathname.startsWith("/api/")) {
             const bridgePathAndQuery = requestUrl.pathname.slice(4) + requestUrl.search;
-            await proxyBridgeRequest(response, bridgePathAndQuery);
+            await proxyControllerRequest(request, response, bridgePathAndQuery);
             return;
         }
 
@@ -716,4 +662,3 @@ ipcMain.handle("quit-app", function () {
         ok: true
     };
 });
-
