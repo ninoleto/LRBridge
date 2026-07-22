@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.6.0
+
+Feature release adding Lightroom SDK-native current-selection navigation, flags, ratings, and color labels through LRBridge's existing HTTP and WebSocket command paths.
+
 ### Added
 
 - Added SDK-native commands for current-selection navigation, flags, ratings, rating adjustment, color-label setting, and color-label toggling through the existing HTTP and WebSocket command paths.

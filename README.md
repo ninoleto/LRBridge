@@ -126,8 +126,8 @@ Feedback and context detection are polling-based. They are designed to be useful
 Current public package:
 
 ```text
-v0.5.2
-Stability and hardening checkpoint for the Windows portable release, preserving the existing Lightroom context API and visible slider feedback
+v0.6.0
+SDK-native selection control release with photo navigation, flags, ratings, and color labels through the existing HTTP and WebSocket command paths
 ```
 
 A Windows portable ZIP package is available from GitHub Releases. The package includes the LRBridge Windows app, Web Controller, Lightroom Classic plugin, configuration files, Companion HTTP Builder, README documentation, and development context documentation.
@@ -1578,21 +1578,22 @@ v0.4.41-rc2-feedback-docs
 v0.5.0
 v0.5.1
 v0.5.2
+v0.6.0
 ```
 
 Current public release:
 
 ```text
-v0.5.2
-Stability and hardening checkpoint for the Windows portable release, preserving the existing Lightroom context API and visible slider feedback
+v0.6.0
+SDK-native selection control release with photo navigation, flags, ratings, and color labels through the existing HTTP and WebSocket command paths
 ```
 
 Suggested next milestones:
 
 ```text
-v0.5.x-bugfixes
-v0.6.0-companion-polish
-v0.7.0-companion-feedback
+v0.6.x-bugfixes
+v0.7.0-companion-polish
+v0.8.0-companion-feedback
 ```
 
 ---

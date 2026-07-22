@@ -1,6 +1,6 @@
 {
   "name": "lrbridge",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Local HTTP bridge and Web Controller for controlling Adobe Lightroom Classic from Bitfocus Companion, Stream Deck, Loupedeck, PowerShell, curl, scripts, and other HTTP-capable tools.",
   "main": "app/main.js",
   "scripts": {

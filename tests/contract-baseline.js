@@ -465,7 +465,7 @@ async function validateHttpAndWebSocketContract() {
 async function main() {
     validateStaticContract();
     await validateHttpAndWebSocketContract();
-    console.log("LRBridge v0.5.2 contract baseline passed.");
+    console.log("LRBridge v0.6.0 contract baseline passed.");
     console.log("Validated 27 HTTP routes, 11 command formats, 11 actions, 11 groups, and 96 sliders.");
 }
 

@@ -80,7 +80,7 @@ assert.equal(chain[chain.indexOf("npm run test:controller-shutdown") + 1], "npm 
 assert.equal(chain[chain.indexOf("npm run test:lua-polling") + 1], "npm run test:lua-selection", "selection source checks must follow polling resilience checks");
 assert.equal(packageJson.scripts["test:lua-polling"], "node tests/lua-polling-resilience.js");
 assert.equal(packageJson.scripts["test:lua-selection"], "node tests/lua-selection-dispatch.js");
-assert.equal(packageJson.version, "0.5.2", "Application version changed");
+assert.equal(packageJson.version, "0.6.0", "Application version changed");
 assert.match(read("lightroom/LRBridge.lrplugin/Info.lua"), /VERSION = \{ major = 1, minor = 0, revision = 0 \}/, "Plugin version changed");
 
 console.log("Lua polling resilience tests passed (source tests cannot prove Lightroom yield behavior; Lightroom runtime testing is still required).");
