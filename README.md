@@ -561,7 +561,7 @@ This is intentional for easy testing, browser use, curl use, Companion Generic H
 
 ### SDK-native selection commands
 
-The generic `/command` endpoint and the existing WebSocket JSON path accept six selection command families. A successful response means the command was validated and queued in strict FIFO order; it does not confirm that Lightroom executed it. These commands act on Lightroom Classic's current selection and do not switch modules.
+The generic `/command` endpoint and the existing WebSocket JSON path accept seven selection command families. A successful response means the command was validated and queued in strict FIFO order; it does not confirm that Lightroom executed it. These commands act on Lightroom Classic's current selection and do not switch modules.
 
 Navigate the selection with `direction` set to `next`, `previous`, `first`, or `last`:
 
@@ -627,7 +627,35 @@ Toggle a color label with `label` set to `red`, `yellow`, `green`, `blue`, or `p
 http://127.0.0.1:17891/command?command=selection.label.toggle&label=red
 ```
 
-`none` is not valid for toggle. Clear a label with `selection.label.set` and `label: "none"`. All six families call the Lightroom SDK directly and have no keyboard-shortcut or AutoHotkey dependency.
+`none` is not valid for toggle. Clear a label with `selection.label.set` and `label: "none"`.
+
+Run a selection operation with `operation` set to `select_all`, `select_none`, `select_inverse`, `deselect_active`, or `deselect_others`:
+
+```text
+http://127.0.0.1:17891/command?command=selection.operation&operation=select_all
+```
+
+All seven families call `LrSelection` directly and have no keyboard-shortcut or AutoHotkey dependency.
+
+### SDK-native application commands
+
+Application controls use `LrApplicationView` directly. They do not pass through `develop.action` or `Driver.lua`, and only `application.module` changes modules.
+
+```text
+/command?command=application.module&module=library
+/command?command=application.view&view=grid
+/command?command=application.action&action=toggle_zoom
+/command?command=application.secondary_view&view=loupe
+```
+
+Allowed values:
+
+- `application.module` / `module`: `library`, `develop`, `map`, `book`, `slideshow`, `print`, `web`
+- `application.view` / `view`: `loupe`, `grid`, `compare`, `survey`, `people`, `develop_loupe`, `develop_before_after_horiz`, `develop_before_after_vert`, `develop_before`, `develop_reference_horiz`, `develop_reference_vert`
+- `application.action` / `action`: `toggle_zoom`, `zoom_in`, `zoom_out`, `zoom_100`, `fullscreen_preview`, `fullscreen_hide_panels`, `next_screen_mode`, `cycle_loupe_info`, `toggle_secondary_display`, `toggle_secondary_fullscreen`
+- `application.secondary_view` / `view`: `loupe`, `live_loupe`, `locked_loupe`, `grid`, `compare`, `survey`, `slideshow`
+
+Values are case-sensitive. Missing, repeated, non-string, and unknown values are rejected. These commands and `selection.operation` are ordinary FIFO queue commands; the protected reserve remains dedicated to existing reset and Develop-action recovery workflows.
 
 ---
 

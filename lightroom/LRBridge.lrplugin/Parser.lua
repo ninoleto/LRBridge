@@ -8,6 +8,9 @@ function Parser.parse(json)
     local direction = string.match(json, [["direction":"([^"]+)"]])
     local flag = string.match(json, [["flag":"([^"]+)"]])
     local label = string.match(json, [["label":"([^"]+)"]])
+    local operation = string.match(json, [["operation":"([^"]+)"]])
+    local module = string.match(json, [["module":"([^"]+)"]])
+    local view = string.match(json, [["view":"([^"]+)"]])
     local rating = string.match(json, [["rating":([%-]?%d+)]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
     local value = string.match(json, [["value":([%-]?%d+%.?%d*)]])
@@ -36,6 +39,9 @@ function Parser.parse(json)
         flag = flag,
         rating = rating,
         label = label,
+        operation = operation,
+        module = module,
+        view = view,
         amount = amount,
         value = value
     }

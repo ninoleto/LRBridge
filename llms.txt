@@ -32,8 +32,15 @@ The project is focused on reliable one-way Lightroom control. It sends commands 
 - /command?command=selection.rating.adjust&direction=increase
 - /command?command=selection.label.set&label=red
 - /command?command=selection.label.toggle&label=red
+- /command?command=selection.operation&operation=select_all
+- /command?command=application.module&module=library
+- /command?command=application.view&view=grid
+- /command?command=application.action&action=toggle_zoom
+- /command?command=application.secondary_view&view=loupe
 
-Selection commands act on Lightroom's current selection through the Lightroom SDK. Successful API responses mean queued, not confirmed executed. Navigation directions are next, previous, first, and last; flags are pick, reject, and none; ratings are integers 0-5; adjustments are increase and decrease; label setters accept red, yellow, green, blue, purple, and none; label toggles accept the five colors but not none. First/last works in all modules in Lightroom Classic 13+ and may require Library in older versions. Color metadata strings depend on the active Color Label Set. No keyboard shortcuts or AutoHotkey are used.
+Selection commands act on Lightroom's current selection through the Lightroom SDK. Successful API responses mean queued, not confirmed executed. Navigation directions are next, previous, first, and last; flags are pick, reject, and none; ratings are integers 0-5; adjustments are increase and decrease; label setters accept red, yellow, green, blue, purple, and none; label toggles accept the five colors but not none. Selection operations are select_all, select_none, select_inverse, deselect_active, and deselect_others. First/last works in all modules in Lightroom Classic 13+ and may require Library in older versions. Color metadata strings depend on the active Color Label Set. No keyboard shortcuts or AutoHotkey are used.
+
+Application commands use LrApplicationView directly and only application.module switches modules. Modules are library, develop, map, book, slideshow, print, and web. Primary views are loupe, grid, compare, survey, people, develop_loupe, develop_before_after_horiz, develop_before_after_vert, develop_before, develop_reference_horiz, and develop_reference_vert. Actions are toggle_zoom, zoom_in, zoom_out, zoom_100, fullscreen_preview, fullscreen_hide_panels, next_screen_mode, cycle_loupe_info, toggle_secondary_display, and toggle_secondary_fullscreen. Secondary views are loupe, live_loupe, locked_loupe, grid, compare, survey, and slideshow. Values are case-sensitive. These controls are ordinary FIFO queue commands and do not use the protected reset/action reserve.
 
 ## Keywords
 

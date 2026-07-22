@@ -28,6 +28,14 @@ local labelToggles = {
     purple = LrSelection.togglePurpleLabel
 }
 
+local operations = {
+    select_all = LrSelection.selectAll,
+    select_none = LrSelection.selectNone,
+    select_inverse = LrSelection.selectInverse,
+    deselect_active = LrSelection.deselectActive,
+    deselect_others = LrSelection.deselectOthers
+}
+
 local function callMapped(mapping, value, operation)
     local sdkCall = mapping[value]
     if sdkCall == nil then
@@ -58,6 +66,10 @@ end
 
 function Selection.toggleLabel(label)
     callMapped(labelToggles, label, "label toggle")
+end
+
+function Selection.runOperation(operation)
+    callMapped(operations, operation, "operation")
 end
 
 return Selection

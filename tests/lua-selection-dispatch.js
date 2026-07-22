@@ -5,10 +5,12 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 const selection = read("lightroom/LRBridge.lrplugin/Selection.lua");
+const application = read("lightroom/LRBridge.lrplugin/Application.lua");
 const parser = read("lightroom/LRBridge.lrplugin/Parser.lua");
 const dispatcher = read("lightroom/LRBridge.lrplugin/Commands.lua");
 const automaticPolling = read("lightroom/LRBridge.lrplugin/AutoStartPolling.lua");
 const manualPolling = read("lightroom/LRBridge.lrplugin/StartPolling.lua");
+const contract = JSON.parse(read("tests/contract-fixture.json"));
 
 const exactMappings = {
     next: "nextPhoto",
@@ -24,7 +26,12 @@ const exactMappings = {
     yellow: "toggleYellowLabel",
     green: "toggleGreenLabel",
     blue: "toggleBlueLabel",
-    purple: "togglePurpleLabel"
+    purple: "togglePurpleLabel",
+    select_all: "selectAll",
+    select_none: "selectNone",
+    select_inverse: "selectInverse",
+    deselect_active: "deselectActive",
+    deselect_others: "deselectOthers"
 };
 
 assert.match(selection, /^local LrSelection = import "LrSelection"/m);
@@ -38,23 +45,55 @@ assert.match(selection, /error\("Unknown selection " \..*operation\)/);
 assert.doesNotMatch(selection, /LrSelection\.(?:firstPhoto|lastPhoto|removeColorLabel)\b/);
 assert.doesNotMatch(selection, /LrApplicationView|switchToModule|keyboard|AutoHotkey|shortcut|shell|menu|mouse|automation/i);
 
-for (const field of ["direction", "flag", "rating", "label"]) {
+for (const field of ["action", "direction", "flag", "rating", "label", "operation", "module", "view"]) {
     assert.match(parser, new RegExp("local " + field + " = string\\.match"));
     assert.match(parser, new RegExp(field + " = " + field));
 }
 
-const selectionDispatch = {
+const commandDispatch = {
     "selection.navigate": "Selection.navigate(command.direction)",
     "selection.flag": "Selection.setFlag(command.flag)",
     "selection.rating.set": "Selection.setRating(command.rating)",
     "selection.rating.adjust": "Selection.adjustRating(command.direction)",
     "selection.label.set": "Selection.setLabel(command.label)",
-    "selection.label.toggle": "Selection.toggleLabel(command.label)"
+    "selection.label.toggle": "Selection.toggleLabel(command.label)",
+    "selection.operation": "Selection.runOperation(command.operation)",
+    "application.module": "Application.switchModule(command.module)",
+    "application.view": "Application.showView(command.view)",
+    "application.action": "Application.runAction(command.action)",
+    "application.secondary_view": "Application.showSecondaryView(command.view)"
 };
-for (const [command, call] of Object.entries(selectionDispatch)) {
+for (const [command, call] of Object.entries(commandDispatch)) {
     assert.match(dispatcher, new RegExp("command\\.command == \"" + command.replaceAll(".", "\\.") + "\""));
     assert.ok(dispatcher.includes(call));
 }
+
+const applicationActionMappings = {
+    toggle_zoom: "toggleZoom",
+    zoom_in: "zoomIn",
+    zoom_out: "zoomOut",
+    zoom_100: "zoomToOneToOne",
+    fullscreen_preview: "fullscreenPreview",
+    fullscreen_hide_panels: "fullscreenHidePanels",
+    next_screen_mode: "nextScreenMode",
+    cycle_loupe_info: "cycleLoupeViewInfo",
+    toggle_secondary_display: "toggleSecondaryDisplay",
+    toggle_secondary_fullscreen: "toggleSecondaryDisplayFullscreen"
+};
+assert.deepEqual(Object.keys(applicationActionMappings), contract.applicationActions);
+assert.deepEqual(
+    Object.keys(exactMappings).slice(-contract.selectionOperations.length),
+    contract.selectionOperations
+);
+for (const [value, method] of Object.entries(applicationActionMappings)) {
+    assert.match(application, new RegExp("\\b" + value + "\\s*=\\s*LrApplicationView\\." + method + "\\b"));
+}
+assert.match(application, /LrApplicationView\.switchToModule\(module\)/);
+assert.match(application, /LrApplicationView\.showView\(view\)/);
+assert.match(application, /LrApplicationView\.showSecondaryView\(view\)/);
+assert.doesNotMatch(application, /Driver|LrDevelopController|keyboard|AutoHotkey|shortcut|shell|menu|mouse|automation/i);
+assert.doesNotMatch(application, /zoomInSome|zoomOutSome|goToHealing|goToSpotRemoval/);
+assert.equal((application.match(/LrApplicationView\.switchToModule\(/g) || []).length, 1);
 
 const developMappings = [
     /Driver\.adjustSlider\(\s*command\.slider,\s*command\.amount\s*\)/,

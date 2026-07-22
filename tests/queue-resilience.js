@@ -146,7 +146,12 @@ async function testCoreQueue() {
             { command: "selection.rating.set", rating: 5 },
             { command: "selection.rating.adjust", direction: "decrease" },
             { command: "selection.label.set", label: "red" },
-            { command: "selection.label.toggle", label: "blue" }
+            { command: "selection.label.toggle", label: "blue" },
+            { command: "selection.operation", operation: "select_all" },
+            { command: "application.module", module: "library" },
+            { command: "application.view", view: "grid" },
+            { command: "application.action", action: "toggle_zoom" },
+            { command: "application.secondary_view", view: "loupe" }
         ];
         allTypes.forEach((command) => assert.equal(commands.enqueueCommand(command), true));
         assert.deepEqual(drain(), allTypes, "all command types must retain FIFO order");
@@ -220,6 +225,19 @@ async function testCoreQueue() {
         assert.equal(commands.tryEnqueueCommand({
             command: "selection.navigate", direction: "next"
         }).status, commands.ADMISSION_QUEUE_FULL, "selection commands must not consume protected reserve");
+        for (const command of [
+            { command: "selection.operation", operation: "select_all" },
+            { command: "application.module", module: "develop" },
+            { command: "application.view", view: "grid" },
+            { command: "application.action", action: "toggle_zoom" },
+            { command: "application.secondary_view", view: "loupe" }
+        ]) {
+            assert.equal(
+                commands.tryEnqueueCommand(command).status,
+                commands.ADMISSION_QUEUE_FULL,
+                command.command + " must not consume protected reserve"
+            );
+        }
 
         const beforeRejection = snapshot();
         assert.equal(commands.tryEnqueueCommand(ordinary(10000)).status, commands.ADMISSION_QUEUE_FULL);

@@ -1,6 +1,7 @@
 local Driver = require "Driver"
 local Query = require "Query"
 local Selection = require "Selection"
+local Application = require "Application"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -101,6 +102,31 @@ function Commands.execute(command)
 
     if command.command == "selection.label.toggle" then
         Selection.toggleLabel(command.label)
+        return
+    end
+
+    if command.command == "selection.operation" then
+        Selection.runOperation(command.operation)
+        return
+    end
+
+    if command.command == "application.module" then
+        Application.switchModule(command.module)
+        return
+    end
+
+    if command.command == "application.view" then
+        Application.showView(command.view)
+        return
+    end
+
+    if command.command == "application.action" then
+        Application.runAction(command.action)
+        return
+    end
+
+    if command.command == "application.secondary_view" then
+        Application.showSecondaryView(command.view)
         return
     end
 

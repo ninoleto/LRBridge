@@ -125,7 +125,12 @@ async function testNormalCompatibility(bridge) {
         { command: "selection.rating.set", rating: 5 },
         { command: "selection.rating.adjust", direction: "increase" },
         { command: "selection.label.set", label: "red" },
-        { command: "selection.label.toggle", label: "blue" }
+        { command: "selection.label.toggle", label: "blue" },
+        { command: "selection.operation", operation: "deselect_others" },
+        { command: "application.module", module: "library" },
+        { command: "application.view", view: "grid" },
+        { command: "application.action", action: "toggle_zoom" },
+        { command: "application.secondary_view", view: "loupe" }
     ];
     try {
         for (const command of expected) socket.send(JSON.stringify(command));

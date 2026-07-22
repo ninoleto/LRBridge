@@ -43,6 +43,56 @@ const allowedFlags = ["pick", "reject", "none"];
 const allowedRatingDirections = ["increase", "decrease"];
 const allowedLabels = ["red", "yellow", "green", "blue", "purple", "none"];
 const allowedToggleLabels = ["red", "yellow", "green", "blue", "purple"];
+const allowedSelectionOperations = [
+    "select_all",
+    "select_none",
+    "select_inverse",
+    "deselect_active",
+    "deselect_others"
+];
+const allowedApplicationModules = [
+    "library",
+    "develop",
+    "map",
+    "book",
+    "slideshow",
+    "print",
+    "web"
+];
+const allowedApplicationViews = [
+    "loupe",
+    "grid",
+    "compare",
+    "survey",
+    "people",
+    "develop_loupe",
+    "develop_before_after_horiz",
+    "develop_before_after_vert",
+    "develop_before",
+    "develop_reference_horiz",
+    "develop_reference_vert"
+];
+const allowedApplicationActions = [
+    "toggle_zoom",
+    "zoom_in",
+    "zoom_out",
+    "zoom_100",
+    "fullscreen_preview",
+    "fullscreen_hide_panels",
+    "next_screen_mode",
+    "cycle_loupe_info",
+    "toggle_secondary_display",
+    "toggle_secondary_fullscreen"
+];
+const allowedSecondaryViews = [
+    "loupe",
+    "live_loupe",
+    "locked_loupe",
+    "grid",
+    "compare",
+    "survey",
+    "slideshow"
+];
 
 function validateCommand(command) {
     const allowedCommands = [
@@ -56,7 +106,12 @@ function validateCommand(command) {
         "selection.rating.set",
         "selection.rating.adjust",
         "selection.label.set",
-        "selection.label.toggle"
+        "selection.label.toggle",
+        "selection.operation",
+        "application.module",
+        "application.view",
+        "application.action",
+        "application.secondary_view"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -97,6 +152,26 @@ function validateCommand(command) {
 
     if (command.command === "selection.label.toggle") {
         return typeof command.label === "string" && allowedToggleLabels.includes(command.label);
+    }
+
+    if (command.command === "selection.operation") {
+        return typeof command.operation === "string" && allowedSelectionOperations.includes(command.operation);
+    }
+
+    if (command.command === "application.module") {
+        return typeof command.module === "string" && allowedApplicationModules.includes(command.module);
+    }
+
+    if (command.command === "application.view") {
+        return typeof command.view === "string" && allowedApplicationViews.includes(command.view);
+    }
+
+    if (command.command === "application.action") {
+        return typeof command.action === "string" && allowedApplicationActions.includes(command.action);
+    }
+
+    if (command.command === "application.secondary_view") {
+        return typeof command.view === "string" && allowedSecondaryViews.includes(command.view);
     }
 
     if (command.command === "develop.action") {
@@ -267,7 +342,12 @@ function getQueueDiagnostics(nowMs) {
         "selection.rating.set": 0,
         "selection.rating.adjust": 0,
         "selection.label.set": 0,
-        "selection.label.toggle": 0
+        "selection.label.toggle": 0,
+        "selection.operation": 0,
+        "application.module": 0,
+        "application.view": 0,
+        "application.action": 0,
+        "application.secondary_view": 0
     };
 
     for (const command of commandQueue) {
@@ -306,7 +386,12 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["selection.rating.set"] +
                     pendingByCommand["selection.rating.adjust"] +
                     pendingByCommand["selection.label.set"] +
-                    pendingByCommand["selection.label.toggle"],
+                    pendingByCommand["selection.label.toggle"] +
+                    pendingByCommand["selection.operation"] +
+                    pendingByCommand["application.module"] +
+                    pendingByCommand["application.view"] +
+                    pendingByCommand["application.action"] +
+                    pendingByCommand["application.secondary_view"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"],
                 byCommand: pendingByCommand
             }

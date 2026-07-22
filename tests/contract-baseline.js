@@ -102,6 +102,15 @@ function validateStaticContract() {
         fixture.commands,
         "WebSocket/queue command names drifted"
     );
+    for (const [declaration, expected] of [
+        ["const allowedSelectionOperations = [", fixture.selectionOperations],
+        ["const allowedApplicationModules = [", fixture.applicationModules],
+        ["const allowedApplicationViews = [", fixture.applicationViews],
+        ["const allowedApplicationActions = [", fixture.applicationActions],
+        ["const allowedSecondaryViews = [", fixture.secondaryViews]
+    ]) {
+        assert.deepEqual(extractNodeStringArray(commandsSource, declaration), expected, declaration + " drifted");
+    }
 
     const driverSource = read("lightroom/LRBridge.lrplugin/Driver.lua");
     const querySource = read("lightroom/LRBridge.lrplugin/Query.lua");
@@ -171,6 +180,8 @@ function validateStaticContract() {
     const builder = read("electron-builder.yml");
     const portableScript = read("tools/make-portable-zip.ps1");
     assert.ok(builder.includes("target: dir"), "Windows build must remain a directory target");
+    assert.ok(builder.includes("- from: lightroom"), "Windows build must include the Lightroom plug-in tree");
+    assert.ok(fs.existsSync(path.join(root, "lightroom/LRBridge.lrplugin/Application.lua")), "Application.lua must exist in the packaged Lightroom plug-in tree");
     assert.ok(builder.includes("- x64"), "Windows build must retain x64 architecture");
     assert.ok(portableScript.includes('dist\\win-unpacked'), "Portable source path drifted");
     assert.ok(portableScript.includes('LRBridge-$version-win-x64-portable'), "Portable name drifted");
@@ -375,7 +386,12 @@ async function validateHttpAndWebSocketContract() {
         { command: "selection.rating.set", rating: 5 },
         { command: "selection.rating.adjust", direction: "increase" },
         { command: "selection.label.set", label: "red" },
-        { command: "selection.label.toggle", label: "purple" }
+        { command: "selection.label.toggle", label: "purple" },
+        { command: "selection.operation", operation: "select_inverse" },
+        { command: "application.module", module: "library" },
+        { command: "application.view", view: "grid" },
+        { command: "application.action", action: "toggle_zoom" },
+        { command: "application.secondary_view", view: "loupe" }
     ];
     for (const command of selectionCommands) {
         const query = Object.fromEntries(Object.entries(command).map(([key, value]) => [key, String(value)]));
@@ -450,7 +466,12 @@ async function validateHttpAndWebSocketContract() {
         { command: "selection.rating.set", rating: 0 },
         { command: "selection.rating.adjust", direction: "decrease" },
         { command: "selection.label.set", label: "none" },
-        { command: "selection.label.toggle", label: "blue" }
+        { command: "selection.label.toggle", label: "blue" },
+        { command: "selection.operation", operation: "select_none" },
+        { command: "application.module", module: "develop" },
+        { command: "application.view", view: "loupe" },
+        { command: "application.action", action: "zoom_100" },
+        { command: "application.secondary_view", view: "slideshow" }
     ]) {
         const socket = {
             handlers: {},
@@ -466,7 +487,7 @@ async function main() {
     validateStaticContract();
     await validateHttpAndWebSocketContract();
     console.log("LRBridge v0.6.0 contract baseline passed.");
-    console.log("Validated 27 HTTP routes, 11 command formats, 11 actions, 11 groups, and 96 sliders.");
+    console.log("Validated " + fixture.routes.length + " HTTP routes, " + fixture.commands.length + " command formats, " + fixture.actions.length + " Develop actions, " + fixture.groups.length + " groups, and " + sliders.length + " sliders.");
 }
 
 main().catch(function (error) {

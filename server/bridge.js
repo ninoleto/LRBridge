@@ -167,6 +167,11 @@ app.get("/help", function (req, res) {
             adjustRating: "/command?command=selection.rating.adjust&direction=increase",
             setColorLabel: "/command?command=selection.label.set&label=red",
             toggleColorLabel: "/command?command=selection.label.toggle&label=red",
+            selectionOperation: "/command?command=selection.operation&operation=select_all",
+            switchModule: "/command?command=application.module&module=library",
+            showView: "/command?command=application.view&view=grid",
+            applicationAction: "/command?command=application.action&action=toggle_zoom",
+            secondaryView: "/command?command=application.secondary_view&view=loupe",
             wakeLightroom: "/wake-lightroom"
         },
         experimentalEndpoints: {
@@ -184,6 +189,8 @@ app.get("/help", function (req, res) {
             "First/last selection works in all modules in Lightroom Classic 13 or later; older versions may require Library.",
             "Color label metadata strings depend on Lightroom's active Color Label Set.",
             "Selection commands use the Lightroom SDK and do not depend on keyboard shortcuts or AutoHotkey.",
+            "Application commands use LrApplicationView and only switch modules when application.module is requested.",
+            "Selection operations and application controls are ordinary FIFO queue commands; they do not consume the protected reset/action reserve.",
             "On Windows, LRBridge wakes Lightroom to Library on startup. Slider commands switch Lightroom to Develop."
         ]
     });
@@ -256,7 +263,7 @@ app.get("/command", function (req, res) {
 
     const command = { command: commandName };
 
-    for (const field of ["slider", "action", "direction", "flag", "label"]) {
+    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view"]) {
         if (req.query[field] !== undefined) command[field] = req.query[field];
     }
 

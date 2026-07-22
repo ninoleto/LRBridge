@@ -6,15 +6,20 @@
 
 - Added SDK-native commands for current-selection navigation, flags, ratings, rating adjustment, color-label setting, and color-label toggling through the existing HTTP and WebSocket command paths.
 - Added an isolated Lightroom `LrSelection` dispatcher with source-level mapping and polling-resilience coverage.
+- Added SDK-native `selection.operation`, `application.module`, `application.view`, `application.action`, and `application.secondary_view` commands through the existing HTTP and WebSocket paths.
+- Added an isolated `LrApplicationView` dispatcher for module, primary-view, application-action, and secondary-view control.
 
 ### Changed
 
-- Queue diagnostics now count all six selection command families as ordinary commands without exposing their payload values.
+- Queue diagnostics now count all seven selection command families as ordinary commands without exposing their payload values.
 - The generic `/command` route now copies `action` correctly and normalizes HTTP rating query values before shared validation.
+- The generic `/command` route now accepts `operation`, `module`, and `view`; strict shared allowlists reject missing, repeated, incorrectly cased, non-string, and unknown values.
+- Queue diagnostics count the five new command families as ordinary FIFO commands. They do not consume the protected reserve because they are reversible UI/selection controls rather than reset/recovery operations.
 
 ### Documentation
 
 - Documented selection schemas, allowed values, queued-versus-executed semantics, current-selection scope, Lightroom Classic first/last compatibility, Color Label Set metadata behavior, and the absence of keyboard or AutoHotkey automation.
+- Documented the new application-control schemas, allowed values, SDK-only behavior, and module-switching semantics. v0.6.0 remains unreleased.
 
 ## v0.5.2
 

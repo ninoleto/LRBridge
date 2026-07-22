@@ -45,7 +45,12 @@ function emptyDiagnostics() {
                     "selection.rating.set": 0,
                     "selection.rating.adjust": 0,
                     "selection.label.set": 0,
-                    "selection.label.toggle": 0
+                    "selection.label.toggle": 0,
+                    "selection.operation": 0,
+                    "application.module": 0,
+                    "application.view": 0,
+                    "application.action": 0,
+                    "application.secondary_view": 0
                 }
             }
         },
@@ -153,15 +158,23 @@ function testCoreMetrics() {
     commands.enqueueCommand({ command: "selection.rating.adjust", direction: "decrease" });
     commands.enqueueCommand({ command: "selection.label.set", label: "yellow" });
     commands.enqueueCommand({ command: "selection.label.toggle", label: "green" });
+    commands.enqueueCommand({ command: "selection.operation", operation: "select_inverse" });
+    commands.enqueueCommand({ command: "application.module", module: "library" });
+    commands.enqueueCommand({ command: "application.view", view: "grid" });
+    commands.enqueueCommand({ command: "application.action", action: "toggle_zoom" });
+    commands.enqueueCommand({ command: "application.secondary_view", view: "loupe" });
     diagnostics = commands.getQueueDiagnostics();
     assert.deepEqual(diagnostics.queue.pending.byCommand, {
         "develop.adjust": 1, "develop.set": 1, "develop.get": 1,
         "develop.reset": 1, "develop.action": 1,
         "selection.navigate": 1, "selection.flag": 1,
         "selection.rating.set": 1, "selection.rating.adjust": 1,
-        "selection.label.set": 1, "selection.label.toggle": 1
+        "selection.label.set": 1, "selection.label.toggle": 1,
+        "selection.operation": 1, "application.module": 1,
+        "application.view": 1, "application.action": 1,
+        "application.secondary_view": 1
     });
-    assert.equal(diagnostics.queue.pending.ordinary, 9);
+    assert.equal(diagnostics.queue.pending.ordinary, 14);
     assert.equal(diagnostics.queue.pending.protected, 2);
 
     commands.resetQueueForTests();

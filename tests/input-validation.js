@@ -3,6 +3,7 @@ const http = require("node:http");
 const WebSocket = require("ws");
 
 const commands = require("../server/commands");
+const contract = require("./contract-fixture.json");
 const { createBridge } = require("../server/bridge");
 
 function getJson(port, path) {
@@ -67,7 +68,7 @@ async function main() {
         const wsPort = bridge.getWebSocketServer().address().port;
         let result;
 
-        const selectionCases = [
+        const commandCases = [
             ...["next", "previous", "first", "last"].map((direction) => ({
                 command: "selection.navigate", direction
             })),
@@ -85,10 +86,25 @@ async function main() {
             })),
             ...["red", "yellow", "green", "blue", "purple"].map((label) => ({
                 command: "selection.label.toggle", label
+            })),
+            ...contract.selectionOperations.map((operation) => ({
+                command: "selection.operation", operation
+            })),
+            ...contract.applicationModules.map((module) => ({
+                command: "application.module", module
+            })),
+            ...contract.applicationViews.map((view) => ({
+                command: "application.view", view
+            })),
+            ...contract.applicationActions.map((action) => ({
+                command: "application.action", action
+            })),
+            ...contract.secondaryViews.map((view) => ({
+                command: "application.secondary_view", view
             }))
         ];
 
-        for (const command of selectionCases) {
+        for (const command of commandCases) {
             const field = Object.keys(command)[1];
             const path = "/command?command=" + encodeURIComponent(command.command) +
                 "&" + field + "=" + encodeURIComponent(command[field]);
@@ -113,7 +129,26 @@ async function main() {
             "/command?command=selection.rating.adjust&direction=Increase",
             "/command?command=selection.label.set&label=Red",
             "/command?command=selection.label.toggle&label=none",
-            "/command?command=selection.label.toggle&label="
+            "/command?command=selection.label.toggle&label=",
+            "/command?command=selection.operation",
+            "/command?command=selection.operation&operation=Select_all",
+            "/command?command=selection.operation&operation=select_all&operation=select_none",
+            "/command?command=application.module",
+            "/command?command=application.module&module=Library",
+            "/command?command=application.module&module=unknown",
+            "/command?command=application.module&module=library&module=develop",
+            "/command?command=application.view",
+            "/command?command=application.view&view=Grid",
+            "/command?command=application.view&view=unknown",
+            "/command?command=application.view&view=grid&view=loupe",
+            "/command?command=application.action",
+            "/command?command=application.action&action=toggleZoom",
+            "/command?command=application.action&action=unknown",
+            "/command?command=application.action&action=zoom_in&action=zoom_out",
+            "/command?command=application.secondary_view",
+            "/command?command=application.secondary_view&view=Live_loupe",
+            "/command?command=application.secondary_view&view=unknown",
+            "/command?command=application.secondary_view&view=loupe&view=grid"
         ]) {
             const before = commands.getStatus().queueLength;
             result = await getJson(httpPort, path);
@@ -215,7 +250,7 @@ async function main() {
         }
 
         const socket = await openWebSocket(wsPort);
-        for (const command of selectionCases) {
+        for (const command of commandCases) {
             socket.send(JSON.stringify(command));
             await waitForQueueLength(1);
             assert.deepEqual(commands.getNextCommand(), command);
@@ -235,6 +270,13 @@ async function main() {
         for (const label of invalidStrings) {
             invalidSelectionCommands.push({ command: "selection.label.set", label });
             invalidSelectionCommands.push({ command: "selection.label.toggle", label });
+        }
+        for (const value of invalidStrings) {
+            invalidSelectionCommands.push({ command: "selection.operation", operation: value });
+            invalidSelectionCommands.push({ command: "application.module", module: value });
+            invalidSelectionCommands.push({ command: "application.view", view: value });
+            invalidSelectionCommands.push({ command: "application.action", action: value });
+            invalidSelectionCommands.push({ command: "application.secondary_view", view: value });
         }
         invalidSelectionCommands.push({ command: "selection.label.toggle", label: "none" });
         for (const rating of [

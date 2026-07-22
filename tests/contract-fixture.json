@@ -45,7 +45,62 @@
     "selection.rating.set",
     "selection.rating.adjust",
     "selection.label.set",
-    "selection.label.toggle"
+    "selection.label.toggle",
+    "selection.operation",
+    "application.module",
+    "application.view",
+    "application.action",
+    "application.secondary_view"
+  ],
+  "selectionOperations": [
+    "select_all",
+    "select_none",
+    "select_inverse",
+    "deselect_active",
+    "deselect_others"
+  ],
+  "applicationModules": [
+    "library",
+    "develop",
+    "map",
+    "book",
+    "slideshow",
+    "print",
+    "web"
+  ],
+  "applicationViews": [
+    "loupe",
+    "grid",
+    "compare",
+    "survey",
+    "people",
+    "develop_loupe",
+    "develop_before_after_horiz",
+    "develop_before_after_vert",
+    "develop_before",
+    "develop_reference_horiz",
+    "develop_reference_vert"
+  ],
+  "applicationActions": [
+    "toggle_zoom",
+    "zoom_in",
+    "zoom_out",
+    "zoom_100",
+    "fullscreen_preview",
+    "fullscreen_hide_panels",
+    "next_screen_mode",
+    "cycle_loupe_info",
+    "toggle_secondary_display",
+    "toggle_secondary_fullscreen"
+  ],
+  "secondaryViews": [
+    "loupe",
+    "live_loupe",
+    "locked_loupe",
+    "grid",
+    "compare",
+    "survey",
+    "slideshow"
   ],
   "actions": [
     "resetCrop",
@@ -100,6 +155,7 @@
       "config\\settings.txt",
       "config\\sliders.json",
       "lightroom\\LRBridge.lrplugin\\Info.lua",
+      "lightroom\\LRBridge.lrplugin\\Application.lua",
       "README.md",
       "llms.txt"
     ]
