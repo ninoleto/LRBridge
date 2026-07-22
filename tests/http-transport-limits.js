@@ -136,6 +136,24 @@ async function testPropertiesAndRepresentativeRoutes(bridge) {
         { command: "develop.action", action: "setAutoTone" }
     ]);
 
+    response = await requestJson(port, "/command?command=develop.action&action=setAutoTone");
+    assert.deepEqual(response.body, {
+        ok: true,
+        queued: { command: "develop.action", action: "setAutoTone" }
+    });
+    assert.deepEqual(drainQueue(), [
+        { command: "develop.action", action: "setAutoTone" }
+    ]);
+
+    response = await requestJson(port, "/command?command=selection.label.set&label=none");
+    assert.deepEqual(response.body, {
+        ok: true,
+        queued: { command: "selection.label.set", label: "none" }
+    });
+    assert.deepEqual(drainQueue(), [
+        { command: "selection.label.set", label: "none" }
+    ]);
+
     response = await requestJson(port, "/feedback/value?slider=Exposure");
     assert.deepEqual(response.body, { ok: true, result: null });
 

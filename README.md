@@ -559,6 +559,76 @@ All current stable commands are HTTP GET requests.
 
 This is intentional for easy testing, browser use, curl use, Companion Generic HTTP, Stream Deck HTTP plugins, and future Companion plugin development.
 
+### SDK-native selection commands
+
+The generic `/command` endpoint and the existing WebSocket JSON path accept six selection command families. A successful response means the command was validated and queued in strict FIFO order; it does not confirm that Lightroom executed it. These commands act on Lightroom Classic's current selection and do not switch modules.
+
+Navigate the selection with `direction` set to `next`, `previous`, `first`, or `last`:
+
+```json
+{ "command": "selection.navigate", "direction": "next" }
+```
+
+```text
+http://127.0.0.1:17891/command?command=selection.navigate&direction=next
+```
+
+`first` and `last` are available in all modules in Lightroom Classic 13 or later. On older Lightroom Classic versions they may require the Library module; LRBridge does not switch modules automatically.
+
+Set the flag with `flag` set to `pick`, `reject`, or `none`:
+
+```json
+{ "command": "selection.flag", "flag": "pick" }
+```
+
+```text
+http://127.0.0.1:17891/command?command=selection.flag&flag=pick
+```
+
+Set an integer rating from `0` through `5` inclusive:
+
+```json
+{ "command": "selection.rating.set", "rating": 5 }
+```
+
+```text
+http://127.0.0.1:17891/command?command=selection.rating.set&rating=5
+```
+
+Adjust the current rating with `direction` set to `increase` or `decrease`:
+
+```json
+{ "command": "selection.rating.adjust", "direction": "increase" }
+```
+
+```text
+http://127.0.0.1:17891/command?command=selection.rating.adjust&direction=increase
+```
+
+Set a color label with `label` set to `red`, `yellow`, `green`, `blue`, `purple`, or `none`:
+
+```json
+{ "command": "selection.label.set", "label": "red" }
+```
+
+```text
+http://127.0.0.1:17891/command?command=selection.label.set&label=red
+```
+
+The underlying metadata strings for these color names depend on Lightroom's active Color Label Set.
+
+Toggle a color label with `label` set to `red`, `yellow`, `green`, `blue`, or `purple`:
+
+```json
+{ "command": "selection.label.toggle", "label": "red" }
+```
+
+```text
+http://127.0.0.1:17891/command?command=selection.label.toggle&label=red
+```
+
+`none` is not valid for toggle. Clear a label with `selection.label.set` and `label: "none"`. All six families call the Lightroom SDK directly and have no keyboard-shortcut or AutoHotkey dependency.
+
 ---
 
 ## 11. API: help

@@ -140,7 +140,13 @@ async function testCoreQueue() {
             { command: "develop.set", slider: "Contrast", value: 2 },
             { command: "develop.get", slider: "Highlights" },
             { command: "develop.reset", slider: "Shadows" },
-            { command: "develop.action", action: "setAutoTone" }
+            { command: "develop.action", action: "setAutoTone" },
+            { command: "selection.navigate", direction: "next" },
+            { command: "selection.flag", flag: "pick" },
+            { command: "selection.rating.set", rating: 5 },
+            { command: "selection.rating.adjust", direction: "decrease" },
+            { command: "selection.label.set", label: "red" },
+            { command: "selection.label.toggle", label: "blue" }
         ];
         allTypes.forEach((command) => assert.equal(commands.enqueueCommand(command), true));
         assert.deepEqual(drain(), allTypes, "all command types must retain FIFO order");
@@ -165,6 +171,19 @@ async function testCoreQueue() {
         ];
         acrossType.forEach(commands.enqueueCommand);
         assert.deepEqual(drain(), acrossType);
+
+        const selectionBarriers = [
+            { command: "develop.adjust", slider: "Exposure", amount: 1 },
+            { command: "selection.navigate", direction: "previous" },
+            { command: "develop.adjust", slider: "Exposure", amount: 2 },
+            { command: "selection.flag", flag: "reject" },
+            { command: "selection.rating.set", rating: 3 },
+            { command: "selection.rating.adjust", direction: "increase" },
+            { command: "selection.label.set", label: "none" },
+            { command: "selection.label.toggle", label: "purple" }
+        ];
+        selectionBarriers.forEach(commands.enqueueCommand);
+        assert.deepEqual(drain(), selectionBarriers, "selection commands must remain FIFO and never coalesce");
 
         const beforeUnsafeAdjustments = snapshot();
         assert.equal(commands.enqueueCommand({
@@ -198,6 +217,9 @@ async function testCoreQueue() {
         assert.equal(atCapacity.coalesced, true);
         assert.equal(commands.getStatus().queueLength, commands.ORDINARY_ADMISSION_CEILING);
         assert.equal(commands.tryEnqueueCommand(ordinary(9999)).status, commands.ADMISSION_QUEUE_FULL);
+        assert.equal(commands.tryEnqueueCommand({
+            command: "selection.navigate", direction: "next"
+        }).status, commands.ADMISSION_QUEUE_FULL, "selection commands must not consume protected reserve");
 
         const beforeRejection = snapshot();
         assert.equal(commands.tryEnqueueCommand(ordinary(10000)).status, commands.ADMISSION_QUEUE_FULL);

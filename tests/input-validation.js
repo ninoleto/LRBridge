@@ -67,6 +67,68 @@ async function main() {
         const wsPort = bridge.getWebSocketServer().address().port;
         let result;
 
+        const selectionCases = [
+            ...["next", "previous", "first", "last"].map((direction) => ({
+                command: "selection.navigate", direction
+            })),
+            ...["pick", "reject", "none"].map((flag) => ({
+                command: "selection.flag", flag
+            })),
+            ...[0, 1, 2, 3, 4, 5].map((rating) => ({
+                command: "selection.rating.set", rating
+            })),
+            ...["increase", "decrease"].map((direction) => ({
+                command: "selection.rating.adjust", direction
+            })),
+            ...["red", "yellow", "green", "blue", "purple", "none"].map((label) => ({
+                command: "selection.label.set", label
+            })),
+            ...["red", "yellow", "green", "blue", "purple"].map((label) => ({
+                command: "selection.label.toggle", label
+            }))
+        ];
+
+        for (const command of selectionCases) {
+            const field = Object.keys(command)[1];
+            const path = "/command?command=" + encodeURIComponent(command.command) +
+                "&" + field + "=" + encodeURIComponent(command[field]);
+            result = await getJson(httpPort, path);
+            assert.deepEqual(result, { statusCode: 200, body: { ok: true, queued: command } });
+            assert.deepEqual(commands.getNextCommand(), command);
+            assert.equal(commands.validateCommand(command), true);
+        }
+
+        for (const path of [
+            "/command?command=selection.navigate",
+            "/command?command=selection.navigate&direction=Next",
+            "/command?command=selection.navigate&direction=unknown",
+            "/command?command=selection.navigate&direction=next&direction=previous",
+            "/command?command=selection.flag",
+            "/command?command=selection.flag&flag=Pick",
+            "/command?command=selection.rating.set",
+            "/command?command=selection.rating.set&rating=-1",
+            "/command?command=selection.rating.set&rating=6",
+            "/command?command=selection.rating.set&rating=1.5",
+            "/command?command=selection.rating.set&rating=NaN",
+            "/command?command=selection.rating.adjust&direction=Increase",
+            "/command?command=selection.label.set&label=Red",
+            "/command?command=selection.label.toggle&label=none",
+            "/command?command=selection.label.toggle&label="
+        ]) {
+            const before = commands.getStatus().queueLength;
+            result = await getJson(httpPort, path);
+            assert.deepEqual(result.body, { ok: false, error: "Invalid command" }, path);
+            assert.equal(result.statusCode, 400, path);
+            assert.equal(commands.getStatus().queueLength, before, path);
+        }
+
+        result = await getJson(httpPort, "/command?command=develop.action&action=setAutoTone");
+        assert.deepEqual(result, {
+            statusCode: 200,
+            body: { ok: true, queued: { command: "develop.action", action: "setAutoTone" } }
+        });
+        assert.deepEqual(commands.getNextCommand(), { command: "develop.action", action: "setAutoTone" });
+
         const adjustCases = [
             ["0", 0], ["1", 1], ["-1", -1], ["25", 25], ["-25", -25],
             // Safe exponent notation is accepted after HTTP numeric normalization.
@@ -153,6 +215,41 @@ async function main() {
         }
 
         const socket = await openWebSocket(wsPort);
+        for (const command of selectionCases) {
+            socket.send(JSON.stringify(command));
+            await waitForQueueLength(1);
+            assert.deepEqual(commands.getNextCommand(), command);
+        }
+
+        const invalidStrings = [undefined, null, true, [], {}, 1, "", "Next", "unknown"];
+        const invalidSelectionCommands = [];
+        for (const direction of invalidStrings) {
+            invalidSelectionCommands.push({ command: "selection.navigate", direction });
+        }
+        for (const flag of invalidStrings) {
+            invalidSelectionCommands.push({ command: "selection.flag", flag });
+        }
+        for (const direction of invalidStrings) {
+            invalidSelectionCommands.push({ command: "selection.rating.adjust", direction });
+        }
+        for (const label of invalidStrings) {
+            invalidSelectionCommands.push({ command: "selection.label.set", label });
+            invalidSelectionCommands.push({ command: "selection.label.toggle", label });
+        }
+        invalidSelectionCommands.push({ command: "selection.label.toggle", label: "none" });
+        for (const rating of [
+            undefined, null, true, [], {}, "", "5", "Five", "unknown",
+            -1, 6, 1.5, Number.MAX_SAFE_INTEGER + 1
+        ]) {
+            invalidSelectionCommands.push({ command: "selection.rating.set", rating });
+        }
+        for (const command of invalidSelectionCommands) {
+            const before = commands.getStatus().queueLength;
+            socket.send(JSON.stringify(command));
+            await new Promise((resolve) => setTimeout(resolve, 2));
+            assert.equal(commands.getStatus().queueLength, before, JSON.stringify(command));
+            assert.equal(commands.validateCommand(command), false);
+        }
         for (const command of [
             { command: "develop.adjust", slider: "Exposure", amount: 0 },
             { command: "develop.adjust", slider: "Exposure", amount: -25 },
@@ -210,7 +307,8 @@ async function main() {
         for (const nonFinite of [NaN, Infinity, -Infinity]) {
             for (const command of [
                 { command: "develop.adjust", slider: "Exposure", amount: nonFinite },
-                { command: "develop.set", slider: "Exposure", value: nonFinite }
+                { command: "develop.set", slider: "Exposure", value: nonFinite },
+                { command: "selection.rating.set", rating: nonFinite }
             ]) {
                 const before = commands.getStatus().queueLength;
                 assert.equal(commands.validateCommand(command), false);

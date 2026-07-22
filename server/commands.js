@@ -38,13 +38,25 @@ const allowedActions = [
     "selectMaskingTool"
 ];
 
+const allowedSelectionDirections = ["next", "previous", "first", "last"];
+const allowedFlags = ["pick", "reject", "none"];
+const allowedRatingDirections = ["increase", "decrease"];
+const allowedLabels = ["red", "yellow", "green", "blue", "purple", "none"];
+const allowedToggleLabels = ["red", "yellow", "green", "blue", "purple"];
+
 function validateCommand(command) {
     const allowedCommands = [
         "develop.adjust",
         "develop.get",
         "develop.set",
         "develop.reset",
-        "develop.action"
+        "develop.action",
+        "selection.navigate",
+        "selection.flag",
+        "selection.rating.set",
+        "selection.rating.adjust",
+        "selection.label.set",
+        "selection.label.toggle"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -53,13 +65,43 @@ function validateCommand(command) {
     }
 
     if (!allowedCommands.includes(command.command)) {
-        console.log("Unknown command:", command.command);
+        console.log("Unknown command");
         return false;
+    }
+
+    if (command.command === "selection.navigate") {
+        return typeof command.direction === "string" &&
+            allowedSelectionDirections.includes(command.direction);
+    }
+
+    if (command.command === "selection.flag") {
+        return typeof command.flag === "string" && allowedFlags.includes(command.flag);
+    }
+
+    if (command.command === "selection.rating.set") {
+        return typeof command.rating === "number" &&
+            Number.isFinite(command.rating) &&
+            Number.isInteger(command.rating) &&
+            command.rating >= 0 &&
+            command.rating <= 5;
+    }
+
+    if (command.command === "selection.rating.adjust") {
+        return typeof command.direction === "string" &&
+            allowedRatingDirections.includes(command.direction);
+    }
+
+    if (command.command === "selection.label.set") {
+        return typeof command.label === "string" && allowedLabels.includes(command.label);
+    }
+
+    if (command.command === "selection.label.toggle") {
+        return typeof command.label === "string" && allowedToggleLabels.includes(command.label);
     }
 
     if (command.command === "develop.action") {
         if (!allowedActions.includes(command.action)) {
-            console.log("Unknown action:", command.action);
+            console.log("Unknown action");
             return false;
         }
 
@@ -67,7 +109,7 @@ function validateCommand(command) {
     }
 
     if (!sliders.exists(command.slider)) {
-        console.log("Unknown slider:", command.slider);
+        console.log("Unknown slider");
         return false;
     }
 
@@ -219,7 +261,13 @@ function getQueueDiagnostics(nowMs) {
         "develop.set": 0,
         "develop.get": 0,
         "develop.reset": 0,
-        "develop.action": 0
+        "develop.action": 0,
+        "selection.navigate": 0,
+        "selection.flag": 0,
+        "selection.rating.set": 0,
+        "selection.rating.adjust": 0,
+        "selection.label.set": 0,
+        "selection.label.toggle": 0
     };
 
     for (const command of commandQueue) {
@@ -250,7 +298,15 @@ function getQueueDiagnostics(nowMs) {
             highWaterMark: highWaterMark,
             oldestCommandAgeMs: oldestCommandAgeMs,
             pending: {
-                ordinary: pendingByCommand["develop.adjust"] + pendingByCommand["develop.set"] + pendingByCommand["develop.get"],
+                ordinary: pendingByCommand["develop.adjust"] +
+                    pendingByCommand["develop.set"] +
+                    pendingByCommand["develop.get"] +
+                    pendingByCommand["selection.navigate"] +
+                    pendingByCommand["selection.flag"] +
+                    pendingByCommand["selection.rating.set"] +
+                    pendingByCommand["selection.rating.adjust"] +
+                    pendingByCommand["selection.label.set"] +
+                    pendingByCommand["selection.label.toggle"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"],
                 byCommand: pendingByCommand
             }

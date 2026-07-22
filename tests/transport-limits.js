@@ -119,7 +119,13 @@ async function testNormalCompatibility(bridge) {
         { command: "develop.set", slider: "Contrast", value: 2 },
         { command: "develop.get", slider: "Highlights" },
         { command: "develop.reset", slider: "Shadows" },
-        { command: "develop.action", action: "setAutoTone" }
+        { command: "develop.action", action: "setAutoTone" },
+        { command: "selection.navigate", direction: "next" },
+        { command: "selection.flag", flag: "pick" },
+        { command: "selection.rating.set", rating: 5 },
+        { command: "selection.rating.adjust", direction: "increase" },
+        { command: "selection.label.set", label: "red" },
+        { command: "selection.label.toggle", label: "blue" }
     ];
     try {
         for (const command of expected) socket.send(JSON.stringify(command));
@@ -205,6 +211,16 @@ async function testHttpUnchanged(bridge) {
         queued: { command: "develop.adjust", slider: "Exposure", amount: 3 }
     });
     assert.deepEqual(drainQueue(), [{ command: "develop.adjust", slider: "Exposure", amount: 3 }]);
+
+    const selectionResponse = await fetch(
+        "http://127.0.0.1:" + port + "/command?command=selection.rating.set&rating=5"
+    );
+    assert.equal(selectionResponse.status, 200);
+    assert.deepEqual(await selectionResponse.json(), {
+        ok: true,
+        queued: { command: "selection.rating.set", rating: 5 }
+    });
+    assert.deepEqual(drainQueue(), [{ command: "selection.rating.set", rating: 5 }]);
 }
 
 async function main() {

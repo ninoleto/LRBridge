@@ -26,6 +26,14 @@ The project is focused on reliable one-way Lightroom control. It sends commands 
 - /adjust?slider=Exposure&amount=-1
 - /reset?slider=Exposure
 - /action?action=setAutoTone
+- /command?command=selection.navigate&direction=next
+- /command?command=selection.flag&flag=pick
+- /command?command=selection.rating.set&rating=5
+- /command?command=selection.rating.adjust&direction=increase
+- /command?command=selection.label.set&label=red
+- /command?command=selection.label.toggle&label=red
+
+Selection commands act on Lightroom's current selection through the Lightroom SDK. Successful API responses mean queued, not confirmed executed. Navigation directions are next, previous, first, and last; flags are pick, reject, and none; ratings are integers 0-5; adjustments are increase and decrease; label setters accept red, yellow, green, blue, purple, and none; label toggles accept the five colors but not none. First/last works in all modules in Lightroom Classic 13+ and may require Library in older versions. Color metadata strings depend on the active Color Label Set. No keyboard shortcuts or AutoHotkey are used.
 
 ## Keywords
 

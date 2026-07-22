@@ -77,7 +77,9 @@ const packageJson = JSON.parse(read("package.json"));
 const chain = packageJson.scripts.test.split(" && ");
 assert.equal(chain.filter((entry) => entry === "npm run test:lua-polling").length, 1, "test:lua-polling must occur exactly once");
 assert.equal(chain[chain.indexOf("npm run test:controller-shutdown") + 1], "npm run test:lua-polling", "test:lua-polling must immediately follow test:controller-shutdown");
+assert.equal(chain[chain.indexOf("npm run test:lua-polling") + 1], "npm run test:lua-selection", "selection source checks must follow polling resilience checks");
 assert.equal(packageJson.scripts["test:lua-polling"], "node tests/lua-polling-resilience.js");
+assert.equal(packageJson.scripts["test:lua-selection"], "node tests/lua-selection-dispatch.js");
 assert.equal(packageJson.version, "0.5.2", "Application version changed");
 assert.match(read("lightroom/LRBridge.lrplugin/Info.lua"), /VERSION = \{ major = 1, minor = 0, revision = 0 \}/, "Plugin version changed");
 

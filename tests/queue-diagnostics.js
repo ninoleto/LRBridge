@@ -39,7 +39,13 @@ function emptyDiagnostics() {
                     "develop.set": 0,
                     "develop.get": 0,
                     "develop.reset": 0,
-                    "develop.action": 0
+                    "develop.action": 0,
+                    "selection.navigate": 0,
+                    "selection.flag": 0,
+                    "selection.rating.set": 0,
+                    "selection.rating.adjust": 0,
+                    "selection.label.set": 0,
+                    "selection.label.toggle": 0
                 }
             }
         },
@@ -141,12 +147,21 @@ function testCoreMetrics() {
     commands.enqueueCommand({ command: "develop.set", slider: "Highlights", value: 1 });
     commands.enqueueCommand({ command: "develop.get", slider: "Shadows" });
     commands.enqueueCommand({ command: "develop.action", action: "setAutoTone" });
+    commands.enqueueCommand({ command: "selection.navigate", direction: "first" });
+    commands.enqueueCommand({ command: "selection.flag", flag: "reject" });
+    commands.enqueueCommand({ command: "selection.rating.set", rating: 4 });
+    commands.enqueueCommand({ command: "selection.rating.adjust", direction: "decrease" });
+    commands.enqueueCommand({ command: "selection.label.set", label: "yellow" });
+    commands.enqueueCommand({ command: "selection.label.toggle", label: "green" });
     diagnostics = commands.getQueueDiagnostics();
     assert.deepEqual(diagnostics.queue.pending.byCommand, {
         "develop.adjust": 1, "develop.set": 1, "develop.get": 1,
-        "develop.reset": 1, "develop.action": 1
+        "develop.reset": 1, "develop.action": 1,
+        "selection.navigate": 1, "selection.flag": 1,
+        "selection.rating.set": 1, "selection.rating.adjust": 1,
+        "selection.label.set": 1, "selection.label.toggle": 1
     });
-    assert.equal(diagnostics.queue.pending.ordinary, 3);
+    assert.equal(diagnostics.queue.pending.ordinary, 9);
     assert.equal(diagnostics.queue.pending.protected, 2);
 
     commands.resetQueueForTests();
@@ -281,9 +296,16 @@ async function testEndpointAndLifecycle() {
         });
         assert.equal(commands.getStatus().queueLength, 0, "invalid privacy sentinel must not enter queue");
         commands.enqueueCommand({ command: "develop.adjust", slider: "Exposure", amount: 123456789 });
+        commands.enqueueCommand({ command: "selection.navigate", direction: "last" });
+        commands.enqueueCommand({ command: "selection.flag", flag: "pick" });
+        commands.enqueueCommand({ command: "selection.rating.set", rating: 5 });
+        commands.enqueueCommand({ command: "selection.label.set", label: "purple" });
         response = await get(bridge, "/diagnostics/queue");
         const serialized = JSON.stringify(response.body);
-        for (const secret of ["Exposure", "123456789", "photo.jpg", "192.0.2.1", "setAutoTone"]) {
+        for (const secret of [
+            "Exposure", "123456789", "photo.jpg", "192.0.2.1", "setAutoTone",
+            ':"last"', ':"pick"', ':"purple"', '"rating":5'
+        ]) {
             assert.equal(serialized.includes(secret), false, "diagnostics exposed " + secret);
         }
         const preserved = response.body;

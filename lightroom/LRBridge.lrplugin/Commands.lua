@@ -1,5 +1,6 @@
 local Driver = require "Driver"
 local Query = require "Query"
+local Selection = require "Selection"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -70,6 +71,36 @@ function Commands.execute(command)
             value
         )
 
+        return
+    end
+
+    if command.command == "selection.navigate" then
+        Selection.navigate(command.direction)
+        return
+    end
+
+    if command.command == "selection.flag" then
+        Selection.setFlag(command.flag)
+        return
+    end
+
+    if command.command == "selection.rating.set" then
+        Selection.setRating(command.rating)
+        return
+    end
+
+    if command.command == "selection.rating.adjust" then
+        Selection.adjustRating(command.direction)
+        return
+    end
+
+    if command.command == "selection.label.set" then
+        Selection.setLabel(command.label)
+        return
+    end
+
+    if command.command == "selection.label.toggle" then
+        Selection.toggleLabel(command.label)
         return
     end
 

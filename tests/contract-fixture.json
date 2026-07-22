@@ -39,7 +39,13 @@
     "develop.get",
     "develop.set",
     "develop.reset",
-    "develop.action"
+    "develop.action",
+    "selection.navigate",
+    "selection.flag",
+    "selection.rating.set",
+    "selection.rating.adjust",
+    "selection.label.set",
+    "selection.label.toggle"
   ],
   "actions": [
     "resetCrop",

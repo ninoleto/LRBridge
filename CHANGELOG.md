@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+- Added SDK-native commands for current-selection navigation, flags, ratings, rating adjustment, color-label setting, and color-label toggling through the existing HTTP and WebSocket command paths.
+- Added an isolated Lightroom `LrSelection` dispatcher with source-level mapping and polling-resilience coverage.
+
+### Changed
+
+- Queue diagnostics now count all six selection command families as ordinary commands without exposing their payload values.
+- The generic `/command` route now copies `action` correctly and normalizes HTTP rating query values before shared validation.
+
+### Documentation
+
+- Documented selection schemas, allowed values, queued-versus-executed semantics, current-selection scope, Lightroom Classic first/last compatibility, Color Label Set metadata behavior, and the absence of keyboard or AutoHotkey automation.
+
 ## v0.5.2
 
 Stability and hardening checkpoint for the existing LRBridge feature set. This is a maintenance release, not a feature release.

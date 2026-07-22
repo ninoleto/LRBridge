@@ -363,10 +363,29 @@ async function validateHttpAndWebSocketContract() {
 
     result = await request(captured, "/adjust", { slider: "BadSlider", amount: "1" });
     assert.equal(result.statusCode, 400);
-    assert.deepEqual(keys(result.body), ["error", "ok", "rejected"]);
+    assert.deepEqual(keys(result.body), ["error", "ok"]);
 
     result = await request(captured, "/command", { command: "develop.adjust", slider: "Exposure", amount: "3" });
     assert.deepEqual(result.body, { ok: true, queued: { command: "develop.adjust", slider: "Exposure", amount: 3 } });
+    await request(captured, "/next");
+
+    const selectionCommands = [
+        { command: "selection.navigate", direction: "next" },
+        { command: "selection.flag", flag: "pick" },
+        { command: "selection.rating.set", rating: 5 },
+        { command: "selection.rating.adjust", direction: "increase" },
+        { command: "selection.label.set", label: "red" },
+        { command: "selection.label.toggle", label: "purple" }
+    ];
+    for (const command of selectionCommands) {
+        const query = Object.fromEntries(Object.entries(command).map(([key, value]) => [key, String(value)]));
+        result = await request(captured, "/command", query);
+        assert.deepEqual(result.body, { ok: true, queued: command });
+        assert.deepEqual((await request(captured, "/next")).body.command, command);
+    }
+
+    result = await request(captured, "/command", { command: "develop.action", action: "setAutoTone" });
+    assert.deepEqual(result.body, { ok: true, queued: { command: "develop.action", action: "setAutoTone" } });
     await request(captured, "/next");
 
     result = await request(captured, "/reset-group", { group: "Basic" });
@@ -425,7 +444,13 @@ async function validateHttpAndWebSocketContract() {
         { command: "develop.get", slider: "Exposure" },
         { command: "develop.set", slider: "Exposure", value: 1 },
         { command: "develop.reset", slider: "Exposure" },
-        { command: "develop.action", action: "setAutoTone" }
+        { command: "develop.action", action: "setAutoTone" },
+        { command: "selection.navigate", direction: "last" },
+        { command: "selection.flag", flag: "none" },
+        { command: "selection.rating.set", rating: 0 },
+        { command: "selection.rating.adjust", direction: "decrease" },
+        { command: "selection.label.set", label: "none" },
+        { command: "selection.label.toggle", label: "blue" }
     ]) {
         const socket = {
             handlers: {},
@@ -441,7 +466,7 @@ async function main() {
     validateStaticContract();
     await validateHttpAndWebSocketContract();
     console.log("LRBridge v0.5.2 contract baseline passed.");
-    console.log("Validated 27 HTTP routes, 5 command formats, 11 actions, 11 groups, and 96 sliders.");
+    console.log("Validated 27 HTTP routes, 11 command formats, 11 actions, 11 groups, and 96 sliders.");
 }
 
 main().catch(function (error) {

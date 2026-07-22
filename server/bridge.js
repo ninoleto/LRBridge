@@ -77,11 +77,10 @@ function rejectExperimentalSet(res) {
     });
 }
 
-function rejectInvalidCommand(res, command) {
+function rejectInvalidCommand(res) {
     res.status(400).json({
         ok: false,
-        error: "Invalid command",
-        rejected: command
+        error: "Invalid command"
     });
 }
 
@@ -162,6 +161,12 @@ app.get("/help", function (req, res) {
             reset: "/reset?slider=Exposure",
             resetGroup: "/reset-group?group=Basic",
             resetAll: "/reset-all",
+            navigateSelection: "/command?command=selection.navigate&direction=next",
+            setFlag: "/command?command=selection.flag&flag=pick",
+            setRating: "/command?command=selection.rating.set&rating=5",
+            adjustRating: "/command?command=selection.rating.adjust&direction=increase",
+            setColorLabel: "/command?command=selection.label.set&label=red",
+            toggleColorLabel: "/command?command=selection.label.toggle&label=red",
             wakeLightroom: "/wake-lightroom"
         },
         experimentalEndpoints: {
@@ -174,6 +179,11 @@ app.get("/help", function (req, res) {
             "Do not depend on /get for feedback.",
             "Do not use /set for normal control.",
             "amount means number of Lightroom increment steps.",
+            "Accepted commands are queued; execution by Lightroom is not confirmed.",
+            "Selection commands act on Lightroom's current selection and do not switch modules.",
+            "First/last selection works in all modules in Lightroom Classic 13 or later; older versions may require Library.",
+            "Color label metadata strings depend on Lightroom's active Color Label Set.",
+            "Selection commands use the Lightroom SDK and do not depend on keyboard shortcuts or AutoHotkey.",
             "On Windows, LRBridge wakes Lightroom to Library on startup. Slider commands switch Lightroom to Develop."
         ]
     });
@@ -238,17 +248,17 @@ app.get("/next", function (req, res) {
 
 app.get("/command", function (req, res) {
     const commandName = req.query.command;
-    const slider = req.query.slider;
 
     if (commandName === "develop.set" && !isExperimentalEnabled(req)) {
         rejectExperimentalSet(res);
         return;
     }
 
-    const command = {
-        command: commandName,
-        slider: slider
-    };
+    const command = { command: commandName };
+
+    for (const field of ["slider", "action", "direction", "flag", "label"]) {
+        if (req.query[field] !== undefined) command[field] = req.query[field];
+    }
 
     if (req.query.amount !== undefined) {
         command.amount = numbers.parseFiniteNumber(req.query.amount);
@@ -256,6 +266,10 @@ app.get("/command", function (req, res) {
 
     if (req.query.value !== undefined) {
         command.value = numbers.parseFiniteNumber(req.query.value);
+    }
+
+    if (req.query.rating !== undefined) {
+        command.rating = numbers.parseFiniteNumber(req.query.rating);
     }
 
     queueOrReject(res, command, null, command.command === "develop.get"
