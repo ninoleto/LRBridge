@@ -11,10 +11,6 @@ const {
 
 const TEST_MAX_PAYLOAD_BYTES = 256;
 
-function fakeWake() {
-    return { startWatcher() {}, stopWatcher() {}, async wakeLightroom() { return { ok: true }; } };
-}
-
 function makeBridge(extraOptions) {
     return createBridge(Object.assign({
         httpPort: 0,
@@ -22,8 +18,6 @@ function makeBridge(extraOptions) {
         httpHost: "127.0.0.1",
         wsHost: "127.0.0.1",
         wsMaxPayloadBytes: TEST_MAX_PAYLOAD_BYTES,
-        startLightroomWatcher: false,
-        lightroomWake: fakeWake(),
         shutdownGraceMs: 40
     }, extraOptions));
 }

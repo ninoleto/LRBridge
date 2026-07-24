@@ -3,7 +3,6 @@ const WebSocket = require("ws");
 
 const commands = require("./commands");
 const sliders = require("./sliders");
-const defaultLightroomWake = require("./lightroomWake");
 const context = require("./context");
 const numbers = require("./numbers");
 
@@ -52,17 +51,36 @@ const httpMaxHeadersCount = positiveFiniteIntegerOption(
 if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
     throw new RangeError("httpHeadersTimeoutMs must not exceed httpRequestTimeoutMs");
 }
-const startLightroomWatcher = options.startLightroomWatcher !== false;
-const lightroomWake = options.lightroomWake || defaultLightroomWake;
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
 const app = express();
 
 const feedbackRequests = [];
 const feedbackValues = {};
 let feedbackRequestId = 0;
+let startupLibraryQueued = false;
 
 function queueCommand(command) {
     return commands.tryEnqueueCommand(command);
+}
+
+function isValidContextHeartbeat(query) {
+    return typeof query.activeModule === "string" &&
+        typeof query.selectedPhotoKey === "string" &&
+        typeof query.developFingerprint === "string";
+}
+
+function queueStartupLibraryOnce() {
+    if (startupLibraryQueued) return;
+
+    const admission = queueCommand({
+        command: "application.module",
+        module: "library"
+    });
+
+    if (admission.accepted) {
+        startupLibraryQueued = true;
+        console.log("Queued startup Library module command.");
+    }
 }
 
 function isExperimentalEnabled(req) {
@@ -172,7 +190,8 @@ app.get("/help", function (req, res) {
             showView: "/command?command=application.view&view=grid",
             applicationAction: "/command?command=application.action&action=toggle_zoom",
             secondaryView: "/command?command=application.secondary_view&view=loupe",
-            wakeLightroom: "/wake-lightroom"
+            deprecatedWakeEndpoint: "/wake-lightroom",
+            libraryModuleCommand: "/command?command=application.module&module=library"
         },
         experimentalEndpoints: {
             get: "/get?slider=Exposure",
@@ -191,20 +210,20 @@ app.get("/help", function (req, res) {
             "Selection commands use the Lightroom SDK and do not depend on keyboard shortcuts or AutoHotkey.",
             "Application commands use LrApplicationView and only switch modules when application.module is requested.",
             "Selection operations and application controls are ordinary FIFO queue commands; they do not consume the protected reset/action reserve.",
-            "On Windows, LRBridge wakes Lightroom to Library on startup. Slider commands switch Lightroom to Develop."
+            "After the first valid Lightroom context heartbeat, LRBridge queues one SDK-native switch to Library.",
+            "/wake-lightroom is deprecated; use /command?command=application.module&module=library."
         ]
     });
 });
 
-app.get("/wake-lightroom", async function (req, res) {
-    const result = await lightroomWake.wakeLightroom();
-
-    if (!result.ok) {
-        res.status(400).json(result);
-        return;
-    }
-
-    res.json(result);
+app.get("/wake-lightroom", function (req, res) {
+    queueOrReject(res, {
+        command: "application.module",
+        module: "library"
+    }, {
+        deprecated: true,
+        replacement: "/command?command=application.module&module=library"
+    });
 });
 
 app.get("/status", function (req, res) {
@@ -222,13 +241,17 @@ app.get("/context", function (req, res) {
 });
 
 app.get("/context/update", function (req, res) {
-    const status = commands.getStatus();
-
     const updated = context.updateContext({
         activeModule: req.query.activeModule,
         selectedPhotoKey: req.query.selectedPhotoKey,
         developFingerprint: req.query.developFingerprint
     });
+
+    if (isValidContextHeartbeat(req.query)) {
+        queueStartupLibraryOnce();
+    }
+
+    const status = commands.getStatus();
 
     res.json(Object.assign({
         ok: true,
@@ -650,7 +673,6 @@ let stopPromise = null;
 let restartPromise = null;
 let restartRequested = false;
 let stopRequested = false;
-let watcherOwned = false;
 const httpSockets = new Set();
 
 function attachWebSocketHandlers(server) {
@@ -824,22 +846,15 @@ function start() {
 
     lifecycleState = "starting";
     stopRequested = false;
+    startupLibraryQueued = false;
     startPromise = (async function () {
         try {
             const results = await Promise.allSettled([listenHttp(), listenWebSocket()]);
             const failed = results.find(function (result) { return result.status === "rejected"; });
             if (failed) throw failed.reason;
-            if (startLightroomWatcher && !stopRequested) {
-                lightroomWake.startWatcher();
-                watcherOwned = true;
-            }
             lifecycleState = "running";
             return api;
         } catch (err) {
-            if (watcherOwned) {
-                lightroomWake.stopWatcher();
-                watcherOwned = false;
-            }
             await closeListeners();
             lifecycleState = "stopped";
             throw err;
@@ -861,10 +876,6 @@ function stop() {
             try { await startPromise; } catch (err) {}
         }
         lifecycleState = "stopping";
-        if (watcherOwned) {
-            lightroomWake.stopWatcher();
-            watcherOwned = false;
-        }
         await closeListeners();
         lifecycleState = "stopped";
         return api;

@@ -55,7 +55,6 @@ async function main() {
         wsPort: 0,
         httpHost: "127.0.0.1",
         wsHost: "127.0.0.1",
-        startLightroomWatcher: false,
         shutdownGraceMs: 40
     });
 

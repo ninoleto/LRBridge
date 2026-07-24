@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added a global `LRBridge Help` Plug-in Extras menu contribution to support module-independent Lightroom plug-in initialization.
 - Added SDK-native commands for current-selection navigation, flags, ratings, rating adjustment, color-label setting, and color-label toggling through the existing HTTP and WebSocket command paths.
 - Added an isolated Lightroom `LrSelection` dispatcher with source-level mapping and polling-resilience coverage.
 - Added SDK-native `selection.operation`, `application.module`, `application.view`, `application.action`, and `application.secondary_view` commands through the existing HTTP and WebSocket paths.
@@ -11,6 +12,8 @@
 
 ### Changed
 
+- Startup now waits for the first valid Lightroom context heartbeat and admits exactly one SDK-native `application.module / library` command per bridge lifecycle. The previous Windows focus, PID-watcher, and keyboard-shortcut mechanism was removed.
+- The deprecated `/wake-lightroom` compatibility endpoint now queues the same SDK-native Library command without activating Lightroom or simulating keyboard input. New integrations should use `/command?command=application.module&module=library`.
 - Queue diagnostics now count all seven selection command families as ordinary commands without exposing their payload values.
 - The generic `/command` route now copies `action` correctly and normalizes HTTP rating query values before shared validation.
 - The generic `/command` route now accepts `operation`, `module`, and `view`; strict shared allowlists reject missing, repeated, incorrectly cased, non-string, and unknown values.

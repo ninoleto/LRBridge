@@ -10,6 +10,13 @@ return {
     LrInitPlugin = "PluginInit.lua",
     LrForceInitPlugin = true,
 
+    LrHelpMenuItems = {
+        {
+            title = "LRBridge Help",
+            file = "Help.lua",
+        },
+    },
+
     LrLibraryMenuItems = {
         {
             title = "Start LRBridge Polling",

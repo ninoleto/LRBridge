@@ -179,9 +179,17 @@ function validateStaticContract() {
 
     const builder = read("electron-builder.yml");
     const portableScript = read("tools/make-portable-zip.ps1");
+    const pluginInfoSource = read("lightroom/LRBridge.lrplugin/Info.lua");
+    const pluginHelpSource = read("lightroom/LRBridge.lrplugin/Help.lua");
     assert.ok(builder.includes("target: dir"), "Windows build must remain a directory target");
     assert.ok(builder.includes("- from: lightroom"), "Windows build must include the Lightroom plug-in tree");
     assert.ok(fs.existsSync(path.join(root, "lightroom/LRBridge.lrplugin/Application.lua")), "Application.lua must exist in the packaged Lightroom plug-in tree");
+    assert.match(pluginInfoSource, /LrForceInitPlugin\s*=\s*true/, "Lightroom plug-in must retain forced startup initialization");
+    assert.match(pluginInfoSource, /LrHelpMenuItems\s*=\s*\{[\s\S]*title\s*=\s*"LRBridge Help"[\s\S]*file\s*=\s*"Help\.lua"/, "Lightroom plug-in must expose LRBridge Help");
+    assert.ok(fs.existsSync(path.join(root, "lightroom/LRBridge.lrplugin/Help.lua")), "Help.lua must exist in the packaged Lightroom plug-in tree");
+    for (const forbiddenBehavior of ["switchToModule", "AppActivate", "SendKeys", "/command", "/wake-lightroom"]) {
+        assert.ok(!pluginHelpSource.includes(forbiddenBehavior), "Help.lua must not contain operational behavior: " + forbiddenBehavior);
+    }
     assert.ok(builder.includes("- x64"), "Windows build must retain x64 architecture");
     assert.ok(portableScript.includes('dist\\win-unpacked'), "Portable source path drifted");
     assert.ok(portableScript.includes('LRBridge-$version-win-x64-portable'), "Portable name drifted");
@@ -239,15 +247,6 @@ async function captureBridge() {
         if (parent && parent.filename === path.join(root, "server/bridge.js")) {
             if (request === "express") return expressMock;
             if (request === "ws") return { Server: FakeWebSocketServer };
-            if (request === "./lightroomWake") {
-                return {
-                    startWatcher() {},
-                    stopWatcher() {},
-                    async wakeLightroom() {
-                        return { ok: true, pid: 1234, stdout: "Wake complete", stderr: "", error: null };
-                    }
-                };
-            }
         }
         return originalLoad.call(this, request, parent, isMain);
     };
@@ -423,6 +422,9 @@ async function validateHttpAndWebSocketContract() {
 
     result = await request(captured, "/context/update", { activeModule: "develop", selectedPhotoKey: "photo-1", developFingerprint: "abc" });
     assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey"]);
+    assert.deepEqual(await drainCommands(captured, 1), [
+        { command: "application.module", module: "library" }
+    ]);
 
     result = await request(captured, "/result", { command: "develop.get.result", slider: "Exposure", value: "1.25" });
     assert.deepEqual(result.body, { ok: true });
@@ -451,7 +453,15 @@ async function validateHttpAndWebSocketContract() {
     assert.equal((await request(captured, "/feedback/next")).body.request.slider, "__many__:Exposure,Contrast");
 
     result = await request(captured, "/wake-lightroom");
-    assert.deepEqual(keys(result.body), ["error", "ok", "pid", "stderr", "stdout"]);
+    assert.deepEqual(result.body, {
+        ok: true,
+        queued: { command: "application.module", module: "library" },
+        deprecated: true,
+        replacement: "/command?command=application.module&module=library"
+    });
+    assert.deepEqual(await drainCommands(captured, 1), [
+        { command: "application.module", module: "library" }
+    ]);
 
     const connectionHandler = captured.websocketServer.handlers.connection;
     assert.equal(typeof connectionHandler, "function", "WebSocket connection handler is missing");

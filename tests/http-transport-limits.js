@@ -12,22 +12,12 @@ const {
     HTTP_MAX_HEADERS_COUNT
 } = require("../server/bridge");
 
-function fakeWake() {
-    return {
-        startWatcher() {},
-        stopWatcher() {},
-        async wakeLightroom() { return { ok: true, source: "fake" }; }
-    };
-}
-
 function makeBridge(extraOptions) {
     return createBridge(Object.assign({
         httpPort: 0,
         wsPort: 0,
         httpHost: "127.0.0.1",
         wsHost: "127.0.0.1",
-        startLightroomWatcher: false,
-        lightroomWake: fakeWake(),
         shutdownGraceMs: 40
     }, extraOptions));
 }
@@ -157,8 +147,31 @@ async function testPropertiesAndRepresentativeRoutes(bridge) {
     response = await requestJson(port, "/feedback/value?slider=Exposure");
     assert.deepEqual(response.body, { ok: true, result: null });
 
+    response = await requestJson(
+        port,
+        "/context/update?activeModule=develop&selectedPhotoKey=photo-1&developFingerprint=abc"
+    );
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(drainQueue(), [
+        { command: "application.module", module: "library" }
+    ]);
+
     response = await requestJson(port, "/wake-lightroom");
-    assert.deepEqual(response.body, { ok: true, source: "fake" });
+    assert.deepEqual(response.body, {
+        ok: true,
+        queued: { command: "application.module", module: "library" },
+        deprecated: true,
+        replacement: "/command?command=application.module&module=library"
+    });
+    assert.deepEqual(drainQueue(), [
+        { command: "application.module", module: "library" }
+    ]);
+
+    response = await requestJson(port, "/wake-lightroom");
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(drainQueue(), [
+        { command: "application.module", module: "library" }
+    ]);
 }
 
 async function testValidOverrides() {

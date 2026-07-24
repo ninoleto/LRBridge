@@ -84,18 +84,12 @@ function fillTo(length) {
     });
 }
 
-function fakeWake() {
-    return { startWatcher() {}, stopWatcher() {}, async wakeLightroom() { return { ok: true }; } };
-}
-
 function makeBridge() {
     return createBridge({
         httpPort: 0,
         wsPort: 0,
         httpHost: "127.0.0.1",
         wsHost: "127.0.0.1",
-        startLightroomWatcher: false,
-        lightroomWake: fakeWake(),
         shutdownGraceMs: 40
     });
 }

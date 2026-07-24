@@ -212,9 +212,9 @@ LRBridge/
       Test.lua               Plugin test command
 
   server/
+    bridge.js                HTTP/WebSocket routes and startup coordination
     commands.js              Command validation, queue, results
     context.js               Lightroom context state for /context and /status
-    lightroomWake.js         Windows Lightroom wake helper
     sliders.js               Slider registry helper
 
   tests/
@@ -453,6 +453,20 @@ poll_interval_ms=100
 ```
 
 The Electron app can edit this value. Lightroom reloads the polling setting automatically.
+
+After the first valid context heartbeat confirms that Lightroom plug-in polling is active, LRBridge queues one SDK-native switch to the Library module. This happens once per bridge lifecycle and does not activate the Lightroom window or simulate keyboard input.
+
+The older compatibility endpoint remains available but is deprecated:
+
+```text
+/wake-lightroom
+```
+
+It now queues the same native Library command. New integrations should use:
+
+```text
+/command?command=application.module&module=library
+```
 
 Important:
 

@@ -73,18 +73,12 @@ async function withCleanQueue(test) {
     }
 }
 
-function fakeWake() {
-    return { startWatcher() {}, stopWatcher() {}, async wakeLightroom() { return { ok: true }; } };
-}
-
 async function withBridge(test) {
     const bridge = createBridge({
         httpPort: 0,
         wsPort: 0,
         httpHost: "127.0.0.1",
-        wsHost: "127.0.0.1",
-        startLightroomWatcher: false,
-        lightroomWake: fakeWake()
+        wsHost: "127.0.0.1"
     });
     try {
         await bridge.start();

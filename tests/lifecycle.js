@@ -6,6 +6,7 @@ const path = require("node:path");
 const WebSocket = require("ws");
 
 const bridgeModule = require("../server/bridge");
+const commands = require("../server/commands");
 const { createBridge, HTTP_PORT, WS_PORT } = bridgeModule;
 
 function listen(server, port) {
@@ -56,24 +57,12 @@ function getJson(port, requestPath) {
     });
 }
 
-function createFakeWatcher() {
-    return {
-        owners: 0,
-        starts: 0,
-        stops: 0,
-        startWatcher() { this.owners += 1; this.starts += 1; },
-        stopWatcher() { this.owners -= 1; this.stops += 1; },
-        async wakeLightroom() { return { ok: true }; }
-    };
-}
-
 function isolatedBridge(options) {
     return createBridge(Object.assign({
         httpPort: 0,
         wsPort: 0,
         httpHost: "127.0.0.1",
         wsHost: "127.0.0.1",
-        lightroomWake: createFakeWatcher(),
         shutdownGraceMs: 40
     }, options));
 }
@@ -132,26 +121,66 @@ async function testStartupAndPortRelease() {
     });
 }
 
-async function testWatcherOwnershipAndRestart() {
-    const watcher = createFakeWatcher();
-    const first = isolatedBridge({ lightroomWake: watcher });
-    const second = isolatedBridge({ lightroomWake: watcher });
+function drainCommands() {
+    const drained = [];
+    let command;
+    while ((command = commands.getNextCommand()) !== null) drained.push(command);
+    return drained;
+}
+
+async function testStartupLibraryLifecycle() {
+    const bridge = isolatedBridge();
     try {
-        await Promise.all([first.start(), second.start()]);
-        assert.equal(watcher.owners, 2);
-        await first.stop();
-        assert.equal(watcher.owners, 1);
-        await first.stop();
-        assert.equal(watcher.owners, 1);
-        await second.stop();
-        assert.equal(watcher.owners, 0);
-        await first.start();
-        assert.equal(watcher.owners, 1);
+        commands.resetQueueForTests();
+        await bridge.start();
+        const port = bridge.getHttpServer().address().port;
+        assert.deepEqual(drainCommands(), []);
+
+        await getJson(port, "/context/update?activeModule=develop&selectedPhotoKey=photo-1");
+        assert.deepEqual(drainCommands(), [], "invalid heartbeat queued startup Library");
+
+        const heartbeat = "/context/update?activeModule=develop&selectedPhotoKey=photo-1&developFingerprint=abc";
+        await getJson(port, heartbeat);
+        await getJson(port, heartbeat);
+        assert.deepEqual(drainCommands(), [
+            { command: "application.module", module: "library" }
+        ], "repeated heartbeat queued startup Library more than once");
+
+        await bridge.stop();
+        await bridge.start();
+        const restartedPort = bridge.getHttpServer().address().port;
+
+        for (let index = 0; index < commands.ORDINARY_ADMISSION_CEILING; index += 1) {
+            assert.equal(commands.enqueueCommand({
+                command: "application.module",
+                module: "develop"
+            }), true);
+        }
+        await getJson(restartedPort, heartbeat);
+        assert.equal(commands.getStatus().queueLength, commands.ORDINARY_ADMISSION_CEILING);
+        assert.deepEqual(commands.getNextCommand(), {
+            command: "application.module",
+            module: "develop"
+        });
+        await getJson(restartedPort, heartbeat);
+
+        const queued = drainCommands();
+        assert.equal(queued.length, commands.ORDINARY_ADMISSION_CEILING);
+        assert.deepEqual(queued[queued.length - 1], {
+            command: "application.module",
+            module: "library"
+        }, "later heartbeat did not retry startup Library admission");
+
+        await bridge.stop();
+        await bridge.start();
+        await getJson(bridge.getHttpServer().address().port, heartbeat);
+        assert.deepEqual(drainCommands(), [
+            { command: "application.module", module: "library" }
+        ], "new bridge lifecycle did not reset startup Library guard");
     } finally {
-        await Promise.all([first.stop(), second.stop()]);
+        await bridge.stop();
+        commands.resetQueueForTests();
     }
-    assert.equal(watcher.owners, 0);
-    assert.equal(watcher.starts, watcher.stops);
 }
 
 async function testConcurrentTransitions() {
@@ -302,7 +331,7 @@ async function main() {
     testProductionDefaults();
     await testConstructionDoesNotListen();
     await testStartupAndPortRelease();
-    await testWatcherOwnershipAndRestart();
+    await testStartupLibraryLifecycle();
     await testConcurrentTransitions();
     await testOccupiedPort("http");
     await testOccupiedPort("websocket");
