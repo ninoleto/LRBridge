@@ -70,6 +70,27 @@ local function executeCommand(command)
 
 end
 
+local function commandParameter(command)
+
+    if command.command == "photo.treatment" then
+        return command.value
+    end
+
+    if command.command == "photo.crop_aspect" then
+        if command.mode == "custom" then
+            return command.mode .. " " .. tostring(command.w) .. "x" .. tostring(command.h)
+        end
+        return command.mode
+    end
+
+    if command.command == "photo.reveal" then
+        return command.scope
+    end
+
+    return command.slider
+
+end
+
 if _G.LRBridgePollingStarted == true then
 
     log("polling already running")
@@ -114,7 +135,7 @@ LrTasks.startAsyncTask(function()
             local command = Parser.parse(result)
 
             if command ~= nil then
-                log("command received: " .. tostring(command.command) .. " " .. tostring(command.slider))
+                log("command received: " .. tostring(command.command) .. " " .. tostring(commandParameter(command)))
 
                 executeCommand(command)
             end

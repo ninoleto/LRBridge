@@ -48,17 +48,27 @@ function commandPath(item) {
 }
 
 const selectionGroups = extractJavaScriptValue("const selectionGroups =");
+const cropGroups = extractJavaScriptValue("const cropGroups =");
 const applicationGroups = extractJavaScriptValue("const applicationGroups =");
 const sliderActionGroups = extractJavaScriptValue("const sliderActionGroups =");
 const selectionItems = flatten(selectionGroups);
+const cropItems = flatten(cropGroups);
 const applicationItems = flatten(applicationGroups);
-const allItems = selectionItems.concat(applicationItems);
+const allItems = selectionItems.concat(cropItems, applicationItems);
 
 assert.match(source, /id:\s*"selection",\s*label:\s*"Selection"/, "Selection tab is missing");
+assert.match(source, /id:\s*"crop",\s*label:\s*"Crop"/, "Crop tab is missing");
 assert.match(source, /id:\s*"application",\s*label:\s*"Application"/, "Application tab is missing");
 assert.match(source, /activeTab === "selection"[\s\S]*renderCommandGroups\(selectionGroups\)/, "Selection tab renderer is missing");
+assert.match(source, /activeTab === "crop"[\s\S]*renderCommandGroups\(cropGroups\)/, "Crop tab renderer is missing");
 assert.match(source, /activeTab === "application"[\s\S]*renderCommandGroups\(applicationGroups\)/, "Application tab renderer is missing");
 assert.match(source, /sendCommand\(commandPath\(item\)\)/, "Command buttons must reuse sendCommand()");
+assert.match(
+    source,
+    /<header class="controller-header">\s*<h1>LRBridge Web Controller<\/h1>\s*<a class="header-help-button" href="\/help" target="_blank" rel="noopener">Open Help<\/a>\s*<\/header>/,
+    "Compact title and human-help link must share the controller header"
+);
+assert.doesNotMatch(source, /This page only sends commands to Lightroom Classic|Open API Help|class="toolbar"|\.toolbar\s*\{/);
 assert.match(source, /mainButton\.textContent = "Slider Group ▾"/, "Slider jump menu label is missing");
 assert.doesNotMatch(source, /mainButton\.textContent = "Section ▾"/, "Old slider jump menu label must not be visible");
 
@@ -128,8 +138,6 @@ const expectedSelection = [
     ["selection.extend", "direction", "right"],
     ["photo.treatment", "value", "grayscale"],
     ["photo.treatment", "value", "color"],
-    ["photo.crop_aspect", "mode", "original"],
-    ["photo.crop_aspect", "mode", "asshot"],
     ["photo.rotate", "direction", "left"],
     ["photo.rotate", "direction", "right"],
     ["photo.reveal", "scope", "active"],
@@ -164,8 +172,64 @@ assert.deepEqual(
     expectedSelection,
     "Selection controller commands drifted"
 );
-assert.equal(selectionItems.length, 35, "Selection tab must expose exactly 35 buttons");
+assert.equal(selectionItems.length, 33, "Selection tab must expose exactly 33 buttons");
+assert.equal(cropItems.length, 11, "Crop tab must expose exactly 11 controls");
 assert.equal(applicationItems.length, 34, "Application tab must expose exactly 34 buttons");
+assert.deepEqual(cropGroups.map((group) => group.name), ["Crop Tool", "Aspect Ratio", "Camera Crop"]);
+assert.deepEqual(
+    cropItems.map((item) => [item.label, item.customCrop ? "modal" : commandPath(item)]),
+    [
+        ["Open Crop Tool", "/api/command?command=develop.action&action=selectCropTool"],
+        ["Reset Crop", "/api/command?command=develop.action&action=resetCrop"],
+        ["Original Aspect", "/api/command?command=photo.crop_aspect&mode=original"],
+        ["1:1", "/api/command?command=photo.crop_aspect&mode=1x1"],
+        ["2:3", "/api/command?command=photo.crop_aspect&mode=2x3"],
+        ["4:5", "/api/command?command=photo.crop_aspect&mode=4x5"],
+        ["5:7", "/api/command?command=photo.crop_aspect&mode=5x7"],
+        ["16:9", "/api/command?command=photo.crop_aspect&mode=16x9"],
+        ["16:10", "/api/command?command=photo.crop_aspect&mode=16x10"],
+        ["Custom…", "modal"],
+        ["Camera Crop", "/api/command?command=photo.crop_aspect&mode=asshot"]
+    ],
+    "Crop tab controls drifted"
+);
+assert.equal(
+    cropGroups.find((group) => group.name === "Camera Crop").note,
+    "Uses the crop ratio recorded by the camera when available. It may match Original."
+);
+for (const cropValue of ["selectCropTool", "resetCrop", "original", "1x1", "2x3", "4x5", "5x7", "16x9", "16x10", "asshot"]) {
+    assert.equal(allItems.filter((item) => item.value === cropValue).length, 1, cropValue + " must appear exactly once");
+    assert.ok(!selectionItems.concat(applicationItems).some((item) => item.value === cropValue), cropValue + " leaked into another command tab");
+}
+assert.equal(cropItems.filter((item) => item.customCrop).length, 1, "Custom Crop modal control must appear once");
+assert.match(source, /<h2 id="customCropTitle">Custom Crop Ratio<\/h2>/);
+assert.match(source, /id="customCropWidth"[^>]*value="16"/);
+assert.match(source, /id="customCropHeight"[^>]*value="10"/);
+assert.match(source, /if \(item\.customCrop\)[\s\S]*openCustomCropModal\(\)/);
+assert.match(source, /customCropForm\.addEventListener\("submit"[\s\S]*applyCustomCrop\(\)/);
+assert.match(source, /event\.key === "Escape"[\s\S]*closeCustomCropModal\(\)/);
+assert.match(source, /const accepted = await sendCommand\(customCropCommandPath\(dimensions\.width, dimensions\.height\)\)/);
+assert.match(source, /if \(accepted\)[\s\S]*customCropModal\.hidden = true/);
+
+const parseCustomCropDimension = extractJavaScriptFunction(
+    "parseCustomCropDimension",
+    "customCropCommandPath",
+    { Number }
+);
+const customCropCommandPath = extractJavaScriptFunction(
+    "customCropCommandPath",
+    "validateCustomCropModal",
+    { encodeURIComponent }
+);
+assert.equal(parseCustomCropDimension("16"), 16);
+assert.equal(parseCustomCropDimension("10000"), 10000);
+for (const invalid of ["", "0", "-1", "1.5", " 16", "10001"]) {
+    assert.equal(parseCustomCropDimension(invalid), null);
+}
+assert.equal(
+    customCropCommandPath(16, 10),
+    "/api/command?command=photo.crop_aspect&mode=custom&w=16&h=10"
+);
 assert.deepEqual(
     selectionGroups.find((group) => group.name === "Extend Selection").commands
         .map((item) => [item.label, item.command, item.value, item.params]),
@@ -183,15 +247,6 @@ assert.deepEqual(
         ["Color", "photo.treatment", "color"]
     ],
     "Photo treatment controls drifted"
-);
-assert.deepEqual(
-    selectionGroups.find((group) => group.name === "Crop Aspect").commands
-        .map((item) => [item.label, item.command, item.value]),
-    [
-        ["Crop Original", "photo.crop_aspect", "original"],
-        ["Crop As Shot", "photo.crop_aspect", "asshot"]
-    ],
-    "Photo crop-aspect controls drifted"
 );
 assert.deepEqual(
     selectionGroups.find((group) => group.name === "Photo").commands
@@ -226,8 +281,6 @@ assert.deepEqual(
         ["Extend Right", "command-primary"],
         ["Black & White", "command-neutral"],
         ["Color", "command-primary"],
-        ["Crop Original", "command-primary"],
-        ["Crop As Shot", "command-primary"],
         ["Rotate Left", "command-primary"],
         ["Rotate Right", "command-primary"],
         ["Show in Explorer", "command-neutral"],
@@ -303,7 +356,7 @@ for (const className of [
     assert.ok(source.includes("button." + className + ":hover"), "Missing hover style: " + className);
 }
 
-for (const item of allItems) {
+for (const item of allItems.filter((candidate) => !candidate.customCrop)) {
     const path = commandPath(item);
     const query = new URL("http://127.0.0.1" + path).searchParams;
     const parsed = {
@@ -336,5 +389,9 @@ for (const forbidden of ["AppActivate", "SendKeys", "AutoHotkey", "WScript.Shell
     assert.ok(!source.includes(forbidden), "Keyboard/focus automation must not be introduced: " + forbidden);
 }
 
-console.log("Web Controller Selection and Application command-tab tests passed.");
-console.log("Validated " + selectionItems.length + " Selection buttons and " + applicationItems.length + " Application buttons.");
+console.log("Web Controller Selection, Crop, and Application command-tab tests passed.");
+console.log(
+    "Validated " + selectionItems.length + " Selection buttons, " +
+    cropItems.length + " Crop buttons, and " +
+    applicationItems.length + " Application buttons."
+);

@@ -76,7 +76,13 @@
   ],
   "photoCropAspects": [
     "original",
-    "asshot"
+    "asshot",
+    "1x1",
+    "2x3",
+    "4x5",
+    "5x7",
+    "16x9",
+    "16x10"
   ],
   "photoRevealScopes": [
     "active"

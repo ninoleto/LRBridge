@@ -97,7 +97,7 @@ function Commands.execute(command)
     end
 
     if command.command == "photo.crop_aspect" then
-        Photo.setCropAspect(command.mode)
+        Photo.setCropAspect(command.mode, command.w, command.h)
         return
     end
 

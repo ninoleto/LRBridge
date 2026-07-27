@@ -11,8 +11,12 @@
             font-family: Segoe UI, Arial, sans-serif;
         }
 
-        header {
-            padding: 18px 22px;
+        .controller-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            padding: 12px 22px;
             background: #161d24;
             border-bottom: 1px solid #28323d;
         }
@@ -23,20 +27,19 @@
             font-weight: 600;
         }
 
-        .subtitle {
-            margin-top: 6px;
-            color: #9fb0bf;
+        .header-help-button {
+            display: inline-block;
+            background: #273442;
+            color: #ffffff;
+            border: 1px solid #3b4b5c;
+            border-radius: 7px;
+            padding: 8px 12px;
             font-size: 14px;
-            line-height: 1.45;
+            text-decoration: none;
         }
 
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            padding: 14px 22px;
-            background: #111820;
-            border-bottom: 1px solid #28323d;
+        .header-help-button:hover {
+            background: #314151;
         }
 
         .tabs {
@@ -485,27 +488,102 @@
             color: #ff9b9b;
         }
 
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-backdrop[hidden] {
+            display: none;
+        }
+
+        .crop-modal {
+            width: min(360px, 100%);
+            border: 1px solid #344453;
+            border-radius: 10px;
+            padding: 18px;
+            background: #131b22;
+            box-shadow: 0 18px 55px rgba(0, 0, 0, 0.5);
+        }
+
+        .crop-modal h2 {
+            margin: 0 0 14px;
+            font-size: 20px;
+        }
+
+        .crop-modal-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .crop-modal label {
+            display: grid;
+            gap: 6px;
+            color: #c7d2dc;
+            font-size: 13px;
+        }
+
+        .crop-modal input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #405263;
+            border-radius: 6px;
+            padding: 9px;
+            background: #080c10;
+            color: #f4f7fa;
+        }
+
+        .crop-modal-error {
+            min-height: 18px;
+            margin: 10px 0 4px;
+            color: #ff9b9b;
+            font-size: 13px;
+        }
+
+        .crop-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
     </style>
 </head>
 <body>
-    <header>
+    <header class="controller-header">
         <h1>LRBridge Web Controller</h1>
-        <div class="subtitle">
-            This page only sends commands to Lightroom Classic.
-            It does not read current slider positions or show live feedback.
-            Watch Lightroom Classic to see the real result.
-        </div>
+        <a class="header-help-button" href="/help" target="_blank" rel="noopener">Open Help</a>
     </header>
-
-    <div class="toolbar">
-        <button id="openHelp">Open API Help</button>
-    </div>
 
     <nav class="tabs" id="tabs"></nav>
 
     <main class="content" id="content"></main>
 
     <div class="status" id="status">Ready.</div>
+
+    <div class="modal-backdrop" id="customCropModal" hidden>
+        <form class="crop-modal" id="customCropForm" role="dialog" aria-modal="true" aria-labelledby="customCropTitle">
+            <h2 id="customCropTitle">Custom Crop Ratio</h2>
+            <div class="crop-modal-fields">
+                <label>Width
+                    <input id="customCropWidth" type="number" min="1" max="10000" step="1" value="16" required>
+                </label>
+                <label>Height
+                    <input id="customCropHeight" type="number" min="1" max="10000" step="1" value="10" required>
+                </label>
+            </div>
+            <div class="crop-modal-error" id="customCropError" aria-live="polite"></div>
+            <div class="crop-modal-actions">
+                <button type="button" id="customCropCancel">Cancel</button>
+                <button type="submit" id="customCropApply" class="command-primary">Apply</button>
+            </div>
+        </form>
+    </div>
 
     <script>
         const sliderGroups = [
@@ -829,23 +907,6 @@
 
         const toolTabs = [
                 {
-                        "id": "crop",
-                        "label": "Crop",
-                        "title": "Crop",
-                        "actions": [
-                                {
-                                        "label": "Crop Tool",
-                                        "action": "selectCropTool",
-                                        "button": "Select"
-                                },
-                                {
-                                        "label": "Reset Crop",
-                                        "action": "resetCrop",
-                                        "button": "Reset"
-                                }
-                        ]
-                },
-                {
                         "id": "healing",
                         "label": "Healing",
                         "title": "Healing",
@@ -921,14 +982,6 @@
                         ]
                 },
                 {
-                        "name": "Crop Aspect",
-                        "note": "Changes only the crop aspect of Lightroom's active photo.",
-                        "commands": [
-                                { "label": "Crop Original", "command": "photo.crop_aspect", "field": "mode", "value": "original", "className": "command-primary" },
-                                { "label": "Crop As Shot", "command": "photo.crop_aspect", "field": "mode", "value": "asshot", "className": "command-primary" }
-                        ]
-                },
-                {
                         "name": "Photo",
                         "note": "Acts on Lightroom's active photo only.",
                         "commands": [
@@ -984,6 +1037,38 @@
                                 { "label": "Invert Selection", "command": "selection.operation", "field": "operation", "value": "select_inverse", "className": "command-purple" },
                                 { "label": "Deselect Active", "command": "selection.operation", "field": "operation", "value": "deselect_active", "className": "command-warning" },
                                 { "label": "Deselect Others", "command": "selection.operation", "field": "operation", "value": "deselect_others", "className": "command-warning" }
+                        ]
+                }
+        ];
+
+        const cropGroups = [
+                {
+                        "name": "Crop Tool",
+                        "note": "Open Lightroom’s Crop tool or reset the active photo’s complete crop state.",
+                        "commands": [
+                                { "label": "Open Crop Tool", "command": "develop.action", "field": "action", "value": "selectCropTool", "className": "command-primary" },
+                                { "label": "Reset Crop", "command": "develop.action", "field": "action", "value": "resetCrop", "className": "command-neutral" }
+                        ]
+                },
+                {
+                        "name": "Aspect Ratio",
+                        "note": "Original Aspect changes only the crop aspect ratio. Reset Crop resets the complete crop state.",
+                        "commands": [
+                                { "label": "Original Aspect", "command": "photo.crop_aspect", "field": "mode", "value": "original", "className": "command-primary" },
+                                { "label": "1:1", "command": "photo.crop_aspect", "field": "mode", "value": "1x1", "className": "command-primary" },
+                                { "label": "2:3", "command": "photo.crop_aspect", "field": "mode", "value": "2x3", "className": "command-primary" },
+                                { "label": "4:5", "command": "photo.crop_aspect", "field": "mode", "value": "4x5", "className": "command-primary" },
+                                { "label": "5:7", "command": "photo.crop_aspect", "field": "mode", "value": "5x7", "className": "command-primary" },
+                                { "label": "16:9", "command": "photo.crop_aspect", "field": "mode", "value": "16x9", "className": "command-primary" },
+                                { "label": "16:10", "command": "photo.crop_aspect", "field": "mode", "value": "16x10", "className": "command-primary" },
+                                { "label": "Custom…", "customCrop": true, "className": "command-primary" }
+                        ]
+                },
+                {
+                        "name": "Camera Crop",
+                        "note": "Uses the crop ratio recorded by the camera when available. It may match Original.",
+                        "commands": [
+                                { "label": "Camera Crop", "command": "photo.crop_aspect", "field": "mode", "value": "asshot", "className": "command-primary" }
                         ]
                 }
         ];
@@ -1113,14 +1198,90 @@
 
                 if (!response.ok) {
                     setStatus("ERROR " + response.status + ": " + detail);
-                    return;
+                    return false;
                 }
 
                 setStatus("OK: " + detail);
+                return true;
             } catch (err) {
                 setStatus("ERROR: " + err.message);
+                return false;
             }
         }
+
+        const customCropModal = document.getElementById("customCropModal");
+        const customCropForm = document.getElementById("customCropForm");
+        const customCropWidth = document.getElementById("customCropWidth");
+        const customCropHeight = document.getElementById("customCropHeight");
+        const customCropError = document.getElementById("customCropError");
+        const customCropApply = document.getElementById("customCropApply");
+        let customCropSubmitting = false;
+
+        function parseCustomCropDimension(value) {
+            if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
+            const number = Number(value);
+            return Number.isSafeInteger(number) && number >= 1 && number <= 10000 ? number : null;
+        }
+
+        function customCropCommandPath(width, height) {
+            return "/api/command?command=photo.crop_aspect&mode=custom&w=" +
+                encodeURIComponent(String(width)) + "&h=" + encodeURIComponent(String(height));
+        }
+
+        function validateCustomCropModal() {
+            const width = parseCustomCropDimension(customCropWidth.value);
+            const height = parseCustomCropDimension(customCropHeight.value);
+            const valid = width !== null && height !== null;
+            customCropError.textContent = valid ? "" : "Width and Height must be whole numbers from 1 to 10000.";
+            customCropApply.disabled = !valid || customCropSubmitting;
+            return valid ? { width: width, height: height } : null;
+        }
+
+        function openCustomCropModal() {
+            customCropModal.hidden = false;
+            customCropError.textContent = "";
+            validateCustomCropModal();
+            customCropWidth.focus();
+            customCropWidth.select();
+        }
+
+        function closeCustomCropModal() {
+            if (customCropSubmitting) return;
+            customCropModal.hidden = true;
+            customCropError.textContent = "";
+        }
+
+        async function applyCustomCrop() {
+            const dimensions = validateCustomCropModal();
+            if (!dimensions || customCropSubmitting) return false;
+
+            customCropSubmitting = true;
+            customCropApply.disabled = true;
+            const accepted = await sendCommand(customCropCommandPath(dimensions.width, dimensions.height));
+            customCropSubmitting = false;
+
+            if (accepted) {
+                customCropModal.hidden = true;
+                customCropError.textContent = "";
+            } else {
+                validateCustomCropModal();
+            }
+            return accepted;
+        }
+
+        customCropWidth.addEventListener("input", validateCustomCropModal);
+        customCropHeight.addEventListener("input", validateCustomCropModal);
+        customCropForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            applyCustomCrop();
+        });
+        document.getElementById("customCropCancel").addEventListener("click", closeCustomCropModal);
+        customCropModal.addEventListener("click", function (event) {
+            if (event.target === customCropModal) closeCustomCropModal();
+        });
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && !customCropModal.hidden) closeCustomCropModal();
+        });
         function makeButton(text, className, onClick) {
             const button = document.createElement("button");
             button.textContent = text;
@@ -1986,6 +2147,10 @@
                     label: "Selection"
                 },
                 {
+                    id: "crop",
+                    label: "Crop"
+                },
+                {
                     id: "application",
                     label: "Application"
                 }
@@ -2047,7 +2212,11 @@
 
                 for (const item of group.commands) {
                     grid.appendChild(makeButton(item.label, item.className || "command-primary", function () {
-                        sendCommand(commandPath(item));
+                        if (item.customCrop) {
+                            openCustomCropModal();
+                        } else {
+                            sendCommand(commandPath(item));
+                        }
                     }));
                 }
 
@@ -2266,6 +2435,11 @@ row.appendChild(name);
                 return;
             }
 
+            if (activeTab === "crop") {
+                renderCommandGroups(cropGroups);
+                return;
+            }
+
             if (activeTab === "application") {
                 renderCommandGroups(applicationGroups);
                 return;
@@ -2279,10 +2453,6 @@ row.appendChild(name);
                 renderToolTab(tab);
             }
         }
-
-        document.getElementById("openHelp").addEventListener("click", function () {
-            window.open("/help", "_blank");
-        });
 
         render();
         startLiveFeedbackPolling();

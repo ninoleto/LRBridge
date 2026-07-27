@@ -289,14 +289,59 @@
             <td>Changes the active photo treatment to Color.</td>
         </tr>
         <tr>
-            <td>Crop Original</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=original</code></td>
-            <td>Sets the active photo crop aspect to Original.</td>
+            <td>Open Crop Tool</td>
+            <td><code>/command?command=develop.action&amp;action=selectCropTool</code></td>
+            <td>Opens Lightroom’s Crop tool from the dedicated Crop tab.</td>
         </tr>
         <tr>
-            <td>Crop As Shot</td>
+            <td>Reset Crop</td>
+            <td><code>/command?command=develop.action&amp;action=resetCrop</code></td>
+            <td>Resets the active photo’s complete crop state.</td>
+        </tr>
+        <tr>
+            <td>Original Aspect</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=original</code></td>
+            <td>Changes only the active photo’s crop aspect ratio to Original.</td>
+        </tr>
+        <tr>
+            <td>Camera Crop</td>
             <td><code>/command?command=photo.crop_aspect&amp;mode=asshot</code></td>
-            <td>Sets the active photo crop aspect to As Shot.</td>
+            <td>Uses the crop ratio recorded by the camera when available. It may match Original.</td>
+        </tr>
+        <tr>
+            <td>1:1</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=1x1</code></td>
+            <td>Changes the crop aspect ratio to 1:1.</td>
+        </tr>
+        <tr>
+            <td>2:3</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=2x3</code></td>
+            <td>Changes the crop aspect ratio to 2:3.</td>
+        </tr>
+        <tr>
+            <td>4:5</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=4x5</code></td>
+            <td>Changes the crop aspect ratio to 4:5.</td>
+        </tr>
+        <tr>
+            <td>5:7</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=5x7</code></td>
+            <td>Changes the crop aspect ratio to 5:7.</td>
+        </tr>
+        <tr>
+            <td>16:9</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=16x9</code></td>
+            <td>Changes the crop aspect ratio to 16:9.</td>
+        </tr>
+        <tr>
+            <td>16:10</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=16x10</code></td>
+            <td>Changes the crop aspect ratio to the fixed validated 16:10 SDK ratio.</td>
+        </tr>
+        <tr>
+            <td>Custom…</td>
+            <td><code>/command?command=photo.crop_aspect&amp;mode=custom&amp;w=16&amp;h=10</code></td>
+            <td>Opens the LRBridge Custom Crop dialog. Width and Height must be whole numbers from 1 to 10000; the supplied ratio is passed through the SDK table form without reduction.</td>
         </tr>
         <tr>
             <td>Show in Explorer</td>
@@ -304,6 +349,8 @@
             <td>Reveals the active photo's existing file in Windows Explorer.</td>
         </tr>
     </table>
+
+    <p>The Web Controller provides its own Custom Crop modal; LRBridge does not open Lightroom’s native Enter Custom dialog. Reset Crop remains the separate complete-crop reset.</p>
 
     <h2>Bitfocus Companion integration methods</h2>
 

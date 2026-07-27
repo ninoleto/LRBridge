@@ -28,6 +28,24 @@ local cropAspects = {
     end,
     asshot = function(photo)
         photo:quickDevelopCropAspect("asshot")
+    end,
+    ["1x1"] = function(photo)
+        photo:quickDevelopCropAspect({ w = 1, h = 1 })
+    end,
+    ["2x3"] = function(photo)
+        photo:quickDevelopCropAspect({ w = 2, h = 3 })
+    end,
+    ["4x5"] = function(photo)
+        photo:quickDevelopCropAspect({ w = 4, h = 5 })
+    end,
+    ["5x7"] = function(photo)
+        photo:quickDevelopCropAspect({ w = 5, h = 7 })
+    end,
+    ["16x9"] = function(photo)
+        photo:quickDevelopCropAspect({ w = 16, h = 9 })
+    end,
+    ["16x10"] = function(photo)
+        photo:quickDevelopCropAspect({ w = 16, h = 10 })
     end
 }
 
@@ -60,7 +78,17 @@ function Photo.setTreatment(value)
     return true
 end
 
-function Photo.setCropAspect(mode)
+function Photo.setCropAspect(mode, w, h)
+    if mode == "custom" then
+        if type(w) ~= "number" or w % 1 ~= 0 or w < 1 or w > 10000 or
+            type(h) ~= "number" or h % 1 ~= 0 or h < 1 or h > 10000 then
+            error("Invalid custom photo crop aspect")
+        end
+
+        activePhoto():quickDevelopCropAspect({ w = w, h = h })
+        return true
+    end
+
     local setCropAspect = cropAspects[mode]
     if setCropAspect == nil then
         error("Unknown photo crop aspect")

@@ -48,7 +48,7 @@ assert.match(selection, /error\("Unknown selection " \..*operation\)/);
 assert.doesNotMatch(selection, /LrSelection\.(?:firstPhoto|lastPhoto|removeColorLabel)\b/);
 assert.doesNotMatch(selection, /LrApplicationView|switchToModule|keyboard|AutoHotkey|shortcut|shell|menu|mouse|automation/i);
 
-for (const field of ["action", "direction", "flag", "rating", "label", "operation", "module", "view"]) {
+for (const field of ["action", "direction", "flag", "rating", "label", "operation", "module", "view", "mode", "scope", "w", "h"]) {
     assert.match(parser, new RegExp("local " + field + " = string\\.match"));
     assert.match(parser, new RegExp(field + " = " + field));
 }
@@ -56,7 +56,7 @@ for (const field of ["action", "direction", "flag", "rating", "label", "operatio
 const commandDispatch = {
     "photo.rotate": "Photo.rotate(command.direction)",
     "photo.treatment": "Photo.setTreatment(command.value)",
-    "photo.crop_aspect": "Photo.setCropAspect(command.mode)",
+    "photo.crop_aspect": "Photo.setCropAspect(command.mode, command.w, command.h)",
     "photo.reveal": "Photo.reveal(command.scope)",
     "selection.navigate": "Selection.navigate(command.direction)",
     "selection.extend": "Selection.extend(command.direction, command.amount)",
@@ -89,10 +89,29 @@ assert.match(photo, /grayscale\s*=\s*function\(photo\)\s*photo:quickDevelopSetTr
 assert.match(photo, /color\s*=\s*function\(photo\)\s*photo:quickDevelopSetTreatment\("color"\)/);
 assert.match(photo, /original\s*=\s*function\(photo\)\s*photo:quickDevelopCropAspect\("original"\)/);
 assert.match(photo, /asshot\s*=\s*function\(photo\)\s*photo:quickDevelopCropAspect\("asshot"\)/);
+for (const [mode, width, height] of [
+    ["1x1", 1, 1],
+    ["2x3", 2, 3],
+    ["4x5", 4, 5],
+    ["5x7", 5, 7],
+    ["16x9", 16, 9],
+    ["16x10", 16, 10]
+]) {
+    assert.match(
+        photo,
+        new RegExp("\\[\"" + mode + "\"\\]\\s*=\\s*function\\(photo\\)\\s*" +
+            "photo:quickDevelopCropAspect\\(\\{ w = " + width + ", h = " + height + " \\}\\)")
+    );
+}
 assert.equal((photo.match(/quickDevelopSetTreatment\("grayscale"\)/g) || []).length, 1);
 assert.equal((photo.match(/quickDevelopSetTreatment\("color"\)/g) || []).length, 1);
-assert.equal((photo.match(/quickDevelopCropAspect\("original"\)/g) || []).length, 1);
-assert.equal((photo.match(/quickDevelopCropAspect\("asshot"\)/g) || []).length, 1);
+assert.equal((photo.match(/quickDevelopCropAspect\(/g) || []).length, 9);
+assert.match(photo, /function Photo\.setCropAspect\(mode, w, h\)/);
+assert.match(photo, /if mode == "custom" then/);
+assert.match(photo, /type\(w\) ~= "number"[\s\S]*w % 1 ~= 0[\s\S]*w < 1[\s\S]*w > 10000/);
+assert.match(photo, /type\(h\) ~= "number"[\s\S]*h % 1 ~= 0[\s\S]*h < 1[\s\S]*h > 10000/);
+assert.match(photo, /activePhoto\(\):quickDevelopCropAspect\(\{ w = w, h = h \}\)/);
+assert.doesNotMatch(photo, /tonumber\(mode\)|string\.match\(mode|loadstring|load\s*\(/);
 assert.match(photo, /activePhoto\(\):getRawMetadata\("path"\)/);
 assert.match(photo, /type\(path\) ~= "string" or path == ""/);
 assert.match(photo, /LrFileUtils\.exists\(path\) ~= "file"/);

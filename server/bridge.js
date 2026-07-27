@@ -159,8 +159,12 @@ app.get("/help", function (req, res) {
             extendSelection: "/command?command=selection.extend&direction=right&amount=1",
             rotatePhoto: "/command?command=photo.rotate&direction=right",
             setPhotoTreatment: "/command?command=photo.treatment&value=grayscale",
-            setPhotoCropAspect: "/command?command=photo.crop_aspect&mode=asshot",
+            setPhotoCropAspect: "/command?command=photo.crop_aspect&mode=1x1",
+            setPhotoCropAspect16x10: "/command?command=photo.crop_aspect&mode=16x10",
+            setCustomPhotoCropAspect: "/command?command=photo.crop_aspect&mode=custom&w=16&h=10",
             revealPhoto: "/command?command=photo.reveal&scope=active",
+            openCropTool: "/command?command=develop.action&action=selectCropTool",
+            resetCrop: "/command?command=develop.action&action=resetCrop",
             setFlag: "/command?command=selection.flag&flag=pick",
             setRating: "/command?command=selection.rating.set&rating=5",
             adjustRating: "/command?command=selection.rating.adjust&direction=increase",
@@ -269,6 +273,24 @@ app.get("/command", function (req, res) {
 
     for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view", "mode", "scope"]) {
         if (req.query[field] !== undefined) command[field] = req.query[field];
+    }
+
+    if (commandName === "photo.crop_aspect") {
+        const allowedQueryFields = new Set(["command", "mode", "w", "h"]);
+        if (Object.keys(req.query).some(function (field) {
+            return !allowedQueryFields.has(field);
+        })) {
+            command.invalidQueryField = true;
+        }
+
+        for (const field of ["w", "h"]) {
+            if (req.query[field] !== undefined) {
+                const raw = req.query[field];
+                command[field] = typeof raw === "string" && /^\d+$/.test(raw)
+                    ? Number(raw)
+                    : raw;
+            }
+        }
     }
 
     if (req.query.amount !== undefined) {

@@ -474,6 +474,26 @@
                     <button id="copyBuilderFull">Copy full URL</button>
                 </div>
             </div>
+            <h3>Custom Crop</h3>
+            <p>Enter whole-number dimensions from 1 to 10000. LRBridge applies the exact ratio through Lightroom’s SDK table form.</p>
+            <div class="builder-form">
+                <div class="builder-field">
+                    <label for="customCropWidth">Width</label>
+                    <input id="customCropWidth" type="number" min="1" max="10000" step="1" value="16">
+                </div>
+                <div class="builder-field">
+                    <label for="customCropHeight">Height</label>
+                    <input id="customCropHeight" type="number" min="1" max="10000" step="1" value="10">
+                </div>
+            </div>
+            <div class="builder-output">
+                <div id="customCropBuilderError" class="builder-description"></div>
+                <div id="customCropBuilderPath" class="path"></div>
+                <div class="button-row">
+                    <button id="copyCustomCropPath" class="primary">Copy path</button>
+                    <button id="copyCustomCropFull">Copy full URL</button>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -523,6 +543,12 @@
     const builderAmount = document.getElementById("builderAmount");
     const builderDescription = document.getElementById("builderDescription");
     const builderPath = document.getElementById("builderPath");
+    const customCropWidth = document.getElementById("customCropWidth");
+    const customCropHeight = document.getElementById("customCropHeight");
+    const customCropBuilderError = document.getElementById("customCropBuilderError");
+    const customCropBuilderPath = document.getElementById("customCropBuilderPath");
+    const copyCustomCropPath = document.getElementById("copyCustomCropPath");
+    const copyCustomCropFull = document.getElementById("copyCustomCropFull");
 
     const builderCommandFamilies = [
         {
@@ -718,8 +744,14 @@
                     valueField: "mode",
                     valueLabel: "Crop Aspect",
                     options: [
-                        { value: "original", label: "Crop Original" },
-                        { value: "asshot", label: "Crop As Shot" }
+                        { value: "original", label: "Original Aspect" },
+                        { value: "asshot", label: "Camera Crop", description: "Uses the crop ratio recorded by the camera when available. It may match Original." },
+                        { value: "1x1", label: "1:1" },
+                        { value: "2x3", label: "2:3" },
+                        { value: "4x5", label: "4:5" },
+                        { value: "5x7", label: "5:7" },
+                        { value: "16x9", label: "16:9" },
+                        { value: "16x10", label: "16:10" }
                     ]
                 },
                 {
@@ -834,6 +866,32 @@
         return "/api/command?" + parameters.map(function (entry) {
             return encodeURIComponent(entry[0]) + "=" + encodeURIComponent(String(entry[1]));
         }).join("&");
+    }
+
+    function parseCustomCropDimension(value) {
+        if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
+        const number = Number(value);
+        return Number.isSafeInteger(number) && number >= 1 && number <= 10000 ? number : null;
+    }
+
+    function buildCustomCropPath(widthValue, heightValue) {
+        const width = parseCustomCropDimension(widthValue);
+        const height = parseCustomCropDimension(heightValue);
+        if (width === null || height === null) return null;
+        return "/api/command?command=photo.crop_aspect&mode=custom&w=" +
+            encodeURIComponent(String(width)) + "&h=" + encodeURIComponent(String(height));
+    }
+
+    function renderCustomCropOutput() {
+        const path = buildCustomCropPath(customCropWidth.value, customCropHeight.value);
+        const valid = path !== null;
+        customCropBuilderPath.textContent = valid ? path : "";
+        customCropBuilderError.textContent = valid
+            ? "Custom Crop uses the supplied Width and Height without reducing the ratio."
+            : "Width and Height must be whole numbers from 1 to 10000.";
+        copyCustomCropPath.disabled = !valid;
+        copyCustomCropFull.disabled = !valid;
+        return path;
     }
 
     function selectedBuilderFamily() {
@@ -1269,6 +1327,8 @@
     builderType.addEventListener("change", renderBuilderValues);
     builderValue.addEventListener("change", renderBuilderOutput);
     builderAmount.addEventListener("input", renderBuilderOutput);
+    customCropWidth.addEventListener("input", renderCustomCropOutput);
+    customCropHeight.addEventListener("input", renderCustomCropOutput);
 
     document.getElementById("copyBuilderPath").addEventListener("click", function () {
         copyText(builderPath.textContent);
@@ -1278,9 +1338,20 @@
         copyText(apiBase + builderPath.textContent);
     });
 
+    copyCustomCropPath.addEventListener("click", function () {
+        const path = renderCustomCropOutput();
+        if (path) copyText(path);
+    });
+
+    copyCustomCropFull.addEventListener("click", function () {
+        const path = renderCustomCropOutput();
+        if (path) copyText(apiBase + path);
+    });
+
     searchEl.addEventListener("input", filterCards);
 
     initializeBuilder();
+    renderCustomCropOutput();
     setBaseHost("127.0.0.1");
     setStep(1);
 

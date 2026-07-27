@@ -74,9 +74,13 @@ async function main() {
             ...["grayscale", "color"].map((value) => ({
                 command: "photo.treatment", value
             })),
-            ...["original", "asshot"].map((mode) => ({
+            ...contract.photoCropAspects.map((mode) => ({
                 command: "photo.crop_aspect", mode
             })),
+            { command: "photo.crop_aspect", mode: "custom", w: 16, h: 10 },
+            { command: "photo.crop_aspect", mode: "custom", w: 3, h: 2 },
+            { command: "photo.crop_aspect", mode: "custom", w: 1, h: 1 },
+            { command: "photo.crop_aspect", mode: "custom", w: 10000, h: 10000 },
             { command: "photo.reveal", scope: "active" },
             ...["next", "previous", "first", "last"].map((direction) => ({
                 command: "selection.navigate", direction
@@ -143,11 +147,25 @@ async function main() {
             "/command?command=photo.treatment",
             "/command?command=photo.treatment&value=Grayscale",
             "/command?command=photo.treatment&value=grayscale&value=color",
-            "/command?command=photo.treatment&value=grayscale&mode=original",
             "/command?command=photo.crop_aspect",
-            "/command?command=photo.crop_aspect&mode=as-shot",
-            "/command?command=photo.crop_aspect&mode=original&mode=asshot",
-            "/command?command=photo.crop_aspect&mode=original&scope=active",
+            "/command?command=photo.crop_aspect&mode=",
+            "/command?command=photo.crop_aspect&mode=Original",
+            "/command?command=photo.crop_aspect&mode=3x2",
+            "/command?command=photo.crop_aspect&mode=1",
+            "/command?command=photo.crop_aspect&mode=original&mode=1x1",
+            "/command?command=photo.crop_aspect&mode=1x1&w=1&h=1",
+            "/command?command=photo.crop_aspect&mode=custom",
+            "/command?command=photo.crop_aspect&mode=custom&w=16",
+            "/command?command=photo.crop_aspect&mode=custom&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=0&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=-1&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=1.5&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=%2016&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=16%20&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=10001&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=16&w=3&h=10",
+            "/command?command=photo.crop_aspect&mode=custom&w=16&h=10&h=9",
+            "/command?command=photo.crop_aspect&mode=custom&w=16&h=10&extra=1",
             "/command?command=photo.reveal",
             "/command?command=photo.reveal&scope=Active",
             "/command?command=photo.reveal&scope=active&scope=active",
@@ -309,7 +327,7 @@ async function main() {
         for (const value of [undefined, null, true, 1, "", [], {}, "Grayscale"]) {
             invalidSelectionCommands.push({ command: "photo.treatment", value });
         }
-        for (const mode of [undefined, null, true, 1, "", [], {}, "as-shot"]) {
+        for (const mode of [undefined, null, true, 1, "", [], {}, "Original", "3x2", "1:1"]) {
             invalidSelectionCommands.push({ command: "photo.crop_aspect", mode });
         }
         for (const scope of [undefined, null, true, 1, "", [], {}, "Active"]) {
@@ -317,8 +335,24 @@ async function main() {
         }
         invalidSelectionCommands.push(
             { command: "photo.treatment", value: "color", mode: "original" },
+            { command: "photo.crop_aspect", mode: "1x1", w: 1, h: 1 },
             { command: "photo.crop_aspect", mode: "original", scope: "active" },
             { command: "photo.reveal", scope: "active", direction: "left" }
+        );
+        for (const invalidDimension of [
+            undefined, null, true, [], {}, "", "16", 0, -1, 1.5, 10001, Infinity, NaN
+        ]) {
+            invalidSelectionCommands.push({
+                command: "photo.crop_aspect", mode: "custom", w: invalidDimension, h: 10
+            });
+            invalidSelectionCommands.push({
+                command: "photo.crop_aspect", mode: "custom", w: 16, h: invalidDimension
+            });
+        }
+        invalidSelectionCommands.push(
+            { command: "photo.crop_aspect", mode: "custom", w: 16 },
+            { command: "photo.crop_aspect", mode: "custom", h: 10 },
+            { command: "photo.crop_aspect", mode: "custom", w: 16, h: 10, extra: true }
         );
         for (const amount of [undefined, null, true, "", "1", 0, -1, 1.5, 101, Infinity]) {
             invalidSelectionCommands.push({ command: "selection.extend", direction: "left", amount });

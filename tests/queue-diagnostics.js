@@ -153,7 +153,7 @@ function testCoreMetrics() {
     commands.enqueueCommand({ command: "develop.action", action: "setAutoTone" });
     commands.enqueueCommand({ command: "photo.rotate", direction: "left" });
     commands.enqueueCommand({ command: "photo.treatment", value: "grayscale" });
-    commands.enqueueCommand({ command: "photo.crop_aspect", mode: "original" });
+    commands.enqueueCommand({ command: "photo.crop_aspect", mode: "1x1" });
     commands.enqueueCommand({ command: "photo.reveal", scope: "active" });
     commands.enqueueCommand({ command: "selection.navigate", direction: "first" });
     commands.enqueueCommand({ command: "selection.extend", direction: "right", amount: 1 });

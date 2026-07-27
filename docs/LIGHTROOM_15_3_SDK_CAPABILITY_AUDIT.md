@@ -144,7 +144,7 @@ Duplicate Develop preset names are safe only if LRBridge presents names for disp
 | Undo | DIRECT | `LrUndo.undo()` | 6.0 | Global Lightroom undo stack | No requirement documented | No | No | No result; `canUndo()` queries availability | The affected operation is hidden global state and may be unrelated to LRBridge | High | `application.history&action=undo` | Undo | Defer v0.7 |
 | Redo | DIRECT | `LrUndo.redo()` | 6.0 | Global Lightroom redo stack | No requirement documented | No | No | No result; `canRedo()` queries availability | Same global-state risk | High | `application.history&action=redo` | Redo | Defer v0.7 |
 | Undo/redo availability | READ-ONLY | `LrUndo.canUndo()`, `LrUndo.canRedo()` | 6.0 | Global | No | No | No | Boolean | Does not identify the pending operation | Low | `status.application.undo` | Undo Available | Defer v0.7 |
-| Crop aspect ratio | DIRECT | `photo:quickDevelopCropAspect(aspectRatio)` | 7.4 | Current/chosen photo | No requirement documented | No gate documented | No | No return documented | Accepts `"original"`, `"asshot"`, or `{ w, h }`; crop positioning is not controlled | Low | `photo.crop_aspect&mode=original|asshot|ratio&w=…&h=…` | Crop Aspect | Implement compact presets in v0.6 |
+| Crop aspect ratio | DIRECT | `photo:quickDevelopCropAspect(aspectRatio)` | 7.4 | Current/chosen photo | No requirement documented | No gate documented | No | No return documented | Original worked as documented. Camera Crop uses `"asshot"` and may visibly match Original. Fixed ratios and validated custom integers use exact `{ w, h }` tables. LRBridge provides its own modal rather than opening Lightroom's native Enter Custom dialog. Reset Crop remains separate. | Low | `photo.crop_aspect&mode=original|asshot|1x1|2x3|4x5|5x7|16x9|16x10|custom&w=…&h=…` | Original Aspect / Camera Crop / fixed and custom ratios | Expose strict fixed mappings and validated custom dimensions in v0.6 |
 | Create snapshot | DIRECT | `photo:createDevelopSnapshot(snapshotName, updateInPlace)` | 3.0 | One photo | No task requirement documented | Required | No | Boolean success | `updateInPlace` changes same-name behavior; needs naming validation | Medium | `develop.snapshot.create&name=…&update=false` | Create Snapshot | Defer v0.7 |
 | List snapshots | READ-ONLY | `photo:getDevelopSnapshots()` | 3.2 | One photo | No requirement documented | No | No | Snapshot records/IDs | Requires list/status response architecture | Low | `develop.snapshots.list` | Snapshots | Defer v0.7 |
 | Apply snapshot | DIRECT | `photo:applyDevelopSnapshot(id)` | 3.2 | One photo | No requirement documented | No gate documented in entry | No | No return documented | Snapshot IDs are photo-specific and mutable | Medium | `develop.snapshot.apply&id=…` | Apply Snapshot | Defer v0.7 |
@@ -182,10 +182,11 @@ These use direct documented APIs, have a compact payload, and can be tested with
    - `photo.treatment&value=grayscale|color`
    - Uses `photo:quickDevelopSetTreatment(value)`.
    - Low implementation and runtime risk.
-2. **Crop Aspect: Original / As Shot**
-   - `photo.crop_aspect&mode=original|asshot`
-   - Uses `photo:quickDevelopCropAspect()`.
-   - A custom ratio can follow later after payload validation.
+2. **Crop Aspect**
+   - `photo.crop_aspect&mode=original|asshot|1x1|2x3|4x5|5x7|16x9|16x10`
+   - `photo.crop_aspect&mode=custom&w=16&h=10`
+   - Uses `photo:quickDevelopCropAspect()` with fixed mappings or exact validated integer `{ w, h }` arguments from 1 to 10000.
+   - Camera Crop may match Original; Reset Crop remains separate.
 3. **Show in Explorer**
    - `photo.reveal&scope=active`
    - Uses the documented photo path plus `LrShell.revealInShell(path)`.

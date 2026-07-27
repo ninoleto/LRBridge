@@ -43,7 +43,7 @@ const allowedSelectionDirections = ["next", "previous", "first", "last"];
 const allowedExtendDirections = ["left", "right"];
 const allowedPhotoRotateDirections = ["left", "right"];
 const allowedPhotoTreatments = ["grayscale", "color"];
-const allowedPhotoCropAspects = ["original", "asshot"];
+const allowedPhotoCropAspects = ["original", "asshot", "1x1", "2x3", "4x5", "5x7", "16x9", "16x10"];
 const allowedPhotoRevealScopes = ["active"];
 const allowedFlags = ["pick", "reject", "none"];
 const allowedRatingDirections = ["increase", "decrease"];
@@ -162,8 +162,21 @@ function validateCommand(command) {
     }
 
     if (command.command === "photo.crop_aspect") {
+        if (typeof command.mode !== "string") return false;
+
+        if (command.mode === "custom") {
+            return Object.keys(command).length === 4 &&
+                typeof command.w === "number" &&
+                Number.isSafeInteger(command.w) &&
+                command.w >= 1 &&
+                command.w <= 10000 &&
+                typeof command.h === "number" &&
+                Number.isSafeInteger(command.h) &&
+                command.h >= 1 &&
+                command.h <= 10000;
+        }
+
         return Object.keys(command).length === 2 &&
-            typeof command.mode === "string" &&
             allowedPhotoCropAspects.includes(command.mode);
     }
 

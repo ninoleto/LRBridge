@@ -494,7 +494,8 @@ The Web Controller provides:
 * `+5`
 * drag strips
 * Lightroom action buttons
-* crop/healing/red-eye/masking tool tabs
+* a dedicated Crop tab with crop tools and validated aspect-ratio presets
+* healing, red-eye, and masking tool tabs
 * human help page
 * visible slider feedback values
 
@@ -503,6 +504,17 @@ The Help button opens:
 ```text
 http://127.0.0.1:17892/help
 ```
+
+The Crop tab uses the existing validated Develop action contracts:
+
+```text
+/api/command?command=develop.action&action=selectCropTool
+/api/command?command=develop.action&action=resetCrop
+```
+
+Original Aspect changes only the crop aspect ratio. Camera Crop uses Lightroom's As Shot SDK option and may match Original when no distinct camera crop is recorded. The fixed 1:1, 2:3, 4:5, 5:7, 16:9, and 16:10 presets use validated SDK ratio mappings.
+
+Custom Crop accepts whole-number Width and Height values from 1 to 10000 and passes the exact pair through the documented SDK table form. The Web Controller opens its own Custom Crop modal; LRBridge does not open Lightroom's native Enter Custom dialog. Reset Crop remains the separate complete-crop reset workflow.
 
 Raw API help is still available through:
 

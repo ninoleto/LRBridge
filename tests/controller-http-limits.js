@@ -401,6 +401,53 @@ function testSourceIntegrationAndProductionCompatibility() {
     assert.match(proxySource, /method: "GET"/);
 }
 
+async function testHumanHelpRouteThroughControllerServer() {
+    let upstreamRequests = 0;
+    const controller = loadControllerServerForTest(function () {
+        upstreamRequests += 1;
+    });
+
+    controller.startControllerServer();
+    const server = controller.getControllerServer();
+
+    if (!server.listening) {
+        await new Promise(function (resolve, reject) {
+            server.once("listening", resolve);
+            server.once("error", reject);
+        });
+    }
+
+    try {
+        const port = server.address().port;
+        const controllerResponse = await request(port, { path: "/" });
+        assert.equal(controllerResponse.statusCode, 200);
+        assert.match(controllerResponse.headers["content-type"], /^text\/html\b/);
+        assert.match(
+            controllerResponse.body,
+            /<header class="controller-header">[\s\S]*href="\/help" target="_blank" rel="noopener"[\s\S]*>Open Help<\/a>/
+        );
+        assert.doesNotMatch(
+            controllerResponse.body,
+            /Open API Help|This page only sends commands to Lightroom Classic|class="toolbar"/
+        );
+
+        const href = controllerResponse.body.match(/class="header-help-button" href="([^"]+)"/)[1];
+        const resolvedHelpUrl = new URL(href, "http://127.0.0.1:" + port + "/");
+        assert.equal(resolvedHelpUrl.pathname, "/help");
+
+        const helpResponse = await request(port, { path: resolvedHelpUrl.pathname });
+        assert.equal(helpResponse.statusCode, 200);
+        assert.match(helpResponse.headers["content-type"], /^text\/html\b/);
+        assert.match(helpResponse.body, /<title>LRBridge Web Controller Help<\/title>/);
+        assert.match(helpResponse.body, /<h1>LRBridge Web Controller Help<\/h1>/);
+        assert.doesNotMatch(helpResponse.body, /^\s*\{/);
+        assert.doesNotMatch(helpResponse.body, /<title>LRBridge Web Controller<\/title>/);
+        assert.equal(upstreamRequests, 0, "Human help must be served locally instead of proxying raw API help");
+    } finally {
+        if (server.listening) await closeServer(server);
+    }
+}
+
 async function main() {
     testConstantsDefaultsAndPreservedProperties();
     testOverridesValidationAndAtomicity();
@@ -408,6 +455,7 @@ async function main() {
     testControllerErrorResponseStates();
     await testMalformedControllerTargetBoundary();
     await testHttpCompatibilityAndVolume();
+    await testHumanHelpRouteThroughControllerServer();
     console.log("Web Controller HTTP limit tests passed.");
 }
 

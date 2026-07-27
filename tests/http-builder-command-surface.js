@@ -60,7 +60,12 @@ function commandFromPath(pathname, type) {
 }
 
 const families = extractValue(builderSource, "const builderCommandFamilies =");
-const buildCommandPath = extractFunction(builderSource, "buildCommandPath", "selectedBuilderFamily");
+const buildCommandPath = extractFunction(builderSource, "buildCommandPath", "parseCustomCropDimension");
+const parseCustomCropDimension = extractFunction(builderSource, "parseCustomCropDimension", "buildCustomCropPath");
+const buildCustomCropPath = extractFunction(builderSource, "buildCustomCropPath", "renderCustomCropOutput", {
+    parseCustomCropDimension,
+    encodeURIComponent
+});
 const familyById = Object.fromEntries(families.map((family) => [family.id, family]));
 const developTypes = Object.fromEntries(familyById.develop.types.map((type) => [type.id, type]));
 const selectionTypes = Object.fromEntries(familyById.selection.types.map((type) => [type.id, type]));
@@ -70,7 +75,7 @@ const applicationTypes = Object.fromEntries(familyById.application.types.map((ty
 assert.deepEqual(families.map((family) => family.id), ["develop", "selection", "photo", "application"]);
 assert.equal(familyById.develop.types.filter((type) => type.valueSource).length + developTypes.action.options.length, 14);
 assert.equal(familyById.selection.types.reduce((total, type) => total + type.options.length, 0), 33);
-assert.equal(familyById.photo.types.reduce((total, type) => total + type.options.length, 0), 7);
+assert.equal(familyById.photo.types.reduce((total, type) => total + type.options.length, 0), 13);
 assert.equal(familyById.application.types.reduce((total, type) => total + type.options.length, 0), 34);
 assert.equal(
     sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length * 2 +
@@ -86,6 +91,8 @@ assert.match(builderSource, /builderFamily\.addEventListener\("change", renderBu
 assert.match(builderSource, /builderType\.addEventListener\("change", renderBuilderValues\)/);
 assert.match(builderSource, /builderValue\.addEventListener\("change", renderBuilderOutput\)/);
 assert.match(builderSource, /builderAmount\.addEventListener\("input", renderBuilderOutput\)/);
+assert.match(builderSource, /customCropWidth\.addEventListener\("input", renderCustomCropOutput\)/);
+assert.match(builderSource, /customCropHeight\.addEventListener\("input", renderCustomCropOutput\)/);
 assert.match(builderSource, /copyText\(builderPath\.textContent\)/);
 assert.match(builderSource, /copyText\(apiBase \+ builderPath\.textContent\)/);
 assert.match(builderSource, /copyText\(path\)/, "Card Copy path behavior changed");
@@ -268,9 +275,45 @@ assert.deepEqual(photoTypes.treatment.options, [
     { value: "color", label: "Color" }
 ]);
 assert.deepEqual(photoTypes["crop-aspect"].options, [
-    { value: "original", label: "Crop Original" },
-    { value: "asshot", label: "Crop As Shot" }
+    { value: "original", label: "Original Aspect" },
+    {
+        value: "asshot",
+        label: "Camera Crop",
+        description: "Uses the crop ratio recorded by the camera when available. It may match Original."
+    },
+    { value: "1x1", label: "1:1" },
+    { value: "2x3", label: "2:3" },
+    { value: "4x5", label: "4:5" },
+    { value: "5x7", label: "5:7" },
+    { value: "16x9", label: "16:9" },
+    { value: "16x10", label: "16:10" }
 ]);
+assert.equal(
+    buildCommandPath(photoTypes["crop-aspect"], "16x10"),
+    "/api/command?command=photo.crop_aspect&mode=16x10"
+);
+for (const [width, height, expected] of [
+    ["16", "10", "/api/command?command=photo.crop_aspect&mode=custom&w=16&h=10"],
+    ["3", "2", "/api/command?command=photo.crop_aspect&mode=custom&w=3&h=2"],
+    ["1", "1", "/api/command?command=photo.crop_aspect&mode=custom&w=1&h=1"],
+    ["10000", "10000", "/api/command?command=photo.crop_aspect&mode=custom&w=10000&h=10000"]
+]) {
+    assert.equal(buildCustomCropPath(width, height), expected);
+    const params = new URL("http://127.0.0.1" + expected).searchParams;
+    assert.equal(commands.validateCommand({
+        command: params.get("command"),
+        mode: params.get("mode"),
+        w: Number(params.get("w")),
+        h: Number(params.get("h"))
+    }), true);
+}
+for (const invalid of ["", "0", "-1", "1.5", " 16", "16 ", "10001", "abc"]) {
+    assert.equal(parseCustomCropDimension(invalid), null);
+    assert.equal(buildCustomCropPath(invalid, "10"), null);
+    assert.equal(buildCustomCropPath("16", invalid), null);
+}
+assert.match(builderSource, /copyCustomCropPath\.disabled = !valid/);
+assert.match(builderSource, /copyCustomCropFull\.disabled = !valid/);
 assert.deepEqual(photoTypes.reveal.options, [
     { value: "active", label: "Show in Explorer" }
 ]);
@@ -322,9 +365,12 @@ for (const [value, label] of [
 
 const controllerSelection = extractValue(controllerSource, "const selectionGroups =")
     .flatMap((group) => group.commands);
+const controllerCrop = extractValue(controllerSource, "const cropGroups =")
+    .flatMap((group) => group.commands);
 const controllerApplication = extractValue(controllerSource, "const applicationGroups =")
     .flatMap((group) => group.commands);
-assert.equal(controllerSelection.length, 35, "Main Web Controller Selection count changed");
+assert.equal(controllerSelection.length, 33, "Main Web Controller Selection count changed");
+assert.equal(controllerCrop.length, 11, "Main Web Controller Crop count changed");
 assert.equal(controllerApplication.length, 34, "Main Web Controller Application count changed");
 assert.ok(!controllerSelection.some((item) => item.command === "selection.label.toggle"), "Main controller must continue hiding label toggle");
 assert.equal(commands.validateCommand({ command: "selection.label.toggle", label: "red" }), true, "Backend label toggle support was removed");
@@ -340,4 +386,4 @@ const removedGroupResetToken = "reset-" + "group";
 assert.ok(!builderSource.toLowerCase().includes(removedGroupResetToken), "Unsafe group-reset surface remains in Builder");
 
 console.log("HTTP Builder v0.6 command-surface tests passed.");
-console.log("Validated 12 Develop actions, 33 Selection values, 7 Photo values, and 34 Application values.");
+console.log("Validated 12 Develop actions, 33 Selection values, 13 fixed Photo values, a Custom Crop generator, and 34 Application values.");

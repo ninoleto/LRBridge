@@ -155,12 +155,21 @@ for (const [label, pathPart] of [
     ["Rotate Right", "/command?command=photo.rotate&direction=right"],
     ["Black & White", "/command?command=photo.treatment&value=grayscale"],
     ["Color", "/command?command=photo.treatment&value=color"],
-    ["Crop Original", "/command?command=photo.crop_aspect&mode=original"],
-    ["Crop As Shot", "/command?command=photo.crop_aspect&mode=asshot"],
+    ["Original Aspect", "/command?command=photo.crop_aspect&mode=original"],
+    ["Camera Crop", "/command?command=photo.crop_aspect&mode=asshot"],
+    ["1:1", "/command?command=photo.crop_aspect&mode=1x1"],
+    ["2:3", "/command?command=photo.crop_aspect&mode=2x3"],
+    ["4:5", "/command?command=photo.crop_aspect&mode=4x5"],
+    ["5:7", "/command?command=photo.crop_aspect&mode=5x7"],
+    ["16:9", "/command?command=photo.crop_aspect&mode=16x9"],
+    ["16:10", "/command?command=photo.crop_aspect&mode=16x10"],
+    ["Custom Crop 16:10", "/command?command=photo.crop_aspect&mode=custom&w=16&h=10"],
     ["Show in Explorer", "/command?command=photo.reveal&scope=active"]
 ]) {
     lines.push(`| ${label} | \`${pathPart}\` | \`${fullUrl(pathPart)}\` |`);
 }
+lines.push("");
+lines.push("Custom Crop accepts whole-number `w` and `h` values from 1 to 10000 and preserves the supplied ratio. It uses Lightroom's documented SDK table form; it does not open Lightroom's native Enter Custom dialog.");
 
 lines.push("");
 lines.push("---");

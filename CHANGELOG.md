@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added a dedicated Web Controller Crop tab containing Open Crop Tool, Reset Crop, Original Aspect, Camera Crop, six fixed aspect-ratio presets, and an LRBridge Custom Crop modal.
+- Added fixed 16:10 crop support and a validated Custom Crop contract accepting exact integer Width and Height values from 1 to 10000.
 - Added a global `LRBridge Help` Plug-in Extras menu contribution to support module-independent Lightroom plug-in initialization.
 - Added SDK-native commands for current-selection navigation, flags, ratings, rating adjustment, color-label setting, and color-label toggling through the existing HTTP and WebSocket command paths.
 - Added an isolated Lightroom `LrSelection` dispatcher with source-level mapping and polling-resilience coverage.
@@ -12,6 +14,11 @@
 
 ### Changed
 
+- Fixed Lightroom polling parsing so string `value` and `scope` fields survive queue JSON transport for Photo Treatment and Show in Explorer.
+- Expanded `photo.crop_aspect` with fixed `16x10` and `custom` mode. Custom ratios preserve validated `w` and `h` integers from 1 to 10000 and use Lightroom's documented SDK table form; the Web Controller modal is not Lightroom's native Enter Custom dialog. Camera Crop may match Original; Reset Crop remains separate.
+- Controlled Lightroom Classic 15.3 testing confirmed Black & White, Color, and Show in Explorer with visible results, exact queue deltas, continued heartbeat, and no execution errors.
+- Manual Web Controller verification confirmed Open Crop Tool and all seven crop-aspect modes. The 2:3 preset and Camera Crop may correctly match Original for compatible source-photo metadata; Reset Crop remains a separate complete-crop reset.
+- Manual Web Controller verification also confirmed fixed 16:10 and Custom Crop. The exact `{ w = 16, h = 10 }` values survived the complete transport and SDK pipeline, and the LRBridge-owned Custom Crop modal worked as designed.
 - Startup now waits for the first valid Lightroom context heartbeat and admits exactly one SDK-native `application.module / library` command per bridge lifecycle. The previous Windows focus, PID-watcher, and keyboard-shortcut mechanism was removed.
 - The deprecated `/wake-lightroom` compatibility endpoint now queues the same SDK-native Library command without activating Lightroom or simulating keyboard input. New integrations should use `/command?command=application.module&module=library`.
 - Queue diagnostics now count all seven selection command families as ordinary commands without exposing their payload values.

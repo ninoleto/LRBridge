@@ -67,6 +67,40 @@ function extractJavaScriptValue(source, declaration) {
 function validateStaticContract() {
     assert.equal(packageJson.version, fixture.version, "Application version drifted");
 
+    const runtimeVerification = read("docs/V0.6_RUNTIME_VERIFICATION.md");
+    const runtimeTable = runtimeVerification
+        .split("## Complete runtime results")[1]
+        .split("## Controlled-retest notes")[0];
+    const runtimeRows = Array.from(
+        runtimeTable.matchAll(/^\|\s*\d+\s*\|[^\n]+\|\s*\*\*(PASS|FAIL|UNVERIFIED)\*\*\s*\|$/gm)
+    );
+    const runtimeCounts = { PASS: 0, FAIL: 0, UNVERIFIED: 0 };
+    for (const row of runtimeRows) runtimeCounts[row[1]] += 1;
+    const summaryTested = Number(runtimeVerification.match(/Runtime commands tested: \*\*(\d+)\*\*/)[1]);
+    const summaryPass = Number(runtimeVerification.match(/PASS: \*\*(\d+)\*\*/)[1]);
+    const summaryFail = Number(runtimeVerification.match(/FAIL: \*\*(\d+)\*\*/)[1]);
+    const summaryUnverified = Number(runtimeVerification.match(/UNVERIFIED: \*\*(\d+)\*\*/)[1]);
+    assert.deepEqual(
+        {
+            tested: runtimeRows.length,
+            pass: runtimeCounts.PASS,
+            fail: runtimeCounts.FAIL,
+            unverified: runtimeCounts.UNVERIFIED
+        },
+        {
+            tested: summaryTested,
+            pass: summaryPass,
+            fail: summaryFail,
+            unverified: summaryUnverified
+        },
+        "Runtime summary must be calculated from the complete-results table"
+    );
+    assert.deepEqual(
+        [runtimeRows.length, runtimeCounts.PASS, runtimeCounts.FAIL, runtimeCounts.UNVERIFIED],
+        [84, 83, 1, 0],
+        "Supported runtime totals drifted"
+    );
+
     const ids = sliders.map((slider) => slider.id);
     const groups = Array.from(new Set(sliders.map((slider) => slider.group)));
 
@@ -140,10 +174,14 @@ function validateStaticContract() {
     const controllerActionGroups = extractJavaScriptValue(controllerSource, "const sliderActionGroups =");
     const controllerSwitchGroups = extractJavaScriptValue(controllerSource, "const switchGroups =");
     const controllerToolTabs = extractJavaScriptValue(controllerSource, "const toolTabs =");
+    const controllerCropGroups = extractJavaScriptValue(controllerSource, "const cropGroups =");
     const controllerSliderReferences = controllerSliderGroups.flatMap((group) => group.sliders)
         .concat(controllerSwitchGroups.flatMap((group) => group.switches.map((item) => item.slider)));
     const controllerActionReferences = controllerActionGroups.flatMap((group) => group.actions.map((item) => item.action))
-        .concat(controllerToolTabs.flatMap((tab) => tab.actions.map((item) => item.action)));
+        .concat(controllerToolTabs.flatMap((tab) => tab.actions.map((item) => item.action)))
+        .concat(controllerCropGroups.flatMap((group) => group.commands
+            .filter((item) => item.command === "develop.action")
+            .map((item) => item.value)));
     for (const id of controllerSliderReferences) {
         assert.ok(ids.includes(id), "Web Controller references unknown slider " + id);
     }
@@ -400,7 +438,7 @@ async function validateHttpAndWebSocketContract() {
     const selectionCommands = [
         { command: "photo.rotate", direction: "left" },
         { command: "photo.treatment", value: "grayscale" },
-        { command: "photo.crop_aspect", mode: "original" },
+        { command: "photo.crop_aspect", mode: "4x5" },
         { command: "photo.reveal", scope: "active" },
         { command: "selection.navigate", direction: "next" },
         { command: "selection.extend", direction: "right", amount: 1 },
@@ -479,7 +517,7 @@ async function validateHttpAndWebSocketContract() {
         { command: "develop.action", action: "setAutoTone" },
         { command: "photo.rotate", direction: "right" },
         { command: "photo.treatment", value: "color" },
-        { command: "photo.crop_aspect", mode: "asshot" },
+        { command: "photo.crop_aspect", mode: "16x9" },
         { command: "photo.reveal", scope: "active" },
         { command: "selection.navigate", direction: "last" },
         { command: "selection.extend", direction: "left", amount: 100 },

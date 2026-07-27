@@ -11,20 +11,35 @@ function Parser.parse(json)
     local operation = string.match(json, [["operation":"([^"]+)"]])
     local module = string.match(json, [["module":"([^"]+)"]])
     local view = string.match(json, [["view":"([^"]+)"]])
+    local mode = string.match(json, [["mode":"([^"]+)"]])
+    local scope = string.match(json, [["scope":"([^"]+)"]])
     local rating = string.match(json, [["rating":([%-]?%d+)]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
-    local value = string.match(json, [["value":([%-]?%d+%.?%d*)]])
+    local w = string.match(json, [["w":([%-]?%d+)]])
+    local h = string.match(json, [["h":([%-]?%d+)]])
+    local value = string.match(json, [["value":"([^"]+)"]])
+
+    if value == nil then
+        value = string.match(json, [["value":([%-]?%d+%.?%d*)]])
+        if value then
+            value = tonumber(value)
+        end
+    end
 
     if amount then
         amount = tonumber(amount)
     end
 
-    if value then
-        value = tonumber(value)
-    end
-
     if rating then
         rating = tonumber(rating)
+    end
+
+    if w then
+        w = tonumber(w)
+    end
+
+    if h then
+        h = tonumber(h)
     end
 
     if command == nil then
@@ -42,7 +57,11 @@ function Parser.parse(json)
         operation = operation,
         module = module,
         view = view,
+        mode = mode,
+        scope = scope,
         amount = amount,
+        w = w,
+        h = h,
         value = value
     }
 
