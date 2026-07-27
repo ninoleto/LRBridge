@@ -6,6 +6,9 @@ const vm = require("node:vm");
 const root = path.join(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "app/controller.html"), "utf8");
 const commands = require("../server/commands");
+const controllerScript = source.match(/<script>([\s\S]*?)<\/script>/);
+assert.ok(controllerScript, "Controller script is missing");
+assert.doesNotThrow(() => new vm.Script(controllerScript[1]), "Controller JavaScript must parse");
 
 function extractJavaScriptValue(declaration) {
     const start = source.indexOf(declaration);
@@ -175,7 +178,7 @@ assert.deepEqual(
 assert.equal(selectionItems.length, 33, "Selection tab must expose exactly 33 buttons");
 assert.equal(cropItems.length, 11, "Crop tab must expose exactly 11 controls");
 assert.equal(applicationItems.length, 34, "Application tab must expose exactly 34 buttons");
-assert.deepEqual(cropGroups.map((group) => group.name), ["Crop Tool", "Aspect Ratio", "Camera Crop"]);
+assert.deepEqual(cropGroups.map((group) => group.name), ["Crop Tool", "Angle", "Aspect Ratio", "Camera Crop"]);
 assert.deepEqual(
     cropItems.map((item) => [item.label, item.customCrop ? "modal" : commandPath(item)]),
     [
@@ -202,6 +205,31 @@ for (const cropValue of ["selectCropTool", "resetCrop", "original", "1x1", "2x3"
     assert.ok(!selectionItems.concat(applicationItems).some((item) => item.value === cropValue), cropValue + " leaked into another command tab");
 }
 assert.equal(cropItems.filter((item) => item.customCrop).length, 1, "Custom Crop modal control must appear once");
+const angleGroup = cropGroups.find((group) => group.name === "Angle");
+assert.equal(angleGroup.angleControl, true);
+assert.deepEqual(angleGroup.commands, []);
+assert.equal(angleGroup.note, "Reset Angle resets only straightening. Reset Crop resets the entire crop state.");
+assert.match(source, /angleRange\.type = "range"/);
+assert.match(source, /angleRange\.min = "-45"/);
+assert.match(source, /angleRange\.max = "45"/);
+assert.match(source, /angleRange\.step = "0\.1"/);
+assert.match(source, /angleNumber\.type = "number"/);
+assert.match(source, /angleNumber\.step = "0\.01"/);
+assert.match(source, /makeButton\("Reset Angle"[\s\S]*photo\.crop_angle\.reset/);
+assert.match(source, /angleRange\.addEventListener\("input"[\s\S]*showLocalAngle\(value\)[\s\S]*scheduleAngleValue\(value\)/);
+assert.match(source, /setTimeout\(function \(\)[\s\S]*\}, 100\)/);
+assert.match(source, /angleRange\.addEventListener\("pointerup"[\s\S]*flushAngleValue/);
+assert.match(source, /if \(angleDragging[\s\S]*return/);
+assert.match(source, /applyAuthoritativeAngleFeedback\(result\.value\)/);
+assert.match(source, /sliderFeedbackElements\.CropAngle = angleValueLabel/);
+const parseAngleValue = extractJavaScriptFunction("parseAngleValue", "angleCommandPath", { Number });
+const angleCommandPath = extractJavaScriptFunction("angleCommandPath", "showLocalAngle", {
+    encodeURIComponent
+});
+assert.equal(parseAngleValue("-2.5"), -2.5);
+assert.equal(parseAngleValue("12.25"), 12.25);
+assert.equal(parseAngleValue("1.234"), null);
+assert.equal(angleCommandPath(-2.5), "/api/command?command=photo.crop_angle.set&value=-2.5");
 assert.match(source, /<h2 id="customCropTitle">Custom Crop Ratio<\/h2>/);
 assert.match(source, /id="customCropWidth"[^>]*value="16"/);
 assert.match(source, /id="customCropHeight"[^>]*value="10"/);

@@ -7,7 +7,10 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 const selection = read("lightroom/LRBridge.lrplugin/Selection.lua");
 const application = read("lightroom/LRBridge.lrplugin/Application.lua");
 const photo = read("lightroom/LRBridge.lrplugin/Photo.lua");
+const crop = read("lightroom/LRBridge.lrplugin/Crop.lua");
 const parser = read("lightroom/LRBridge.lrplugin/Parser.lua");
+const query = read("lightroom/LRBridge.lrplugin/Query.lua");
+const feedbackPolling = read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua");
 const dispatcher = read("lightroom/LRBridge.lrplugin/Commands.lua");
 const driver = read("lightroom/LRBridge.lrplugin/Driver.lua");
 const automaticPolling = read("lightroom/LRBridge.lrplugin/AutoStartPolling.lua");
@@ -57,6 +60,8 @@ const commandDispatch = {
     "photo.rotate": "Photo.rotate(command.direction)",
     "photo.treatment": "Photo.setTreatment(command.value)",
     "photo.crop_aspect": "Photo.setCropAspect(command.mode, command.w, command.h)",
+    "photo.crop_angle.set": "Crop.setAngle(command.value)",
+    "photo.crop_angle.reset": "Crop.resetAngle()",
     "photo.reveal": "Photo.reveal(command.scope)",
     "selection.navigate": "Selection.navigate(command.direction)",
     "selection.extend": "Selection.extend(command.direction, command.amount)",
@@ -112,6 +117,17 @@ assert.match(photo, /type\(w\) ~= "number"[\s\S]*w % 1 ~= 0[\s\S]*w < 1[\s\S]*w 
 assert.match(photo, /type\(h\) ~= "number"[\s\S]*h % 1 ~= 0[\s\S]*h < 1[\s\S]*h > 10000/);
 assert.match(photo, /activePhoto\(\):quickDevelopCropAspect\(\{ w = w, h = h \}\)/);
 assert.doesNotMatch(photo, /tonumber\(mode\)|string\.match\(mode|loadstring|load\s*\(/);
+assert.match(crop, /local angleParameter = "straightenAngle"/);
+assert.match(crop, /LrDevelopController\.getRange\(angleParameter\)/);
+assert.match(crop, /LrDevelopController\.startTracking\(angleParameter\)/);
+assert.match(crop, /LrDevelopController\.setValue\(angleParameter, value\)/);
+assert.match(crop, /LrDevelopController\.resetToDefault\(angleParameter\)/);
+assert.match(crop, /LrApplicationView\.getCurrentModuleName\(\)/);
+assert.match(crop, /LrApplication\.activeCatalog\(\):getTargetPhoto\(\)/);
+assert.doesNotMatch(crop, /resetCrop|quickDevelopCropAspect|getDevelopSettings|applyDevelopSettings|stopTracking|keyboard|menu|mouse|shell/i);
+assert.match(query, /CropAngle = "straightenAngle"/);
+assert.match(query, /LrDevelopController\.getValue\(param\)/);
+assert.match(feedbackPolling, /"CropAngle"/);
 assert.match(photo, /activePhoto\(\):getRawMetadata\("path"\)/);
 assert.match(photo, /type\(path\) ~= "string" or path == ""/);
 assert.match(photo, /LrFileUtils\.exists\(path\) ~= "file"/);

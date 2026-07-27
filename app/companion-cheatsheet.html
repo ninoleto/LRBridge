@@ -494,6 +494,24 @@
                     <button id="copyCustomCropFull">Copy full URL</button>
                 </div>
             </div>
+            <h3>Crop Angle</h3>
+            <p>Set the documented <code>straightenAngle</code> parameter from -45° to +45°, or reset only that adjustment.</p>
+            <div class="builder-form">
+                <div class="builder-field">
+                    <label for="cropAngleValue">Angle</label>
+                    <input id="cropAngleValue" type="number" min="-45" max="45" step="0.01" value="0">
+                </div>
+            </div>
+            <div class="builder-output">
+                <div id="cropAngleBuilderError" class="builder-description"></div>
+                <div id="cropAngleBuilderPath" class="path"></div>
+                <div class="button-row">
+                    <button id="copyCropAnglePath" class="primary">Copy path</button>
+                    <button id="copyCropAngleFull">Copy full URL</button>
+                    <button id="copyResetCropAnglePath">Copy Reset Angle path</button>
+                    <button id="copyResetCropAngleFull">Copy Reset Angle full URL</button>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -549,6 +567,11 @@
     const customCropBuilderPath = document.getElementById("customCropBuilderPath");
     const copyCustomCropPath = document.getElementById("copyCustomCropPath");
     const copyCustomCropFull = document.getElementById("copyCustomCropFull");
+    const cropAngleValue = document.getElementById("cropAngleValue");
+    const cropAngleBuilderError = document.getElementById("cropAngleBuilderError");
+    const cropAngleBuilderPath = document.getElementById("cropAngleBuilderPath");
+    const copyCropAnglePath = document.getElementById("copyCropAnglePath");
+    const copyCropAngleFull = document.getElementById("copyCropAngleFull");
 
     const builderCommandFamilies = [
         {
@@ -891,6 +914,30 @@
             : "Width and Height must be whole numbers from 1 to 10000.";
         copyCustomCropPath.disabled = !valid;
         copyCustomCropFull.disabled = !valid;
+        return path;
+    }
+
+    function parseCropAngleValue(value) {
+        if (typeof value !== "string" || !/^-?\d+(?:\.\d{1,2})?$/.test(value)) return null;
+        const number = Number(value);
+        return Number.isFinite(number) && number >= -45 && number <= 45 ? number : null;
+    }
+
+    function buildCropAnglePath(value) {
+        const angle = parseCropAngleValue(value);
+        if (angle === null) return null;
+        return "/api/command?command=photo.crop_angle.set&value=" + encodeURIComponent(String(angle));
+    }
+
+    function renderCropAngleOutput() {
+        const path = buildCropAnglePath(cropAngleValue.value);
+        const valid = path !== null;
+        cropAngleBuilderPath.textContent = valid ? path : "";
+        cropAngleBuilderError.textContent = valid
+            ? "Crop Angle uses Lightroom's straightenAngle Develop parameter."
+            : "Angle must be from -45 to 45 with at most two decimal places.";
+        copyCropAnglePath.disabled = !valid;
+        copyCropAngleFull.disabled = !valid;
         return path;
     }
 
@@ -1329,6 +1376,7 @@
     builderAmount.addEventListener("input", renderBuilderOutput);
     customCropWidth.addEventListener("input", renderCustomCropOutput);
     customCropHeight.addEventListener("input", renderCustomCropOutput);
+    cropAngleValue.addEventListener("input", renderCropAngleOutput);
 
     document.getElementById("copyBuilderPath").addEventListener("click", function () {
         copyText(builderPath.textContent);
@@ -1348,10 +1396,29 @@
         if (path) copyText(apiBase + path);
     });
 
+    copyCropAnglePath.addEventListener("click", function () {
+        const path = renderCropAngleOutput();
+        if (path) copyText(path);
+    });
+
+    copyCropAngleFull.addEventListener("click", function () {
+        const path = renderCropAngleOutput();
+        if (path) copyText(apiBase + path);
+    });
+
+    document.getElementById("copyResetCropAnglePath").addEventListener("click", function () {
+        copyText("/api/command?command=photo.crop_angle.reset");
+    });
+
+    document.getElementById("copyResetCropAngleFull").addEventListener("click", function () {
+        copyText(apiBase + "/api/command?command=photo.crop_angle.reset");
+    });
+
     searchEl.addEventListener("input", filterCards);
 
     initializeBuilder();
     renderCustomCropOutput();
+    renderCropAngleOutput();
     setBaseHost("127.0.0.1");
     setStep(1);
 

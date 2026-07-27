@@ -41,6 +41,8 @@
     "photo.rotate",
     "photo.treatment",
     "photo.crop_aspect",
+    "photo.crop_angle.set",
+    "photo.crop_angle.reset",
     "photo.reveal",
     "selection.navigate",
     "selection.extend",

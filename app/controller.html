@@ -552,6 +552,39 @@
             gap: 8px;
         }
 
+        .angle-control {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) 100px auto auto;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .angle-control input[type="range"] {
+            width: 100%;
+        }
+
+        .angle-control input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #405263;
+            border-radius: 6px;
+            padding: 8px;
+            background: #080c10;
+            color: #f4f7fa;
+        }
+
+        .angle-value {
+            min-width: 58px;
+            color: #7cc7ff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        @media (max-width: 680px) {
+            .angle-control {
+                grid-template-columns: 1fr 90px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1049,6 +1082,12 @@
                                 { "label": "Open Crop Tool", "command": "develop.action", "field": "action", "value": "selectCropTool", "className": "command-primary" },
                                 { "label": "Reset Crop", "command": "develop.action", "field": "action", "value": "resetCrop", "className": "command-neutral" }
                         ]
+                },
+                {
+                        "name": "Angle",
+                        "note": "Reset Angle resets only straightening. Reset Crop resets the entire crop state.",
+                        "angleControl": true,
+                        "commands": []
                 },
                 {
                         "name": "Aspect Ratio",
@@ -1549,6 +1588,7 @@
         }
 
         const feedbackSupportedSliders = new Set([
+            "CropAngle",
             "Exposure",
             "Contrast",
             "Highlights",
@@ -1702,6 +1742,12 @@
         }
 
 
+
+        function formatAngleValue(value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) return "--°";
+            return String(Math.round(numericValue * 100) / 100) + "°";
+        }
 
         function setSliderFeedback(slider, text, className) {
 
@@ -1914,7 +1960,11 @@
                         return;
                     }
 
-                    setSliderFeedback(slider, "Lightroom: " + formatSliderFeedbackValue(result.value), "active");
+                    if (slider === "CropAngle") {
+                        applyAuthoritativeAngleFeedback(result.value);
+                    } else {
+                        setSliderFeedback(slider, "Lightroom: " + formatSliderFeedbackValue(result.value), "active");
+                    }
                 });
             } catch (err) {
                 /* Ignore temporary feedback polling errors. */
@@ -2190,6 +2240,152 @@
             }).join("&");
         }
 
+        let angleRange = null;
+        let angleNumber = null;
+        let angleValueLabel = null;
+        let angleDragging = false;
+        let angleRequestInFlight = false;
+        let pendingAngleValue = null;
+        let lastSubmittedAngleValue = null;
+        let angleThrottleTimer = null;
+        let numericAngleCommittedValue = null;
+
+        function parseAngleValue(value) {
+            if (typeof value !== "string" || !/^-?\d+(?:\.\d{1,2})?$/.test(value)) return null;
+            const number = Number(value);
+            return Number.isFinite(number) && number >= -45 && number <= 45 ? number : null;
+        }
+
+        function angleCommandPath(value) {
+            return "/api/command?command=photo.crop_angle.set&value=" + encodeURIComponent(String(value));
+        }
+
+        function showLocalAngle(value) {
+            if (angleRange) angleRange.value = String(value);
+            if (angleNumber) angleNumber.value = String(value);
+            if (angleValueLabel) angleValueLabel.textContent = formatAngleValue(value);
+        }
+
+        function applyAuthoritativeAngleFeedback(value) {
+            const numericValue = Number(value);
+            if (angleDragging || !Number.isFinite(numericValue) || numericValue < -45 || numericValue > 45) return;
+            showLocalAngle(Math.round(numericValue * 100) / 100);
+            numericAngleCommittedValue = Number(angleNumber.value);
+        }
+
+        async function submitAngleValue(value) {
+            if (value === lastSubmittedAngleValue && !angleRequestInFlight) return;
+
+            if (angleRequestInFlight) {
+                pendingAngleValue = value;
+                return;
+            }
+
+            angleRequestInFlight = true;
+            lastSubmittedAngleValue = value;
+            await sendCommand(angleCommandPath(value));
+            angleRequestInFlight = false;
+
+            if (pendingAngleValue !== null) {
+                const nextValue = pendingAngleValue;
+                pendingAngleValue = null;
+                if (nextValue !== lastSubmittedAngleValue) submitAngleValue(nextValue);
+            }
+        }
+
+        function scheduleAngleValue(value) {
+            pendingAngleValue = value;
+            if (angleThrottleTimer !== null) return;
+
+            angleThrottleTimer = setTimeout(function () {
+                angleThrottleTimer = null;
+                const nextValue = pendingAngleValue;
+                pendingAngleValue = null;
+                if (nextValue !== null) submitAngleValue(nextValue);
+            }, 100);
+        }
+
+        function flushAngleValue(value) {
+            if (angleThrottleTimer !== null) {
+                clearTimeout(angleThrottleTimer);
+                angleThrottleTimer = null;
+            }
+            pendingAngleValue = null;
+            submitAngleValue(value);
+        }
+
+        function renderAngleControls(groupElement) {
+            const row = document.createElement("div");
+            row.className = "angle-control";
+
+            angleRange = document.createElement("input");
+            angleRange.type = "range";
+            angleRange.min = "-45";
+            angleRange.max = "45";
+            angleRange.step = "0.1";
+            angleRange.value = "0";
+            angleRange.setAttribute("aria-label", "Crop Angle");
+
+            angleNumber = document.createElement("input");
+            angleNumber.type = "number";
+            angleNumber.min = "-45";
+            angleNumber.max = "45";
+            angleNumber.step = "0.01";
+            angleNumber.value = "0";
+            angleNumber.setAttribute("aria-label", "Crop Angle numeric value");
+
+            angleValueLabel = document.createElement("span");
+            angleValueLabel.className = "angle-value";
+            angleValueLabel.textContent = "0°";
+
+            const resetButton = makeButton("Reset Angle", "command-neutral", function () {
+                sendCommand("/api/command?command=photo.crop_angle.reset");
+            });
+
+            angleRange.addEventListener("pointerdown", function () {
+                angleDragging = true;
+            });
+            angleRange.addEventListener("input", function () {
+                const value = Number(angleRange.value);
+                showLocalAngle(value);
+                scheduleAngleValue(value);
+            });
+            angleRange.addEventListener("pointerup", function () {
+                angleDragging = false;
+                flushAngleValue(Number(angleRange.value));
+            });
+            angleRange.addEventListener("change", function () {
+                angleDragging = false;
+                flushAngleValue(Number(angleRange.value));
+            });
+
+            function commitNumericAngle() {
+                const value = parseAngleValue(angleNumber.value);
+                if (value === null) {
+                    setStatus("ERROR: Crop Angle must be between -45 and 45 with at most two decimal places.");
+                    return;
+                }
+                if (value !== numericAngleCommittedValue) {
+                    showLocalAngle(value);
+                    numericAngleCommittedValue = value;
+                    flushAngleValue(value);
+                }
+            }
+
+            angleNumber.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") commitNumericAngle();
+            });
+            angleNumber.addEventListener("blur", commitNumericAngle);
+
+            row.appendChild(angleRange);
+            row.appendChild(angleNumber);
+            row.appendChild(angleValueLabel);
+            row.appendChild(resetButton);
+            groupElement.appendChild(row);
+            sliderFeedbackElements.CropAngle = angleValueLabel;
+            numericAngleCommittedValue = 0;
+        }
+
         function renderCommandGroups(groups) {
             for (const group of groups) {
                 const groupElement = document.createElement("section");
@@ -2209,6 +2405,12 @@
 
                 const grid = document.createElement("div");
                 grid.className = "command-grid";
+
+                if (group.angleControl) {
+                    renderAngleControls(groupElement);
+                    content.appendChild(groupElement);
+                    continue;
+                }
 
                 for (const item of group.commands) {
                     grid.appendChild(makeButton(item.label, item.className || "command-primary", function () {

@@ -171,6 +171,25 @@ async function testCoreQueue() {
         acrossType.forEach(commands.enqueueCommand);
         assert.deepEqual(drain(), acrossType);
 
+        commands.enqueueCommand({ command: "photo.crop_angle.set", value: -2.5 });
+        commands.enqueueCommand({ command: "selection.navigate", direction: "next" });
+        let angleAdmission = commands.tryEnqueueCommand({ command: "photo.crop_angle.set", value: 12.25 });
+        assert.equal(angleAdmission.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(drain(), [
+            { command: "selection.navigate", direction: "next" },
+            { command: "photo.crop_angle.set", value: 12.25 }
+        ], "latest angle must win while unrelated command ordering is preserved");
+
+        commands.enqueueCommand({ command: "photo.crop_angle.set", value: 10 });
+        angleAdmission = commands.tryEnqueueCommand({ command: "photo.crop_angle.reset" });
+        assert.equal(angleAdmission.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(drain(), [{ command: "photo.crop_angle.reset" }]);
+
+        commands.enqueueCommand({ command: "photo.crop_angle.reset" });
+        angleAdmission = commands.tryEnqueueCommand({ command: "photo.crop_angle.set", value: -5 });
+        assert.equal(angleAdmission.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(drain(), [{ command: "photo.crop_angle.set", value: -5 }]);
+
         const selectionBarriers = [
             { command: "develop.adjust", slider: "Exposure", amount: 1 },
             { command: "selection.navigate", direction: "previous" },

@@ -3,6 +3,7 @@ local LrDevelopController = import "LrDevelopController"
 local Query = {}
 
 local developControllerMap = {
+    CropAngle = "straightenAngle",
     Exposure = "Exposure",
     Contrast = "Contrast",
     Highlights = "Highlights",

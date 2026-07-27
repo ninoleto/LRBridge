@@ -3,6 +3,7 @@ local Query = require "Query"
 local Selection = require "Selection"
 local Application = require "Application"
 local Photo = require "Photo"
+local Crop = require "Crop"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -98,6 +99,16 @@ function Commands.execute(command)
 
     if command.command == "photo.crop_aspect" then
         Photo.setCropAspect(command.mode, command.w, command.h)
+        return
+    end
+
+    if command.command == "photo.crop_angle.set" then
+        Crop.setAngle(command.value)
+        return
+    end
+
+    if command.command == "photo.crop_angle.reset" then
+        Crop.resetAngle()
         return
     end
 

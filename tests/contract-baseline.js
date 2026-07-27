@@ -97,7 +97,7 @@ function validateStaticContract() {
     );
     assert.deepEqual(
         [runtimeRows.length, runtimeCounts.PASS, runtimeCounts.FAIL, runtimeCounts.UNVERIFIED],
-        [84, 83, 1, 0],
+        [86, 85, 1, 0],
         "Supported runtime totals drifted"
     );
 
@@ -160,7 +160,11 @@ function validateStaticContract() {
     const readableIds = ids.filter((id) => !fixture.nonReadableSliders.includes(id));
 
     assert.deepEqual(driverIds, ids, "Lua Driver slider map drifted from sliders.json");
-    assert.deepEqual(sorted(queryIds), sorted(readableIds), "Lua Query readable slider set drifted from the baseline");
+    assert.deepEqual(
+        sorted(queryIds),
+        sorted(readableIds.concat(["CropAngle"])),
+        "Lua Query readable slider and dedicated Crop Angle feedback set drifted from the baseline"
+    );
     assert.deepEqual(feedbackIds, queryIds, "Lua feedback slider order or definitions drifted from Lua Query");
 
     const luaActions = Array.from(driverSource.matchAll(/^\s{4}([A-Za-z][A-Za-z0-9]*)\s*=\s*function\(\)/gm), (match) => match[1]);

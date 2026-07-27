@@ -66,6 +66,11 @@ const buildCustomCropPath = extractFunction(builderSource, "buildCustomCropPath"
     parseCustomCropDimension,
     encodeURIComponent
 });
+const parseCropAngleValue = extractFunction(builderSource, "parseCropAngleValue", "buildCropAnglePath");
+const buildCropAnglePath = extractFunction(builderSource, "buildCropAnglePath", "renderCropAngleOutput", {
+    parseCropAngleValue,
+    encodeURIComponent
+});
 const familyById = Object.fromEntries(families.map((family) => [family.id, family]));
 const developTypes = Object.fromEntries(familyById.develop.types.map((type) => [type.id, type]));
 const selectionTypes = Object.fromEntries(familyById.selection.types.map((type) => [type.id, type]));
@@ -314,6 +319,27 @@ for (const invalid of ["", "0", "-1", "1.5", " 16", "16 ", "10001", "abc"]) {
 }
 assert.match(builderSource, /copyCustomCropPath\.disabled = !valid/);
 assert.match(builderSource, /copyCustomCropFull\.disabled = !valid/);
+for (const [value, expected] of [
+    ["-45", "/api/command?command=photo.crop_angle.set&value=-45"],
+    ["45", "/api/command?command=photo.crop_angle.set&value=45"],
+    ["0", "/api/command?command=photo.crop_angle.set&value=0"],
+    ["-2.5", "/api/command?command=photo.crop_angle.set&value=-2.5"],
+    ["12.25", "/api/command?command=photo.crop_angle.set&value=12.25"]
+]) {
+    assert.equal(buildCropAnglePath(value), expected);
+    assert.equal(commands.validateCommand({
+        command: "photo.crop_angle.set",
+        value: Number(value)
+    }), true);
+}
+for (const invalid of ["", "-45.01", "45.01", "1.234", " 1", "NaN", "Infinity"]) {
+    assert.equal(parseCropAngleValue(invalid), null);
+    assert.equal(buildCropAnglePath(invalid), null);
+}
+assert.equal(commands.validateCommand({ command: "photo.crop_angle.reset" }), true);
+assert.match(builderSource, /copyCropAnglePath\.disabled = !valid/);
+assert.match(builderSource, /copyCropAngleFull\.disabled = !valid/);
+assert.match(builderSource, /copyText\("\/api\/command\?command=photo\.crop_angle\.reset"\)/);
 assert.deepEqual(photoTypes.reveal.options, [
     { value: "active", label: "Show in Explorer" }
 ]);

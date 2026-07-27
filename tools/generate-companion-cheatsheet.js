@@ -164,12 +164,16 @@ for (const [label, pathPart] of [
     ["16:9", "/command?command=photo.crop_aspect&mode=16x9"],
     ["16:10", "/command?command=photo.crop_aspect&mode=16x10"],
     ["Custom Crop 16:10", "/command?command=photo.crop_aspect&mode=custom&w=16&h=10"],
+    ["Set Crop Angle -2.5°", "/command?command=photo.crop_angle.set&value=-2.5"],
+    ["Reset Crop Angle", "/command?command=photo.crop_angle.reset"],
     ["Show in Explorer", "/command?command=photo.reveal&scope=active"]
 ]) {
     lines.push(`| ${label} | \`${pathPart}\` | \`${fullUrl(pathPart)}\` |`);
 }
 lines.push("");
 lines.push("Custom Crop accepts whole-number `w` and `h` values from 1 to 10000 and preserves the supplied ratio. It uses Lightroom's documented SDK table form; it does not open Lightroom's native Enter Custom dialog.");
+lines.push("");
+lines.push("Crop Angle uses the documented `straightenAngle` Develop parameter from -45° to +45°. Rapid pending updates coalesce to the latest state. Reset Angle resets only straightening; Reset Crop resets the complete crop state. Controlled Lightroom runtime verification passed.");
 
 lines.push("");
 lines.push("---");

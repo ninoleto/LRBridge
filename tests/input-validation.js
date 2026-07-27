@@ -81,6 +81,10 @@ async function main() {
             { command: "photo.crop_aspect", mode: "custom", w: 3, h: 2 },
             { command: "photo.crop_aspect", mode: "custom", w: 1, h: 1 },
             { command: "photo.crop_aspect", mode: "custom", w: 10000, h: 10000 },
+            ...[-45, 45, 0, -2.5, 12.25].map((value) => ({
+                command: "photo.crop_angle.set", value
+            })),
+            { command: "photo.crop_angle.reset" },
             { command: "photo.reveal", scope: "active" },
             ...["next", "previous", "first", "last"].map((direction) => ({
                 command: "selection.navigate", direction
@@ -166,6 +170,18 @@ async function main() {
             "/command?command=photo.crop_aspect&mode=custom&w=16&w=3&h=10",
             "/command?command=photo.crop_aspect&mode=custom&w=16&h=10&h=9",
             "/command?command=photo.crop_aspect&mode=custom&w=16&h=10&extra=1",
+            "/command?command=photo.crop_angle.set",
+            "/command?command=photo.crop_angle.set&value=",
+            "/command?command=photo.crop_angle.set&value=%20",
+            "/command?command=photo.crop_angle.set&value=-45.01",
+            "/command?command=photo.crop_angle.set&value=45.01",
+            "/command?command=photo.crop_angle.set&value=1.234",
+            "/command?command=photo.crop_angle.set&value=NaN",
+            "/command?command=photo.crop_angle.set&value=Infinity",
+            "/command?command=photo.crop_angle.set&value=1&value=2",
+            "/command?command=photo.crop_angle.set&value=1&mode=original",
+            "/command?command=photo.crop_angle.reset&value=0",
+            "/command?command=photo.crop_angle.reset&mode=original",
             "/command?command=photo.reveal",
             "/command?command=photo.reveal&scope=Active",
             "/command?command=photo.reveal&scope=active&scope=active",
@@ -295,6 +311,17 @@ async function main() {
         result = await getJson(httpPort, "/feedback/result?id=" + feedbackId + "&slider=Exposure&value=-0.5");
         assert.equal(result.statusCode, 200);
         assert.deepEqual(result.body.result.id, feedbackId);
+
+        result = await getJson(httpPort, "/feedback/request?slider=CropAngle");
+        const cropAngleFeedbackId = result.body.request.id;
+        result = await getJson(
+            httpPort,
+            "/feedback/result?id=" + cropAngleFeedbackId + "&slider=CropAngle&value=-2.5"
+        );
+        assert.equal(result.statusCode, 200);
+        result = await getJson(httpPort, "/feedback/value?slider=CropAngle");
+        assert.equal(result.body.result.value, -2.5);
+        result = await getJson(httpPort, "/feedback/value?slider=Exposure");
         assert.equal(result.body.result.value, -0.5);
         result = await getJson(httpPort, "/feedback/result?id=0&slider=Exposure&value=0");
         assert.equal(result.statusCode, 200);
@@ -337,6 +364,8 @@ async function main() {
             { command: "photo.treatment", value: "color", mode: "original" },
             { command: "photo.crop_aspect", mode: "1x1", w: 1, h: 1 },
             { command: "photo.crop_aspect", mode: "original", scope: "active" },
+            { command: "photo.crop_angle.reset", value: 0 },
+            { command: "photo.crop_angle.reset", extra: true },
             { command: "photo.reveal", scope: "active", direction: "left" }
         );
         for (const invalidDimension of [
@@ -354,6 +383,12 @@ async function main() {
             { command: "photo.crop_aspect", mode: "custom", h: 10 },
             { command: "photo.crop_aspect", mode: "custom", w: 16, h: 10, extra: true }
         );
+        for (const value of [
+            undefined, null, true, [], {}, "", "0", NaN, Infinity, -Infinity,
+            -45.01, 45.01, 1.234
+        ]) {
+            invalidSelectionCommands.push({ command: "photo.crop_angle.set", value });
+        }
         for (const amount of [undefined, null, true, "", "1", 0, -1, 1.5, 101, Infinity]) {
             invalidSelectionCommands.push({ command: "selection.extend", direction: "left", amount });
         }

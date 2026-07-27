@@ -6,6 +6,7 @@
 
 - Added a dedicated Web Controller Crop tab containing Open Crop Tool, Reset Crop, Original Aspect, Camera Crop, six fixed aspect-ratio presets, and an LRBridge Custom Crop modal.
 - Added fixed 16:10 crop support and a validated Custom Crop contract accepting exact integer Width and Height values from 1 to 10000.
+- Added SDK-native Crop Angle controls using the documented `straightenAngle` parameter, authoritative Lightroom feedback, latest-state queue coalescing, and a straightening-only Reset Angle command. Controlled Web Controller verification passed for the range slider, numeric input, visible Lightroom behavior, feedback, and Reset Angle.
 - Added a global `LRBridge Help` Plug-in Extras menu contribution to support module-independent Lightroom plug-in initialization.
 - Added SDK-native commands for current-selection navigation, flags, ratings, rating adjustment, color-label setting, and color-label toggling through the existing HTTP and WebSocket command paths.
 - Added an isolated Lightroom `LrSelection` dispatcher with source-level mapping and polling-resilience coverage.

@@ -87,6 +87,14 @@ local function commandParameter(command)
         return command.scope
     end
 
+    if command.command == "photo.crop_angle.set" then
+        return command.value
+    end
+
+    if command.command == "photo.crop_angle.reset" then
+        return nil
+    end
+
     return command.slider
 
 end
@@ -135,7 +143,14 @@ LrTasks.startAsyncTask(function()
             local command = Parser.parse(result)
 
             if command ~= nil then
-                log("command received: " .. tostring(command.command) .. " " .. tostring(commandParameter(command)))
+                local parameter = commandParameter(command)
+                local diagnostic = "command received: " .. tostring(command.command)
+
+                if parameter ~= nil then
+                    diagnostic = diagnostic .. " " .. tostring(parameter)
+                end
+
+                log(diagnostic)
 
                 executeCommand(command)
             end

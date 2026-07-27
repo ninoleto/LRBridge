@@ -58,6 +58,11 @@ const feedbackRequests = [];
 const feedbackValues = {};
 let feedbackRequestId = 0;
 let startupLibraryQueued = false;
+const dedicatedFeedbackParameters = new Set(["CropAngle"]);
+
+function isFeedbackParameter(value) {
+    return sliders.exists(value) || dedicatedFeedbackParameters.has(value);
+}
 
 function queueCommand(command) {
     return commands.tryEnqueueCommand(command);
@@ -162,6 +167,8 @@ app.get("/help", function (req, res) {
             setPhotoCropAspect: "/command?command=photo.crop_aspect&mode=1x1",
             setPhotoCropAspect16x10: "/command?command=photo.crop_aspect&mode=16x10",
             setCustomPhotoCropAspect: "/command?command=photo.crop_aspect&mode=custom&w=16&h=10",
+            setPhotoCropAngle: "/command?command=photo.crop_angle.set&value=-2.5",
+            resetPhotoCropAngle: "/command?command=photo.crop_angle.reset",
             revealPhoto: "/command?command=photo.reveal&scope=active",
             openCropTool: "/command?command=develop.action&action=selectCropTool",
             resetCrop: "/command?command=develop.action&action=resetCrop",
@@ -293,14 +300,34 @@ app.get("/command", function (req, res) {
         }
     }
 
+    if (commandName === "photo.crop_angle.set" || commandName === "photo.crop_angle.reset") {
+        const allowedQueryFields = commandName === "photo.crop_angle.set"
+            ? new Set(["command", "value"])
+            : new Set(["command"]);
+
+        if (Object.keys(req.query).some(function (field) {
+            return !allowedQueryFields.has(field);
+        })) {
+            command.invalidQueryField = true;
+        }
+    }
+
     if (req.query.amount !== undefined) {
         command.amount = numbers.parseFiniteNumber(req.query.amount);
     }
 
     if (req.query.value !== undefined) {
-        command.value = commandName === "photo.treatment"
-            ? req.query.value
-            : numbers.parseFiniteNumber(req.query.value);
+        if (commandName === "photo.treatment") {
+            command.value = req.query.value;
+        } else if (commandName === "photo.crop_angle.set") {
+            const rawValue = req.query.value;
+            command.value = typeof rawValue === "string" &&
+                /^-?\d+(?:\.\d{1,2})?$/.test(rawValue)
+                ? Number(rawValue)
+                : rawValue;
+        } else {
+            command.value = numbers.parseFiniteNumber(req.query.value);
+        }
     }
 
     if (req.query.rating !== undefined) {
@@ -437,7 +464,7 @@ app.get("/last-result", function (req, res) {
 app.get("/feedback/request", function (req, res) {
     const slider = req.query.slider;
 
-    if (!sliders.exists(slider)) {
+    if (!isFeedbackParameter(slider)) {
         res.status(400).json({
             ok: false,
             error: "Unknown slider",
@@ -506,7 +533,7 @@ app.get("/feedback/request-many", function (req, res) {
     const validSliders = [];
 
     requestedSliders.forEach(function (slider) {
-        if (sliders.exists(slider) && !validSliders.includes(slider)) {
+        if (isFeedbackParameter(slider) && !validSliders.includes(slider)) {
             validSliders.push(slider);
         }
     });
@@ -559,7 +586,7 @@ app.get("/feedback/result", function (req, res) {
     const numericValue = numbers.parseFiniteNumber(rawValue);
     const requestId = numbers.parseFiniteInteger(req.query.id);
 
-    if (!sliders.exists(slider)) {
+    if (!isFeedbackParameter(slider)) {
         res.status(400).json({
             ok: false,
             error: "Unknown slider",
@@ -604,7 +631,7 @@ app.get("/feedback/result", function (req, res) {
 app.get("/feedback/value", function (req, res) {
     const slider = req.query.slider;
 
-    if (!sliders.exists(slider)) {
+    if (!isFeedbackParameter(slider)) {
         res.status(400).json({
             ok: false,
             error: "Unknown slider",

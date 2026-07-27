@@ -33,6 +33,7 @@ local function log(message)
 end
 
 local watchedSliders = {
+    "CropAngle",
     "Exposure",
     "Contrast",
     "Highlights",

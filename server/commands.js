@@ -110,6 +110,8 @@ function validateCommand(command) {
         "photo.rotate",
         "photo.treatment",
         "photo.crop_aspect",
+        "photo.crop_angle.set",
+        "photo.crop_angle.reset",
         "photo.reveal",
         "selection.navigate",
         "selection.extend",
@@ -178,6 +180,19 @@ function validateCommand(command) {
 
         return Object.keys(command).length === 2 &&
             allowedPhotoCropAspects.includes(command.mode);
+    }
+
+    if (command.command === "photo.crop_angle.set") {
+        return Object.keys(command).length === 2 &&
+            typeof command.value === "number" &&
+            Number.isFinite(command.value) &&
+            command.value >= -45 &&
+            command.value <= 45 &&
+            Math.abs(command.value * 100 - Math.round(command.value * 100)) < 1e-9;
+    }
+
+    if (command.command === "photo.crop_angle.reset") {
+        return Object.keys(command).length === 1;
     }
 
     if (command.command === "photo.reveal") {
@@ -306,6 +321,31 @@ function tryEnqueueCommand(command) {
         }
     }
 
+    if (
+        command.command === "photo.crop_angle.set" ||
+        command.command === "photo.crop_angle.reset"
+    ) {
+        const admittedAt = Date.now();
+
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+
+            if (
+                pending.command === "photo.crop_angle.set" ||
+                pending.command === "photo.crop_angle.reset"
+            ) {
+                commandQueue.splice(index, 1);
+                queueEntryMetadata.splice(index, 1);
+                commandQueue.push(command);
+                queueEntryMetadata.push({ enqueuedAt: admittedAt });
+                coalescedCommands += 1;
+                lastCoalescedAt = admittedAt;
+                console.log("Coalesced crop angle command:", command);
+                return admissionResult(ADMISSION_COALESCED);
+            }
+        }
+    }
+
     const limit = isProtectedCommand(command)
         ? HARD_QUEUE_CAPACITY
         : ORDINARY_ADMISSION_CEILING;
@@ -397,6 +437,8 @@ function getQueueDiagnostics(nowMs) {
         "photo.rotate": 0,
         "photo.treatment": 0,
         "photo.crop_aspect": 0,
+        "photo.crop_angle.set": 0,
+        "photo.crop_angle.reset": 0,
         "photo.reveal": 0,
         "selection.navigate": 0,
         "selection.extend": 0,
@@ -446,6 +488,8 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["photo.rotate"] +
                     pendingByCommand["photo.treatment"] +
                     pendingByCommand["photo.crop_aspect"] +
+                    pendingByCommand["photo.crop_angle.set"] +
+                    pendingByCommand["photo.crop_angle.reset"] +
                     pendingByCommand["photo.reveal"] +
                     pendingByCommand["selection.navigate"] +
                     pendingByCommand["selection.extend"] +

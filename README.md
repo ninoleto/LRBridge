@@ -516,6 +516,8 @@ Original Aspect changes only the crop aspect ratio. Camera Crop uses Lightroom's
 
 Custom Crop accepts whole-number Width and Height values from 1 to 10000 and passes the exact pair through the documented SDK table form. The Web Controller opens its own Custom Crop modal; LRBridge does not open Lightroom's native Enter Custom dialog. Reset Crop remains the separate complete-crop reset workflow.
 
+Crop Angle uses Lightroom's documented `straightenAngle` Develop parameter from -45° to +45°. The Crop tab provides synchronized range and numeric inputs, real Lightroom polling feedback, and a Reset Angle control that resets only straightening. Rapid pending angle updates coalesce so the latest requested state wins. Controlled Lightroom runtime verification passed for both inputs and Reset Angle.
+
 Raw API help is still available through:
 
 ```text

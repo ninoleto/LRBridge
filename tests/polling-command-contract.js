@@ -26,6 +26,9 @@ const acceptedCommands = [
     { command: "photo.crop_aspect", mode: "16x10" },
     { command: "photo.crop_aspect", mode: "custom", w: 16, h: 10 },
     { command: "photo.crop_aspect", mode: "custom", w: 21, h: 9 },
+    { command: "photo.crop_angle.set", value: -2.5 },
+    { command: "photo.crop_angle.set", value: 12.25 },
+    { command: "photo.crop_angle.reset" },
     { command: "photo.reveal", scope: "active" },
     { command: "photo.rotate", direction: "left" },
     { command: "selection.extend", direction: "right", amount: 3 },
@@ -36,13 +39,10 @@ const acceptedCommands = [
 commands.resetQueueForTests();
 for (const command of acceptedCommands) {
     assert.equal(commands.enqueueCommand(command), true);
-}
-
-for (const expected of acceptedCommands) {
     const pollingResponse = JSON.stringify({ command: commands.getNextCommand() });
     assert.deepEqual(
         JSON.parse(pollingResponse).command,
-        expected,
+        command,
         "Polling JSON changed an accepted command"
     );
 }
@@ -84,5 +84,8 @@ assert.match(
     polling,
     /command\.mode == "custom"[\s\S]*command\.mode \.\. " " \.\. tostring\(command\.w\) \.\. "x" \.\. tostring\(command\.h\)/
 );
+assert.match(polling, /command\.command == "photo\.crop_angle\.set"[\s\S]*return command\.value/);
+assert.match(polling, /command\.command == "photo\.crop_angle\.reset"[\s\S]*return nil/);
+assert.match(polling, /if parameter ~= nil then[\s\S]*diagnostic = diagnostic \.\. " " \.\. tostring\(parameter\)/);
 
 console.log("Polling command serialization and Lua parser field contract tests passed.");

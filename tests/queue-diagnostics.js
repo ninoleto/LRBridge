@@ -43,6 +43,8 @@ function emptyDiagnostics() {
                     "photo.rotate": 0,
                     "photo.treatment": 0,
                     "photo.crop_aspect": 0,
+                    "photo.crop_angle.set": 0,
+                    "photo.crop_angle.reset": 0,
                     "photo.reveal": 0,
                     "selection.navigate": 0,
                     "selection.extend": 0,
@@ -78,6 +80,21 @@ function silenceLogs(work) {
     const originalLog = console.log;
     console.log = function () {};
     try { return work(); } finally { console.log = originalLog; }
+}
+
+function testCropAngleCoalescingMetrics() {
+    commands.resetQueueForTests();
+    commands.enqueueCommand({ command: "photo.crop_angle.set", value: -2.5 });
+    commands.tryEnqueueCommand({ command: "photo.crop_angle.reset" });
+    commands.tryEnqueueCommand({ command: "photo.crop_angle.set", value: 12.25 });
+    const diagnostics = commands.getQueueDiagnostics();
+    assert.equal(diagnostics.queue.pending.byCommand["photo.crop_angle.set"], 1);
+    assert.equal(diagnostics.queue.pending.byCommand["photo.crop_angle.reset"], 0);
+    assert.equal(diagnostics.queue.pending.ordinary, 1);
+    assert.equal(diagnostics.queue.pending.protected, 0);
+    assert.equal(diagnostics.counters.enqueuedEntries, 1);
+    assert.equal(diagnostics.counters.coalescedCommands, 2);
+    assert.deepEqual(commands.getNextCommand(), { command: "photo.crop_angle.set", value: 12.25 });
 }
 
 function fillTo(length) {
@@ -172,7 +189,9 @@ function testCoreMetrics() {
         "develop.adjust": 1, "develop.set": 1, "develop.get": 1,
         "develop.reset": 1, "develop.action": 1,
         "photo.rotate": 1, "photo.treatment": 1,
-        "photo.crop_aspect": 1, "photo.reveal": 1,
+        "photo.crop_aspect": 1,
+        "photo.crop_angle.set": 0, "photo.crop_angle.reset": 0,
+        "photo.reveal": 1,
         "selection.navigate": 1, "selection.extend": 1,
         "selection.flag": 1,
         "selection.rating.set": 1, "selection.rating.adjust": 1,
@@ -368,6 +387,7 @@ async function testTransportRejectionCounters() {
 
 async function main() {
     testCoreMetrics();
+    testCropAngleCoalescingMetrics();
     testQueuePositionMetadata();
     testRejectionsAndCapacity();
     await testEndpointAndLifecycle();
