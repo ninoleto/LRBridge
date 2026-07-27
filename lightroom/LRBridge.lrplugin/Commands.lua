@@ -91,6 +91,21 @@ function Commands.execute(command)
         return
     end
 
+    if command.command == "photo.treatment" then
+        Photo.setTreatment(command.value)
+        return
+    end
+
+    if command.command == "photo.crop_aspect" then
+        Photo.setCropAspect(command.mode)
+        return
+    end
+
+    if command.command == "photo.reveal" then
+        Photo.reveal(command.scope)
+        return
+    end
+
     if command.command == "selection.flag" then
         Selection.setFlag(command.flag)
         return

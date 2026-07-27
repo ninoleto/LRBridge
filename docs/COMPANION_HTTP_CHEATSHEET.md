@@ -92,6 +92,22 @@ Method: GET
 
 ---
 
+## Photo commands
+
+These commands act on Lightroom's active photo only.
+
+| Operation | Companion path | Full local URL |
+|---|---|---|
+| Rotate Left | `/command?command=photo.rotate&direction=left` | `http://127.0.0.1:17891/command?command=photo.rotate&direction=left` |
+| Rotate Right | `/command?command=photo.rotate&direction=right` | `http://127.0.0.1:17891/command?command=photo.rotate&direction=right` |
+| Black & White | `/command?command=photo.treatment&value=grayscale` | `http://127.0.0.1:17891/command?command=photo.treatment&value=grayscale` |
+| Color | `/command?command=photo.treatment&value=color` | `http://127.0.0.1:17891/command?command=photo.treatment&value=color` |
+| Crop Original | `/command?command=photo.crop_aspect&mode=original` | `http://127.0.0.1:17891/command?command=photo.crop_aspect&mode=original` |
+| Crop As Shot | `/command?command=photo.crop_aspect&mode=asshot` | `http://127.0.0.1:17891/command?command=photo.crop_aspect&mode=asshot` |
+| Show in Explorer | `/command?command=photo.reveal&scope=active` | `http://127.0.0.1:17891/command?command=photo.reveal&scope=active` |
+
+---
+
 ## Slider commands
 
 Each slider includes ready-made Companion paths for:

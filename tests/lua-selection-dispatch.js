@@ -55,6 +55,9 @@ for (const field of ["action", "direction", "flag", "rating", "label", "operatio
 
 const commandDispatch = {
     "photo.rotate": "Photo.rotate(command.direction)",
+    "photo.treatment": "Photo.setTreatment(command.value)",
+    "photo.crop_aspect": "Photo.setCropAspect(command.mode)",
+    "photo.reveal": "Photo.reveal(command.scope)",
     "selection.navigate": "Selection.navigate(command.direction)",
     "selection.extend": "Selection.extend(command.direction, command.amount)",
     "selection.flag": "Selection.setFlag(command.flag)",
@@ -74,13 +77,29 @@ for (const [command, call] of Object.entries(commandDispatch)) {
 }
 
 assert.match(photo, /^local LrApplication = import "LrApplication"/m);
+assert.match(photo, /^local LrFileUtils = import "LrFileUtils"/m);
+assert.match(photo, /^local LrShell = import "LrShell"/m);
 assert.match(photo, /LrApplication\.activeCatalog\(\):getTargetPhoto\(\)/);
 assert.match(photo, /photo:rotateLeft\(\)/);
 assert.match(photo, /photo:rotateRight\(\)/);
 assert.equal((photo.match(/photo:rotateLeft\(\)/g) || []).length, 1);
 assert.equal((photo.match(/photo:rotateRight\(\)/g) || []).length, 1);
 assert.match(photo, /if photo == nil then\s*error\("No active photo"\)/);
-assert.doesNotMatch(photo, /getTargetPhotos|getAllPhotos|for\s|keyboard|AutoHotkey|shortcut|shell|menu|mouse|automation/i);
+assert.match(photo, /grayscale\s*=\s*function\(photo\)\s*photo:quickDevelopSetTreatment\("grayscale"\)/);
+assert.match(photo, /color\s*=\s*function\(photo\)\s*photo:quickDevelopSetTreatment\("color"\)/);
+assert.match(photo, /original\s*=\s*function\(photo\)\s*photo:quickDevelopCropAspect\("original"\)/);
+assert.match(photo, /asshot\s*=\s*function\(photo\)\s*photo:quickDevelopCropAspect\("asshot"\)/);
+assert.equal((photo.match(/quickDevelopSetTreatment\("grayscale"\)/g) || []).length, 1);
+assert.equal((photo.match(/quickDevelopSetTreatment\("color"\)/g) || []).length, 1);
+assert.equal((photo.match(/quickDevelopCropAspect\("original"\)/g) || []).length, 1);
+assert.equal((photo.match(/quickDevelopCropAspect\("asshot"\)/g) || []).length, 1);
+assert.match(photo, /activePhoto\(\):getRawMetadata\("path"\)/);
+assert.match(photo, /type\(path\) ~= "string" or path == ""/);
+assert.match(photo, /LrFileUtils\.exists\(path\) ~= "file"/);
+assert.match(photo, /LrShell\.revealInShell\(path\)/);
+assert.equal((photo.match(/getTargetPhoto\(\)/g) || []).length, 1);
+assert.equal((photo.match(/LrShell\.revealInShell\(path\)/g) || []).length, 1);
+assert.doesNotMatch(photo, /getTargetPhotos|getAllPhotos|for\s|os\.execute|io\.popen|PowerShell|cmd\.exe|Start-Process|explorer\.exe|keyboard|AutoHotkey|shortcut|menu|mouse|automation/i);
 
 const applicationActionMappings = {
     toggle_zoom: "toggleZoom",

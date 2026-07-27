@@ -70,7 +70,7 @@ const applicationTypes = Object.fromEntries(familyById.application.types.map((ty
 assert.deepEqual(families.map((family) => family.id), ["develop", "selection", "photo", "application"]);
 assert.equal(familyById.develop.types.filter((type) => type.valueSource).length + developTypes.action.options.length, 14);
 assert.equal(familyById.selection.types.reduce((total, type) => total + type.options.length, 0), 33);
-assert.equal(familyById.photo.types.reduce((total, type) => total + type.options.length, 0), 2);
+assert.equal(familyById.photo.types.reduce((total, type) => total + type.options.length, 0), 7);
 assert.equal(familyById.application.types.reduce((total, type) => total + type.options.length, 0), 34);
 assert.equal(
     sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length * 2 +
@@ -244,13 +244,45 @@ assertSameValues(
     extractValue(backendSource, "const allowedPhotoRotateDirections ="),
     "Photo rotation contract drifted"
 );
-for (const option of photoTypes.rotate.options) {
-    const pathname = buildCommandPath(photoTypes.rotate, option.value);
-    assert.equal(commands.validateCommand(commandFromPath(pathname, photoTypes.rotate)), true, "Invalid Photo command: " + pathname);
+const photoContracts = [
+    ["rotate", "allowedPhotoRotateDirections"],
+    ["treatment", "allowedPhotoTreatments"],
+    ["crop-aspect", "allowedPhotoCropAspects"],
+    ["reveal", "allowedPhotoRevealScopes"]
+];
+for (const [typeId, backendName] of photoContracts) {
+    assertSameValues(values(photoTypes[typeId]), extractValue(backendSource, "const " + backendName + " ="), "Photo contract drifted: " + typeId);
+}
+for (const type of familyById.photo.types) {
+    for (const option of type.options) {
+        const pathname = buildCommandPath(type, option.value);
+        assert.equal(commands.validateCommand(commandFromPath(pathname, type)), true, "Invalid Photo command: " + pathname);
+    }
 }
 assert.deepEqual(
     photoTypes.rotate.options.map((option) => option.label),
     ["Rotate Left", "Rotate Right"]
+);
+assert.deepEqual(photoTypes.treatment.options, [
+    { value: "grayscale", label: "Black & White" },
+    { value: "color", label: "Color" }
+]);
+assert.deepEqual(photoTypes["crop-aspect"].options, [
+    { value: "original", label: "Crop Original" },
+    { value: "asshot", label: "Crop As Shot" }
+]);
+assert.deepEqual(photoTypes.reveal.options, [
+    { value: "active", label: "Show in Explorer" }
+]);
+assert.equal(
+    buildCommandPath(photoTypes.rotate, "left"),
+    "/api/command?command=photo.rotate&direction=left",
+    "Existing Rotate Left URL changed"
+);
+assert.equal(
+    buildCommandPath(photoTypes.rotate, "right"),
+    "/api/command?command=photo.rotate&direction=right",
+    "Existing Rotate Right URL changed"
 );
 
 const applicationContracts = [
@@ -292,7 +324,7 @@ const controllerSelection = extractValue(controllerSource, "const selectionGroup
     .flatMap((group) => group.commands);
 const controllerApplication = extractValue(controllerSource, "const applicationGroups =")
     .flatMap((group) => group.commands);
-assert.equal(controllerSelection.length, 30, "Main Web Controller Selection count changed");
+assert.equal(controllerSelection.length, 35, "Main Web Controller Selection count changed");
 assert.equal(controllerApplication.length, 34, "Main Web Controller Application count changed");
 assert.ok(!controllerSelection.some((item) => item.command === "selection.label.toggle"), "Main controller must continue hiding label toggle");
 assert.equal(commands.validateCommand({ command: "selection.label.toggle", label: "red" }), true, "Backend label toggle support was removed");
@@ -308,4 +340,4 @@ const removedGroupResetToken = "reset-" + "group";
 assert.ok(!builderSource.toLowerCase().includes(removedGroupResetToken), "Unsafe group-reset surface remains in Builder");
 
 console.log("HTTP Builder v0.6 command-surface tests passed.");
-console.log("Validated 12 Develop actions, 33 Selection values, 2 Photo values, and 34 Application values.");
+console.log("Validated 12 Develop actions, 33 Selection values, 7 Photo values, and 34 Application values.");

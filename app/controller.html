@@ -913,11 +913,28 @@
                         ]
                 },
                 {
+                        "name": "Treatment",
+                        "note": "Changes the treatment of Lightroom's active photo only.",
+                        "commands": [
+                                { "label": "Black & White", "command": "photo.treatment", "field": "value", "value": "grayscale", "className": "command-neutral" },
+                                { "label": "Color", "command": "photo.treatment", "field": "value", "value": "color", "className": "command-primary" }
+                        ]
+                },
+                {
+                        "name": "Crop Aspect",
+                        "note": "Changes only the crop aspect of Lightroom's active photo.",
+                        "commands": [
+                                { "label": "Crop Original", "command": "photo.crop_aspect", "field": "mode", "value": "original", "className": "command-primary" },
+                                { "label": "Crop As Shot", "command": "photo.crop_aspect", "field": "mode", "value": "asshot", "className": "command-primary" }
+                        ]
+                },
+                {
                         "name": "Photo",
-                        "note": "Rotates Lightroom's active photo only.",
+                        "note": "Acts on Lightroom's active photo only.",
                         "commands": [
                                 { "label": "Rotate Left", "command": "photo.rotate", "field": "direction", "value": "left", "className": "command-primary" },
-                                { "label": "Rotate Right", "command": "photo.rotate", "field": "direction", "value": "right", "className": "command-primary" }
+                                { "label": "Rotate Right", "command": "photo.rotate", "field": "direction", "value": "right", "className": "command-primary" },
+                                { "label": "Show in Explorer", "command": "photo.reveal", "field": "scope", "value": "active", "className": "command-neutral" }
                         ]
                 },
                 {

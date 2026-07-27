@@ -158,6 +158,9 @@ app.get("/help", function (req, res) {
             navigateSelection: "/command?command=selection.navigate&direction=next",
             extendSelection: "/command?command=selection.extend&direction=right&amount=1",
             rotatePhoto: "/command?command=photo.rotate&direction=right",
+            setPhotoTreatment: "/command?command=photo.treatment&value=grayscale",
+            setPhotoCropAspect: "/command?command=photo.crop_aspect&mode=asshot",
+            revealPhoto: "/command?command=photo.reveal&scope=active",
             setFlag: "/command?command=selection.flag&flag=pick",
             setRating: "/command?command=selection.rating.set&rating=5",
             adjustRating: "/command?command=selection.rating.adjust&direction=increase",
@@ -264,7 +267,7 @@ app.get("/command", function (req, res) {
 
     const command = { command: commandName };
 
-    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view"]) {
+    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view", "mode", "scope"]) {
         if (req.query[field] !== undefined) command[field] = req.query[field];
     }
 
@@ -273,7 +276,9 @@ app.get("/command", function (req, res) {
     }
 
     if (req.query.value !== undefined) {
-        command.value = numbers.parseFiniteNumber(req.query.value);
+        command.value = commandName === "photo.treatment"
+            ? req.query.value
+            : numbers.parseFiniteNumber(req.query.value);
     }
 
     if (req.query.rating !== undefined) {

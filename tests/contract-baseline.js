@@ -105,6 +105,9 @@ function validateStaticContract() {
     for (const [declaration, expected] of [
         ["const allowedExtendDirections = [", fixture.extendDirections],
         ["const allowedPhotoRotateDirections = [", fixture.photoRotateDirections],
+        ["const allowedPhotoTreatments = [", fixture.photoTreatments],
+        ["const allowedPhotoCropAspects = [", fixture.photoCropAspects],
+        ["const allowedPhotoRevealScopes = [", fixture.photoRevealScopes],
         ["const allowedSelectionOperations = [", fixture.selectionOperations],
         ["const allowedApplicationModules = [", fixture.applicationModules],
         ["const allowedApplicationViews = [", fixture.applicationViews],
@@ -396,6 +399,9 @@ async function validateHttpAndWebSocketContract() {
 
     const selectionCommands = [
         { command: "photo.rotate", direction: "left" },
+        { command: "photo.treatment", value: "grayscale" },
+        { command: "photo.crop_aspect", mode: "original" },
+        { command: "photo.reveal", scope: "active" },
         { command: "selection.navigate", direction: "next" },
         { command: "selection.extend", direction: "right", amount: 1 },
         { command: "selection.flag", flag: "pick" },
@@ -472,6 +478,9 @@ async function validateHttpAndWebSocketContract() {
         { command: "develop.reset", slider: "Exposure" },
         { command: "develop.action", action: "setAutoTone" },
         { command: "photo.rotate", direction: "right" },
+        { command: "photo.treatment", value: "color" },
+        { command: "photo.crop_aspect", mode: "asshot" },
+        { command: "photo.reveal", scope: "active" },
         { command: "selection.navigate", direction: "last" },
         { command: "selection.extend", direction: "left", amount: 100 },
         { command: "selection.flag", flag: "none" },

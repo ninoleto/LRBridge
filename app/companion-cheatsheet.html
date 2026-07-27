@@ -699,6 +699,38 @@
                         { value: "left", label: "Rotate Left" },
                         { value: "right", label: "Rotate Right" }
                     ]
+                },
+                {
+                    id: "treatment",
+                    label: "Treatment",
+                    command: "photo.treatment",
+                    valueField: "value",
+                    valueLabel: "Treatment",
+                    options: [
+                        { value: "grayscale", label: "Black & White" },
+                        { value: "color", label: "Color" }
+                    ]
+                },
+                {
+                    id: "crop-aspect",
+                    label: "Crop Aspect",
+                    command: "photo.crop_aspect",
+                    valueField: "mode",
+                    valueLabel: "Crop Aspect",
+                    options: [
+                        { value: "original", label: "Crop Original" },
+                        { value: "asshot", label: "Crop As Shot" }
+                    ]
+                },
+                {
+                    id: "reveal",
+                    label: "Reveal Active Photo",
+                    command: "photo.reveal",
+                    valueField: "scope",
+                    valueLabel: "Scope",
+                    options: [
+                        { value: "active", label: "Show in Explorer" }
+                    ]
                 }
             ]
         },

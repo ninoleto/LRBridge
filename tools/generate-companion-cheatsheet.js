@@ -143,6 +143,28 @@ for (const action of actions) {
 lines.push("");
 lines.push("---");
 lines.push("");
+lines.push("## Photo commands");
+lines.push("");
+lines.push("These commands act on Lightroom's active photo only.");
+lines.push("");
+lines.push("| Operation | Companion path | Full local URL |");
+lines.push("|---|---|---|");
+
+for (const [label, pathPart] of [
+    ["Rotate Left", "/command?command=photo.rotate&direction=left"],
+    ["Rotate Right", "/command?command=photo.rotate&direction=right"],
+    ["Black & White", "/command?command=photo.treatment&value=grayscale"],
+    ["Color", "/command?command=photo.treatment&value=color"],
+    ["Crop Original", "/command?command=photo.crop_aspect&mode=original"],
+    ["Crop As Shot", "/command?command=photo.crop_aspect&mode=asshot"],
+    ["Show in Explorer", "/command?command=photo.reveal&scope=active"]
+]) {
+    lines.push(`| ${label} | \`${pathPart}\` | \`${fullUrl(pathPart)}\` |`);
+}
+
+lines.push("");
+lines.push("---");
+lines.push("");
 lines.push("## Slider commands");
 lines.push("");
 lines.push("Each slider includes ready-made Companion paths for:");

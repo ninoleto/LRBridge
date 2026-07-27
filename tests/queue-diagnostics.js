@@ -41,6 +41,9 @@ function emptyDiagnostics() {
                     "develop.reset": 0,
                     "develop.action": 0,
                     "photo.rotate": 0,
+                    "photo.treatment": 0,
+                    "photo.crop_aspect": 0,
+                    "photo.reveal": 0,
                     "selection.navigate": 0,
                     "selection.extend": 0,
                     "selection.flag": 0,
@@ -149,6 +152,9 @@ function testCoreMetrics() {
     commands.enqueueCommand({ command: "develop.get", slider: "Shadows" });
     commands.enqueueCommand({ command: "develop.action", action: "setAutoTone" });
     commands.enqueueCommand({ command: "photo.rotate", direction: "left" });
+    commands.enqueueCommand({ command: "photo.treatment", value: "grayscale" });
+    commands.enqueueCommand({ command: "photo.crop_aspect", mode: "original" });
+    commands.enqueueCommand({ command: "photo.reveal", scope: "active" });
     commands.enqueueCommand({ command: "selection.navigate", direction: "first" });
     commands.enqueueCommand({ command: "selection.extend", direction: "right", amount: 1 });
     commands.enqueueCommand({ command: "selection.flag", flag: "reject" });
@@ -165,7 +171,9 @@ function testCoreMetrics() {
     assert.deepEqual(diagnostics.queue.pending.byCommand, {
         "develop.adjust": 1, "develop.set": 1, "develop.get": 1,
         "develop.reset": 1, "develop.action": 1,
-        "photo.rotate": 1, "selection.navigate": 1, "selection.extend": 1,
+        "photo.rotate": 1, "photo.treatment": 1,
+        "photo.crop_aspect": 1, "photo.reveal": 1,
+        "selection.navigate": 1, "selection.extend": 1,
         "selection.flag": 1,
         "selection.rating.set": 1, "selection.rating.adjust": 1,
         "selection.label.set": 1, "selection.label.toggle": 1,
@@ -173,7 +181,7 @@ function testCoreMetrics() {
         "application.view": 1, "application.action": 1,
         "application.secondary_view": 1
     });
-    assert.equal(diagnostics.queue.pending.ordinary, 16);
+    assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);
 
     commands.resetQueueForTests();

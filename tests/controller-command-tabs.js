@@ -126,8 +126,13 @@ const expectedSelection = [
     ["selection.navigate", "direction", "last"],
     ["selection.extend", "direction", "left"],
     ["selection.extend", "direction", "right"],
+    ["photo.treatment", "value", "grayscale"],
+    ["photo.treatment", "value", "color"],
+    ["photo.crop_aspect", "mode", "original"],
+    ["photo.crop_aspect", "mode", "asshot"],
     ["photo.rotate", "direction", "left"],
     ["photo.rotate", "direction", "right"],
+    ["photo.reveal", "scope", "active"],
     ["selection.flag", "flag", "pick"],
     ["selection.flag", "flag", "reject"],
     ["selection.flag", "flag", "none"],
@@ -159,7 +164,7 @@ assert.deepEqual(
     expectedSelection,
     "Selection controller commands drifted"
 );
-assert.equal(selectionItems.length, 30, "Selection tab must expose exactly 30 buttons");
+assert.equal(selectionItems.length, 35, "Selection tab must expose exactly 35 buttons");
 assert.equal(applicationItems.length, 34, "Application tab must expose exactly 34 buttons");
 assert.deepEqual(
     selectionGroups.find((group) => group.name === "Extend Selection").commands
@@ -171,11 +176,30 @@ assert.deepEqual(
     "Extend Selection buttons must use amount=1"
 );
 assert.deepEqual(
+    selectionGroups.find((group) => group.name === "Treatment").commands
+        .map((item) => [item.label, item.command, item.value]),
+    [
+        ["Black & White", "photo.treatment", "grayscale"],
+        ["Color", "photo.treatment", "color"]
+    ],
+    "Photo treatment controls drifted"
+);
+assert.deepEqual(
+    selectionGroups.find((group) => group.name === "Crop Aspect").commands
+        .map((item) => [item.label, item.command, item.value]),
+    [
+        ["Crop Original", "photo.crop_aspect", "original"],
+        ["Crop As Shot", "photo.crop_aspect", "asshot"]
+    ],
+    "Photo crop-aspect controls drifted"
+);
+assert.deepEqual(
     selectionGroups.find((group) => group.name === "Photo").commands
         .map((item) => [item.label, item.command, item.value]),
     [
         ["Rotate Left", "photo.rotate", "left"],
-        ["Rotate Right", "photo.rotate", "right"]
+        ["Rotate Right", "photo.rotate", "right"],
+        ["Show in Explorer", "photo.reveal", "active"]
     ],
     "Photo rotation controls drifted"
 );
@@ -200,8 +224,13 @@ assert.deepEqual(
         ...["First", "Previous", "Next", "Last"].map((label) => [label, "command-primary"]),
         ["Extend Left", "command-primary"],
         ["Extend Right", "command-primary"],
+        ["Black & White", "command-neutral"],
+        ["Color", "command-primary"],
+        ["Crop Original", "command-primary"],
+        ["Crop As Shot", "command-primary"],
         ["Rotate Left", "command-primary"],
         ["Rotate Right", "command-primary"],
+        ["Show in Explorer", "command-neutral"],
         ["Pick", "command-success"],
         ["Reject", "command-danger"],
         ["Unflag", "command-neutral"],

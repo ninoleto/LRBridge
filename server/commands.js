@@ -42,6 +42,9 @@ const allowedActions = [
 const allowedSelectionDirections = ["next", "previous", "first", "last"];
 const allowedExtendDirections = ["left", "right"];
 const allowedPhotoRotateDirections = ["left", "right"];
+const allowedPhotoTreatments = ["grayscale", "color"];
+const allowedPhotoCropAspects = ["original", "asshot"];
+const allowedPhotoRevealScopes = ["active"];
 const allowedFlags = ["pick", "reject", "none"];
 const allowedRatingDirections = ["increase", "decrease"];
 const allowedLabels = ["red", "yellow", "green", "blue", "purple", "none"];
@@ -105,6 +108,9 @@ function validateCommand(command) {
         "develop.reset",
         "develop.action",
         "photo.rotate",
+        "photo.treatment",
+        "photo.crop_aspect",
+        "photo.reveal",
         "selection.navigate",
         "selection.extend",
         "selection.flag",
@@ -147,6 +153,24 @@ function validateCommand(command) {
     if (command.command === "photo.rotate") {
         return typeof command.direction === "string" &&
             allowedPhotoRotateDirections.includes(command.direction);
+    }
+
+    if (command.command === "photo.treatment") {
+        return Object.keys(command).length === 2 &&
+            typeof command.value === "string" &&
+            allowedPhotoTreatments.includes(command.value);
+    }
+
+    if (command.command === "photo.crop_aspect") {
+        return Object.keys(command).length === 2 &&
+            typeof command.mode === "string" &&
+            allowedPhotoCropAspects.includes(command.mode);
+    }
+
+    if (command.command === "photo.reveal") {
+        return Object.keys(command).length === 2 &&
+            typeof command.scope === "string" &&
+            allowedPhotoRevealScopes.includes(command.scope);
     }
 
     if (command.command === "selection.flag") {
@@ -358,6 +382,9 @@ function getQueueDiagnostics(nowMs) {
         "develop.reset": 0,
         "develop.action": 0,
         "photo.rotate": 0,
+        "photo.treatment": 0,
+        "photo.crop_aspect": 0,
+        "photo.reveal": 0,
         "selection.navigate": 0,
         "selection.extend": 0,
         "selection.flag": 0,
@@ -404,6 +431,9 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["develop.set"] +
                     pendingByCommand["develop.get"] +
                     pendingByCommand["photo.rotate"] +
+                    pendingByCommand["photo.treatment"] +
+                    pendingByCommand["photo.crop_aspect"] +
+                    pendingByCommand["photo.reveal"] +
                     pendingByCommand["selection.navigate"] +
                     pendingByCommand["selection.extend"] +
                     pendingByCommand["selection.flag"] +

@@ -71,6 +71,13 @@ async function main() {
             ...["left", "right"].map((direction) => ({
                 command: "photo.rotate", direction
             })),
+            ...["grayscale", "color"].map((value) => ({
+                command: "photo.treatment", value
+            })),
+            ...["original", "asshot"].map((mode) => ({
+                command: "photo.crop_aspect", mode
+            })),
+            { command: "photo.reveal", scope: "active" },
             ...["next", "previous", "first", "last"].map((direction) => ({
                 command: "selection.navigate", direction
             })),
@@ -133,6 +140,18 @@ async function main() {
             "/command?command=selection.extend&direction=left&amount=101",
             "/command?command=photo.rotate",
             "/command?command=photo.rotate&direction=up",
+            "/command?command=photo.treatment",
+            "/command?command=photo.treatment&value=Grayscale",
+            "/command?command=photo.treatment&value=grayscale&value=color",
+            "/command?command=photo.treatment&value=grayscale&mode=original",
+            "/command?command=photo.crop_aspect",
+            "/command?command=photo.crop_aspect&mode=as-shot",
+            "/command?command=photo.crop_aspect&mode=original&mode=asshot",
+            "/command?command=photo.crop_aspect&mode=original&scope=active",
+            "/command?command=photo.reveal",
+            "/command?command=photo.reveal&scope=Active",
+            "/command?command=photo.reveal&scope=active&scope=active",
+            "/command?command=photo.reveal&scope=active&direction=left",
             "/command?command=selection.flag",
             "/command?command=selection.flag&flag=Pick",
             "/command?command=selection.rating.set",
@@ -287,6 +306,20 @@ async function main() {
             invalidSelectionCommands.push({ command: "photo.rotate", direction });
             invalidSelectionCommands.push({ command: "selection.extend", direction, amount: 1 });
         }
+        for (const value of [undefined, null, true, 1, "", [], {}, "Grayscale"]) {
+            invalidSelectionCommands.push({ command: "photo.treatment", value });
+        }
+        for (const mode of [undefined, null, true, 1, "", [], {}, "as-shot"]) {
+            invalidSelectionCommands.push({ command: "photo.crop_aspect", mode });
+        }
+        for (const scope of [undefined, null, true, 1, "", [], {}, "Active"]) {
+            invalidSelectionCommands.push({ command: "photo.reveal", scope });
+        }
+        invalidSelectionCommands.push(
+            { command: "photo.treatment", value: "color", mode: "original" },
+            { command: "photo.crop_aspect", mode: "original", scope: "active" },
+            { command: "photo.reveal", scope: "active", direction: "left" }
+        );
         for (const amount of [undefined, null, true, "", "1", 0, -1, 1.5, 101, Infinity]) {
             invalidSelectionCommands.push({ command: "selection.extend", direction: "left", amount });
         }
