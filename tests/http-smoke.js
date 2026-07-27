@@ -57,12 +57,8 @@ async function main() {
     await expectOk("/adjust?slider=Exposure&amount=1");
     await expectOk("/reset?slider=Exposure");
 
-    await expectOk("/reset-group?group=Basic");
-    await expectOk("/reset-all");
-
     await expectBad("/adjust?slider=BadSlider&amount=1");
     await expectBad("/adjust?slider=Exposure");
-    await expectBad("/reset-group?group=BadGroup");
     await expectBad("/set?slider=Exposure&value=1");
 
     console.log("");

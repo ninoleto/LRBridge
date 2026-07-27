@@ -2,6 +2,7 @@ local Driver = require "Driver"
 local Query = require "Query"
 local Selection = require "Selection"
 local Application = require "Application"
+local Photo = require "Photo"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -77,6 +78,16 @@ function Commands.execute(command)
 
     if command.command == "selection.navigate" then
         Selection.navigate(command.direction)
+        return
+    end
+
+    if command.command == "selection.extend" then
+        Selection.extend(command.direction, command.amount)
+        return
+    end
+
+    if command.command == "photo.rotate" then
+        Photo.rotate(command.direction)
         return
     end
 

@@ -4,7 +4,7 @@
   "description": "Local HTTP bridge and Web Controller for controlling Adobe Lightroom Classic from Bitfocus Companion, Stream Deck, Loupedeck, PowerShell, curl, scripts, and other HTTP-capable tools.",
   "main": "app/main.js",
   "scripts": {
-    "test": "npm run test:contract && npm run test:lifecycle && npm run test:input && npm run test:queue && npm run test:diagnostics && npm run test:transport && npm run test:http-transport && npm run test:controller-proxy && npm run test:controller-http && npm run test:controller-shutdown && npm run test:lua-polling && npm run test:lua-selection",
+    "test": "npm run test:contract && npm run test:lifecycle && npm run test:input && npm run test:queue && npm run test:diagnostics && npm run test:transport && npm run test:http-transport && npm run test:controller-proxy && npm run test:controller-http && npm run test:http-builder && npm run test:controller-commands && npm run test:controller-shutdown && npm run test:lua-polling && npm run test:lua-selection",
     "start": "electron app/main.js",
     "smoke": "node tests/http-smoke.js",
     "test:contract": "node tests/contract-baseline.js",
@@ -16,7 +16,9 @@
     "test:http-transport": "node tests/http-transport-limits.js",
     "test:controller-proxy": "node tests/controller-proxy.js",
     "test:controller-http": "node tests/controller-http-limits.js",
+    "test:http-builder": "node tests/http-builder-command-surface.js",
     "test:controller-shutdown": "node tests/controller-shutdown.js",
+    "test:controller-commands": "node tests/controller-command-tabs.js",
     "test:lua-polling": "node tests/lua-polling-resilience.js",
     "test:lua-selection": "node tests/lua-selection-dispatch.js",
     "test:smoke-live": "node tests/http-smoke.js",

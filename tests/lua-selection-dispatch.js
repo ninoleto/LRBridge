@@ -6,8 +6,10 @@ const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 const selection = read("lightroom/LRBridge.lrplugin/Selection.lua");
 const application = read("lightroom/LRBridge.lrplugin/Application.lua");
+const photo = read("lightroom/LRBridge.lrplugin/Photo.lua");
 const parser = read("lightroom/LRBridge.lrplugin/Parser.lua");
 const dispatcher = read("lightroom/LRBridge.lrplugin/Commands.lua");
+const driver = read("lightroom/LRBridge.lrplugin/Driver.lua");
 const automaticPolling = read("lightroom/LRBridge.lrplugin/AutoStartPolling.lua");
 const manualPolling = read("lightroom/LRBridge.lrplugin/StartPolling.lua");
 const contract = JSON.parse(read("tests/contract-fixture.json"));
@@ -40,6 +42,7 @@ for (const [value, method] of Object.entries(exactMappings)) {
 }
 assert.match(selection, /LrSelection\.setRating\(rating\)/);
 assert.match(selection, /LrSelection\.setColorLabel\(label\)/);
+assert.match(selection, /LrSelection\.extendSelection\(direction, amount\)/);
 assert.match(selection, /error\("Unknown selection " \..*operation\)/);
 
 assert.doesNotMatch(selection, /LrSelection\.(?:firstPhoto|lastPhoto|removeColorLabel)\b/);
@@ -51,7 +54,9 @@ for (const field of ["action", "direction", "flag", "rating", "label", "operatio
 }
 
 const commandDispatch = {
+    "photo.rotate": "Photo.rotate(command.direction)",
     "selection.navigate": "Selection.navigate(command.direction)",
+    "selection.extend": "Selection.extend(command.direction, command.amount)",
     "selection.flag": "Selection.setFlag(command.flag)",
     "selection.rating.set": "Selection.setRating(command.rating)",
     "selection.rating.adjust": "Selection.adjustRating(command.direction)",
@@ -67,6 +72,15 @@ for (const [command, call] of Object.entries(commandDispatch)) {
     assert.match(dispatcher, new RegExp("command\\.command == \"" + command.replaceAll(".", "\\.") + "\""));
     assert.ok(dispatcher.includes(call));
 }
+
+assert.match(photo, /^local LrApplication = import "LrApplication"/m);
+assert.match(photo, /LrApplication\.activeCatalog\(\):getTargetPhoto\(\)/);
+assert.match(photo, /photo:rotateLeft\(\)/);
+assert.match(photo, /photo:rotateRight\(\)/);
+assert.equal((photo.match(/photo:rotateLeft\(\)/g) || []).length, 1);
+assert.equal((photo.match(/photo:rotateRight\(\)/g) || []).length, 1);
+assert.match(photo, /if photo == nil then\s*error\("No active photo"\)/);
+assert.doesNotMatch(photo, /getTargetPhotos|getAllPhotos|for\s|keyboard|AutoHotkey|shortcut|shell|menu|mouse|automation/i);
 
 const applicationActionMappings = {
     toggle_zoom: "toggleZoom",
@@ -105,6 +119,24 @@ const developMappings = [
 for (const mapping of developMappings) {
     assert.match(dispatcher, mapping, "Existing Develop mapping changed: " + mapping);
 }
+
+const resetAllAction = driver.match(
+    /resetAllDevelopAdjustments\s*=\s*function\(\)([\s\S]*?)\n\s*end,/
+);
+assert.ok(resetAllAction, "Native Develop Reset action is missing");
+assert.match(
+    resetAllAction[1],
+    /^\s*LrDevelopController\.resetAllDevelopAdjustments\(\)\s*$/,
+    "Native Develop Reset must dispatch only to resetAllDevelopAdjustments()"
+);
+assert.equal(
+    (driver.match(/LrDevelopController\.resetAllDevelopAdjustments\(\)/g) || []).length,
+    1,
+    "Native Develop Reset SDK call must appear exactly once"
+);
+assert.doesNotMatch(resetAllAction[1], /resetToDefault|sliderMap|resetSlider|keyboard|menu|AppActivate|SendKeys/i);
+assert.ok(contract.actions.includes("resetAllDevelopAdjustments"));
+assert.ok(!contract.actions.some((action) => /previous/i.test(action)), "Develop Previous must not be implemented");
 
 for (const polling of [automaticPolling, manualPolling]) {
     assert.match(polling, /LrTasks\.pcall\(Commands\.execute, command\)/);

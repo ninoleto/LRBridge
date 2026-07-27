@@ -283,84 +283,6 @@ Develop → Detail → Noise Reduction → Color
 /reset?slider=ColorNR
 ```
 
-## Reset slider groups
-
-Useful Companion buttons:
-
-### Reset Basic group
-
-```text
-/reset-group?group=Basic
-```
-
-Resets:
-
-```text
-Exposure
-Contrast
-Highlights
-Shadows
-Whites
-Blacks
-```
-
-### Reset Color group
-
-```text
-/reset-group?group=Color
-```
-
-Resets:
-
-```text
-Temperature
-Tint
-```
-
-### Reset Presence group
-
-```text
-/reset-group?group=Presence
-```
-
-Resets:
-
-```text
-Texture
-Clarity
-Dehaze
-Vibrance
-Saturation
-```
-
-### Reset Detail group
-
-```text
-/reset-group?group=Detail
-```
-
-Resets:
-
-```text
-Sharpness
-LuminanceNR
-ColorNR
-```
-
-## Reset all mapped sliders
-
-One Companion button can reset all currently mapped sliders:
-
-```text
-/reset-all
-```
-
-Suggested button label:
-
-```text
-RESET ALL
-```
-
 ## Suggested encoder setup
 
 For each encoder:
@@ -395,25 +317,6 @@ amount=2
 amount=3
 ```
 
-## Suggested reset buttons
-
-```text
-RESET BASIC
-/reset-group?group=Basic
-
-RESET COLOR
-/reset-group?group=Color
-
-RESET PRESENCE
-/reset-group?group=Presence
-
-RESET DETAIL
-/reset-group?group=Detail
-
-RESET ALL
-/reset-all
-```
-
 ## Do not use for now
 
 Do not use these for Companion feedback yet:
@@ -434,8 +337,6 @@ Use only:
 ```text
 /adjust
 /reset
-/reset-group
-/reset-all
 /status
 /sliders
 /groups

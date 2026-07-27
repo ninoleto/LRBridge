@@ -112,8 +112,6 @@ lines.push("- `amount=1` means one LRBridge/Lightroom adjustment step.");
 lines.push("- `amount=-1` means one step down.");
 lines.push("- `amount=5` and `amount=-5` are faster jumps.");
 lines.push("- Use `/reset?slider=SLIDER_ID` to reset one slider.");
-lines.push("- Use `/reset-group?group=GROUP_NAME` to reset a group.");
-lines.push("- Use `/reset-all` carefully.");
 lines.push("- `/get`, `/last-result`, and `/set` are experimental and should not be used for normal Companion feedback.");
 lines.push("");
 lines.push("---");
@@ -129,22 +127,6 @@ lines.push("| Exposure -5 | `/adjust?slider=Exposure&amount=-5` | `" + fullUrl("
 lines.push("| Exposure Reset | `/reset?slider=Exposure` | `" + fullUrl("/reset?slider=Exposure") + "` |");
 lines.push("| Auto Tone | `/action?action=setAutoTone` | `" + fullUrl("/action?action=setAutoTone") + "` |");
 lines.push("| Auto White Balance | `/action?action=setAutoWhiteBalance` | `" + fullUrl("/action?action=setAutoWhiteBalance") + "` |");
-lines.push("| Reset Basic group | `/reset-group?group=Basic` | `" + fullUrl("/reset-group?group=Basic") + "` |");
-lines.push("| Reset all mapped sliders | `/reset-all` | `" + fullUrl("/reset-all") + "` |");
-lines.push("");
-lines.push("---");
-lines.push("");
-lines.push("## Group reset commands");
-lines.push("");
-lines.push("| Group | Companion path | Full local URL |");
-lines.push("|---|---|---|");
-
-for (const groupName of groups.keys()) {
-    const encodedGroup = encodeURIComponent(groupName);
-    const pathPart = `/reset-group?group=${encodedGroup}`;
-    lines.push(`| ${groupName} | \`${pathPart}\` | \`${fullUrl(pathPart)}\` |`);
-}
-
 lines.push("");
 lines.push("---");
 lines.push("");
@@ -247,7 +229,7 @@ lines.push("When building a Companion module or fork:");
 lines.push("");
 lines.push("1. Read `config/sliders.json` for slider IDs, labels, groups, ranges, and defaults.");
 lines.push("2. Read `server/commands.js` for allowed action names.");
-lines.push("3. Use `/adjust`, `/reset`, `/reset-group`, `/reset-all`, and `/action` first.");
+lines.push("3. Use `/adjust`, `/reset`, and `/action` first.");
 lines.push("4. Do not build feedback on `/last-result`.");
 lines.push("5. Do not treat `/set` as stable.");
 lines.push("6. Keep Lightroom logic inside LRBridge, not inside the Companion module.");

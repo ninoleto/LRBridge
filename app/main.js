@@ -367,23 +367,6 @@ async function handleControllerRequest(request, response) {
         return;
     }
 
-    if (requestUrl.pathname === "/api/reset-group") {
-        const group = requestUrl.searchParams.get("group") || "";
-
-        await proxyControllerRequest(
-            request,
-            response,
-            "/reset-group?group=" + encodeURIComponent(group)
-        );
-
-        return;
-    }
-
-    if (requestUrl.pathname === "/api/reset-all") {
-        await proxyControllerRequest(request, response, "/reset-all");
-        return;
-    }
-
     if (requestUrl.pathname.startsWith("/api/")) {
         const bridgePathAndQuery = requestUrl.pathname.slice(4) + requestUrl.search;
         await proxyControllerRequest(request, response, bridgePathAndQuery);

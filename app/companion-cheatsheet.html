@@ -108,13 +108,18 @@
             margin-top: 12px;
         }
 
-        input {
+        input,
+        select {
             background: #050708;
             color: #f4f4f4;
             border: 1px solid #2b3744;
             border-radius: 8px;
             padding: 11px 12px;
             font-size: 15px;
+        }
+
+        select {
+            width: 100%;
         }
 
         #search {
@@ -173,6 +178,38 @@
             font-size: 15px;
             min-width: 56px;
             text-align: center;
+        }
+
+        .builder-form {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(180px, 1fr));
+            gap: 14px;
+            align-items: end;
+        }
+
+        .builder-field label {
+            display: block;
+            margin-bottom: 6px;
+            color: #9fb0bf;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .builder-field input {
+            width: 100%;
+        }
+
+        .builder-output {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid #28323d;
+        }
+
+        .builder-description {
+            color: #9fb0bf;
+            min-height: 22px;
+            margin: 8px 0;
+            font-size: 13px;
         }
 
         .grid {
@@ -241,17 +278,6 @@
             padding: 7px 9px;
         }
 
-        .reset-all-warning {
-            margin-top: 10px;
-            padding: 8px 10px;
-            border: 1px solid #b04343;
-            border-radius: 8px;
-            background: #2a1111;
-            color: #ffd2d2;
-            font-size: 13px;
-            font-weight: 700;
-        }
-
         .status {
             color: #7ee787;
             font-size: 13px;
@@ -290,6 +316,18 @@
 
         body.searching main {
             padding-top: 16px;
+        }
+
+        @media (max-width: 720px) {
+            header,
+            main {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .builder-form {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -331,7 +369,7 @@
             The Base URL is set once in the Generic: HTTP Requests connection.
             Each button only needs the URI.
         </p>
-        <div class="path">Example URI: /adjust?slider=Exposure&amp;amount=-1</div>
+        <div class="path">Example URI: /api/command?command=develop.adjust&amp;slider=Exposure&amp;amount=-1</div>
     </section>
 
     <section class="box hide-when-searching">
@@ -344,7 +382,7 @@
             <strong>Copy full URL</strong> is for PowerShell, browser testing, curl, scripts, or other HTTP-capable devices/apps.
             PowerShell can send a command directly to Lightroom through LRBridge.
         </p>
-        <div class="path">curl.exe "http://127.0.0.1:17891/adjust?slider=Exposure&amp;amount=1"</div>
+        <div class="path">curl.exe "http://127.0.0.1:17891/api/command?command=develop.adjust&amp;slider=Exposure&amp;amount=1"</div>
     </section>
 
     <section class="hide-when-searching">
@@ -406,6 +444,39 @@
         </div>
     </section>
 
+    <section id="commandBuilderSection" class="hide-when-searching">
+        <h2>3. v0.6 Command Builder</h2>
+        <div class="box">
+            <p>Select a command family, command type, and value. The URI updates immediately and is ready for Companion or any HTTP client.</p>
+            <div class="builder-form">
+                <div class="builder-field">
+                    <label for="builderFamily">Command family</label>
+                    <select id="builderFamily"></select>
+                </div>
+                <div class="builder-field">
+                    <label for="builderType">Command / action type</label>
+                    <select id="builderType"></select>
+                </div>
+                <div id="builderValueField" class="builder-field">
+                    <label id="builderValueLabel" for="builderValue">Value</label>
+                    <select id="builderValue"></select>
+                </div>
+                <div id="builderAmountField" class="builder-field hidden">
+                    <label for="builderAmount">Amount</label>
+                    <input id="builderAmount" type="number" step="1" value="1">
+                </div>
+            </div>
+            <div class="builder-output">
+                <div id="builderDescription" class="builder-description"></div>
+                <div id="builderPath" class="path"></div>
+                <div class="button-row">
+                    <button id="copyBuilderPath" class="primary">Copy path</button>
+                    <button id="copyBuilderFull">Copy full URL</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="box plain-examples hide-when-searching">
         <h2>Plain examples</h2>
         <p>Same PC Base URL:</p>
@@ -413,26 +484,21 @@
         <p>LAN Base URL example:</p>
         <div class="path">http://192.168.1.11:17891</div>
         <p>Companion button URI example:</p>
-        <div class="path">/adjust?slider=Exposure&amp;amount=1</div>
+        <div class="path">/api/command?command=develop.adjust&amp;slider=Exposure&amp;amount=1</div>
     </section>
 
     <section id="quickSection" class="hide-when-searching">
-        <h2>3. Fast setup examples</h2>
+        <h2>4. Fast setup examples</h2>
         <div id="quick" class="grid"></div>
     </section>
 
-    <section id="groupsSection" class="hide-when-searching">
-        <h2>4. Reset groups</h2>
-        <div id="groups" class="grid"></div>
-    </section>
-
     <section id="actionsSection">
-        <h2 class="hide-when-searching">5. Lightroom actions</h2>
+        <h2 class="hide-when-searching">6. Lightroom actions</h2>
         <div id="actions" class="grid"></div>
     </section>
 
     <section id="slidersSection">
-        <h2 class="hide-when-searching">6. Sliders</h2>
+        <h2 class="hide-when-searching">7. Sliders</h2>
         <div id="groupNav" class="group-nav hide-when-searching"></div>
         <div id="sliders"></div>
     </section>
@@ -449,30 +515,409 @@
     const hostInput = document.getElementById("hostInput");
     const stepInput = document.getElementById("stepInput");
     const stepDisplay = document.getElementById("stepDisplay");
+    const builderFamily = document.getElementById("builderFamily");
+    const builderType = document.getElementById("builderType");
+    const builderValue = document.getElementById("builderValue");
+    const builderValueLabel = document.getElementById("builderValueLabel");
+    const builderAmountField = document.getElementById("builderAmountField");
+    const builderAmount = document.getElementById("builderAmount");
+    const builderDescription = document.getElementById("builderDescription");
+    const builderPath = document.getElementById("builderPath");
 
-    const actions = [
-        ["Auto Tone", "/action?action=setAutoTone"],
-        ["Auto White Balance", "/action?action=setAutoWhiteBalance"],
-        ["Reset Crop", "/action?action=resetCrop"],
-        ["Reset Transforms", "/action?action=resetTransforms"],
-        ["Reset Spot Removal", "/action?action=resetSpotRemoval"],
-        ["Reset Redeye", "/action?action=resetRedeye"],
-        ["Select Crop Tool", "/action?action=selectCropTool"],
-        ["Select Healing Tool", "/action?action=selectHealingTool"],
-        ["Select Red Eye Tool", "/action?action=selectRedEyeTool"],
-        ["Select Upright Tool", "/action?action=selectUprightTool"],
-        ["Select Masking Tool", "/action?action=selectMaskingTool"]
+    const builderCommandFamilies = [
+        {
+            id: "develop",
+            label: "Develop",
+            types: [
+                {
+                    id: "adjust",
+                    label: "Adjust Lightroom slider",
+                    command: "develop.adjust",
+                    valueField: "slider",
+                    valueLabel: "Slider",
+                    valueSource: "sliders",
+                    amountField: "amount"
+                },
+                {
+                    id: "reset",
+                    label: "Reset individual slider",
+                    command: "develop.reset",
+                    valueField: "slider",
+                    valueLabel: "Slider",
+                    valueSource: "sliders"
+                },
+                {
+                    id: "action",
+                    label: "Develop Action",
+                    command: "develop.action",
+                    valueField: "action",
+                    valueLabel: "Action",
+                    options: [
+                        { value: "resetAllDevelopAdjustments", label: "Reset", description: "Reset all Develop adjustments on the active photo" },
+                        { value: "resetCrop", label: "Reset Crop" },
+                        { value: "resetTransforms", label: "Reset Transforms" },
+                        { value: "setAutoTone", label: "Auto Tone" },
+                        { value: "setAutoWhiteBalance", label: "Auto White Balance" },
+                        { value: "resetSpotRemoval", label: "Reset Spot Removal" },
+                        { value: "resetRedeye", label: "Reset Red Eye" },
+                        { value: "selectCropTool", label: "Select Crop Tool" },
+                        { value: "selectHealingTool", label: "Select Healing Tool" },
+                        { value: "selectRedEyeTool", label: "Select Red Eye Tool" },
+                        { value: "selectUprightTool", label: "Select Upright Tool" },
+                        { value: "selectMaskingTool", label: "Select Masking Tool" }
+                    ]
+                }
+            ]
+        },
+        {
+            id: "selection",
+            label: "Selection",
+            types: [
+                {
+                    id: "navigate",
+                    label: "Navigate",
+                    command: "selection.navigate",
+                    valueField: "direction",
+                    valueLabel: "Direction",
+                    options: [
+                        { value: "first", label: "First" },
+                        { value: "previous", label: "Previous" },
+                        { value: "next", label: "Next" },
+                        { value: "last", label: "Last" }
+                    ]
+                },
+                {
+                    id: "extend",
+                    label: "Extend Selection",
+                    command: "selection.extend",
+                    valueField: "direction",
+                    valueLabel: "Direction",
+                    amountField: "amount",
+                    amountMin: 1,
+                    amountMax: 100,
+                    description: "Follows Lightroom's current Filmstrip/Grid ordering.",
+                    options: [
+                        { value: "left", label: "Extend Left" },
+                        { value: "right", label: "Extend Right" }
+                    ]
+                },
+                {
+                    id: "flag",
+                    label: "Flag",
+                    command: "selection.flag",
+                    valueField: "flag",
+                    valueLabel: "Flag",
+                    options: [
+                        { value: "pick", label: "Pick" },
+                        { value: "reject", label: "Reject" },
+                        { value: "none", label: "Unflag" }
+                    ]
+                },
+                {
+                    id: "rating-set",
+                    label: "Rating Set",
+                    command: "selection.rating.set",
+                    valueField: "rating",
+                    valueLabel: "Rating",
+                    numericValue: true,
+                    options: [
+                        { value: 0, label: "0 Stars" },
+                        { value: 1, label: "1 Star" },
+                        { value: 2, label: "2 Stars" },
+                        { value: 3, label: "3 Stars" },
+                        { value: 4, label: "4 Stars" },
+                        { value: 5, label: "5 Stars" }
+                    ]
+                },
+                {
+                    id: "rating-adjust",
+                    label: "Rating Adjust",
+                    command: "selection.rating.adjust",
+                    valueField: "direction",
+                    valueLabel: "Adjustment",
+                    options: [
+                        { value: "increase", label: "Increase Rating" },
+                        { value: "decrease", label: "Decrease Rating" }
+                    ]
+                },
+                {
+                    id: "label-set",
+                    label: "Color Label Set",
+                    command: "selection.label.set",
+                    valueField: "label",
+                    valueLabel: "Color Label",
+                    options: [
+                        { value: "red", label: "Red" },
+                        { value: "yellow", label: "Yellow" },
+                        { value: "green", label: "Green" },
+                        { value: "blue", label: "Blue" },
+                        { value: "purple", label: "Purple" },
+                        { value: "none", label: "None" }
+                    ]
+                },
+                {
+                    id: "label-toggle",
+                    label: "Toggle Color Label",
+                    command: "selection.label.toggle",
+                    valueField: "label",
+                    valueLabel: "Color Label",
+                    options: [
+                        { value: "red", label: "Red" },
+                        { value: "yellow", label: "Yellow" },
+                        { value: "green", label: "Green" },
+                        { value: "blue", label: "Blue" },
+                        { value: "purple", label: "Purple" }
+                    ]
+                },
+                {
+                    id: "operation",
+                    label: "Selection Operations",
+                    command: "selection.operation",
+                    valueField: "operation",
+                    valueLabel: "Operation",
+                    options: [
+                        { value: "select_all", label: "Select All" },
+                        { value: "select_none", label: "Select None" },
+                        { value: "select_inverse", label: "Invert Selection" },
+                        { value: "deselect_active", label: "Deselect Active" },
+                        { value: "deselect_others", label: "Deselect Others" }
+                    ]
+                }
+            ]
+        },
+        {
+            id: "photo",
+            label: "Photo",
+            types: [
+                {
+                    id: "rotate",
+                    label: "Rotate Active Photo",
+                    command: "photo.rotate",
+                    valueField: "direction",
+                    valueLabel: "Direction",
+                    options: [
+                        { value: "left", label: "Rotate Left" },
+                        { value: "right", label: "Rotate Right" }
+                    ]
+                }
+            ]
+        },
+        {
+            id: "application",
+            label: "Application",
+            types: [
+                {
+                    id: "module",
+                    label: "Module",
+                    command: "application.module",
+                    valueField: "module",
+                    valueLabel: "Module",
+                    options: [
+                        { value: "library", label: "Library" },
+                        { value: "develop", label: "Develop" },
+                        { value: "map", label: "Map" },
+                        { value: "book", label: "Book" },
+                        { value: "slideshow", label: "Slideshow" },
+                        { value: "print", label: "Print" },
+                        { value: "web", label: "Web" }
+                    ]
+                },
+                {
+                    id: "view",
+                    label: "View",
+                    command: "application.view",
+                    valueField: "view",
+                    valueLabel: "View",
+                    options: [
+                        { value: "loupe", label: "Library Loupe" },
+                        { value: "grid", label: "Library Grid" },
+                        { value: "compare", label: "Library Compare" },
+                        { value: "survey", label: "Library Survey" },
+                        { value: "people", label: "Library People" },
+                        { value: "develop_loupe", label: "Develop Loupe" },
+                        { value: "develop_before_after_horiz", label: "Before / After Horizontal" },
+                        { value: "develop_before_after_vert", label: "Before / After Vertical" },
+                        { value: "develop_before", label: "Before Only" },
+                        { value: "develop_reference_horiz", label: "Reference Horizontal" },
+                        { value: "develop_reference_vert", label: "Reference Vertical" }
+                    ]
+                },
+                {
+                    id: "action",
+                    label: "Application Action",
+                    command: "application.action",
+                    valueField: "action",
+                    valueLabel: "Action",
+                    options: [
+                        { value: "toggle_zoom", label: "Fit / Fill Zoom" },
+                        { value: "zoom_in", label: "Zoom In" },
+                        { value: "zoom_out", label: "Zoom Out" },
+                        { value: "zoom_100", label: "Zoom 100%" },
+                        { value: "fullscreen_preview", label: "Full Screen Preview" },
+                        { value: "fullscreen_hide_panels", label: "Full Screen + Hide Panels" },
+                        { value: "next_screen_mode", label: "Cycle Screen Modes" },
+                        { value: "toggle_secondary_display", label: "Show / Hide Display" },
+                        { value: "toggle_secondary_fullscreen", label: "Full Screen / Windowed" }
+                    ]
+                },
+                {
+                    id: "secondary-view",
+                    label: "Secondary View",
+                    command: "application.secondary_view",
+                    valueField: "view",
+                    valueLabel: "Secondary View",
+                    options: [
+                        { value: "loupe", label: "Loupe" },
+                        { value: "live_loupe", label: "Live Loupe" },
+                        { value: "locked_loupe", label: "Locked Loupe" },
+                        { value: "grid", label: "Grid" },
+                        { value: "compare", label: "Compare" },
+                        { value: "survey", label: "Survey" },
+                        { value: "slideshow", label: "Slideshow" }
+                    ]
+                }
+            ]
+        }
     ];
+
+    const developActionType = builderCommandFamilies[0].types[2];
+    const actions = developActionType.options.map(function (option) {
+        return [
+            option.label,
+            buildCommandPath(developActionType, option.value),
+            option.description || ""
+        ];
+    });
+
+    function buildCommandPath(type, value, amount) {
+        const parameters = [
+            ["command", type.command],
+            [type.valueField, value]
+        ];
+
+        if (type.amountField) {
+            parameters.push([type.amountField, amount]);
+        }
+
+        return "/api/command?" + parameters.map(function (entry) {
+            return encodeURIComponent(entry[0]) + "=" + encodeURIComponent(String(entry[1]));
+        }).join("&");
+    }
+
+    function selectedBuilderFamily() {
+        return builderCommandFamilies.find(function (family) {
+            return family.id === builderFamily.value;
+        });
+    }
+
+    function selectedBuilderType() {
+        const family = selectedBuilderFamily();
+
+        return family && family.types.find(function (type) {
+            return type.id === builderType.value;
+        });
+    }
+
+    function builderOptions(type) {
+        if (type.valueSource === "sliders") {
+            return sliders
+                .filter(function (slider) {
+                    return slider.id !== "LensProfileChromaticAberrationScale";
+                })
+                .map(function (slider) {
+                    return { value: slider.id, label: slider.label || slider.id };
+                });
+        }
+
+        return type.options || [];
+    }
+
+    function renderBuilderOutput() {
+        const type = selectedBuilderType();
+        const option = type && builderOptions(type).find(function (item) {
+            return String(item.value) === builderValue.value;
+        });
+
+        if (!type || !option) {
+            builderPath.textContent = "Waiting for command metadata...";
+            builderDescription.textContent = "";
+            return;
+        }
+
+        builderDescription.textContent = option.description || type.description || "";
+        builderPath.textContent = buildCommandPath(type, option.value, builderAmount.value);
+    }
+
+    function renderBuilderValues() {
+        const type = selectedBuilderType();
+        const previousValue = builderValue.value;
+        builderValue.innerHTML = "";
+
+        if (!type) {
+            renderBuilderOutput();
+            return;
+        }
+
+        builderValueLabel.textContent = type.valueLabel || "Value";
+        builderAmountField.classList.toggle("hidden", !type.amountField);
+        builderAmount.min = type.amountMin === undefined ? "" : String(type.amountMin);
+        builderAmount.max = type.amountMax === undefined ? "" : String(type.amountMax);
+
+        for (const option of builderOptions(type)) {
+            const element = document.createElement("option");
+            element.value = String(option.value);
+            element.textContent = option.label;
+            builderValue.appendChild(element);
+        }
+
+        if (Array.from(builderValue.options).some(function (option) {
+            return option.value === previousValue;
+        })) {
+            builderValue.value = previousValue;
+        }
+
+        renderBuilderOutput();
+    }
+
+    function renderBuilderTypes() {
+        const family = selectedBuilderFamily();
+        const previousType = builderType.value;
+        builderType.innerHTML = "";
+
+        for (const type of family.types) {
+            const element = document.createElement("option");
+            element.value = type.id;
+            element.textContent = type.label;
+            builderType.appendChild(element);
+        }
+
+        if (family.types.some(function (type) {
+            return type.id === previousType;
+        })) {
+            builderType.value = previousType;
+        }
+
+        renderBuilderValues();
+    }
+
+    function initializeBuilder() {
+        for (const family of builderCommandFamilies) {
+            const element = document.createElement("option");
+            element.value = family.id;
+            element.textContent = family.label;
+            builderFamily.appendChild(element);
+        }
+
+        renderBuilderTypes();
+    }
 
     function getQuickCommands() {
         return [
-            ["Exposure +" + stepSize, "/adjust?slider=Exposure&amount=" + stepSize],
-            ["Exposure -" + stepSize, "/adjust?slider=Exposure&amount=-" + stepSize],
-            ["Exposure Reset", "/reset?slider=Exposure"],
-            ["Auto Tone", "/action?action=setAutoTone"],
-            ["Auto White Balance", "/action?action=setAutoWhiteBalance"],
-            ["Reset Basic Group", "/reset-group?group=Basic"],
-            ["Reset All", "/reset-all"]
+            ["Exposure +" + stepSize, "/api/command?command=develop.adjust&slider=Exposure&amount=" + stepSize],
+            ["Exposure -" + stepSize, "/api/command?command=develop.adjust&slider=Exposure&amount=-" + stepSize],
+            ["Exposure Reset", "/api/command?command=develop.reset&slider=Exposure"],
+            ["Auto Tone", "/api/command?command=develop.action&action=setAutoTone"],
+            ["Auto White Balance", "/api/command?command=develop.action&action=setAutoWhiteBalance"]
         ];
     }
 
@@ -583,21 +1028,14 @@
         command.appendChild(pathEl);
         command.appendChild(buttons);
 
-        if (path === "/reset-all") {
-            const warning = document.createElement("div");
-            warning.className = "reset-all-warning";
-            warning.textContent = "Warning: Don't use. It can break Lightroom.";
-            command.appendChild(warning);
-        }
-
         return command;
     }
 
-    function makeCard(title, commands, meta) {
+    function makeCard(title, commands, meta, description) {
         const card = document.createElement("div");
         card.className = "card search-card";
 
-        const searchableParts = [title, meta || ""];
+        const searchableParts = [title, meta || "", description || ""];
         for (const command of commands) {
             searchableParts.push(command[0], command[1]);
         }
@@ -618,6 +1056,13 @@
             card.appendChild(metaEl);
         }
 
+        if (description) {
+            const descriptionEl = document.createElement("div");
+            descriptionEl.className = "meta description";
+            descriptionEl.textContent = description;
+            card.appendChild(descriptionEl);
+        }
+
         for (const command of commands) {
             card.appendChild(makeCommand(command[0], command[1]));
         }
@@ -630,7 +1075,12 @@
         container.innerHTML = "";
 
         for (const item of items) {
-            container.appendChild(makeCard(item[0], [["Path", item[1]]], apiBase + item[1]));
+            container.appendChild(makeCard(
+                item[0],
+                [["Path", item[1]]],
+                apiBase + item[1],
+                item[2] || ""
+            ));
         }
     }
 
@@ -654,9 +1104,9 @@
         const encoded = encodeURIComponent(id);
 
         return [
-            ["-" + stepSize, "/adjust?slider=" + encoded + "&amount=-" + stepSize],
-            ["Reset", "/reset?slider=" + encoded],
-            ["+" + stepSize, "/adjust?slider=" + encoded + "&amount=" + stepSize]
+            ["-" + stepSize, "/api/command?command=develop.adjust&slider=" + encoded + "&amount=-" + stepSize],
+            ["Reset", "/api/command?command=develop.reset&slider=" + encoded],
+            ["+" + stepSize, "/api/command?command=develop.adjust&slider=" + encoded + "&amount=" + stepSize]
         ];
     }
 
@@ -666,21 +1116,6 @@
             sliderCommands(slider.id),
             "ID: " + slider.id + " | group: " + slider.group
         );
-    }
-
-    function renderGroups() {
-        const cleanSliders = sliders.filter(function (slider) {
-            return slider.id !== "LensProfileChromaticAberrationScale";
-        });
-
-        const grouped = groupBy(cleanSliders, "group");
-        const items = [];
-
-        for (const groupName of grouped.keys()) {
-            items.push([groupName, "/reset-group?group=" + encodeURIComponent(groupName)]);
-        }
-
-        renderSimple("groups", items);
     }
 
     function renderSliders() {
@@ -730,8 +1165,8 @@
     function renderAll() {
         renderSimple("quick", getQuickCommands());
         renderSimple("actions", actions);
-        renderGroups();
         renderSliders();
+        renderBuilderValues();
         filterCards();
     }
 
@@ -798,8 +1233,22 @@
         copyText(apiBase);
     });
 
+    builderFamily.addEventListener("change", renderBuilderTypes);
+    builderType.addEventListener("change", renderBuilderValues);
+    builderValue.addEventListener("change", renderBuilderOutput);
+    builderAmount.addEventListener("input", renderBuilderOutput);
+
+    document.getElementById("copyBuilderPath").addEventListener("click", function () {
+        copyText(builderPath.textContent);
+    });
+
+    document.getElementById("copyBuilderFull").addEventListener("click", function () {
+        copyText(apiBase + builderPath.textContent);
+    });
+
     searchEl.addEventListener("input", filterCards);
 
+    initializeBuilder();
     setBaseHost("127.0.0.1");
     setStep(1);
 

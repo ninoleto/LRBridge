@@ -68,8 +68,14 @@ async function main() {
         let result;
 
         const commandCases = [
+            ...["left", "right"].map((direction) => ({
+                command: "photo.rotate", direction
+            })),
             ...["next", "previous", "first", "last"].map((direction) => ({
                 command: "selection.navigate", direction
+            })),
+            ...["left", "right"].map((direction) => ({
+                command: "selection.extend", direction, amount: 1
             })),
             ...["pick", "reject", "none"].map((flag) => ({
                 command: "selection.flag", flag
@@ -104,9 +110,9 @@ async function main() {
         ];
 
         for (const command of commandCases) {
-            const field = Object.keys(command)[1];
-            const path = "/command?command=" + encodeURIComponent(command.command) +
-                "&" + field + "=" + encodeURIComponent(command[field]);
+            const path = "/command?" + Object.entries(command).map(([key, value]) =>
+                encodeURIComponent(key) + "=" + encodeURIComponent(value)
+            ).join("&");
             result = await getJson(httpPort, path);
             assert.deepEqual(result, { statusCode: 200, body: { ok: true, queued: command } });
             assert.deepEqual(commands.getNextCommand(), command);
@@ -118,6 +124,15 @@ async function main() {
             "/command?command=selection.navigate&direction=Next",
             "/command?command=selection.navigate&direction=unknown",
             "/command?command=selection.navigate&direction=next&direction=previous",
+            "/command?command=selection.extend",
+            "/command?command=selection.extend&direction=left",
+            "/command?command=selection.extend&direction=up&amount=1",
+            "/command?command=selection.extend&direction=left&amount=0",
+            "/command?command=selection.extend&direction=left&amount=-1",
+            "/command?command=selection.extend&direction=left&amount=1.5",
+            "/command?command=selection.extend&direction=left&amount=101",
+            "/command?command=photo.rotate",
+            "/command?command=photo.rotate&direction=up",
             "/command?command=selection.flag",
             "/command?command=selection.flag&flag=Pick",
             "/command?command=selection.rating.set",
@@ -162,6 +177,16 @@ async function main() {
             body: { ok: true, queued: { command: "develop.action", action: "setAutoTone" } }
         });
         assert.deepEqual(commands.getNextCommand(), { command: "develop.action", action: "setAutoTone" });
+
+        result = await getJson(httpPort, "/command?command=develop.action&action=resetAllDevelopAdjustments");
+        assert.deepEqual(result, {
+            statusCode: 200,
+            body: { ok: true, queued: { command: "develop.action", action: "resetAllDevelopAdjustments" } }
+        });
+        assert.deepEqual(commands.getNextCommand(), {
+            command: "develop.action",
+            action: "resetAllDevelopAdjustments"
+        });
 
         const adjustCases = [
             ["0", 0], ["1", 1], ["-1", -1], ["25", 25], ["-25", -25],
@@ -259,6 +284,11 @@ async function main() {
         const invalidSelectionCommands = [];
         for (const direction of invalidStrings) {
             invalidSelectionCommands.push({ command: "selection.navigate", direction });
+            invalidSelectionCommands.push({ command: "photo.rotate", direction });
+            invalidSelectionCommands.push({ command: "selection.extend", direction, amount: 1 });
+        }
+        for (const amount of [undefined, null, true, "", "1", 0, -1, 1.5, 101, Infinity]) {
+            invalidSelectionCommands.push({ command: "selection.extend", direction: "left", amount });
         }
         for (const flag of invalidStrings) {
             invalidSelectionCommands.push({ command: "selection.flag", flag });

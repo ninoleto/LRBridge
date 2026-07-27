@@ -55,8 +55,6 @@ Method: GET
 - `amount=-1` means one step down.
 - `amount=5` and `amount=-5` are faster jumps.
 - Use `/reset?slider=SLIDER_ID` to reset one slider.
-- Use `/reset-group?group=GROUP_NAME` to reset a group.
-- Use `/reset-all` carefully.
 - `/get`, `/last-result`, and `/set` are experimental and should not be used for normal Companion feedback.
 
 ---
@@ -72,26 +70,6 @@ Method: GET
 | Exposure Reset | `/reset?slider=Exposure` | `http://127.0.0.1:17891/reset?slider=Exposure` |
 | Auto Tone | `/action?action=setAutoTone` | `http://127.0.0.1:17891/action?action=setAutoTone` |
 | Auto White Balance | `/action?action=setAutoWhiteBalance` | `http://127.0.0.1:17891/action?action=setAutoWhiteBalance` |
-| Reset Basic group | `/reset-group?group=Basic` | `http://127.0.0.1:17891/reset-group?group=Basic` |
-| Reset all mapped sliders | `/reset-all` | `http://127.0.0.1:17891/reset-all` |
-
----
-
-## Group reset commands
-
-| Group | Companion path | Full local URL |
-|---|---|---|
-| Basic | `/reset-group?group=Basic` | `http://127.0.0.1:17891/reset-group?group=Basic` |
-| Color | `/reset-group?group=Color` | `http://127.0.0.1:17891/reset-group?group=Color` |
-| Presence | `/reset-group?group=Presence` | `http://127.0.0.1:17891/reset-group?group=Presence` |
-| Detail | `/reset-group?group=Detail` | `http://127.0.0.1:17891/reset-group?group=Detail` |
-| Color Mixer / HSL | `/reset-group?group=Color%20Mixer%20%2F%20HSL` | `http://127.0.0.1:17891/reset-group?group=Color%20Mixer%20%2F%20HSL` |
-| B&W Mixer | `/reset-group?group=B%26W%20Mixer` | `http://127.0.0.1:17891/reset-group?group=B%26W%20Mixer` |
-| Effects | `/reset-group?group=Effects` | `http://127.0.0.1:17891/reset-group?group=Effects` |
-| Calibration | `/reset-group?group=Calibration` | `http://127.0.0.1:17891/reset-group?group=Calibration` |
-| Lens / Defringe | `/reset-group?group=Lens%20%2F%20Defringe` | `http://127.0.0.1:17891/reset-group?group=Lens%20%2F%20Defringe` |
-| Transform | `/reset-group?group=Transform` | `http://127.0.0.1:17891/reset-group?group=Transform` |
-| Tone Curve | `/reset-group?group=Tone%20Curve` | `http://127.0.0.1:17891/reset-group?group=Tone%20Curve` |
 
 ---
 
@@ -99,6 +77,7 @@ Method: GET
 
 | Action | Companion path | Full local URL |
 |---|---|---|
+| resetAllDevelopAdjustments | `/action?action=resetAllDevelopAdjustments` | `http://127.0.0.1:17891/action?action=resetAllDevelopAdjustments` |
 | resetCrop | `/action?action=resetCrop` | `http://127.0.0.1:17891/action?action=resetCrop` |
 | resetTransforms | `/action?action=resetTransforms` | `http://127.0.0.1:17891/action?action=resetTransforms` |
 | setAutoTone | `/action?action=setAutoTone` | `http://127.0.0.1:17891/action?action=setAutoTone` |
@@ -722,7 +701,7 @@ When building a Companion module or fork:
 
 1. Read `config/sliders.json` for slider IDs, labels, groups, ranges, and defaults.
 2. Read `server/commands.js` for allowed action names.
-3. Use `/adjust`, `/reset`, `/reset-group`, `/reset-all`, and `/action` first.
+3. Use `/adjust`, `/reset`, and `/action` first.
 4. Do not build feedback on `/last-result`.
 5. Do not treat `/set` as stable.
 6. Keep Lightroom logic inside LRBridge, not inside the Companion module.

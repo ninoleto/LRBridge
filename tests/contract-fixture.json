@@ -21,8 +21,6 @@
     "/set",
     "/action",
     "/reset",
-    "/reset-group",
-    "/reset-all",
     "/get",
     "/result",
     "/last-result",
@@ -40,7 +38,9 @@
     "develop.set",
     "develop.reset",
     "develop.action",
+    "photo.rotate",
     "selection.navigate",
+    "selection.extend",
     "selection.flag",
     "selection.rating.set",
     "selection.rating.adjust",
@@ -58,6 +58,14 @@
     "select_inverse",
     "deselect_active",
     "deselect_others"
+  ],
+  "extendDirections": [
+    "left",
+    "right"
+  ],
+  "photoRotateDirections": [
+    "left",
+    "right"
   ],
   "applicationModules": [
     "library",
@@ -103,6 +111,7 @@
     "slideshow"
   ],
   "actions": [
+    "resetAllDevelopAdjustments",
     "resetCrop",
     "resetTransforms",
     "setAutoTone",

@@ -1,0 +1,311 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const root = path.join(__dirname, "..");
+const builderSource = fs.readFileSync(path.join(root, "app/companion-cheatsheet.html"), "utf8");
+const controllerSource = fs.readFileSync(path.join(root, "app/controller.html"), "utf8");
+const backendSource = fs.readFileSync(path.join(root, "server/commands.js"), "utf8");
+const packageJson = require("../package.json");
+const commands = require("../server/commands");
+const sliders = require("../server/sliders");
+
+const scriptSource = builderSource.match(/<script>([\s\S]*?)<\/script>/);
+assert.ok(scriptSource, "Builder script is missing");
+assert.doesNotThrow(() => new vm.Script(scriptSource[1]), "Builder JavaScript must parse");
+
+function extractValue(source, declaration) {
+    const start = source.indexOf(declaration);
+    const end = source.indexOf(";", start);
+    assert.notEqual(start, -1, "Missing declaration: " + declaration);
+    assert.notEqual(end, -1, "Missing declaration terminator: " + declaration);
+    const value = vm.runInNewContext("(" + source.slice(start + declaration.length, end).trim() + ")");
+    return JSON.parse(JSON.stringify(value));
+}
+
+function extractFunction(source, name, nextName, context = {}) {
+    const start = source.indexOf("function " + name + "(");
+    const end = source.indexOf("function " + nextName + "(", start);
+    assert.notEqual(start, -1, "Missing function: " + name);
+    assert.notEqual(end, -1, "Missing following function: " + nextName);
+    return vm.runInNewContext("(" + source.slice(start, end).trim() + ")", context);
+}
+
+function values(type) {
+    return (type.options || []).map((option) => option.value);
+}
+
+function sorted(items) {
+    return [...items].sort((left, right) => String(left).localeCompare(String(right)));
+}
+
+function assertSameValues(actual, expected, message) {
+    assert.deepEqual(sorted(actual), sorted(expected), message);
+}
+
+function commandFromPath(pathname, type) {
+    const params = new URL("http://127.0.0.1" + pathname).searchParams;
+    const command = {
+        command: params.get("command")
+    };
+    const value = params.get(type.valueField);
+    command[type.valueField] = type.numericValue ? Number(value) : value;
+
+    if (type.amountField) {
+        command[type.amountField] = Number(params.get(type.amountField));
+    }
+
+    return command;
+}
+
+const families = extractValue(builderSource, "const builderCommandFamilies =");
+const buildCommandPath = extractFunction(builderSource, "buildCommandPath", "selectedBuilderFamily");
+const familyById = Object.fromEntries(families.map((family) => [family.id, family]));
+const developTypes = Object.fromEntries(familyById.develop.types.map((type) => [type.id, type]));
+const selectionTypes = Object.fromEntries(familyById.selection.types.map((type) => [type.id, type]));
+const photoTypes = Object.fromEntries(familyById.photo.types.map((type) => [type.id, type]));
+const applicationTypes = Object.fromEntries(familyById.application.types.map((type) => [type.id, type]));
+
+assert.deepEqual(families.map((family) => family.id), ["develop", "selection", "photo", "application"]);
+assert.equal(familyById.develop.types.filter((type) => type.valueSource).length + developTypes.action.options.length, 14);
+assert.equal(familyById.selection.types.reduce((total, type) => total + type.options.length, 0), 33);
+assert.equal(familyById.photo.types.reduce((total, type) => total + type.options.length, 0), 2);
+assert.equal(familyById.application.types.reduce((total, type) => total + type.options.length, 0), 34);
+assert.equal(
+    sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length * 2 +
+        developTypes.action.options.length,
+    202,
+    "Develop concrete Builder combination count changed"
+);
+assert.match(builderSource, /id="builderFamily"/);
+assert.match(builderSource, /id="builderType"/);
+assert.match(builderSource, /id="builderValue"/);
+assert.match(builderSource, /id="builderPath"/);
+assert.match(builderSource, /builderFamily\.addEventListener\("change", renderBuilderTypes\)/);
+assert.match(builderSource, /builderType\.addEventListener\("change", renderBuilderValues\)/);
+assert.match(builderSource, /builderValue\.addEventListener\("change", renderBuilderOutput\)/);
+assert.match(builderSource, /builderAmount\.addEventListener\("input", renderBuilderOutput\)/);
+assert.match(builderSource, /copyText\(builderPath\.textContent\)/);
+assert.match(builderSource, /copyText\(apiBase \+ builderPath\.textContent\)/);
+assert.match(builderSource, /copyText\(path\)/, "Card Copy path behavior changed");
+assert.match(builderSource, /copyText\(apiBase \+ path\)/, "Card Copy full URL behavior changed");
+assert.match(builderSource, /fetch\("\/api\/sliders"\)/, "Slider choices must use current slider metadata");
+
+assert.equal(
+    buildCommandPath(developTypes.adjust, "Exposure", -4),
+    "/api/command?command=develop.adjust&slider=Exposure&amount=-4",
+    "Develop slider adjust URL changed"
+);
+assert.equal(
+    buildCommandPath(developTypes.adjust, "Exposure", 4),
+    "/api/command?command=develop.adjust&slider=Exposure&amount=4",
+    "Positive Develop slider amount changed"
+);
+assert.equal(
+    buildCommandPath(developTypes.reset, "Exposure"),
+    "/api/command?command=develop.reset&slider=Exposure",
+    "Develop individual slider reset URL changed"
+);
+assert.equal(
+    buildCommandPath(developTypes.adjust, "Slider A&B", -2),
+    "/api/command?command=develop.adjust&slider=Slider%20A%26B&amount=-2",
+    "Builder query parameters must be URL-encoded"
+);
+
+const allowedActions = extractValue(backendSource, "const allowedActions =");
+assertSameValues(values(developTypes.action), allowedActions, "Develop action contract drifted");
+assert.equal(developTypes.action.options.length, 12, "Builder must expose all 12 Develop actions");
+
+const nativeReset = developTypes.action.options.find((option) => option.value === "resetAllDevelopAdjustments");
+assert.deepEqual(nativeReset, {
+    value: "resetAllDevelopAdjustments",
+    label: "Reset",
+    description: "Reset all Develop adjustments on the active photo"
+});
+assert.equal(
+    buildCommandPath(developTypes.action, nativeReset.value),
+    "/api/command?command=develop.action&action=resetAllDevelopAdjustments"
+);
+
+const renderedCards = [];
+const renderContainer = {
+    innerHTML: "",
+    appendChild(card) {
+        renderedCards.push(card);
+    }
+};
+const renderSimple = extractFunction(builderSource, "renderSimple", "groupBy", {
+    apiBase: "http://127.0.0.1:17891",
+    document: {
+        getElementById() {
+            return renderContainer;
+        }
+    },
+    makeCard(...args) {
+        return args;
+    }
+});
+const standaloneActions = developTypes.action.options.map((option) => [
+    option.label,
+    buildCommandPath(developTypes.action, option.value),
+    option.description || ""
+]);
+renderSimple("actions", standaloneActions);
+
+assert.equal(renderedCards.length, 12);
+for (let index = 0; index < standaloneActions.length; index += 1) {
+    const item = standaloneActions[index];
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(renderedCards[index])),
+        [
+            item[0],
+            [["Path", item[1]]],
+            "http://127.0.0.1:17891" + item[1],
+            item[2] || ""
+        ],
+        "Standalone Develop action card copy/display data drifted: " + item[0]
+    );
+}
+
+const renderedReset = renderedCards.find((card) => card[0] === "Reset");
+assert.deepEqual(JSON.parse(JSON.stringify(renderedReset)), [
+    "Reset",
+    [["Path", "/api/command?command=develop.action&action=resetAllDevelopAdjustments"]],
+    "http://127.0.0.1:17891/api/command?command=develop.action&action=resetAllDevelopAdjustments",
+    "Reset all Develop adjustments on the active photo"
+]);
+assert.match(builderSource, /descriptionEl\.className = "meta description"/);
+assert.match(builderSource, /descriptionEl\.textContent = description/);
+assert.doesNotMatch(
+    builderSource,
+    /makeCard\(item\[0\],\s*\[\["Path", item\[1\]\]\],\s*item\[2\]/,
+    "Description must not occupy the full-URL/copy slot"
+);
+
+renderedCards.length = 0;
+const getQuickCommands = extractFunction(builderSource, "getQuickCommands", "normalizeHost", { stepSize: 1 });
+const quickCommands = getQuickCommands();
+renderSimple("quick", quickCommands);
+assert.equal(renderedCards.length, quickCommands.length);
+for (let index = 0; index < quickCommands.length; index += 1) {
+    assert.equal(renderedCards[index][2], "http://127.0.0.1:17891" + quickCommands[index][1]);
+    assert.equal(renderedCards[index][3], "");
+}
+assert.ok(
+    !developTypes.action.options.some((option) => /previous/i.test(option.value) || /previous/i.test(option.label)),
+    "Develop Previous must not be exposed"
+);
+
+for (const slider of sliders.getAll()) {
+    for (const type of [developTypes.adjust, developTypes.reset]) {
+        const pathname = buildCommandPath(type, slider.id, -3);
+        assert.equal(commands.validateCommand(commandFromPath(pathname, type)), true, "Invalid slider command: " + pathname);
+    }
+}
+
+for (const option of developTypes.action.options) {
+    const pathname = buildCommandPath(developTypes.action, option.value);
+    assert.equal(commands.validateCommand(commandFromPath(pathname, developTypes.action)), true, "Invalid Develop action: " + pathname);
+}
+
+const selectionContracts = [
+    ["navigate", "allowedSelectionDirections"],
+    ["extend", "allowedExtendDirections"],
+    ["flag", "allowedFlags"],
+    ["rating-adjust", "allowedRatingDirections"],
+    ["label-set", "allowedLabels"],
+    ["label-toggle", "allowedToggleLabels"],
+    ["operation", "allowedSelectionOperations"]
+];
+
+for (const [typeId, backendName] of selectionContracts) {
+    assertSameValues(values(selectionTypes[typeId]), extractValue(backendSource, "const " + backendName + " ="), "Selection contract drifted: " + typeId);
+}
+assert.deepEqual(values(selectionTypes["rating-set"]), [0, 1, 2, 3, 4, 5]);
+assert.equal(selectionTypes["label-toggle"].label, "Toggle Color Label");
+assert.equal(selectionTypes.extend.amountMin, 1);
+assert.equal(selectionTypes.extend.amountMax, 100);
+assert.equal(selectionTypes.extend.description, "Follows Lightroom's current Filmstrip/Grid ordering.");
+
+for (const type of familyById.selection.types) {
+    for (const option of type.options) {
+        const pathname = buildCommandPath(type, option.value, type.amountField ? 1 : undefined);
+        assert.equal(commands.validateCommand(commandFromPath(pathname, type)), true, "Invalid Selection command: " + pathname);
+    }
+}
+assert.equal(
+    buildCommandPath(selectionTypes.extend, "left", 25),
+    "/api/command?command=selection.extend&direction=left&amount=25"
+);
+
+assertSameValues(
+    values(photoTypes.rotate),
+    extractValue(backendSource, "const allowedPhotoRotateDirections ="),
+    "Photo rotation contract drifted"
+);
+for (const option of photoTypes.rotate.options) {
+    const pathname = buildCommandPath(photoTypes.rotate, option.value);
+    assert.equal(commands.validateCommand(commandFromPath(pathname, photoTypes.rotate)), true, "Invalid Photo command: " + pathname);
+}
+assert.deepEqual(
+    photoTypes.rotate.options.map((option) => option.label),
+    ["Rotate Left", "Rotate Right"]
+);
+
+const applicationContracts = [
+    ["module", "allowedApplicationModules"],
+    ["view", "allowedApplicationViews"],
+    ["secondary-view", "allowedSecondaryViews"]
+];
+
+for (const [typeId, backendName] of applicationContracts) {
+    assertSameValues(values(applicationTypes[typeId]), extractValue(backendSource, "const " + backendName + " ="), "Application contract drifted: " + typeId);
+}
+
+const allowedApplicationActions = extractValue(backendSource, "const allowedApplicationActions =");
+assertSameValues(
+    values(applicationTypes.action),
+    allowedApplicationActions.filter((action) => action !== "cycle_loupe_info"),
+    "Runtime-usable Application action contract drifted"
+);
+assert.ok(!values(applicationTypes.action).includes("cycle_loupe_info"), "cycle_loupe_info must not be exposed");
+assert.ok(values(applicationTypes["secondary-view"]).includes("slideshow"), "Secondary slideshow must be exposed");
+
+for (const type of familyById.application.types) {
+    for (const option of type.options) {
+        const pathname = buildCommandPath(type, option.value);
+        assert.equal(commands.validateCommand(commandFromPath(pathname, type)), true, "Invalid Application command: " + pathname);
+    }
+}
+
+for (const [value, label] of [
+    ["toggle_zoom", "Fit / Fill Zoom"],
+    ["next_screen_mode", "Cycle Screen Modes"],
+    ["toggle_secondary_display", "Show / Hide Display"],
+    ["toggle_secondary_fullscreen", "Full Screen / Windowed"]
+]) {
+    assert.equal(applicationTypes.action.options.find((option) => option.value === value).label, label);
+}
+
+const controllerSelection = extractValue(controllerSource, "const selectionGroups =")
+    .flatMap((group) => group.commands);
+const controllerApplication = extractValue(controllerSource, "const applicationGroups =")
+    .flatMap((group) => group.commands);
+assert.equal(controllerSelection.length, 30, "Main Web Controller Selection count changed");
+assert.equal(controllerApplication.length, 34, "Main Web Controller Application count changed");
+assert.ok(!controllerSelection.some((item) => item.command === "selection.label.toggle"), "Main controller must continue hiding label toggle");
+assert.equal(commands.validateCommand({ command: "selection.label.toggle", label: "red" }), true, "Backend label toggle support was removed");
+
+assert.ok(packageJson.scripts.test.includes("test:http-builder"), "Focused HTTP Builder test is not in npm test");
+assert.ok(packageJson.scripts.test.includes("test:controller-commands"), "Controller prohibition tests must remain active");
+
+for (const forbidden of ["AppActivate", "SendKeys", "AutoHotkey", "WScript.Shell"]) {
+    assert.ok(!builderSource.includes(forbidden), "Builder introduced keyboard/focus automation: " + forbidden);
+    assert.ok(!controllerSource.includes(forbidden), "Controller keyboard/focus prohibition regressed: " + forbidden);
+}
+const removedGroupResetToken = "reset-" + "group";
+assert.ok(!builderSource.toLowerCase().includes(removedGroupResetToken), "Unsafe group-reset surface remains in Builder");
+
+console.log("HTTP Builder v0.6 command-surface tests passed.");
+console.log("Validated 12 Develop actions, 33 Selection values, 2 Photo values, and 34 Application values.");

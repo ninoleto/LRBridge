@@ -170,6 +170,10 @@ function Driver.resetSlider(slider)
 end
 
 local actionMap = {
+    resetAllDevelopAdjustments = function()
+        LrDevelopController.resetAllDevelopAdjustments()
+    end,
+
     resetCrop = function()
         LrDevelopController.resetCrop()
     end,
@@ -233,5 +237,4 @@ function Driver.runAction(action)
 end
 
 return Driver
-
 

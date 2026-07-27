@@ -407,45 +407,6 @@
         </p>
     </section>
 
-    <h2>Advanced dangerous commands</h2>
-
-    <section class="box danger">
-        <h3>Reset group and Reset all are use-at-your-own-risk commands</h3>
-        <p>
-            <strong>/reset-group</strong> and <strong>/reset-all</strong> are not available in the Web Controller UI.
-        </p>
-        <p>
-            LRBridge still supports these endpoints for advanced users who want to call them manually from PowerShell,
-            scripts, Bitfocus Companion, or another HTTP-capable tool.
-        </p>
-        <p>
-            They can send many commands to Lightroom very quickly.
-            This can overload Lightroom and may freeze or crash Lightroom.
-            Use them at your own risk.
-        </p>
-
-        <table>
-            <tr>
-                <th>Advanced command</th>
-                <th>Example</th>
-            </tr>
-            <tr>
-                <td>Reset group</td>
-                <td><code>/reset-group?group=Basic</code></td>
-            </tr>
-            <tr>
-                <td>Reset all known sliders</td>
-                <td><code>/reset-all</code></td>
-            </tr>
-        </table>
-
-        <p>
-            PowerShell examples:
-        </p>
-
-        <pre>curl.exe "http://127.0.0.1:17891/reset-group?group=Basic"</pre>
-        <pre>curl.exe "http://127.0.0.1:17891/reset-all"</pre>
-    </section>
 </main>
 </body>
 </html>

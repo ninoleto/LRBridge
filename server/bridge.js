@@ -133,28 +133,6 @@ function rejectQueueFull(res, queueLength) {
     });
 }
 
-function queueBatchOrReject(res, batch, successBody) {
-    const admission = commands.tryEnqueueBatch(batch);
-
-    if (admission.status === commands.ADMISSION_QUEUE_FULL) {
-        rejectQueueFull(res, admission.queueLength);
-        return;
-    }
-
-    if (!admission.accepted) {
-        rejectInvalidCommand(res, batch);
-        return;
-    }
-
-    res.json(successBody);
-}
-
-function getSlidersByGroup(groupName) {
-    return sliders.getAll().filter(function (slider) {
-        return slider.group === groupName;
-    });
-}
-
 app.get("/", function (req, res) {
     res.json({
         name: "LRBridge",
@@ -177,9 +155,9 @@ app.get("/help", function (req, res) {
             groups: "/groups",
             adjust: "/adjust?slider=Exposure&amount=1",
             reset: "/reset?slider=Exposure",
-            resetGroup: "/reset-group?group=Basic",
-            resetAll: "/reset-all",
             navigateSelection: "/command?command=selection.navigate&direction=next",
+            extendSelection: "/command?command=selection.extend&direction=right&amount=1",
+            rotatePhoto: "/command?command=photo.rotate&direction=right",
             setFlag: "/command?command=selection.flag&flag=pick",
             setRating: "/command?command=selection.rating.set&rating=5",
             adjustRating: "/command?command=selection.rating.adjust&direction=increase",
@@ -388,50 +366,6 @@ app.get("/reset", function (req, res) {
     };
 
     queueOrReject(res, command);
-});
-
-app.get("/reset-group", function (req, res) {
-    const group = req.query.group;
-    const groupSliders = getSlidersByGroup(group);
-
-    if (groupSliders.length === 0) {
-        res.status(400).json({
-            ok: false,
-            error: "Unknown or empty group",
-            group: group
-        });
-        return;
-    }
-
-    const queued = groupSliders.map(function (slider) {
-        return {
-            command: "develop.reset",
-            slider: slider.id
-        };
-    });
-
-    queueBatchOrReject(res, queued, {
-        ok: true,
-        group: group,
-        queuedCount: queued.length,
-        queued: queued
-    });
-});
-
-app.get("/reset-all", function (req, res) {
-    const sliderIds = sliders.getIds();
-    const queued = sliderIds.map(function (slider) {
-        return {
-            command: "develop.reset",
-            slider: slider
-        };
-    });
-
-    queueBatchOrReject(res, queued, {
-        ok: true,
-        queuedCount: queued.length,
-        queued: queued
-    });
 });
 
 app.get("/get", function (req, res) {

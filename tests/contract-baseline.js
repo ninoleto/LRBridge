@@ -103,6 +103,8 @@ function validateStaticContract() {
         "WebSocket/queue command names drifted"
     );
     for (const [declaration, expected] of [
+        ["const allowedExtendDirections = [", fixture.extendDirections],
+        ["const allowedPhotoRotateDirections = [", fixture.photoRotateDirections],
         ["const allowedSelectionOperations = [", fixture.selectionOperations],
         ["const allowedApplicationModules = [", fixture.applicationModules],
         ["const allowedApplicationViews = [", fixture.applicationViews],
@@ -318,6 +320,9 @@ async function drainCommands(captured, expectedCount) {
 
 async function validateHttpAndWebSocketContract() {
     const captured = await captureBridge();
+    const removedGroupResetRoute = "/reset-" + "group";
+    assert.equal(captured.routes.has(removedGroupResetRoute), false, "Unsafe group-reset route must not exist");
+    assert.equal(fixture.routes.includes(removedGroupResetRoute), false, "Unsafe group-reset route remains in fixture");
     assert.equal(captured.httpListenPort, fixture.ports.http, "HTTP default port drifted");
     assert.equal(captured.websocketServer.options.port, fixture.ports.webSocket, "WebSocket default port drifted");
     assert.deepEqual(Array.from(captured.routes.keys()), fixture.routes, "HTTP route set or order drifted");
@@ -359,6 +364,16 @@ async function validateHttpAndWebSocketContract() {
     assert.deepEqual(result.body, { ok: true, queued: { command: "develop.action", action: "setAutoTone" } });
     assert.deepEqual((await request(captured, "/next")).body.command, { command: "develop.action", action: "setAutoTone" });
 
+    result = await request(captured, "/action", { action: "resetAllDevelopAdjustments" });
+    assert.deepEqual(result.body, {
+        ok: true,
+        queued: { command: "develop.action", action: "resetAllDevelopAdjustments" }
+    });
+    assert.deepEqual((await request(captured, "/next")).body.command, {
+        command: "develop.action",
+        action: "resetAllDevelopAdjustments"
+    });
+
     result = await request(captured, "/get", { slider: "Exposure" });
     assert.deepEqual(result.body, { ok: true, queued: { command: "develop.get", slider: "Exposure" } });
     await request(captured, "/next");
@@ -380,7 +395,9 @@ async function validateHttpAndWebSocketContract() {
     await request(captured, "/next");
 
     const selectionCommands = [
+        { command: "photo.rotate", direction: "left" },
         { command: "selection.navigate", direction: "next" },
+        { command: "selection.extend", direction: "right", amount: 1 },
         { command: "selection.flag", flag: "pick" },
         { command: "selection.rating.set", rating: 5 },
         { command: "selection.rating.adjust", direction: "increase" },
@@ -402,23 +419,6 @@ async function validateHttpAndWebSocketContract() {
     result = await request(captured, "/command", { command: "develop.action", action: "setAutoTone" });
     assert.deepEqual(result.body, { ok: true, queued: { command: "develop.action", action: "setAutoTone" } });
     await request(captured, "/next");
-
-    result = await request(captured, "/reset-group", { group: "Basic" });
-    const expectedGroupResets = sliders
-        .filter((slider) => slider.group === "Basic")
-        .map((slider) => ({ command: "develop.reset", slider: slider.id }));
-    assert.deepEqual(keys(result.body), ["group", "ok", "queued", "queuedCount"]);
-    assert.equal(result.body.group, "Basic");
-    assert.equal(result.body.queuedCount, expectedGroupResets.length);
-    assert.deepEqual(result.body.queued, expectedGroupResets);
-    assert.deepEqual(await drainCommands(captured, expectedGroupResets.length), expectedGroupResets);
-
-    result = await request(captured, "/reset-all");
-    const expectedAllResets = sliders.map((slider) => ({ command: "develop.reset", slider: slider.id }));
-    assert.deepEqual(keys(result.body), ["ok", "queued", "queuedCount"]);
-    assert.equal(result.body.queuedCount, expectedAllResets.length);
-    assert.deepEqual(result.body.queued, expectedAllResets);
-    assert.deepEqual(await drainCommands(captured, expectedAllResets.length), expectedAllResets);
 
     result = await request(captured, "/context/update", { activeModule: "develop", selectedPhotoKey: "photo-1", developFingerprint: "abc" });
     assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey"]);
@@ -471,7 +471,9 @@ async function validateHttpAndWebSocketContract() {
         { command: "develop.set", slider: "Exposure", value: 1 },
         { command: "develop.reset", slider: "Exposure" },
         { command: "develop.action", action: "setAutoTone" },
+        { command: "photo.rotate", direction: "right" },
         { command: "selection.navigate", direction: "last" },
+        { command: "selection.extend", direction: "left", amount: 100 },
         { command: "selection.flag", flag: "none" },
         { command: "selection.rating.set", rating: 0 },
         { command: "selection.rating.adjust", direction: "decrease" },

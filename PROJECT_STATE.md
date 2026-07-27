@@ -60,8 +60,6 @@ Use these:
 /groups
 /adjust
 /reset
-/reset-group
-/reset-all
 ```
 
 Do not use these for production Companion buttons:
@@ -112,18 +110,6 @@ amount=10 ≈ 1.0 Exposure
 
 ```text
 /reset?slider=Exposure
-```
-
-### Reset Basic group
-
-```text
-/reset-group?group=Basic
-```
-
-### Reset all mapped sliders
-
-```text
-/reset-all
 ```
 
 ## Amount meaning
@@ -214,15 +200,6 @@ Presence
 Detail
 ```
 
-Group reset endpoint:
-
-```text
-/reset-group?group=Basic
-/reset-group?group=Color
-/reset-group?group=Presence
-/reset-group?group=Detail
-```
-
 ## Lightroom panels
 
 LRBridge calls:
@@ -311,8 +288,6 @@ Recommended Companion actions:
 /adjust?slider=Exposure&amount=1
 /adjust?slider=Exposure&amount=-1
 /reset?slider=Exposure
-/reset-group?group=Basic
-/reset-all
 ```
 
 Base URL when LRBridge runs on ANTEC:
@@ -337,8 +312,6 @@ Recommended visual tests:
 curl.exe "http://localhost:17891/help"
 curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=10"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
-curl.exe "http://localhost:17891/reset-group?group=Basic"
-curl.exe "http://localhost:17891/reset-all"
 npm test
 ```
 

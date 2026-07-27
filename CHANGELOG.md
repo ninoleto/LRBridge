@@ -164,8 +164,6 @@ v0.1.0-one-way
 - `/groups`
 - `/adjust`
 - `/reset`
-- `/reset-group`
-- `/reset-all`
 - command queue
 - repeated adjust command coalescing
 - configurable polling interval

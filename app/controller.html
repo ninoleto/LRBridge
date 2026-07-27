@@ -91,6 +91,25 @@
             margin-bottom: 8px;
         }
 
+        .command-group-note {
+            max-width: 920px;
+            margin: -2px 0 10px;
+            color: #9fb0bf;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            max-width: 920px;
+        }
+
+        .command-grid button {
+            min-height: 44px;
+        }
+
         .row {
             display: grid;
             grid-template-columns: 240px repeat(5, 70px) minmax(180px, 1fr);
@@ -157,6 +176,85 @@
 
         button.positive:hover {
             background: #327eab;
+        }
+
+        button.command-primary {
+            background: #2a6f97;
+            border-color: #3a8cc0;
+        }
+
+        button.command-primary:hover {
+            background: #327eab;
+        }
+
+        button.command-neutral,
+        button.label-none {
+            background: #46515c;
+            border-color: #626f7c;
+            color: #ffffff;
+        }
+
+        button.command-neutral:hover,
+        button.label-none:hover {
+            background: #56626e;
+        }
+
+        button.command-success,
+        button.label-green {
+            background: #27613d;
+            border-color: #398257;
+            color: #ffffff;
+        }
+
+        button.command-success:hover,
+        button.label-green:hover {
+            background: #32754b;
+        }
+
+        button.command-danger,
+        button.label-red {
+            background: #742f3a;
+            border-color: #9a4452;
+            color: #ffffff;
+        }
+
+        button.command-danger:hover,
+        button.label-red:hover {
+            background: #893946;
+        }
+
+        button.command-warning,
+        button.label-yellow {
+            background: #d6a52b;
+            border-color: #efc24d;
+            color: #17130a;
+        }
+
+        button.command-warning:hover,
+        button.label-yellow:hover {
+            background: #e4b63b;
+        }
+
+        button.command-purple,
+        button.label-purple {
+            background: #573d78;
+            border-color: #76559e;
+            color: #ffffff;
+        }
+
+        button.command-purple:hover,
+        button.label-purple:hover {
+            background: #68498e;
+        }
+
+        button.label-blue {
+            background: #174a70;
+            border-color: #286b99;
+            color: #ffffff;
+        }
+
+        button.label-blue:hover {
+            background: #205a84;
         }
 
         button.negative {
@@ -661,6 +759,18 @@
 
         const sliderActionGroups = [
                 {
+                        "name": "Develop Actions",
+                        "placement": "top",
+                        "actions": [
+                                {
+                                        "label": "Reset all Develop adjustments on the active photo",
+                                        "action": "resetAllDevelopAdjustments",
+                                        "button": "Reset",
+                                        "className": "reset"
+                                }
+                        ]
+                },
+                {
                         "name": "Basic Actions",
                         "placement": "before:Basic",
                         "actions": [
@@ -779,6 +889,156 @@
                                         "action": "selectMaskingTool",
                                         "button": "Select"
                                 }
+                        ]
+                }
+        ];
+
+        const selectionGroups = [
+                {
+                        "name": "Navigate",
+                        "note": "Moves the active photo within Lightroom's current source.",
+                        "commands": [
+                                { "label": "First", "command": "selection.navigate", "field": "direction", "value": "first", "className": "command-primary" },
+                                { "label": "Previous", "command": "selection.navigate", "field": "direction", "value": "previous", "className": "command-primary" },
+                                { "label": "Next", "command": "selection.navigate", "field": "direction", "value": "next", "className": "command-primary" },
+                                { "label": "Last", "command": "selection.navigate", "field": "direction", "value": "last", "className": "command-primary" }
+                        ]
+                },
+                {
+                        "name": "Extend Selection",
+                        "note": "Extends the selection by one photo using Lightroom's current Filmstrip/Grid ordering.",
+                        "commands": [
+                                { "label": "Extend Left", "command": "selection.extend", "field": "direction", "value": "left", "params": { "amount": 1 }, "className": "command-primary" },
+                                { "label": "Extend Right", "command": "selection.extend", "field": "direction", "value": "right", "params": { "amount": 1 }, "className": "command-primary" }
+                        ]
+                },
+                {
+                        "name": "Photo",
+                        "note": "Rotates Lightroom's active photo only.",
+                        "commands": [
+                                { "label": "Rotate Left", "command": "photo.rotate", "field": "direction", "value": "left", "className": "command-primary" },
+                                { "label": "Rotate Right", "command": "photo.rotate", "field": "direction", "value": "right", "className": "command-primary" }
+                        ]
+                },
+                {
+                        "name": "Flags",
+                        "commands": [
+                                { "label": "Pick", "command": "selection.flag", "field": "flag", "value": "pick", "className": "command-success" },
+                                { "label": "Reject", "command": "selection.flag", "field": "flag", "value": "reject", "className": "command-danger" },
+                                { "label": "Unflag", "command": "selection.flag", "field": "flag", "value": "none", "className": "command-neutral" }
+                        ]
+                },
+                {
+                        "name": "Rating",
+                        "commands": [
+                                { "label": "0 Stars", "command": "selection.rating.set", "field": "rating", "value": 0, "className": "command-neutral" },
+                                { "label": "1 Star", "command": "selection.rating.set", "field": "rating", "value": 1, "className": "command-warning" },
+                                { "label": "2 Stars", "command": "selection.rating.set", "field": "rating", "value": 2, "className": "command-warning" },
+                                { "label": "3 Stars", "command": "selection.rating.set", "field": "rating", "value": 3, "className": "command-warning" },
+                                { "label": "4 Stars", "command": "selection.rating.set", "field": "rating", "value": 4, "className": "command-warning" },
+                                { "label": "5 Stars", "command": "selection.rating.set", "field": "rating", "value": 5, "className": "command-warning" }
+                        ]
+                },
+                {
+                        "name": "Adjust Rating",
+                        "commands": [
+                                { "label": "Decrease Rating", "command": "selection.rating.adjust", "field": "direction", "value": "decrease", "className": "command-neutral" },
+                                { "label": "Increase Rating", "command": "selection.rating.adjust", "field": "direction", "value": "increase", "className": "command-primary" }
+                        ]
+                },
+                {
+                        "name": "Color Label",
+                        "note": "Color names follow Lightroom's active Color Label Set.",
+                        "commands": [
+                                { "label": "Red", "command": "selection.label.set", "field": "label", "value": "red", "className": "label-red" },
+                                { "label": "Yellow", "command": "selection.label.set", "field": "label", "value": "yellow", "className": "label-yellow" },
+                                { "label": "Green", "command": "selection.label.set", "field": "label", "value": "green", "className": "label-green" },
+                                { "label": "Blue", "command": "selection.label.set", "field": "label", "value": "blue", "className": "label-blue" },
+                                { "label": "Purple", "command": "selection.label.set", "field": "label", "value": "purple", "className": "label-purple" },
+                                { "label": "None", "command": "selection.label.set", "field": "label", "value": "none", "className": "label-none" }
+                        ]
+                },
+                {
+                        "name": "Selection Operations",
+                        "note": "These operations use the photos available in Lightroom's current source.",
+                        "commands": [
+                                { "label": "Select All", "command": "selection.operation", "field": "operation", "value": "select_all", "className": "command-primary" },
+                                { "label": "Select None", "command": "selection.operation", "field": "operation", "value": "select_none", "className": "command-neutral" },
+                                { "label": "Invert Selection", "command": "selection.operation", "field": "operation", "value": "select_inverse", "className": "command-purple" },
+                                { "label": "Deselect Active", "command": "selection.operation", "field": "operation", "value": "deselect_active", "className": "command-warning" },
+                                { "label": "Deselect Others", "command": "selection.operation", "field": "operation", "value": "deselect_others", "className": "command-warning" }
+                        ]
+                }
+        ];
+
+        const applicationGroups = [
+                {
+                        "name": "Modules",
+                        "note": "Switches Lightroom directly to the chosen module.",
+                        "commands": [
+                                { "label": "Library", "command": "application.module", "field": "module", "value": "library" },
+                                { "label": "Develop", "command": "application.module", "field": "module", "value": "develop" },
+                                { "label": "Map", "command": "application.module", "field": "module", "value": "map" },
+                                { "label": "Book", "command": "application.module", "field": "module", "value": "book" },
+                                { "label": "Slideshow", "command": "application.module", "field": "module", "value": "slideshow" },
+                                { "label": "Print", "command": "application.module", "field": "module", "value": "print" },
+                                { "label": "Web", "command": "application.module", "field": "module", "value": "web" }
+                        ]
+                },
+                {
+                        "name": "Library Views",
+                        "note": "Use in Library with a compatible photo selection.",
+                        "commands": [
+                                { "label": "Loupe", "command": "application.view", "field": "view", "value": "loupe" },
+                                { "label": "Grid", "command": "application.view", "field": "view", "value": "grid" },
+                                { "label": "Compare", "command": "application.view", "field": "view", "value": "compare" },
+                                { "label": "Survey", "command": "application.view", "field": "view", "value": "survey" },
+                                { "label": "People", "command": "application.view", "field": "view", "value": "people" }
+                        ]
+                },
+                {
+                        "name": "Develop Views",
+                        "note": "Use in Develop. Before/After and Reference views require a compatible active photo.",
+                        "commands": [
+                                { "label": "Develop Loupe", "command": "application.view", "field": "view", "value": "develop_loupe" },
+                                { "label": "Before/After Horizontal", "command": "application.view", "field": "view", "value": "develop_before_after_horiz" },
+                                { "label": "Before/After Vertical", "command": "application.view", "field": "view", "value": "develop_before_after_vert" },
+                                { "label": "Before Only", "command": "application.view", "field": "view", "value": "develop_before" },
+                                { "label": "Reference Horizontal", "command": "application.view", "field": "view", "value": "develop_reference_horiz" },
+                                { "label": "Reference Vertical", "command": "application.view", "field": "view", "value": "develop_reference_vert" }
+                        ]
+                },
+                {
+                        "name": "Zoom",
+                        "note": "Zoom controls require Library or Develop with an active photo.",
+                        "commands": [
+                                { "label": "Fit / Fill Zoom", "command": "application.action", "field": "action", "value": "toggle_zoom" },
+                                { "label": "Zoom In", "command": "application.action", "field": "action", "value": "zoom_in" },
+                                { "label": "Zoom Out", "command": "application.action", "field": "action", "value": "zoom_out" },
+                                { "label": "Zoom 100%", "command": "application.action", "field": "action", "value": "zoom_100" }
+                        ]
+                },
+                {
+                        "name": "Screen",
+                        "commands": [
+                                { "label": "Fullscreen Preview", "command": "application.action", "field": "action", "value": "fullscreen_preview", "className": "command-purple" },
+                                { "label": "Fullscreen + Hide Panels", "command": "application.action", "field": "action", "value": "fullscreen_hide_panels", "className": "command-purple" },
+                                { "label": "Cycle Screen Modes", "command": "application.action", "field": "action", "value": "next_screen_mode" }
+                        ]
+                },
+                {
+                        "name": "Secondary Display",
+                        "note": "Requires a configured Secondary Display. Selecting the active view again may hide it.",
+                        "commands": [
+                                { "label": "Show / Hide Display", "command": "application.action", "field": "action", "value": "toggle_secondary_display", "className": "command-neutral" },
+                                { "label": "Full Screen / Windowed", "command": "application.action", "field": "action", "value": "toggle_secondary_fullscreen", "className": "command-purple" },
+                                { "label": "Loupe", "command": "application.secondary_view", "field": "view", "value": "loupe" },
+                                { "label": "Live Loupe", "command": "application.secondary_view", "field": "view", "value": "live_loupe" },
+                                { "label": "Locked Loupe", "command": "application.secondary_view", "field": "view", "value": "locked_loupe" },
+                                { "label": "Grid", "command": "application.secondary_view", "field": "view", "value": "grid" },
+                                { "label": "Compare", "command": "application.secondary_view", "field": "view", "value": "compare" },
+                                { "label": "Survey", "command": "application.secondary_view", "field": "view", "value": "survey" },
+                                { "label": "Slideshow", "command": "application.secondary_view", "field": "view", "value": "slideshow" }
                         ]
                 }
         ];
@@ -1016,7 +1276,7 @@
             const mainButton = document.createElement("button");
             mainButton.type = "button";
             mainButton.className = "slider-jump-main-button";
-            mainButton.textContent = "Section ▾";
+            mainButton.textContent = "Slider Group ▾";
             mainButton.setAttribute("aria-expanded", "false");
 
             const popover = document.createElement("div");
@@ -1703,6 +1963,14 @@
                 {
                     id: "sliders",
                     label: "Sliders"
+                },
+                {
+                    id: "selection",
+                    label: "Selection"
+                },
+                {
+                    id: "application",
+                    label: "Application"
                 }
             ].concat(toolTabs.map(function (tab) {
                 return {
@@ -1725,6 +1993,52 @@
             }
         }
 
+        function commandPath(item) {
+            const parameters = [
+                ["command", item.command],
+                [item.field, item.value]
+            ];
+
+            for (const entry of Object.entries(item.params || {})) {
+                parameters.push(entry);
+            }
+
+            return "/api/command?" + parameters.map(function (entry) {
+                return encodeURIComponent(entry[0]) + "=" + encodeURIComponent(String(entry[1]));
+            }).join("&");
+        }
+
+        function renderCommandGroups(groups) {
+            for (const group of groups) {
+                const groupElement = document.createElement("section");
+                groupElement.className = "group";
+
+                const title = document.createElement("div");
+                title.className = "group-title";
+                title.textContent = group.name;
+                groupElement.appendChild(title);
+
+                if (group.note) {
+                    const note = document.createElement("div");
+                    note.className = "command-group-note";
+                    note.textContent = group.note;
+                    groupElement.appendChild(note);
+                }
+
+                const grid = document.createElement("div");
+                grid.className = "command-grid";
+
+                for (const item of group.commands) {
+                    grid.appendChild(makeButton(item.label, item.className || "command-primary", function () {
+                        sendCommand(commandPath(item));
+                    }));
+                }
+
+                groupElement.appendChild(grid);
+                content.appendChild(groupElement);
+            }
+        }
+
         function addActionRow(groupElement, item) {
             const row = document.createElement("div");
             row.className = "action-row";
@@ -1738,7 +2052,7 @@
 
             row.appendChild(name);
 
-            const actionButton = makeButton(item.button || "Send", "positive", function () {
+            const actionButton = makeButton(item.button || "Send", item.className || "positive", function () {
                 if (isAutoActionCooldownActiveFor(item.action)) {
                     setStatus("Auto Tone / Auto White Balance is waiting for Lightroom to finish the last slider command.");
                     return;
@@ -1881,6 +2195,8 @@ row.appendChild(name);
         }
 
         function renderSlidersTab() {
+            renderActionsForPlacement("top");
+
             for (const group of sliderGroups) {
                 renderActionsForPlacement("before:" + group.name);
                 renderSwitchesForPlacement("before:" + group.name);
@@ -1925,6 +2241,16 @@ row.appendChild(name);
 
             if (activeTab === "sliders") {
                 renderSlidersTab();
+                return;
+            }
+
+            if (activeTab === "selection") {
+                renderCommandGroups(selectionGroups);
+                return;
+            }
+
+            if (activeTab === "application") {
+                renderCommandGroups(applicationGroups);
                 return;
             }
 

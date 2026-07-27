@@ -62,13 +62,6 @@ to Lightroom Classic Develop UI
 
 ## Dangerous advanced commands
 
-These endpoints exist, but they are not available in the Web Controller UI because they can send many commands to Lightroom quickly and may overload or crash Lightroom:
-
-- /reset-group?group=Basic
-- /reset-all
-
-Use at your own risk.
-
 ## Current limitations
 
 - LRBridge is focused on reliable one-way control.

@@ -49,8 +49,6 @@ Only use these endpoints for normal layout buttons:
 ```text
 /adjust
 /reset
-/reset-group
-/reset-all
 ```
 
 Do not use these for normal Companion control:
@@ -132,12 +130,6 @@ Press:   /reset?slider=Blacks
 ### Buttons
 
 ```text
-Reset Basic:
-GET /reset-group?group=Basic
-
-Reset All:
-GET /reset-all
-
 Open Help:
 GET /help
 ```
@@ -166,19 +158,6 @@ Encoder 4: Saturation
 CW:      /adjust?slider=Saturation&amount=1
 CCW:     /adjust?slider=Saturation&amount=-1
 Press:   /reset?slider=Saturation
-```
-
-### Buttons
-
-```text
-Reset Color:
-GET /reset-group?group=Color
-
-Reset Presence:
-GET /reset-group?group=Presence
-
-Reset All:
-GET /reset-all
 ```
 
 ## Page 3 — Presence
@@ -212,16 +191,6 @@ CCW:     /adjust?slider=Saturation&amount=-1
 Press:   /reset?slider=Saturation
 ```
 
-### Buttons
-
-```text
-Reset Presence:
-GET /reset-group?group=Presence
-
-Reset All:
-GET /reset-all
-```
-
 ## Page 4 — Detail
 
 ### Encoders
@@ -241,16 +210,6 @@ Encoder 3: Color Noise Reduction
 CW:      /adjust?slider=ColorNR&amount=1
 CCW:     /adjust?slider=ColorNR&amount=-1
 Press:   /reset?slider=ColorNR
-```
-
-### Buttons
-
-```text
-Reset Detail:
-GET /reset-group?group=Detail
-
-Reset All:
-GET /reset-all
 ```
 
 ## Suggested button labels
@@ -357,7 +316,6 @@ Then test visually in Lightroom:
 ```powershell
 curl.exe "http://localhost:17891/adjust?slider=Exposure&amount=1"
 curl.exe "http://localhost:17891/reset?slider=Exposure"
-curl.exe "http://localhost:17891/reset-group?group=Basic"
 ```
 
 Expected result:
@@ -373,8 +331,6 @@ A future native Companion module should expose actions like:
 ```text
 Adjust slider
 Reset slider
-Reset group
-Reset all
 Open/help/status check
 ```
 
@@ -395,5 +351,4 @@ Exposure encoder
 Contrast encoder
 Basic reset button
 Detail reset button
-Reset all button
 ```

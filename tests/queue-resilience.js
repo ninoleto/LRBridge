@@ -278,34 +278,6 @@ async function testHttpAndBatches() {
                 command: "develop.get.result", slider: "Exposure", value: 7
             });
 
-            commands.resetQueueForTests();
-            const groupSize = sliders.getAll().filter((slider) => slider.group === "Basic").length;
-            fillTo(commands.HARD_QUEUE_CAPACITY - groupSize + 1);
-            const beforeGroup = snapshot();
-            response = await get(bridge, "/reset-group?group=Basic");
-            assertOverload(response, commands.HARD_QUEUE_CAPACITY - groupSize + 1);
-            assert.deepEqual(snapshot(), beforeGroup);
-
-            commands.resetQueueForTests();
-            const allSize = sliders.getIds().length;
-            fillTo(commands.HARD_QUEUE_CAPACITY - allSize + 1);
-            const beforeAll = snapshot();
-            response = await get(bridge, "/reset-all");
-            assertOverload(response, commands.HARD_QUEUE_CAPACITY - allSize + 1);
-            assert.deepEqual(snapshot(), beforeAll);
-
-            commands.resetQueueForTests();
-            fillTo(commands.HARD_QUEUE_CAPACITY - groupSize);
-            response = await get(bridge, "/reset-group?group=Basic");
-            assert.equal(response.status, 200);
-            assert.equal(commands.getStatus().queueLength, commands.HARD_QUEUE_CAPACITY);
-
-            commands.resetQueueForTests();
-            fillTo(commands.HARD_QUEUE_CAPACITY - allSize);
-            response = await get(bridge, "/reset-all");
-            assert.equal(response.status, 200);
-            assert.equal(response.body.queuedCount, allSize);
-            assert.equal(commands.getStatus().queueLength, commands.HARD_QUEUE_CAPACITY);
         });
     });
 }

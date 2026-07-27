@@ -25,6 +25,7 @@ const ADMISSION_INVALID = "invalid";
 const ADMISSION_QUEUE_FULL = "queue_full";
 
 const allowedActions = [
+    "resetAllDevelopAdjustments",
     "resetCrop",
     "resetTransforms",
     "setAutoTone",
@@ -39,6 +40,8 @@ const allowedActions = [
 ];
 
 const allowedSelectionDirections = ["next", "previous", "first", "last"];
+const allowedExtendDirections = ["left", "right"];
+const allowedPhotoRotateDirections = ["left", "right"];
 const allowedFlags = ["pick", "reject", "none"];
 const allowedRatingDirections = ["increase", "decrease"];
 const allowedLabels = ["red", "yellow", "green", "blue", "purple", "none"];
@@ -101,7 +104,9 @@ function validateCommand(command) {
         "develop.set",
         "develop.reset",
         "develop.action",
+        "photo.rotate",
         "selection.navigate",
+        "selection.extend",
         "selection.flag",
         "selection.rating.set",
         "selection.rating.adjust",
@@ -127,6 +132,21 @@ function validateCommand(command) {
     if (command.command === "selection.navigate") {
         return typeof command.direction === "string" &&
             allowedSelectionDirections.includes(command.direction);
+    }
+
+    if (command.command === "selection.extend") {
+        return typeof command.direction === "string" &&
+            allowedExtendDirections.includes(command.direction) &&
+            typeof command.amount === "number" &&
+            Number.isFinite(command.amount) &&
+            Number.isInteger(command.amount) &&
+            command.amount >= 1 &&
+            command.amount <= 100;
+    }
+
+    if (command.command === "photo.rotate") {
+        return typeof command.direction === "string" &&
+            allowedPhotoRotateDirections.includes(command.direction);
     }
 
     if (command.command === "selection.flag") {
@@ -337,7 +357,9 @@ function getQueueDiagnostics(nowMs) {
         "develop.get": 0,
         "develop.reset": 0,
         "develop.action": 0,
+        "photo.rotate": 0,
         "selection.navigate": 0,
+        "selection.extend": 0,
         "selection.flag": 0,
         "selection.rating.set": 0,
         "selection.rating.adjust": 0,
@@ -381,7 +403,9 @@ function getQueueDiagnostics(nowMs) {
                 ordinary: pendingByCommand["develop.adjust"] +
                     pendingByCommand["develop.set"] +
                     pendingByCommand["develop.get"] +
+                    pendingByCommand["photo.rotate"] +
                     pendingByCommand["selection.navigate"] +
+                    pendingByCommand["selection.extend"] +
                     pendingByCommand["selection.flag"] +
                     pendingByCommand["selection.rating.set"] +
                     pendingByCommand["selection.rating.adjust"] +

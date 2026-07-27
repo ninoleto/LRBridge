@@ -154,7 +154,6 @@ Stable enough for normal use:
 
 Advanced or use with care:
 
-* `/reset-group` and `/reset-all` exist as HTTP endpoints, but can overload Lightroom if abused.
 * `/get`
 * `/set`
 * `/last-result`
@@ -870,43 +869,7 @@ Prefer `/reset` over `/set` for returning sliders to default.
 
 ---
 
-## 17. API: reset group
-
-```text
-GET /reset-group?group=Basic
-```
-
-Example:
-
-```text
-http://127.0.0.1:17891/reset-group?group=Basic
-```
-
-Queues reset commands for every slider in that group.
-
-Use carefully.
-
----
-
-## 18. API: reset all
-
-```text
-GET /reset-all
-```
-
-Example:
-
-```text
-http://127.0.0.1:17891/reset-all
-```
-
-Queues reset commands for all mapped sliders.
-
-Use carefully.
-
----
-
-## 19. API: action
+## 17. API: action
 
 ```text
 GET /action?action=setAutoTone
@@ -943,7 +906,7 @@ Direct API clients should avoid sending these commands immediately after slider 
 
 ---
 
-## 20. Experimental API: get
+## 18. Experimental API: get
 
 ```text
 GET /get?slider=Exposure
@@ -977,7 +940,7 @@ These endpoints are for LRBridge feedback polling and may change while the feedb
 
 ---
 
-## 21. Experimental API: set
+## 19. Experimental API: set
 
 ```text
 GET /set?slider=Exposure&value=1&experimental=1
@@ -998,7 +961,7 @@ experimental=1
 
 ---
 
-## 22. Supported controls
+## 20. Supported controls
 
 The current source of truth for supported sliders is:
 
@@ -1036,7 +999,7 @@ This unsupported control is intentionally not shown in the Web Controller.
 
 ---
 
-## 23. Companion usage today
+## 21. Companion usage today
 
 Bitfocus Companion can use LRBridge in two ways.
 
@@ -1104,7 +1067,7 @@ LRBridge exposes context fields through `/status` and `/context`. The native Com
 
 ---
 
-## 24. Native Companion module architecture
+## 22. Native Companion module architecture
 
 The native Bitfocus Companion module should not contain Lightroom logic.
 
@@ -1150,7 +1113,7 @@ https://github.com/ninoleto/companion-module-ninoleto-lrbridge
 
 ---
 
-## 25. Development workflow for humans
+## 23. Development workflow for humans
 
 Create a branch:
 
@@ -1193,7 +1156,7 @@ git push origin v0.x.x-short-name
 
 ---
 
-## 26. Development workflow for AI agents
+## 24. Development workflow for AI agents
 
 AI agents should follow this process.
 
@@ -1299,7 +1262,7 @@ final
 
 ---
 
-## 27. Coding rules for AI agents
+## 25. Coding rules for AI agents
 
 Follow these rules unless explicitly told otherwise:
 
@@ -1317,7 +1280,7 @@ Follow these rules unless explicitly told otherwise:
 
 ---
 
-## 28. Testing
+## 26. Testing
 
 Start packaged app:
 
@@ -1353,8 +1316,6 @@ curl.exe "http://127.0.0.1:17891/sliders"
 curl.exe "http://127.0.0.1:17891/groups"
 curl.exe "http://127.0.0.1:17891/adjust?slider=Exposure&amount=1"
 curl.exe "http://127.0.0.1:17891/reset?slider=Exposure"
-curl.exe "http://127.0.0.1:17891/reset-group?group=Basic"
-curl.exe "http://127.0.0.1:17891/reset-all"
 ```
 
 Expected smoke test ending:
@@ -1391,7 +1352,7 @@ lastHeartbeatAt updates while the Lightroom plugin is polling.
 
 ---
 
-## 29. Troubleshooting
+## 27. Troubleshooting
 
 ### App does not open
 
@@ -1566,7 +1527,7 @@ Do not use `/get` or `/last-result` as the source of truth for Web Controller or
 
 ---
 
-## 30. Windows portable package
+## 28. Windows portable package
 
 Current public package format:
 
@@ -1608,7 +1569,7 @@ The installer is optional for the future. The portable ZIP is the current releas
 
 ---
 
-## 31. Version checkpoints
+## 29. Version checkpoints
 
 Useful known tags:
 
@@ -1639,7 +1600,7 @@ v0.8.0-companion-feedback
 
 ---
 
-## 32. Known limitations
+## 30. Known limitations
 
 * Lightroom plugin polling must be running.
 * Web Controller feedback is polling-based, not true native realtime feedback.
@@ -1657,7 +1618,7 @@ v0.8.0-companion-feedback
 
 ---
 
-## 33. Safe design principles
+## 31. Safe design principles
 
 LRBridge should remain:
 

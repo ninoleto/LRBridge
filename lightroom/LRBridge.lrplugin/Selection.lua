@@ -48,6 +48,13 @@ function Selection.navigate(direction)
     callMapped(navigation, direction, "navigation direction")
 end
 
+function Selection.extend(direction, amount)
+    if direction ~= "left" and direction ~= "right" then
+        error("Unknown selection extension direction")
+    end
+    LrSelection.extendSelection(direction, amount)
+end
+
 function Selection.setFlag(flag)
     callMapped(flags, flag, "flag")
 end
