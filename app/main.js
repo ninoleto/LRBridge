@@ -330,6 +330,25 @@ async function handleControllerRequest(request, response) {
         return;
     }
 
+    if (requestUrl.pathname === "/api/feedback/snapshot") {
+        if (request.method !== "GET") {
+            response.setHeader("Allow", "GET");
+            sendControllerResponse(
+                response,
+                405,
+                "application/json; charset=utf-8",
+                JSON.stringify({ ok: false, error: "Method not allowed" })
+            );
+            return;
+        }
+        await proxyControllerRequest(
+            request,
+            response,
+            "/feedback/snapshot" + requestUrl.search
+        );
+        return;
+    }
+
     if (requestUrl.pathname === "/api/adjust") {
         const slider = requestUrl.searchParams.get("slider") || "";
         const amount = requestUrl.searchParams.get("amount") || "";

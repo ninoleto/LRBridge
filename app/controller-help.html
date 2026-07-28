@@ -180,8 +180,8 @@
         <h3>What the Web Controller is for</h3>
         <p>
             LRBridge Web Controller is a local browser control panel for Lightroom Classic.
-            It can move Develop sliders left or right, reset an individual slider, run supported Lightroom actions,
-            and show Lightroom feedback values for visible sliders.
+            It provides absolute Develop slider controls, resets an individual slider, runs supported Lightroom actions,
+            and shows authoritative Lightroom feedback values for visible sliders.
         </p>
         <p>
             The Web Controller can run on the same PC as Lightroom, or from another browser device on the local network.
@@ -237,8 +237,19 @@
     <section class="box warning">
         <h3>LRBridge can show current Lightroom slider values</h3>
         <p>
-            The Web Controller can show feedback values below supported Lightroom sliders.
+            The Web Controller shows Lightroom's current value in each supported numeric Develop slider's editable field.
             Feedback works for slider changes made from the Web Controller and for slider changes made directly inside Lightroom.
+        </p>
+        <p>
+            Numeric fields accept direct signed-decimal entry such as <code>-0.3</code>. Enter or a changed blur commits;
+            Escape restores the last authoritative Lightroom value. The <strong>−</strong> and <strong>+</strong>
+            buttons change the absolute value by that slider's declared range step.
+        </p>
+        <p>
+            Temperature keeps actual Lightroom values in feedback, numeric entry, and HTTP commands. Only its range
+            thumb uses LRBridge's logarithmic visual mapping over Lightroom's positive runtime range. Adobe documents
+            RAW/DNG Temperature adjustment as logarithmic but does not publish the exact Lightroom pixel mapping, so
+            LRBridge does not claim pixel-identical placement. Tint and other sliders remain linear.
         </p>
         <p>
             To keep Lightroom responsive, LRBridge requests feedback only for sliders that are currently visible
@@ -247,6 +258,13 @@
         <p>
             Feedback is polling-based, not true native realtime feedback.
             A small delay is normal while moving sliders quickly.
+        </p>
+        <p>
+            A new controller or active photo displays <strong>Loading</strong> until Lightroom returns a complete
+            request-scoped snapshot. If Lightroom explicitly cannot provide a value for the active photo or process
+            version, only that control displays <strong>Unavailable</strong>. A failed or timed-out request displays a
+            separate feedback error. While you drag or type, feedback waits until the interaction finishes so it does
+            not fight the local control.
         </p>
     </section>
 
@@ -257,6 +275,11 @@
             <th>What you want</th>
             <th>Command</th>
             <th>Meaning</th>
+        </tr>
+        <tr>
+            <td>Set an absolute slider value</td>
+            <td><code>/set?slider=Exposure&amp;value=1.25</code></td>
+            <td>Sets a validated absolute value using the range and precision in LRBridge slider metadata.</td>
         </tr>
         <tr>
             <td>Move slider right</td>

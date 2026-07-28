@@ -6,13 +6,16 @@ const sliders = require("../server/sliders");
 const { createBridge } = require("../server/bridge");
 
 const ordinary = (index) => ({
-    command: "develop.set",
-    slider: index % 2 === 0 ? "Exposure" : "Contrast",
-    value: index
+    command: "selection.navigate",
+    direction: index % 2 === 0 ? "next" : "previous"
 });
 const reset = (index) => ({
     command: "develop.reset",
     slider: sliders.getIds()[index % sliders.getIds().length]
+});
+const protectedCommand = () => ({
+    command: "develop.action",
+    action: "setAutoTone"
 });
 
 function silenceLogs(work) {
@@ -31,7 +34,7 @@ function fillTo(length) {
             const index = commands.getStatus().queueLength;
             const command = index < commands.ORDINARY_ADMISSION_CEILING
                 ? ordinary(index)
-                : reset(index);
+                : protectedCommand();
             assert.equal(commands.enqueueCommand(command), true);
         }
     });
@@ -171,6 +174,40 @@ async function testCoreQueue() {
         acrossType.forEach(commands.enqueueCommand);
         assert.deepEqual(drain(), acrossType);
 
+        commands.enqueueCommand({ command: "develop.set", slider: "Exposure", value: 1 });
+        let stateAdmission = commands.tryEnqueueCommand({
+            command: "develop.set", slider: "Exposure", value: 2
+        });
+        assert.equal(stateAdmission.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(drain(), [
+            { command: "develop.set", slider: "Exposure", value: 2 }
+        ], "latest pending absolute value must win for one slider");
+
+        commands.enqueueCommand({ command: "develop.set", slider: "Exposure", value: 1 });
+        commands.enqueueCommand({ command: "develop.set", slider: "Contrast", value: 10 });
+        stateAdmission = commands.tryEnqueueCommand({
+            command: "develop.set", slider: "Exposure", value: 3
+        });
+        assert.equal(stateAdmission.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(drain(), [
+            { command: "develop.set", slider: "Contrast", value: 10 },
+            { command: "develop.set", slider: "Exposure", value: 3 }
+        ], "absolute values must coalesce independently per slider");
+
+        commands.enqueueCommand({ command: "develop.set", slider: "Exposure", value: 1 });
+        stateAdmission = commands.tryEnqueueCommand({ command: "develop.reset", slider: "Exposure" });
+        assert.equal(stateAdmission.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(drain(), [{ command: "develop.reset", slider: "Exposure" }]);
+
+        commands.enqueueCommand({ command: "develop.reset", slider: "Exposure" });
+        stateAdmission = commands.tryEnqueueCommand({
+            command: "develop.set", slider: "Exposure", value: -1
+        });
+        assert.equal(stateAdmission.status, commands.ADMISSION_COALESCED);
+        assert.deepEqual(drain(), [
+            { command: "develop.set", slider: "Exposure", value: -1 }
+        ]);
+
         commands.enqueueCommand({ command: "photo.crop_angle.set", value: -2.5 });
         commands.enqueueCommand({ command: "selection.navigate", direction: "next" });
         let angleAdmission = commands.tryEnqueueCommand({ command: "photo.crop_angle.set", value: 12.25 });
@@ -258,7 +295,7 @@ async function testCoreQueue() {
 
         silenceLogs(function () {
             while (commands.getStatus().queueLength < commands.HARD_QUEUE_CAPACITY) {
-                assert.equal(commands.enqueueCommand(reset(commands.getStatus().queueLength)), true);
+                assert.equal(commands.enqueueCommand(protectedCommand()), true);
             }
         });
         assert.equal(commands.getStatus().queueLength, commands.HARD_QUEUE_CAPACITY);

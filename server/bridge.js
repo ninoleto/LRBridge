@@ -56,12 +56,35 @@ const app = express();
 
 const feedbackRequests = [];
 const feedbackValues = {};
+const feedbackSnapshots = {};
 let feedbackRequestId = 0;
 let startupLibraryQueued = false;
 const dedicatedFeedbackParameters = new Set(["CropAngle"]);
 
 function isFeedbackParameter(value) {
     return sliders.exists(value) || dedicatedFeedbackParameters.has(value);
+}
+
+function createFeedbackSnapshot(id, requestedSliders) {
+    feedbackSnapshots[id] = {
+        id: id,
+        requestedSliders: requestedSliders.slice(),
+        results: {},
+        complete: false,
+        requestedAt: Date.now(),
+        completedAt: null
+    };
+
+    const ids = Object.keys(feedbackSnapshots).map(Number).sort(function (a, b) { return a - b; });
+    while (ids.length > 32) {
+        const expiredId = ids.shift();
+        delete feedbackSnapshots[expiredId];
+        for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
+            if (feedbackRequests[i].id === expiredId) {
+                feedbackRequests.splice(i, 1);
+            }
+        }
+    }
 }
 
 function queueCommand(command) {
@@ -86,18 +109,6 @@ function queueStartupLibraryOnce() {
         startupLibraryQueued = true;
         console.log("Queued startup Library module command.");
     }
-}
-
-function isExperimentalEnabled(req) {
-    return req.query.experimental === "1";
-}
-
-function rejectExperimentalSet(res) {
-    res.status(400).json({
-        ok: false,
-        error: "develop.set is experimental and currently unreliable in Lightroom.",
-        hint: "Use /adjust or /reset for normal control. Add experimental=1 only when testing."
-    });
 }
 
 function rejectInvalidCommand(res) {
@@ -158,6 +169,7 @@ app.get("/help", function (req, res) {
             status: "/status",
             sliders: "/sliders",
             groups: "/groups",
+            set: "/set?slider=Exposure&value=1.25",
             adjust: "/adjust?slider=Exposure&amount=1",
             reset: "/reset?slider=Exposure",
             navigateSelection: "/command?command=selection.navigate&direction=next",
@@ -187,13 +199,12 @@ app.get("/help", function (req, res) {
         },
         experimentalEndpoints: {
             get: "/get?slider=Exposure",
-            lastResult: "/last-result",
-            set: "/set?slider=Exposure&value=1&experimental=1"
+            lastResult: "/last-result"
         },
         notes: [
-            "Use /adjust and /reset for Companion control.",
+            "Use /set for absolute Web Controller values; /adjust remains available for Companion encoders.",
             "Do not depend on /get for feedback.",
-            "Do not use /set for normal control.",
+            "Rapid pending absolute values coalesce independently per slider.",
             "amount means number of Lightroom increment steps.",
             "Accepted commands are queued; execution by Lightroom is not confirmed.",
             "Selection commands act on Lightroom's current selection and do not switch modules.",
@@ -233,11 +244,18 @@ app.get("/context", function (req, res) {
 });
 
 app.get("/context/update", function (req, res) {
+    const previousContextCounter = context.getContextFields().contextCounter;
     const updated = context.updateContext({
         activeModule: req.query.activeModule,
         selectedPhotoKey: req.query.selectedPhotoKey,
         developFingerprint: req.query.developFingerprint
     });
+
+    if (updated.contextCounter !== previousContextCounter) {
+        Object.keys(feedbackValues).forEach(function (slider) {
+            delete feedbackValues[slider];
+        });
+    }
 
     if (isValidContextHeartbeat(req.query)) {
         queueStartupLibraryOnce();
@@ -270,11 +288,6 @@ app.get("/next", function (req, res) {
 
 app.get("/command", function (req, res) {
     const commandName = req.query.command;
-
-    if (commandName === "develop.set" && !isExperimentalEnabled(req)) {
-        rejectExperimentalSet(res);
-        return;
-    }
 
     const command = { command: commandName };
 
@@ -312,6 +325,15 @@ app.get("/command", function (req, res) {
         }
     }
 
+    if (commandName === "develop.reset") {
+        const allowedQueryFields = new Set(["command", "slider"]);
+        if (Object.keys(req.query).some(function (field) {
+            return !allowedQueryFields.has(field);
+        })) {
+            command.invalidQueryField = true;
+        }
+    }
+
     if (req.query.amount !== undefined) {
         command.amount = numbers.parseFiniteNumber(req.query.amount);
     }
@@ -325,6 +347,11 @@ app.get("/command", function (req, res) {
                 /^-?\d+(?:\.\d{1,2})?$/.test(rawValue)
                 ? Number(rawValue)
                 : rawValue;
+        } else if (commandName === "develop.set") {
+            const allowedQueryFields = new Set(["command", "slider", "value"]);
+            command.value = Object.keys(req.query).some(function (field) {
+                return !allowedQueryFields.has(field);
+            }) ? req.query.value : sliders.parseAbsoluteValue(req.query.slider, req.query.value);
         } else {
             command.value = numbers.parseFiniteNumber(req.query.value);
         }
@@ -362,20 +389,18 @@ app.get("/adjust", function (req, res) {
 });
 
 app.get("/set", function (req, res) {
-    if (!isExperimentalEnabled(req)) {
-        rejectExperimentalSet(res);
-        return;
-    }
-
     const slider = req.query.slider;
-    const value = numbers.parseFiniteNumber(req.query.value);
+    const allowedFields = new Set(["slider", "value"]);
+    const hasExtraField = Object.keys(req.query).some(function (field) {
+        return !allowedFields.has(field);
+    });
+    const value = hasExtraField ? null : sliders.parseAbsoluteValue(slider, req.query.value);
 
     if (value === null) {
         res.status(400).json({
             ok: false,
             error: "Missing or invalid value",
-            slider: slider,
-            experimental: true
+            slider: slider
         });
         return;
     }
@@ -386,9 +411,7 @@ app.get("/set", function (req, res) {
         value: value
     };
 
-    queueOrReject(res, command, {
-        experimental: true
-    });
+    queueOrReject(res, command);
 });
 
 app.get("/action", function (req, res) {
@@ -405,7 +428,7 @@ app.get("/action", function (req, res) {
 app.get("/reset", function (req, res) {
     const slider = req.query.slider;
 
-    if (!sliders.exists(slider)) {
+    if (Object.keys(req.query).length !== 1 || !sliders.exists(slider)) {
         res.status(400).json({
             ok: false,
             error: "Unknown slider",
@@ -473,12 +496,6 @@ app.get("/feedback/request", function (req, res) {
         return;
     }
 
-    for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
-        if (feedbackRequests[i].slider === slider) {
-            feedbackRequests.splice(i, 1);
-        }
-    }
-
     feedbackRequestId += 1;
 
     const request = {
@@ -488,6 +505,7 @@ app.get("/feedback/request", function (req, res) {
     };
 
     feedbackRequests.push(request);
+    createFeedbackSnapshot(request.id, [slider]);
 
     res.json({
         ok: true,
@@ -496,12 +514,6 @@ app.get("/feedback/request", function (req, res) {
 });
 
 app.get("/feedback/request-all", function (req, res) {
-    for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
-        if (feedbackRequests[i].slider === "__all__") {
-            feedbackRequests.splice(i, 1);
-        }
-    }
-
     feedbackRequestId += 1;
 
     const request = {
@@ -511,6 +523,10 @@ app.get("/feedback/request-all", function (req, res) {
     };
 
     feedbackRequests.push(request);
+    createFeedbackSnapshot(request.id, sliders.getAll()
+        .filter(function (slider) { return slider.feedbackSupported === true; })
+        .map(function (slider) { return slider.id; })
+        .concat(["CropAngle"]));
 
     res.json({
         ok: true,
@@ -547,12 +563,6 @@ app.get("/feedback/request-many", function (req, res) {
         return;
     }
 
-    for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
-        if (String(feedbackRequests[i].slider || "").startsWith("__many__:")) {
-            feedbackRequests.splice(i, 1);
-        }
-    }
-
     feedbackRequestId += 1;
 
     const request = {
@@ -562,6 +572,7 @@ app.get("/feedback/request-many", function (req, res) {
     };
 
     feedbackRequests.push(request);
+    createFeedbackSnapshot(request.id, validSliders);
 
     res.json({
         ok: true,
@@ -583,7 +594,16 @@ app.get("/feedback/next", function (req, res) {
 app.get("/feedback/result", function (req, res) {
     const slider = req.query.slider;
     const rawValue = req.query.value;
+    const unavailable = req.query.available === "0" && rawValue === undefined;
+    const allowedFields = unavailable
+        ? new Set(["id", "slider", "available"])
+        : new Set(["id", "slider", "value", "min", "max"]);
+    const hasExtraField = Object.keys(req.query).some(function (field) {
+        return !allowedFields.has(field);
+    });
     const numericValue = numbers.parseFiniteNumber(rawValue);
+    const rangeMin = numbers.parseFiniteNumber(req.query.min);
+    const rangeMax = numbers.parseFiniteNumber(req.query.max);
     const requestId = numbers.parseFiniteInteger(req.query.id);
 
     if (!isFeedbackParameter(slider)) {
@@ -604,7 +624,15 @@ app.get("/feedback/result", function (req, res) {
         return;
     }
 
-    if (numericValue === null) {
+    if (
+        hasExtraField ||
+        (!unavailable && (
+            numericValue === null ||
+            rangeMin === null ||
+            rangeMax === null ||
+            rangeMin >= rangeMax
+        ))
+    ) {
         res.status(400).json({
             ok: false,
             error: "Missing or invalid value",
@@ -616,11 +644,28 @@ app.get("/feedback/result", function (req, res) {
     const result = {
         id: requestId,
         slider: slider,
-        value: numericValue,
+        value: unavailable ? null : numericValue,
+        available: !unavailable,
+        range: unavailable ? null : { min: rangeMin, max: rangeMax },
         receivedAt: Date.now()
     };
 
+    if (!unavailable) {
+        sliders.setRuntimeRange(slider, rangeMin, rangeMax);
+    }
+
     feedbackValues[slider] = result;
+
+    const snapshot = feedbackSnapshots[requestId];
+    if (snapshot && snapshot.requestedSliders.includes(slider)) {
+        snapshot.results[slider] = result;
+        snapshot.complete = snapshot.requestedSliders.every(function (requestedSlider) {
+            return snapshot.results[requestedSlider] !== undefined;
+        });
+        if (snapshot.complete && snapshot.completedAt === null) {
+            snapshot.completedAt = Date.now();
+        }
+    }
 
     res.json({
         ok: true,
@@ -650,6 +695,36 @@ app.get("/feedback/all", function (req, res) {
     res.json({
         ok: true,
         values: feedbackValues
+    });
+});
+
+app.get("/feedback/snapshot", function (req, res) {
+    const requestId = numbers.parseFiniteInteger(req.query.id);
+    const hasExtraField = Object.keys(req.query).some(function (field) {
+        return field !== "id";
+    });
+
+    if (requestId === null || hasExtraField) {
+        res.status(400).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Missing or invalid id"
+        });
+        return;
+    }
+
+    const snapshot = feedbackSnapshots[requestId];
+
+    if (!snapshot) {
+        res.status(404).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Unknown feedback snapshot"
+        });
+        return;
+    }
+
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        snapshot: snapshot
     });
 });
 

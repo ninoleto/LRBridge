@@ -91,7 +91,7 @@ assert.deepEqual(
 
 const placementCalls = [];
 const renderSlidersTab = extractJavaScriptFunction("renderSlidersTab", "renderToolTab", {
-    sliderGroups: [{ name: "Basic", sliders: [] }],
+    developSliderDefinitions: [{ id: "Exposure", group: "Basic" }],
     renderActionsForPlacement(placement) {
         placementCalls.push(["actions", placement]);
     },
@@ -108,7 +108,12 @@ const renderSlidersTab = extractJavaScriptFunction("renderSlidersTab", "renderTo
     content: {
         appendChild() {}
     },
-    addSliderRow() {}
+    createDevelopSliderControl() {
+        return {};
+    },
+    setTimeout() {
+        // Snapshot scheduling is covered by the focused generic-slider tests.
+    }
 });
 renderSlidersTab();
 assert.deepEqual(

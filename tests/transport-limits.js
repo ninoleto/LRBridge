@@ -91,7 +91,10 @@ function fillOrdinaryQueue() {
     try {
         while (commands.getStatus().queueLength < commands.ORDINARY_ADMISSION_CEILING) {
             const index = commands.getStatus().queueLength;
-            commands.enqueueCommand({ command: "develop.set", slider: "Exposure", value: index });
+            commands.enqueueCommand({
+                command: "selection.navigate",
+                direction: index % 2 === 0 ? "next" : "previous"
+            });
         }
     } finally {
         console.log = originalLog;
@@ -149,7 +152,7 @@ async function testQueueFullFrame(bridge) {
     const socket = await openSocket(bridge);
     try {
         const frame = nextMessage(socket);
-        socket.send(JSON.stringify({ command: "develop.set", slider: "Contrast", value: 9999 }));
+        socket.send(JSON.stringify({ command: "develop.set", slider: "Contrast", value: 10 }));
         assert.deepEqual(await frame, {
             type: "error",
             code: "COMMAND_QUEUE_FULL",

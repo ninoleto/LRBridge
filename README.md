@@ -140,6 +140,7 @@ Stable enough for normal use:
 * Web Controller.
 * Lightroom Classic plugin polling.
 * Slider adjustments.
+* Metadata-driven absolute Develop slider controls in the Web Controller.
 * Slider reset for an individual slider.
 * Lightroom Develop actions.
 * Command queue.
@@ -155,7 +156,6 @@ Stable enough for normal use:
 Advanced or use with care:
 
 * `/get`
-* `/set`
 * `/last-result`
 * WebSocket command input
 
@@ -170,7 +170,8 @@ Important design decision:
 
 ```text
 LRBridge v0.x stays HTTP-first and Lightroom-plugin controlled.
-Do not build normal workflows on /get, /set, or /last-result.
+Use `/set` for validated absolute slider values and `/adjust` for relative encoder steps.
+Do not build normal feedback workflows on `/get` or `/last-result`.
 Use /context or context fields in /status for refresh detection.
 ```
 
@@ -487,12 +488,10 @@ http://127.0.0.1:17892/
 The Web Controller provides:
 
 * grouped Lightroom sliders
-* `-5`
-* `-1`
-* `Reset`
-* `+1`
-* `+5`
-* drag strips
+* reusable absolute range controls and signed-decimal text inputs driven by `config/sliders.json`
+* touch-friendly `−` and `+` controls that move by each slider's declared range step
+* an individual Reset button for each numeric Develop parameter
+* authoritative Lightroom values, with distinct Loading, Unavailable, and feedback-error states
 * Lightroom action buttons
 * a dedicated Crop tab with crop tools and validated aspect-ratio presets
 * healing, red-eye, and masking tool tabs
@@ -532,17 +531,21 @@ http://127.0.0.1:17891/help
 
 ### Web Controller feedback note
 
-The Web Controller can show Lightroom slider feedback values below supported sliders.
+The Web Controller shows authoritative Lightroom feedback for supported numeric sliders. Every new controller request receives a complete request-scoped snapshot, so reloads and LRBridge restarts cannot be suppressed by an older Lightroom delta cache. Direct Lightroom changes and photo changes refresh from Lightroom rather than displaying the last requested value.
 
 Feedback behavior:
 
 ```text
 The browser asks for values only for sliders currently visible on screen.
 Lightroom reads those values through the LRBridge Lightroom plugin.
-LRBridge sends changed values back to the browser.
+LRBridge returns a complete result for every slider in each request-scoped snapshot.
 ```
 
 This keeps feedback lighter than reading every known slider all the time.
+
+While a user drags a range input or edits its numeric field, polling does not overwrite the local interaction. Signed decimals such as `-0.3` can be entered directly; Enter or changed blur commits, while Escape restores the last authoritative value. The `−` and `+` buttons send an absolute value one declared range step lower or higher. A newly loaded or changed photo displays Loading until its complete snapshot arrives; only an explicit unavailable result displays Unavailable. Range requests are throttled and pending absolute values coalesce independently per slider.
+
+Temperature keeps actual Lightroom values everywhere in feedback, numeric entry, and `/set`. Its range thumb alone uses LRBridge's monotonic logarithmic visual mapping over Lightroom's positive runtime min/max range, matching Adobe's documentation that RAW/DNG Temperature adjustment is logarithmic. Adobe does not publish Lightroom's exact pixel-position transform, so LRBridge does not claim pixel-identical placement. Tint and every other generic slider remain linear. Lightroom's runtime `getRange()` result is carried with feedback and becomes the active validation range. Temperature and Tint retain the existing Auto Tone / Auto White Balance cooldown.
 
 Important:
 
@@ -945,32 +948,28 @@ GET /feedback/request?slider=Exposure
 GET /feedback/request-many?sliders=Exposure,Contrast
 GET /feedback/request-all
 GET /feedback/next
-GET /feedback/result?id=...&slider=...&value=...
+GET /feedback/result?id=...&slider=...&value=...&min=...&max=...
 GET /feedback/value?slider=Exposure
 GET /feedback/all
+GET /feedback/snapshot?id=...
 ```
 
 These endpoints are for LRBridge feedback polling and may change while the feedback system is still being refined.
 
 ---
 
-## 19. Experimental API: set
+## 19. Absolute slider API: set
 
 ```text
-GET /set?slider=Exposure&value=1&experimental=1
+GET /set?slider=Exposure&value=1.25
 ```
 
 Important:
 
 ```text
-/set is experimental and unreliable in Lightroom Classic.
-Use /adjust or /reset for normal control.
-```
-
-Without this flag, LRBridge rejects `/set`:
-
-```text
-experimental=1
+Values are validated against the selected slider's range and numeric precision in `config/sliders.json`.
+Repeated pending absolute sets coalesce only with set/reset state for the same slider.
+`/adjust` remains available for relative Companion encoders.
 ```
 
 ---
@@ -1284,7 +1283,7 @@ Follow these rules unless explicitly told otherwise:
 2. Do not rewrite large files unnecessarily.
 3. Do not remove existing slider mappings without checking usage.
 4. Do not add feedback based on `/last-result`.
-5. Do not make `/set` a normal production feature yet.
+5. Use `/set` only with the validated range and precision published for that slider.
 6. Keep Web Controller changes simple and browser-compatible.
 7. Keep Lightroom Lua code conservative.
 8. Prefer HTTP for Companion integration first.

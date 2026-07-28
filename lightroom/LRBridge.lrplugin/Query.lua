@@ -119,4 +119,24 @@ function Query.getDevelopValue(slider)
 
 end
 
+function Query.getDevelopRange(slider)
+
+    local param = developControllerMap[slider]
+
+    if param == nil then
+        return nil, nil
+    end
+
+    local ok, minValue, maxValue = pcall(function()
+        return LrDevelopController.getRange(param)
+    end)
+
+    if ok ~= true then
+        return nil, nil
+    end
+
+    return minValue, maxValue
+
+end
+
 return Query

@@ -60,7 +60,8 @@ function commandFromPath(pathname, type) {
 }
 
 const families = extractValue(builderSource, "const builderCommandFamilies =");
-const buildCommandPath = extractFunction(builderSource, "buildCommandPath", "parseCustomCropDimension");
+const buildCommandPath = extractFunction(builderSource, "buildCommandPath", "parseBuilderAbsoluteValue");
+const parseBuilderAbsoluteValue = extractFunction(builderSource, "parseBuilderAbsoluteValue", "parseCustomCropDimension");
 const parseCustomCropDimension = extractFunction(builderSource, "parseCustomCropDimension", "buildCustomCropPath");
 const buildCustomCropPath = extractFunction(builderSource, "buildCustomCropPath", "renderCustomCropOutput", {
     parseCustomCropDimension,
@@ -78,14 +79,14 @@ const photoTypes = Object.fromEntries(familyById.photo.types.map((type) => [type
 const applicationTypes = Object.fromEntries(familyById.application.types.map((type) => [type.id, type]));
 
 assert.deepEqual(families.map((family) => family.id), ["develop", "selection", "photo", "application"]);
-assert.equal(familyById.develop.types.filter((type) => type.valueSource).length + developTypes.action.options.length, 14);
+assert.equal(familyById.develop.types.filter((type) => type.valueSource).length + developTypes.action.options.length, 15);
 assert.equal(familyById.selection.types.reduce((total, type) => total + type.options.length, 0), 33);
 assert.equal(familyById.photo.types.reduce((total, type) => total + type.options.length, 0), 13);
 assert.equal(familyById.application.types.reduce((total, type) => total + type.options.length, 0), 34);
 assert.equal(
-    sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length * 2 +
+    sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length * 3 +
         developTypes.action.options.length,
-    202,
+    297,
     "Develop concrete Builder combination count changed"
 );
 assert.match(builderSource, /id="builderFamily"/);
@@ -94,7 +95,7 @@ assert.match(builderSource, /id="builderValue"/);
 assert.match(builderSource, /id="builderPath"/);
 assert.match(builderSource, /builderFamily\.addEventListener\("change", renderBuilderTypes\)/);
 assert.match(builderSource, /builderType\.addEventListener\("change", renderBuilderValues\)/);
-assert.match(builderSource, /builderValue\.addEventListener\("change", renderBuilderOutput\)/);
+assert.match(builderSource, /builderValue\.addEventListener\("change", renderBuilderSliderSelection\)/);
 assert.match(builderSource, /builderAmount\.addEventListener\("input", renderBuilderOutput\)/);
 assert.match(builderSource, /customCropWidth\.addEventListener\("input", renderCustomCropOutput\)/);
 assert.match(builderSource, /customCropHeight\.addEventListener\("input", renderCustomCropOutput\)/);
@@ -103,6 +104,15 @@ assert.match(builderSource, /copyText\(apiBase \+ builderPath\.textContent\)/);
 assert.match(builderSource, /copyText\(path\)/, "Card Copy path behavior changed");
 assert.match(builderSource, /copyText\(apiBase \+ path\)/, "Card Copy full URL behavior changed");
 assert.match(builderSource, /fetch\("\/api\/sliders"\)/, "Slider choices must use current slider metadata");
+assert.equal(
+    buildCommandPath(developTypes.set, "Exposure", 1.25),
+    "/api/set?slider=Exposure&value=1.25"
+);
+assert.equal(parseBuilderAbsoluteValue(sliders.getById("Exposure"), "1.25"), 1.25);
+assert.equal(parseBuilderAbsoluteValue(sliders.getById("Exposure"), "1.234"), null);
+assert.equal(parseBuilderAbsoluteValue(sliders.getById("Contrast"), "1.5"), null);
+assert.match(builderSource, /copyBuilderPath"\)\.disabled = !valid/);
+assert.match(builderSource, /copyBuilderFull"\)\.disabled = !valid/);
 
 assert.equal(
     buildCommandPath(developTypes.adjust, "Exposure", -4),
@@ -214,6 +224,18 @@ for (const slider of sliders.getAll()) {
         const pathname = buildCommandPath(type, slider.id, -3);
         assert.equal(commands.validateCommand(commandFromPath(pathname, type)), true, "Invalid slider command: " + pathname);
     }
+}
+
+for (const slider of sliders.getAll().filter((item) => item.id !== "LensProfileChromaticAberrationScale")) {
+    const rawValue = String(slider.default);
+    const pathname = buildCommandPath(developTypes.set, slider.id, rawValue);
+    assert.equal(pathname, "/api/set?slider=" + encodeURIComponent(slider.id) + "&value=" + encodeURIComponent(rawValue));
+    assert.equal(parseBuilderAbsoluteValue(slider, rawValue), slider.default);
+    assert.equal(commands.validateCommand({
+        command: "develop.set",
+        slider: slider.id,
+        value: slider.default
+    }), true, "Invalid absolute Builder command: " + pathname);
 }
 
 for (const option of developTypes.action.options) {
@@ -412,4 +434,4 @@ const removedGroupResetToken = "reset-" + "group";
 assert.ok(!builderSource.toLowerCase().includes(removedGroupResetToken), "Unsafe group-reset surface remains in Builder");
 
 console.log("HTTP Builder v0.6 command-surface tests passed.");
-console.log("Validated 12 Develop actions, 33 Selection values, 13 fixed Photo values, a Custom Crop generator, and 34 Application values.");
+console.log("Validated absolute Set, relative Adjust, individual Reset, 12 Develop actions, 33 Selection values, 13 fixed Photo values, a Custom Crop generator, and 34 Application values.");

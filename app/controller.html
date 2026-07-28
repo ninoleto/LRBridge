@@ -181,6 +181,112 @@
             background: #327eab;
         }
 
+        .develop-slider-row {
+            display: grid;
+            grid-template-columns: minmax(140px, 210px) minmax(180px, 1fr) 92px 44px 44px auto;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+            min-width: 0;
+        }
+
+        .develop-slider-row input[type="range"] {
+            width: 100%;
+            min-width: 0;
+            height: 40px;
+            margin: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        .develop-slider-row input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 999px;
+            background: linear-gradient(
+                to right,
+                #2f9ed8 0,
+                #2f9ed8 var(--slider-progress, 0%),
+                #405263 var(--slider-progress, 0%),
+                #405263 100%
+            );
+        }
+
+        .develop-slider-row input[type="range"]::-webkit-slider-thumb {
+            width: 24px;
+            height: 24px;
+            margin-top: -9px;
+            border: 2px solid #b9e4ff;
+            border-radius: 50%;
+            background: #2f9ed8;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .develop-slider-row input[type="range"]::-moz-range-track {
+            height: 6px;
+            border-radius: 999px;
+            background: #405263;
+        }
+
+        .develop-slider-row input[type="range"]::-moz-range-progress {
+            height: 6px;
+            border-radius: 999px;
+            background: #2f9ed8;
+        }
+
+        .develop-slider-row input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #b9e4ff;
+            border-radius: 50%;
+            background: #2f9ed8;
+        }
+
+        .develop-slider-row input[type="text"] {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            border: 1px solid #405263;
+            border-radius: 6px;
+            padding: 8px;
+            background: #080c10;
+            color: #f4f7fa;
+        }
+
+        .develop-slider-step {
+            width: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0;
+            font-size: 20px;
+        }
+
+        .develop-slider-state {
+            display: none;
+            grid-column: 2 / -1;
+            color: #9fb0bf;
+            font-size: 12px;
+        }
+
+        .develop-slider-row.loading .develop-slider-state,
+        .develop-slider-row.unavailable .develop-slider-state,
+        .develop-slider-row.error .develop-slider-state {
+            display: block;
+        }
+
+        .develop-slider-row.loading .develop-slider-state {
+            color: #9fb0bf;
+        }
+
+        .develop-slider-row.unavailable .develop-slider-state {
+            color: #d6a52b;
+        }
+
+        .develop-slider-row.error .develop-slider-state {
+            color: #ff7b72;
+        }
+
         button.command-primary {
             background: #2a6f97;
             border-color: #3a8cc0;
@@ -276,63 +382,6 @@
 
         button.reset:hover {
             background: #8a5a2a;
-        }
-
-        .drag-strip {
-            position: relative;
-            min-height: 40px;
-            border: 1px solid #3b4b5c;
-            border-radius: 999px;
-            background: #0b1117;
-            color: #8fa2b3;
-            cursor: ew-resize;
-            user-select: none;
-            touch-action: none;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .drag-strip::before {
-            content: "";
-            position: absolute;
-            left: 12px;
-            right: 12px;
-            top: 50%;
-            height: 2px;
-            background: #33414f;
-            transform: translateY(-50%);
-        }
-
-        .drag-strip::after {
-            content: "";
-            position: absolute;
-            left: 50%;
-            top: 8px;
-            bottom: 8px;
-            width: 2px;
-            background: #506173;
-            transform: translateX(-50%);
-        }
-
-        .drag-strip.active {
-            border-color: #ffb454;
-            background: #111820;
-            color: #ffffff;
-        }
-
-        .drag-strip-label {
-            position: relative;
-            z-index: 1;
-            background: #0b1117;
-            border-radius: 999px;
-            padding: 2px 9px;
-            pointer-events: none;
         }
 
         .slider-jump-control {
@@ -472,6 +521,23 @@
                 border: 0;
                 padding: 0 0 6px 0;
             }
+
+            .develop-slider-row {
+                grid-template-columns: minmax(92px, 1fr) 44px 44px minmax(70px, auto);
+                padding: 10px;
+                border: 1px solid #2b3744;
+                border-radius: 8px;
+                background: #18212a;
+            }
+
+            .develop-slider-row .slider-name,
+            .develop-slider-row input[type="range"] {
+                grid-column: 1 / -1;
+            }
+
+            .develop-slider-row .develop-slider-state {
+                grid-column: 1 / -1;
+            }
         }        .slider-feedback {
             display: block;
             margin-top: 4px;
@@ -581,7 +647,11 @@
 
         @media (max-width: 680px) {
             .angle-control {
-                grid-template-columns: 1fr 90px;
+                grid-template-columns: minmax(0, 1fr) 90px;
+            }
+
+            .angle-control input[type="range"] {
+                grid-column: 1 / -1;
             }
         }
 
@@ -1409,11 +1479,9 @@
                 names.push(name);
             }
 
-            if (typeof sliderGroups !== "undefined") {
-                sliderGroups.forEach(function (group) {
-                    add(group.name);
-                });
-            }
+            developSliderDefinitions.forEach(function (definition) {
+                add(definition.group);
+            });
 
             if (typeof switchGroups !== "undefined") {
                 switchGroups.forEach(function (group) {
@@ -1444,7 +1512,7 @@
 
             const existing = contentHost.querySelector(".slider-jump-control");
 
-            if (!contentHost.querySelector(".drag-strip")) {
+            if (!contentHost.querySelector(".develop-slider-row")) {
                 if (existing) {
                     existing.remove();
                 }
@@ -1687,6 +1755,8 @@
 
 
         const sliderFeedbackElements = {};
+        const developSliderControls = {};
+        let developSliderDefinitions = [];
 
 
         const sliderFeedbackUiRequestIds = {};
@@ -1943,32 +2013,75 @@
 
         let liveFeedbackPollingStarted = false;
         let liveFeedbackSnapshotInFlight = false;
+        let pendingFullFeedbackSnapshot = false;
+        let lastControllerContextCounter = null;
+        let lastControllerHeartbeatAt = null;
+        let heartbeatWasStale = false;
 
-        async function updateSliderFeedbackFromCache() {
-            try {
-                const response = await fetch("/api/feedback/all", {
+        function applyFeedbackSnapshot(snapshot) {
+            Object.keys(snapshot.results || {}).forEach(function (slider) {
+                const result = snapshot.results[slider];
+                if (slider === "CropAngle") {
+                    if (result.available === false) {
+                        if (!angleState.dragging && !angleState.editing) angleValue.textContent = "Unavailable";
+                    } else {
+                        applyAuthoritativeAngleFeedback(result.value);
+                    }
+                } else if (developSliderControls[slider]) {
+                    applyDevelopSliderFeedbackIfChanged(developSliderControls[slider], result);
+                }
+            });
+        }
+
+        async function pollFeedbackSnapshot(requestId, timeoutMs) {
+            const startedAt = Date.now();
+            const endpoint = "/api/feedback/snapshot?id=" + encodeURIComponent(requestId);
+            let latestSnapshot = null;
+            while (Date.now() - startedAt < timeoutMs) {
+                const response = await fetch(endpoint, {
                     cache: "no-store"
                 });
-
-                const data = await response.json();
-                const values = data && data.values ? data.values : {};
-
-                Object.keys(sliderFeedbackElements).forEach(function (slider) {
-                    const result = values[slider];
-
-                    if (!result || result.value === null || result.value === undefined || result.value === "nil") {
-                        return;
-                    }
-
-                    if (slider === "CropAngle") {
-                        applyAuthoritativeAngleFeedback(result.value);
-                    } else {
-                        setSliderFeedback(slider, "Lightroom: " + formatSliderFeedbackValue(result.value), "active");
-                    }
-                });
-            } catch (err) {
-                /* Ignore temporary feedback polling errors. */
+                const bodyText = await response.text();
+                let data = null;
+                try {
+                    data = JSON.parse(bodyText);
+                } catch (err) {
+                    /* The diagnostic below retains the non-JSON response body. */
+                }
+                if (!response.ok) {
+                    const failure = new Error("Feedback snapshot HTTP " + response.status);
+                    failure.feedbackDiagnostic = {
+                        endpoint: endpoint,
+                        requestId: requestId,
+                        status: response.status,
+                        body: bodyText.slice(0, 500)
+                    };
+                    throw failure;
+                }
+                if (data && data.snapshot) {
+                    latestSnapshot = data.snapshot;
+                    if (latestSnapshot.complete) return {
+                        snapshot: latestSnapshot,
+                        timedOut: false
+                    };
+                }
+                await sleep(50);
             }
+            return {
+                snapshot: latestSnapshot,
+                timedOut: true
+            };
+        }
+
+        function logFeedbackSnapshotFailure(details) {
+            const diagnostic = Object.assign({
+                endpoint: "/api/feedback/snapshot",
+                requestId: null,
+                status: null,
+                body: "",
+                reason: "unknown"
+            }, details || {});
+            console.error("LRBridge feedback snapshot failed", diagnostic);
         }
 
         function getVisibleFeedbackSliders() {
@@ -1980,7 +2093,7 @@
             Object.keys(sliderFeedbackElements).forEach(function (slider) {
                 const element = sliderFeedbackElements[slider];
 
-                if (!element || !element.getBoundingClientRect) {
+                if (!element || !element.isConnected || !element.getBoundingClientRect) {
                     return;
                 }
 
@@ -1999,32 +2112,88 @@
             return visibleSliders;
         }
 
-        async function requestLiveFeedbackSnapshot() {
+        async function requestLiveFeedbackSnapshot(forceAll) {
             if (liveFeedbackSnapshotInFlight) {
+                pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
                 return;
             }
 
-            const visibleSliders = getVisibleFeedbackSliders();
+            const visibleSliders = forceAll === true
+                ? Object.keys(developSliderControls).filter(function (slider) {
+                    return developSliderControls[slider].row.isConnected;
+                })
+                : getVisibleFeedbackSliders();
 
             if (visibleSliders.length === 0) {
-                await updateSliderFeedbackFromCache();
                 return;
             }
 
             liveFeedbackSnapshotInFlight = true;
 
             try {
-                await fetch("/api/feedback/request-many?sliders=" + encodeURIComponent(visibleSliders.join(",")), {
+                const response = await fetch("/api/feedback/request-many?sliders=" + encodeURIComponent(visibleSliders.join(",")), {
                     cache: "no-store"
                 });
-
-                await sleep(80);
-
-                await updateSliderFeedbackFromCache();
+                const data = await response.json();
+                const request = data && data.request;
+                if (!response.ok || !request || request.id === undefined) {
+                    throw new Error("Feedback snapshot request failed");
+                }
+                const outcome = await pollFeedbackSnapshot(request.id, 4000);
+                if (outcome.snapshot) {
+                    applyFeedbackSnapshot(outcome.snapshot);
+                }
+                if (outcome.timedOut) {
+                    const returned = outcome.snapshot ? Object.keys(outcome.snapshot.results || {}) : [];
+                    const missing = visibleSliders.filter(function (slider) {
+                        return !returned.includes(slider);
+                    });
+                    logFeedbackSnapshotFailure({
+                        endpoint: "/api/feedback/snapshot?id=" + encodeURIComponent(request.id),
+                        requestId: request.id,
+                        reason: "timeout",
+                        body: "Missing results: " + missing.join(",")
+                    });
+                    return;
+                }
             } catch (err) {
-                /* Ignore temporary feedback request errors. */
+                logFeedbackSnapshotFailure(err.feedbackDiagnostic || {
+                    endpoint: "/api/feedback/snapshot",
+                    reason: "connection-or-response-failure",
+                    body: err.message
+                });
+                visibleSliders.forEach(function (slider) {
+                    if (developSliderControls[slider]) markDevelopSliderError(developSliderControls[slider]);
+                });
             } finally {
                 liveFeedbackSnapshotInFlight = false;
+                if (pendingFullFeedbackSnapshot) {
+                    pendingFullFeedbackSnapshot = false;
+                    requestLiveFeedbackSnapshot(true);
+                }
+            }
+        }
+
+        async function pollControllerContext() {
+            try {
+                const response = await fetch("/api/context", { cache: "no-store" });
+                const data = await response.json();
+                const contextChanged = lastControllerContextCounter !== null &&
+                    data.contextCounter !== lastControllerContextCounter;
+                lastControllerContextCounter = data.contextCounter;
+
+                const heartbeatChanged = lastControllerHeartbeatAt !== null &&
+                    data.lastHeartbeatAt !== lastControllerHeartbeatAt;
+                lastControllerHeartbeatAt = data.lastHeartbeatAt;
+
+                if (contextChanged || (heartbeatWasStale && heartbeatChanged)) {
+                    markAllDevelopSlidersLoading();
+                    requestLiveFeedbackSnapshot(true);
+                }
+
+                heartbeatWasStale = !data.lastHeartbeatAt || Date.now() - data.lastHeartbeatAt > 2000;
+            } catch (err) {
+                heartbeatWasStale = true;
             }
         }
 
@@ -2035,149 +2204,14 @@
 
             liveFeedbackPollingStarted = true;
 
-            requestLiveFeedbackSnapshot();
+            markAllDevelopSlidersLoading();
+            requestLiveFeedbackSnapshot(true);
+            pollControllerContext();
 
             setInterval(function () {
-                requestLiveFeedbackSnapshot();
-            }, 250);
-        }
-
-        function sendAdjust(slider, amount) {
-            markSliderCommandSent();
-            sendCommand("/api/adjust?slider=" + encodeURIComponent(slider) + "&amount=" + encodeURIComponent(amount));
-            requestSliderFeedback(slider);
-        }
-
-        function makeDragStrip(slider) {
-            const strip = document.createElement("div");
-            strip.className = "drag-strip";
-            strip.title = "Drag left or right to adjust " + (labels[slider] || slider);
-
-            const label = document.createElement("div");
-            label.className = "drag-strip-label";
-            label.textContent = "Drag";
-
-            strip.appendChild(label);
-
-            const pixelsPerStep = 18;
-            const flushDelayMs = 50;
-
-            let active = false;
-            let pointerId = null;
-            let lastX = 0;
-            let remainder = 0;
-            let pendingAmount = 0;
-            let flushTimer = null;
-
-            function flushPending() {
-                if (flushTimer !== null) {
-                    clearTimeout(flushTimer);
-                    flushTimer = null;
-                }
-
-                const amount = pendingAmount;
-                pendingAmount = 0;
-
-                if (amount !== 0) {
-                    sendAdjust(slider, amount);
-                }
-            }
-
-            function scheduleFlush() {
-                if (flushTimer !== null) {
-                    return;
-                }
-
-                flushTimer = setTimeout(function () {
-                    flushTimer = null;
-
-                    const amount = pendingAmount;
-                    pendingAmount = 0;
-
-                    if (amount !== 0) {
-                        sendAdjust(slider, amount);
-                    }
-                }, flushDelayMs);
-            }
-
-            function queueSteps(steps) {
-                if (steps === 0) {
-                    return;
-                }
-
-                pendingAmount += steps;
-                label.textContent = steps > 0 ? "+" + steps : String(steps);
-                strip.classList.add("active");
-                scheduleFlush();
-            }
-
-            function stopDragging(event) {
-                if (!active) {
-                    return;
-                }
-
-                if (event && pointerId !== null && event.pointerId !== pointerId) {
-                    return;
-                }
-
-                flushPending();
-
-                active = false;
-
-                if (pointerId !== null && strip.releasePointerCapture) {
-                    try {
-                        strip.releasePointerCapture(pointerId);
-                    } catch (err) {
-                        /* Pointer may already be released. */
-                    }
-                }
-
-                pointerId = null;
-                remainder = 0;
-                label.textContent = "Drag";
-                strip.classList.remove("active");
-            }
-
-            strip.addEventListener("pointerdown", function (event) {
-                active = true;
-                pointerId = event.pointerId;
-                lastX = event.clientX;
-                remainder = 0;
-                pendingAmount = 0;
-                label.textContent = "Drag";
-                strip.classList.add("active");
-
-                if (strip.setPointerCapture) {
-                    strip.setPointerCapture(pointerId);
-                }
-
-                event.preventDefault();
-            });
-
-            strip.addEventListener("pointermove", function (event) {
-                if (!active || event.pointerId !== pointerId) {
-                    return;
-                }
-
-                const dx = event.clientX - lastX;
-                lastX = event.clientX;
-                remainder += dx;
-
-                const steps = Math.trunc(remainder / pixelsPerStep);
-
-                if (steps !== 0) {
-                    remainder -= steps * pixelsPerStep;
-                    queueSteps(steps);
-                }
-
-                event.preventDefault();
-            });
-
-            strip.addEventListener("pointerup", stopDragging);
-            strip.addEventListener("pointercancel", stopDragging);
-            strip.addEventListener("lostpointercapture", stopDragging);
-
-            return strip;
+                requestLiveFeedbackSnapshot(false);
+            }, 500);
+            setInterval(pollControllerContext, 500);
         }
 
         function clearContent() {
@@ -2487,49 +2521,621 @@
             groupElement.appendChild(row);
         }
 
-        function addSliderRow(groupElement, slider) {
+        function formatDevelopSliderValue(definition, value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) return "Unavailable";
+            return String(Number(numericValue.toFixed(definition.displayPrecision)));
+        }
+
+        function parseDevelopSliderValue(definition, rawValue) {
+            if (typeof rawValue !== "string") return null;
+            const normalizedValue = rawValue.replace(",", ".");
+            if (
+                normalizedValue.trim() !== normalizedValue ||
+                normalizedValue === "" ||
+                !/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalizedValue)
+            ) return null;
+            const numericValue = Number(normalizedValue);
+            if (!Number.isFinite(numericValue) || numericValue < definition.min || numericValue > definition.max) {
+                return null;
+            }
+            const scaled = (numericValue - definition.min) / definition.numericStep;
+            return Math.abs(scaled - Math.round(scaled)) < 1e-9 ? numericValue : null;
+        }
+
+        function clampDevelopSliderValue(definition, value) {
+            return Math.min(definition.max, Math.max(definition.min, value));
+        }
+
+        function roundDevelopSliderValue(definition, value, step) {
+            const clamped = clampDevelopSliderValue(definition, value);
+            const snapped = definition.min + Math.round((clamped - definition.min) / step) * step;
+            const rounded = Number(snapped.toFixed(definition.displayPrecision));
+            if (Math.abs(clamped - definition.min) < 1e-9) return definition.min;
+            if (Math.abs(clamped - definition.max) < 1e-9) return definition.max;
+            return clampDevelopSliderValue(definition, rounded);
+        }
+
+        function usesTemperatureVisualScale(definition) {
+            return definition.visualScale === "temperature" && definition.min > 0 && definition.max > 0;
+        }
+
+        function actualToDevelopSliderPosition(definition, value) {
+            const actual = clampDevelopSliderValue(definition, Number(value));
+            if (!usesTemperatureVisualScale(definition)) return actual;
+            if (actual === definition.min) return 0;
+            if (actual === definition.max) return 1000;
+            return 1000 * (
+                (Math.log(actual) - Math.log(definition.min)) /
+                (Math.log(definition.max) - Math.log(definition.min))
+            );
+        }
+
+        function developSliderPositionToActual(definition, position) {
+            if (!usesTemperatureVisualScale(definition)) {
+                return roundDevelopSliderValue(definition, Number(position), definition.rangeStep);
+            }
+            const normalized = Math.min(1, Math.max(0, Number(position) / 1000));
+            if (normalized === 0) return definition.min;
+            if (normalized === 1) return definition.max;
+            const actual = Math.exp(
+                Math.log(definition.min) +
+                normalized * (Math.log(definition.max) - Math.log(definition.min))
+            );
+            return roundDevelopSliderValue(definition, actual, definition.rangeStep);
+        }
+
+        function nextDevelopSliderStepValue(control, direction) {
+            const baseValue = control.desiredValue !== null
+                ? control.desiredValue
+                : (control.localValue !== null ? control.localValue : control.authoritativeValue);
+            if (baseValue === null) return null;
+            return roundDevelopSliderValue(
+                control.definition,
+                baseValue + direction * control.definition.rangeStep,
+                control.definition.rangeStep
+            );
+        }
+
+        function configureDevelopSliderRange(control) {
+            if (usesTemperatureVisualScale(control.definition)) {
+                control.range.min = "0";
+                control.range.max = "1000";
+                control.range.step = "1";
+            } else {
+                control.range.min = String(control.definition.min);
+                control.range.max = String(control.definition.max);
+                control.range.step = String(control.definition.rangeStep);
+            }
+        }
+
+        function setDevelopSliderState(control, state, message) {
+            const normalizedState = state || "available";
+            const normalizedMessage = message || "";
+            if (
+                control.feedbackState === normalizedState &&
+                control.stateMessage === normalizedMessage
+            ) return false;
+            control.row.classList.remove("loading", "unavailable", "error");
+            if (state) control.row.classList.add(state);
+            control.state.textContent = normalizedMessage;
+            control.feedbackState = normalizedState;
+            control.stateMessage = normalizedMessage;
+            return true;
+        }
+
+        function showDevelopSliderLocal(control, value) {
+            const numericValue = Number(value);
+            const visualPosition = actualToDevelopSliderPosition(control.definition, value);
+            const visualText = String(visualPosition);
+            const visualMin = Number(control.range.min);
+            const visualMax = Number(control.range.max);
+            const progress = 100 * (visualPosition - visualMin) / (visualMax - visualMin);
+            const progressText = progress + "%";
+            const numberText = formatDevelopSliderValue(control.definition, value);
+            const unchanged = control.localValue !== null &&
+                valuesMatchDevelopSlider(control.definition, control.localValue, numericValue) &&
+                control.range.value === visualText &&
+                control.number.value === numberText &&
+                control.visualProgress === progressText &&
+                control.feedbackState === "available";
+            control.localValue = numericValue;
+            if (unchanged) return false;
+            if (control.range.value !== visualText) control.range.value = visualText;
+            if (control.visualProgress !== progressText) {
+                control.range.style.setProperty("--slider-progress", progressText);
+                control.visualProgress = progressText;
+            }
+            if (control.number.value !== numberText) control.number.value = numberText;
+            setDevelopSliderState(control, "", "");
+            return true;
+        }
+
+        function applyDevelopSliderFeedback(control, value, rangeChanged) {
+            const numericValue = Number(value);
+            if (
+                !Number.isFinite(numericValue) ||
+                numericValue < control.definition.min ||
+                numericValue > control.definition.max
+            ) {
+                return;
+            }
+
+            control.authoritativeValue = numericValue;
+
+            if (control.desiredValue !== null) {
+                if (valuesMatchDevelopSlider(control.definition, numericValue, control.desiredValue)) {
+                    const confirmedValue = control.desiredValue;
+                    cancelDevelopSliderStep(control);
+                    if (rangeChanged || !valuesMatchDevelopSlider(
+                        control.definition,
+                        control.localValue,
+                        confirmedValue
+                    )) {
+                        showDevelopSliderLocal(control, confirmedValue);
+                    }
+                    control.numberCommittedValue = numericValue;
+                } else if (control.stepConfirmationExpired) {
+                    cancelDevelopSliderStep(control);
+                    showDevelopSliderLocal(control, numericValue);
+                    control.numberCommittedValue = numericValue;
+                }
+                return;
+            }
+
+            if (control.dragging || control.editing) return;
+
+            if (
+                rangeChanged ||
+                control.localValue === null ||
+                !valuesMatchDevelopSlider(control.definition, control.localValue, numericValue) ||
+                control.feedbackState !== "available"
+            ) {
+                showDevelopSliderLocal(control, numericValue);
+            }
+            control.numberCommittedValue = numericValue;
+            if (control.range.disabled) control.range.disabled = false;
+            if (control.number.disabled) control.number.disabled = false;
+            if (control.decrement.disabled) control.decrement.disabled = false;
+            if (control.increment.disabled) control.increment.disabled = false;
+            if (control.reset.disabled) control.reset.disabled = false;
+        }
+
+        function applyDevelopSliderFeedbackIfChanged(control, result) {
+            if (result.available === false) {
+                if (control.feedbackState !== "unavailable") markDevelopSliderUnavailable(control);
+                return;
+            }
+
+            let rangeChanged = false;
+            if (result.range && Number.isFinite(result.range.min) && Number.isFinite(result.range.max)) {
+                rangeChanged =
+                    control.definition.min !== result.range.min ||
+                    control.definition.max !== result.range.max;
+                if (rangeChanged) {
+                    control.definition.min = result.range.min;
+                    control.definition.max = result.range.max;
+                    configureDevelopSliderRange(control);
+                }
+            }
+
+            applyDevelopSliderFeedback(control, result.value, rangeChanged);
+        }
+
+        function markDevelopSliderUnavailable(control) {
+            if (control.dragging || control.editing) return;
+            if (control.feedbackState === "unavailable" && control.desiredValue === null) return;
+            cancelDevelopSliderStep(control);
+            control.authoritativeValue = null;
+            control.numberCommittedValue = null;
+            control.localValue = null;
+            control.number.value = "";
+            setDevelopSliderState(control, "unavailable", "Unavailable");
+            control.range.disabled = true;
+            control.number.disabled = true;
+            control.decrement.disabled = true;
+            control.increment.disabled = true;
+            control.reset.disabled = true;
+        }
+
+        function markDevelopSliderLoading(control) {
+            if (control.dragging || control.editing) return;
+            if (control.feedbackState === "loading" && control.desiredValue === null) return;
+            cancelDevelopSliderStep(control);
+            control.authoritativeValue = null;
+            control.numberCommittedValue = null;
+            control.localValue = null;
+            control.range.disabled = true;
+            control.number.disabled = true;
+            control.decrement.disabled = true;
+            control.increment.disabled = true;
+            control.reset.disabled = true;
+            control.number.value = "";
+            setDevelopSliderState(control, "loading", "Loading…");
+        }
+
+        function markDevelopSliderError(control) {
+            cancelDevelopSliderStep(control);
+            if (control.dragging || control.editing || control.authoritativeValue !== null) return;
+            if (control.feedbackState === "error") return;
+            control.number.value = "";
+            setDevelopSliderState(control, "error", "Feedback error");
+        }
+
+        function markAllDevelopSlidersLoading() {
+            Object.keys(developSliderControls).forEach(function (slider) {
+                markDevelopSliderLoading(developSliderControls[slider]);
+            });
+        }
+
+        async function submitDevelopSliderValue(control, value, kind, completion) {
+            if (
+                value === control.lastSubmittedValue &&
+                !control.requestInFlight &&
+                control.authoritativeValue !== null &&
+                valuesMatchDevelopSlider(control.definition, control.authoritativeValue, value)
+            ) {
+                if (completion) completion(true);
+                return;
+            }
+            if (control.requestInFlight) {
+                control.pendingValue = value;
+                control.pendingKind = kind || null;
+                control.pendingCompletion = completion || null;
+                return;
+            }
+
+            control.requestInFlight = true;
+            control.lastSubmittedValue = value;
+            markSliderCommandSent();
+            const accepted = await sendCommand(
+                "/api/set?slider=" + encodeURIComponent(control.definition.id) +
+                "&value=" + encodeURIComponent(String(value))
+            );
+            control.requestInFlight = false;
+            if (completion) completion(accepted);
+
+            if (control.pendingValue !== null) {
+                const nextValue = control.pendingValue;
+                const nextKind = control.pendingKind;
+                const nextCompletion = control.pendingCompletion;
+                control.pendingValue = null;
+                control.pendingKind = null;
+                control.pendingCompletion = null;
+                if (nextValue !== control.lastSubmittedValue) {
+                    submitDevelopSliderValue(control, nextValue, nextKind, nextCompletion);
+                } else if (nextCompletion) {
+                    nextCompletion(true);
+                }
+            }
+        }
+
+        function scheduleDevelopSliderValue(control, value) {
+            control.pendingValue = value;
+            control.pendingKind = "range";
+            if (control.throttleTimer !== null) return;
+
+            control.throttleTimer = setTimeout(function () {
+                control.throttleTimer = null;
+                const nextValue = control.pendingValue;
+                control.pendingValue = null;
+                if (nextValue !== null) submitDevelopSliderValue(control, nextValue, "range");
+            }, 100);
+        }
+
+        function flushDevelopSliderValue(control, value, kind) {
+            if (control.throttleTimer !== null) {
+                clearTimeout(control.throttleTimer);
+                control.throttleTimer = null;
+            }
+            control.pendingValue = null;
+            control.pendingKind = null;
+            control.pendingCompletion = null;
+            submitDevelopSliderValue(control, value, kind || null);
+        }
+
+        function clearDevelopSliderStepTimers(control) {
+            if (control.stepDebounceTimer !== null) {
+                clearTimeout(control.stepDebounceTimer);
+                control.stepDebounceTimer = null;
+            }
+            if (control.stepConfirmationTimer !== null) {
+                clearTimeout(control.stepConfirmationTimer);
+                control.stepConfirmationTimer = null;
+            }
+        }
+
+        function cancelDevelopSliderStep(control) {
+            clearDevelopSliderStepTimers(control);
+            control.desiredValue = null;
+            control.stepConfirmationExpired = false;
+            if (control.pendingKind === "step") {
+                control.pendingValue = null;
+                control.pendingKind = null;
+                control.pendingCompletion = null;
+            }
+        }
+
+        function developSliderConfirmationTolerance(definition) {
+            return Math.max(
+                definition.numericStep / 2,
+                Math.pow(10, -definition.displayPrecision) / 2,
+                1e-9
+            );
+        }
+
+        function valuesMatchDevelopSlider(definition, left, right) {
+            return Math.abs(Number(left) - Number(right)) <=
+                developSliderConfirmationTolerance(definition);
+        }
+
+        async function requestDevelopSliderStepFeedback(control, adoptResult) {
+            const slider = control.definition.id;
+            try {
+                const response = await fetch(
+                    "/api/feedback/request?slider=" + encodeURIComponent(slider),
+                    { cache: "no-store" }
+                );
+                const data = await response.json();
+                const request = data && data.request;
+                if (!response.ok || !request || request.id === undefined) {
+                    throw new Error("Targeted feedback request failed");
+                }
+                const outcome = await pollFeedbackSnapshot(request.id, 1900);
+                const result = outcome.snapshot &&
+                    outcome.snapshot.results &&
+                    outcome.snapshot.results[slider];
+                if (!result) {
+                    if (adoptResult) {
+                        cancelDevelopSliderStep(control);
+                        if (control.authoritativeValue !== null) {
+                            showDevelopSliderLocal(control, control.authoritativeValue);
+                        }
+                        setStatus("ERROR: " + slider + " confirmation timed out.");
+                    }
+                    return;
+                }
+                if (adoptResult) control.stepConfirmationExpired = true;
+                applyDevelopSliderFeedbackIfChanged(control, result);
+            } catch (err) {
+                if (adoptResult) {
+                    cancelDevelopSliderStep(control);
+                    if (control.authoritativeValue !== null) {
+                        showDevelopSliderLocal(control, control.authoritativeValue);
+                    }
+                    setStatus("ERROR: " + slider + " confirmation failed.");
+                }
+                console.error("LRBridge targeted slider feedback failed", {
+                    slider: slider,
+                    reason: err.message
+                });
+            }
+        }
+
+        function handleDevelopSliderStepSubmission(control, desiredAtSubmission, accepted) {
+            if (control.desiredValue === null || !valuesMatchDevelopSlider(
+                control.definition,
+                control.desiredValue,
+                desiredAtSubmission
+            )) return;
+
+            if (!accepted) {
+                cancelDevelopSliderStep(control);
+                if (control.authoritativeValue !== null) {
+                    showDevelopSliderLocal(control, control.authoritativeValue);
+                }
+                setStatus("ERROR: " + control.definition.label + " Set request was rejected.");
+                return;
+            }
+
+            requestDevelopSliderStepFeedback(control, false);
+            control.stepConfirmationTimer = setTimeout(function () {
+                control.stepConfirmationTimer = null;
+                if (control.desiredValue === null) return;
+                requestDevelopSliderStepFeedback(control, true);
+            }, 2000);
+        }
+
+        function scheduleDevelopSliderStepSubmission(control) {
+            if (control.stepDebounceTimer !== null) clearTimeout(control.stepDebounceTimer);
+            control.stepDebounceTimer = setTimeout(function () {
+                control.stepDebounceTimer = null;
+                if (control.desiredValue === null) return;
+                const desiredAtSubmission = control.desiredValue;
+                submitDevelopSliderValue(control, desiredAtSubmission, "step", function (accepted) {
+                    handleDevelopSliderStepSubmission(control, desiredAtSubmission, accepted);
+                });
+            }, 350);
+        }
+
+        function stepDevelopSliderValue(control, direction) {
+            if (!control) return;
+            const nextValue = nextDevelopSliderStepValue(control, direction);
+            if (nextValue === null) return;
+            const baseValue = control.desiredValue !== null
+                ? control.desiredValue
+                : (control.localValue !== null ? control.localValue : control.authoritativeValue);
+            if (nextValue === baseValue) return;
+            clearDevelopSliderStepTimers(control);
+            control.desiredValue = nextValue;
+            control.stepConfirmationExpired = false;
+            showDevelopSliderLocal(control, nextValue);
+            control.numberCommittedValue = nextValue;
+            scheduleDevelopSliderStepSubmission(control);
+        }
+
+        function createDevelopSliderControl(definition) {
             const row = document.createElement("div");
-            row.className = "row";
+            row.className = "develop-slider-row";
 
             const name = document.createElement("div");
             name.className = "slider-name";
-            name.textContent = labels[slider] || slider;
+            name.textContent = definition.label;
 
-            
-            if (feedbackSupportedSliders.has(slider)) {
-                const feedback = document.createElement("span");
-                feedback.className = "slider-feedback";
-                feedback.textContent = "Lightroom: --";
-                name.appendChild(feedback);
-                sliderFeedbackElements[slider] = feedback;
-            }
-row.appendChild(name);
+            const range = document.createElement("input");
+            range.type = "range";
+            range.disabled = true;
+            range.setAttribute("aria-label", definition.label);
 
-            row.appendChild(makeButton("-5", "negative", function () {
-                sendAdjust(slider, -5);
-            }));
+            const number = document.createElement("input");
+            number.type = "text";
+            number.inputMode = "decimal";
+            number.autocomplete = "off";
+            number.spellcheck = false;
+            number.disabled = true;
+            number.setAttribute("aria-label", definition.label + " numeric value");
 
-            row.appendChild(makeButton("-1", "negative", function () {
-                sendAdjust(slider, -1);
-            }));
+            const state = document.createElement("span");
+            state.className = "develop-slider-state";
+            state.textContent = "Loading…";
 
-            row.appendChild(makeButton("Reset", "reset", function () {
+            let control = null;
+
+            const decrement = makeButton("−", "develop-slider-step", function () {
+                stepDevelopSliderValue(control, -1);
+            });
+            decrement.setAttribute("aria-label", "Decrease " + definition.label);
+
+            const increment = makeButton("+", "develop-slider-step", function () {
+                stepDevelopSliderValue(control, 1);
+            });
+            increment.setAttribute("aria-label", "Increase " + definition.label);
+
+            const reset = makeButton("Reset", "reset", function () {
+                cancelDevelopSliderStep(control);
                 markSliderCommandSent();
-                sendCommand("/api/reset?slider=" + encodeURIComponent(slider));
-                            requestSliderFeedback(slider);
-            }));
+                sendCommand("/api/reset?slider=" + encodeURIComponent(definition.id)).then(function (accepted) {
+                    if (accepted) {
+                        setTimeout(function () {
+                            requestLiveFeedbackSnapshot(true);
+                        }, 300);
+                    }
+                });
+            });
 
-            row.appendChild(makeButton("+1", "positive", function () {
-                sendAdjust(slider, 1);
-            }));
+            control = {
+                definition: definition,
+                row: row,
+                range: range,
+                number: number,
+                state: state,
+                decrement: decrement,
+                increment: increment,
+                reset: reset,
+                dragging: false,
+                editing: false,
+                requestInFlight: false,
+                pendingValue: null,
+                pendingKind: null,
+                pendingCompletion: null,
+                lastSubmittedValue: null,
+                authoritativeValue: null,
+                localValue: null,
+                desiredValue: null,
+                numberCommittedValue: null,
+                throttleTimer: null,
+                cancelNextBlur: false,
+                stepDebounceTimer: null,
+                stepConfirmationTimer: null,
+                stepConfirmationExpired: false,
+                feedbackState: null,
+                stateMessage: null,
+                visualProgress: null
+            };
+            configureDevelopSliderRange(control);
+            decrement.disabled = true;
+            increment.disabled = true;
+            reset.disabled = true;
 
-            row.appendChild(makeButton("+5", "positive", function () {
-                sendAdjust(slider, 5);
-            }));
+            range.addEventListener("pointerdown", function () {
+                cancelDevelopSliderStep(control);
+                control.dragging = true;
+            });
+            range.addEventListener("input", function () {
+                cancelDevelopSliderStep(control);
+                const nextValue = developSliderPositionToActual(definition, Number(range.value));
+                showDevelopSliderLocal(control, nextValue);
+                scheduleDevelopSliderValue(control, nextValue);
+            });
+            range.addEventListener("pointerup", function () {
+                control.dragging = false;
+                flushDevelopSliderValue(
+                    control,
+                    developSliderPositionToActual(definition, Number(range.value)),
+                    "range"
+                );
+            });
+            range.addEventListener("change", function () {
+                control.dragging = false;
+                flushDevelopSliderValue(
+                    control,
+                    developSliderPositionToActual(definition, Number(range.value)),
+                    "range"
+                );
+            });
 
-            row.appendChild(makeDragStrip(slider));
+            function commitNumericValue() {
+                cancelDevelopSliderStep(control);
+                const nextValue = parseDevelopSliderValue(definition, number.value);
+                control.editing = false;
+                if (nextValue === null) {
+                    setStatus("ERROR: Invalid " + definition.label + " value.");
+                    if (control.authoritativeValue !== null) {
+                        showDevelopSliderLocal(control, control.authoritativeValue);
+                    } else {
+                        number.value = "";
+                        setDevelopSliderState(control, "loading", "Loading…");
+                    }
+                    return;
+                }
+                if (nextValue !== control.numberCommittedValue) {
+                    showDevelopSliderLocal(control, nextValue);
+                    control.numberCommittedValue = nextValue;
+                    flushDevelopSliderValue(control, nextValue, "numeric");
+                }
+            }
 
-            groupElement.appendChild(row);
+            number.addEventListener("focus", function () {
+                control.editing = true;
+                control.cancelNextBlur = false;
+                setTimeout(function () {
+                    if (document.activeElement === number) number.select();
+                }, 0);
+            });
+            number.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitNumericValue();
+                    number.blur();
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    control.cancelNextBlur = true;
+                    control.editing = false;
+                    if (control.authoritativeValue !== null) {
+                        showDevelopSliderLocal(control, control.authoritativeValue);
+                    }
+                    number.blur();
+                }
+            });
+            number.addEventListener("blur", function () {
+                if (control.cancelNextBlur) {
+                    control.cancelNextBlur = false;
+                    return;
+                }
+                if (control.editing) commitNumericValue();
+            });
+
+            row.appendChild(name);
+            row.appendChild(range);
+            row.appendChild(number);
+            row.appendChild(decrement);
+            row.appendChild(increment);
+            row.appendChild(reset);
+            row.appendChild(state);
+
+            developSliderControls[definition.id] = control;
+            sliderFeedbackElements[definition.id] = row;
+            return row;
         }
 
         function renderActionGroup(group) {
@@ -2585,7 +3191,19 @@ row.appendChild(name);
         function renderSlidersTab() {
             renderActionsForPlacement("top");
 
-            for (const group of sliderGroups) {
+            const groups = [];
+            developSliderDefinitions.forEach(function (definition) {
+                let group = groups.find(function (item) {
+                    return item.name === definition.group;
+                });
+                if (!group) {
+                    group = { name: definition.group, sliders: [] };
+                    groups.push(group);
+                }
+                group.sliders.push(definition);
+            });
+
+            for (const group of groups) {
                 renderActionsForPlacement("before:" + group.name);
                 renderSwitchesForPlacement("before:" + group.name);
 
@@ -2598,12 +3216,17 @@ row.appendChild(name);
 
                 groupElement.appendChild(title);
 
-                for (const slider of group.sliders) {
-                    addSliderRow(groupElement, slider);
+                for (const definition of group.sliders) {
+                    groupElement.appendChild(createDevelopSliderControl(definition));
                 }
 
                 content.appendChild(groupElement);
             }
+
+            setTimeout(function () {
+                markAllDevelopSlidersLoading();
+                requestLiveFeedbackSnapshot(true);
+            }, 0);
         }
 
         function renderToolTab(tab) {
@@ -2656,8 +3279,23 @@ row.appendChild(name);
             }
         }
 
-        render();
-        startLiveFeedbackPolling();
+        async function loadDevelopSliderDefinitions() {
+            const response = await fetch("/api/sliders", { cache: "no-store" });
+            if (!response.ok) throw new Error("Slider metadata request failed");
+            const data = await response.json();
+            developSliderDefinitions = (data.sliders || []).filter(function (definition) {
+                return definition.feedbackSupported === true;
+            });
+        }
+
+        loadDevelopSliderDefinitions().then(function () {
+            render();
+            startLiveFeedbackPolling();
+        }).catch(function () {
+            renderTabs();
+            clearContent();
+            setStatus("ERROR: Could not load authoritative slider metadata.");
+        });
     </script>
 </body>
 </html>

@@ -277,16 +277,33 @@ async function main() {
         assert.equal(result.statusCode, 400);
         assert.equal(commands.getStatus().queueLength, 0);
 
-        for (const [raw, expected] of [["0.25", 0.25], ["-1.5", -1.5], ["6500.5", 6500.5]]) {
-            result = await getJson(httpPort, "/set?slider=Exposure&experimental=1&value=" + encodeURIComponent(raw));
+        for (const [raw, expected] of [["0.25", 0.25], ["-1.5", -1.5], ["5", 5]]) {
+            result = await getJson(httpPort, "/set?slider=Exposure&value=" + encodeURIComponent(raw));
             const queued = { command: "develop.set", slider: "Exposure", value: expected };
-            assert.deepEqual(result, { statusCode: 200, body: { ok: true, queued, experimental: true } });
+            assert.deepEqual(result, { statusCode: 200, body: { ok: true, queued } });
             assert.deepEqual(commands.getNextCommand(), queued);
         }
 
-        for (const suffix of ["", "&value=", "&value=%20%20", "&value=NaN", "&value=Infinity", "&value=-Infinity", "&value=1e309"]) {
+        for (const [slider, raw, expected] of [
+            ["Exposure", "-5", -5],
+            ["Exposure", "5", 5],
+            ["Contrast", "-100", -100],
+            ["Contrast", "100", 100],
+            ["Temperature", "-100", -100],
+            ["Temperature", "100", 100],
+            ["SharpenRadius", "0.5", 0.5],
+            ["SharpenRadius", "3", 3]
+        ]) {
+            result = await getJson(httpPort, "/set?slider=" + slider + "&value=" + raw);
+            assert.equal(result.statusCode, 200);
+            assert.deepEqual(commands.getNextCommand(), {
+                command: "develop.set", slider: slider, value: expected
+            });
+        }
+
+        for (const suffix of ["", "&value=", "&value=%20%20", "&value=NaN", "&value=Infinity", "&value=-Infinity", "&value=1e309", "&value=5.01", "&value=-5.01", "&value=1.234", "&value=1&extra=true", "&value=1&value=2"]) {
             const before = commands.getStatus().queueLength;
-            result = await getJson(httpPort, "/set?slider=Exposure&experimental=1" + suffix);
+            result = await getJson(httpPort, "/set?slider=Exposure" + suffix);
             assert.equal(result.statusCode, 400);
             assert.equal(commands.getStatus().queueLength, before);
         }
@@ -308,7 +325,7 @@ async function main() {
 
         result = await getJson(httpPort, "/feedback/request?slider=Exposure");
         const feedbackId = result.body.request.id;
-        result = await getJson(httpPort, "/feedback/result?id=" + feedbackId + "&slider=Exposure&value=-0.5");
+        result = await getJson(httpPort, "/feedback/result?id=" + feedbackId + "&slider=Exposure&value=-0.5&min=-5&max=5");
         assert.equal(result.statusCode, 200);
         assert.deepEqual(result.body.result.id, feedbackId);
 
@@ -316,14 +333,85 @@ async function main() {
         const cropAngleFeedbackId = result.body.request.id;
         result = await getJson(
             httpPort,
-            "/feedback/result?id=" + cropAngleFeedbackId + "&slider=CropAngle&value=-2.5"
+            "/feedback/result?id=" + cropAngleFeedbackId + "&slider=CropAngle&value=-2.5&min=-45&max=45"
         );
         assert.equal(result.statusCode, 200);
         result = await getJson(httpPort, "/feedback/value?slider=CropAngle");
         assert.equal(result.body.result.value, -2.5);
         result = await getJson(httpPort, "/feedback/value?slider=Exposure");
         assert.equal(result.body.result.value, -0.5);
-        result = await getJson(httpPort, "/feedback/result?id=0&slider=Exposure&value=0");
+        result = await getJson(
+            httpPort,
+            "/feedback/result?id=" + feedbackId + "&slider=Exposure&available=0"
+        );
+        assert.equal(result.statusCode, 200);
+        assert.equal(result.body.result.available, false);
+        assert.equal(result.body.result.value, null);
+        result = await getJson(
+            httpPort,
+            "/feedback/result?id=" + feedbackId + "&slider=Exposure&available=0&extra=true"
+        );
+        assert.equal(result.statusCode, 400);
+
+        result = await getJson(httpPort, "/feedback/request-many?sliders=Exposure,Tint");
+        const snapshotId = result.body.request.id;
+        result = await getJson(
+            httpPort,
+            "/feedback/result?id=" + snapshotId + "&slider=Exposure&value=1.25&min=-5&max=5"
+        );
+        assert.equal(result.statusCode, 200);
+        result = await getJson(httpPort, "/feedback/snapshot?id=" + snapshotId);
+        assert.equal(result.body.snapshot.complete, false);
+        assert.deepEqual(Object.keys(result.body.snapshot.results), ["Exposure"]);
+        result = await getJson(
+            httpPort,
+            "/feedback/result?id=" + snapshotId + "&slider=Tint&value=18&min=-150&max=150"
+        );
+        assert.equal(result.statusCode, 200);
+        result = await getJson(httpPort, "/feedback/snapshot?id=" + snapshotId);
+        assert.equal(result.body.snapshot.complete, true);
+        assert.equal(result.body.snapshot.results.Exposure.value, 1.25);
+        assert.equal(result.body.snapshot.results.Tint.value, 18);
+        assert.deepEqual(result.body.snapshot.results.Tint.range, { min: -150, max: 150 });
+        assert.deepEqual(require("../server/sliders").getEffectiveRange("Tint"), { min: -150, max: 150 });
+
+        // A new browser/request lifecycle must receive a complete snapshot even
+        // when Lightroom's values have not changed since the prior request.
+        result = await getJson(httpPort, "/feedback/request-many?sliders=Exposure,Tint");
+        const reloadSnapshotId = result.body.request.id;
+        await getJson(
+            httpPort,
+            "/feedback/result?id=" + reloadSnapshotId + "&slider=Exposure&value=1.25&min=-5&max=5"
+        );
+        await getJson(
+            httpPort,
+            "/feedback/result?id=" + reloadSnapshotId + "&slider=Tint&value=18&min=-150&max=150"
+        );
+        result = await getJson(httpPort, "/feedback/snapshot?id=" + reloadSnapshotId);
+        assert.equal(result.body.snapshot.complete, true);
+        assert.deepEqual(Object.keys(result.body.snapshot.results).sort(), ["Exposure", "Tint"]);
+
+        // Explicit unavailable completes the snapshot; a missing result does not.
+        result = await getJson(httpPort, "/feedback/request-many?sliders=Exposure,Tint");
+        const mixedSnapshotId = result.body.request.id;
+        await getJson(
+            httpPort,
+            "/feedback/result?id=" + mixedSnapshotId + "&slider=Exposure&value=0.5&min=-5&max=5"
+        );
+        result = await getJson(httpPort, "/feedback/snapshot?id=" + mixedSnapshotId);
+        assert.equal(result.body.snapshot.complete, false);
+        assert.equal(result.body.snapshot.results.Tint, undefined);
+        await getJson(
+            httpPort,
+            "/feedback/result?id=" + mixedSnapshotId + "&slider=Tint&available=0"
+        );
+        result = await getJson(httpPort, "/feedback/snapshot?id=" + mixedSnapshotId);
+        assert.equal(result.body.snapshot.complete, true);
+        assert.equal(result.body.snapshot.results.Exposure.available, true);
+        assert.equal(result.body.snapshot.results.Tint.available, false);
+        assert.equal(result.body.snapshot.results.Tint.value, null);
+
+        result = await getJson(httpPort, "/feedback/result?id=0&slider=Exposure&value=0&min=-5&max=5");
         assert.equal(result.statusCode, 200);
         assert.equal(result.body.result.id, 0);
         assert.equal(result.body.result.value, 0);

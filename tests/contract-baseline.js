@@ -97,7 +97,7 @@ function validateStaticContract() {
     );
     assert.deepEqual(
         [runtimeRows.length, runtimeCounts.PASS, runtimeCounts.FAIL, runtimeCounts.UNVERIFIED],
-        [86, 85, 1, 0],
+        [88, 87, 1, 0],
         "Supported runtime totals drifted"
     );
 
@@ -424,11 +424,7 @@ async function validateHttpAndWebSocketContract() {
     await request(captured, "/next");
 
     result = await request(captured, "/set", { slider: "Exposure", value: "1" });
-    assert.equal(result.statusCode, 400);
-    assert.deepEqual(keys(result.body), ["error", "hint", "ok"]);
-
-    result = await request(captured, "/set", { slider: "Exposure", value: "1", experimental: "1" });
-    assert.deepEqual(result.body, { ok: true, queued: { command: "develop.set", slider: "Exposure", value: 1 }, experimental: true });
+    assert.deepEqual(result.body, { ok: true, queued: { command: "develop.set", slider: "Exposure", value: 1 } });
     await request(captured, "/next");
 
     result = await request(captured, "/adjust", { slider: "BadSlider", amount: "1" });
@@ -485,12 +481,20 @@ async function validateHttpAndWebSocketContract() {
     const feedbackId = result.body.request.id;
     result = await request(captured, "/feedback/next");
     assert.equal(result.body.request.id, feedbackId);
-    result = await request(captured, "/feedback/result", { id: String(feedbackId), slider: "Exposure", value: "0.5" });
+    result = await request(captured, "/feedback/result", {
+        id: String(feedbackId), slider: "Exposure", value: "0.5", min: "-5", max: "5"
+    });
     assert.deepEqual(keys(result.body), ["ok", "result"]);
     result = await request(captured, "/feedback/value", { slider: "Exposure" });
     assert.equal(result.body.result.value, 0.5);
     result = await request(captured, "/feedback/all");
     assert.deepEqual(keys(result.body), ["ok", "values"]);
+    assert.equal(result.body.values.Exposure.value, 0.5);
+    await request(captured, "/context/update", {
+        activeModule: "develop", selectedPhotoKey: "photo-2", developFingerprint: "def"
+    });
+    result = await request(captured, "/feedback/all");
+    assert.deepEqual(result.body, { ok: true, values: {} }, "Photo changes must invalidate old feedback");
 
     result = await request(captured, "/feedback/request-all");
     assert.deepEqual(keys(result.body), ["ok", "request"]);

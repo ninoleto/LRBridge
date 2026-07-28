@@ -270,9 +270,19 @@ function validateCommand(command) {
 
     if (
         command.command === "develop.set" &&
-        !numbers.isFiniteNumber(command.value)
+        (
+            Object.keys(command).length !== 3 ||
+            !sliders.isValidAbsoluteValue(command.slider, command.value)
+        )
     ) {
         console.log("Invalid value");
+        return false;
+    }
+
+    if (
+        command.command === "develop.reset" &&
+        Object.keys(command).length !== 2
+    ) {
         return false;
     }
 
@@ -341,6 +351,28 @@ function tryEnqueueCommand(command) {
                 coalescedCommands += 1;
                 lastCoalescedAt = admittedAt;
                 console.log("Coalesced crop angle command:", command);
+                return admissionResult(ADMISSION_COALESCED);
+            }
+        }
+    }
+
+    if (command.command === "develop.set" || command.command === "develop.reset") {
+        const admittedAt = Date.now();
+
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+
+            if (
+                pending.slider === command.slider &&
+                (pending.command === "develop.set" || pending.command === "develop.reset")
+            ) {
+                commandQueue.splice(index, 1);
+                queueEntryMetadata.splice(index, 1);
+                commandQueue.push(command);
+                queueEntryMetadata.push({ enqueuedAt: admittedAt });
+                coalescedCommands += 1;
+                lastCoalescedAt = admittedAt;
+                console.log("Coalesced Develop slider state:", command);
                 return admissionResult(ADMISSION_COALESCED);
             }
         }

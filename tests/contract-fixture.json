@@ -30,7 +30,8 @@
     "/feedback/next",
     "/feedback/result",
     "/feedback/value",
-    "/feedback/all"
+    "/feedback/all",
+    "/feedback/snapshot"
   ],
   "commands": [
     "develop.adjust",

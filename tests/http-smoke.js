@@ -59,7 +59,7 @@ async function main() {
 
     await expectBad("/adjust?slider=BadSlider&amount=1");
     await expectBad("/adjust?slider=Exposure");
-    await expectBad("/set?slider=Exposure&value=1");
+    await expectOk("/set?slider=Exposure&value=1");
 
     console.log("");
     console.log("Smoke test passed.");

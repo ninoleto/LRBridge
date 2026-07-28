@@ -4,6 +4,11 @@
 
 ### Added
 
+- Replaced the Web Controller's relative Develop button grids with 93 reusable metadata-driven absolute slider controls, synchronized numeric inputs, individual Reset buttons, and authoritative Lightroom feedback with an explicit unavailable state.
+- Corrected generic slider initialization so every new feedback request ID receives a complete snapshot even when Lightroom values are unchanged. Active-photo changes now invalidate old values and distinguish Loading, explicit Unavailable, and feedback errors; runtime SDK ranges are returned with each available value.
+- Improved generic slider editing with signed-decimal text fields, step-based `−`/`+` buttons, larger range thumbs, and a metadata-driven logarithmic Temperature visual scale while preserving actual Lightroom values and linear Tint behavior.
+- Manual Lightroom Classic 15.3 verification confirmed authoritative generic-slider population after application restart and browser reload, correct Temperature and Tint behavior, signed numeric editing, and smooth debounced `−`/`+` changes with targeted single-slider confirmation and no unrelated repaint.
+- Added the canonical absolute Set generator to the HTTP Builder. Slider ranges, steps, and precision come from the shared `config/sliders.json` registry.
 - Added a dedicated Web Controller Crop tab containing Open Crop Tool, Reset Crop, Original Aspect, Camera Crop, six fixed aspect-ratio presets, and an LRBridge Custom Crop modal.
 - Added fixed 16:10 crop support and a validated Custom Crop contract accepting exact integer Width and Height values from 1 to 10000.
 - Added SDK-native Crop Angle controls using the documented `straightenAngle` parameter, authoritative Lightroom feedback, latest-state queue coalescing, and a straightening-only Reset Angle command. Controlled Web Controller verification passed for the range slider, numeric input, visible Lightroom behavior, feedback, and Reset Angle.
@@ -15,6 +20,7 @@
 
 ### Changed
 
+- Hardened `/set` and `/reset` validation and added latest-state queue coalescing per Develop slider. Relative `/adjust` ordering remains unchanged, and rapid Temperature/Tint interaction retains the existing Auto Tone / Auto White Balance cooldown.
 - Fixed Lightroom polling parsing so string `value` and `scope` fields survive queue JSON transport for Photo Treatment and Show in Explorer.
 - Expanded `photo.crop_aspect` with fixed `16x10` and `custom` mode. Custom ratios preserve validated `w` and `h` integers from 1 to 10000 and use Lightroom's documented SDK table form; the Web Controller modal is not Lightroom's native Enter Custom dialog. Camera Crop may match Original; Reset Crop remains separate.
 - Controlled Lightroom Classic 15.3 testing confirmed Black & White, Color, and Show in Explorer with visible results, exact queue deltas, continued heartbeat, and no execution errors.

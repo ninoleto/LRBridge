@@ -339,13 +339,21 @@ local function waitForNormalCommandToFinish()
 
 end
 
-local function sendValue(id, slider, value)
+local function sendValue(id, slider, value, minValue, maxValue)
 
     local url =
         "http://127.0.0.1:17891/feedback/result" ..
         "?id=" .. tostring(id) ..
-        "&slider=" .. tostring(slider) ..
-        "&value=" .. tostring(value)
+        "&slider=" .. tostring(slider)
+
+    if value == nil then
+        url = url .. "&available=0"
+    else
+        url = url ..
+            "&value=" .. tostring(value) ..
+            "&min=" .. tostring(minValue) ..
+            "&max=" .. tostring(maxValue)
+    end
 
     LrHttp.get(url)
 
@@ -356,12 +364,15 @@ local function sendRequestedValue(id, slider)
     waitForNormalCommandToFinish()
 
     local value = Query.getDevelopValue(slider)
+    local minValue, maxValue = Query.getDevelopRange(slider)
 
-    if value ~= nil then
+    if value ~= nil and minValue ~= nil and maxValue ~= nil then
         lastSentValues[slider] = tostring(value)
+    else
+        value = nil
     end
 
-    sendValue(id, slider, value)
+    sendValue(id, slider, value, minValue, maxValue)
 
     log("feedback result sent: " .. tostring(slider) .. "=" .. tostring(value))
 
@@ -397,31 +408,27 @@ local function sendManyRequestedValues(id, requestedSliders)
     for i, slider in ipairs(requestedSliders) do
 
         local value = Query.getDevelopValue(slider)
+        local minValue, maxValue = Query.getDevelopRange(slider)
+
+        if minValue == nil or maxValue == nil then
+            value = nil
+        end
 
         if value ~= nil then
-
             readCount = readCount + 1
+        end
 
-            local valueKey = tostring(value)
+        lastSentValues[slider] = value == nil and "__unavailable__" or tostring(value)
+        sendValue(id, slider, value, minValue, maxValue)
+        sentCount = sentCount + 1
 
-            if lastSentValues[slider] ~= valueKey then
-
-                lastSentValues[slider] = valueKey
-                sendValue(id, slider, value)
-
-                sentCount = sentCount + 1
-
-                if firstSent == nil then
-                    firstSent = tostring(slider) .. "=" .. tostring(value)
-                end
-
-            end
-
+        if firstSent == nil then
+            firstSent = tostring(slider) .. "=" .. tostring(value)
         end
 
     end
 
-    log("feedback many read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " changed, " .. tostring(firstSent))
+    log("feedback many snapshot read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " results, " .. tostring(firstSent))
 
 end
 
@@ -436,31 +443,27 @@ local function sendAllRequestedValues(id)
     for i, slider in ipairs(watchedSliders) do
 
         local value = Query.getDevelopValue(slider)
+        local minValue, maxValue = Query.getDevelopRange(slider)
+
+        if minValue == nil or maxValue == nil then
+            value = nil
+        end
 
         if value ~= nil then
-
             readCount = readCount + 1
+        end
 
-            local valueKey = tostring(value)
+        lastSentValues[slider] = value == nil and "__unavailable__" or tostring(value)
+        sendValue(id, slider, value, minValue, maxValue)
+        sentCount = sentCount + 1
 
-            if lastSentValues[slider] ~= valueKey then
-
-                lastSentValues[slider] = valueKey
-                sendValue(id, slider, value)
-
-                sentCount = sentCount + 1
-
-                if firstSent == nil then
-                    firstSent = tostring(slider) .. "=" .. tostring(value)
-                end
-
-            end
-
+        if firstSent == nil then
+            firstSent = tostring(slider) .. "=" .. tostring(value)
         end
 
     end
 
-    log("feedback all read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " changed, " .. tostring(firstSent))
+    log("feedback all snapshot read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " results, " .. tostring(firstSent))
 
 end
 

@@ -147,6 +147,7 @@ function Driver.setSlider(slider, value)
 
     prepareDevelopSlider(developSlider)
 
+    LrDevelopController.startTracking(developSlider)
     LrDevelopController.setValue(developSlider, value)
 
     return true
@@ -237,4 +238,3 @@ function Driver.runAction(action)
 end
 
 return Driver
-

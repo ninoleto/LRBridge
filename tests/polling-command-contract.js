@@ -29,6 +29,7 @@ const acceptedCommands = [
     { command: "photo.crop_angle.set", value: -2.5 },
     { command: "photo.crop_angle.set", value: 12.25 },
     { command: "photo.crop_angle.reset" },
+    { command: "develop.set", slider: "Tint", value: -25 },
     { command: "photo.reveal", scope: "active" },
     { command: "photo.rotate", direction: "left" },
     { command: "selection.extend", direction: "right", amount: 3 },

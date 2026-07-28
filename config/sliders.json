@@ -6,7 +6,12 @@
         "min": -5,
         "max": 5,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 0.1,
+        "numericStep": 0.01,
+        "displayPrecision": 2,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Contrast",
@@ -15,7 +20,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Highlights",
@@ -24,7 +34,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Shadows",
@@ -33,7 +48,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Whites",
@@ -42,7 +62,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Blacks",
@@ -51,7 +76,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Temperature",
@@ -60,7 +90,13 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "visualScale": "temperature",
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Tint",
@@ -69,7 +105,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Vibrance",
@@ -78,7 +119,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Saturation",
@@ -87,7 +133,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Texture",
@@ -96,7 +147,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Clarity",
@@ -105,7 +161,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Dehaze",
@@ -114,7 +175,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "Sharpness",
@@ -123,7 +189,12 @@
         "min": 0,
         "max": 150,
         "default": 40,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SharpenRadius",
@@ -132,7 +203,12 @@
         "min": 0.5,
         "max": 3,
         "default": 1,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 0.1,
+        "numericStep": 0.01,
+        "displayPrecision": 2,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SharpenDetail",
@@ -141,7 +217,12 @@
         "min": 0,
         "max": 100,
         "default": 25,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SharpenEdgeMasking",
@@ -150,7 +231,12 @@
         "min": 0,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceNR",
@@ -159,7 +245,12 @@
         "min": 0,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceNoiseReductionDetail",
@@ -168,7 +259,12 @@
         "min": 0,
         "max": 100,
         "default": 50,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceNoiseReductionContrast",
@@ -177,7 +273,12 @@
         "min": 0,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ColorNR",
@@ -186,7 +287,12 @@
         "min": 0,
         "max": 100,
         "default": 25,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ColorNoiseReductionDetail",
@@ -195,7 +301,12 @@
         "min": 0,
         "max": 100,
         "default": 50,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ColorNoiseReductionSmoothness",
@@ -204,7 +315,12 @@
         "min": 0,
         "max": 100,
         "default": 50,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentRed",
@@ -213,7 +329,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentOrange",
@@ -222,7 +343,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentYellow",
@@ -231,7 +357,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentGreen",
@@ -240,7 +371,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentAqua",
@@ -249,7 +385,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentBlue",
@@ -258,7 +399,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentPurple",
@@ -267,7 +413,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "HueAdjustmentMagenta",
@@ -276,7 +427,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentRed",
@@ -285,7 +441,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentOrange",
@@ -294,7 +455,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentYellow",
@@ -303,7 +469,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentGreen",
@@ -312,7 +483,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentAqua",
@@ -321,7 +497,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentBlue",
@@ -330,7 +511,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentPurple",
@@ -339,7 +525,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "SaturationAdjustmentMagenta",
@@ -348,7 +539,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentRed",
@@ -357,7 +553,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentOrange",
@@ -366,7 +567,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentYellow",
@@ -375,7 +581,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentGreen",
@@ -384,7 +595,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentAqua",
@@ -393,7 +609,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentBlue",
@@ -402,7 +623,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentPurple",
@@ -411,7 +637,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LuminanceAdjustmentMagenta",
@@ -420,7 +651,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerRed",
@@ -429,7 +665,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerOrange",
@@ -438,7 +679,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerYellow",
@@ -447,7 +693,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerGreen",
@@ -456,7 +707,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerAqua",
@@ -465,7 +721,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerBlue",
@@ -474,7 +735,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerPurple",
@@ -483,7 +749,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrayMixerMagenta",
@@ -492,7 +763,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PostCropVignetteAmount",
@@ -501,7 +777,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PostCropVignetteMidpoint",
@@ -510,7 +791,12 @@
         "min": 0,
         "max": 100,
         "default": 50,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PostCropVignetteFeather",
@@ -519,7 +805,12 @@
         "min": 0,
         "max": 100,
         "default": 50,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PostCropVignetteRoundness",
@@ -528,7 +819,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PostCropVignetteHighlightContrast",
@@ -537,7 +833,12 @@
         "min": 0,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrainAmount",
@@ -546,7 +847,12 @@
         "min": 0,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrainSize",
@@ -555,7 +861,12 @@
         "min": 0,
         "max": 100,
         "default": 25,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GrainFrequency",
@@ -564,7 +875,12 @@
         "min": 0,
         "max": 100,
         "default": 50,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ShadowTint",
@@ -573,7 +889,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "RedHue",
@@ -582,7 +903,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "RedSaturation",
@@ -591,7 +917,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GreenHue",
@@ -600,7 +931,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "GreenSaturation",
@@ -609,7 +945,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "BlueHue",
@@ -618,7 +959,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "BlueSaturation",
@@ -627,7 +973,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LensProfileDistortionScale",
@@ -636,7 +987,12 @@
         "min": 0,
         "max": 200,
         "default": 100,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LensProfileEnable",
@@ -645,7 +1001,12 @@
         "min": 0,
         "max": 1,
         "default": 0,
-        "incrementDescription": "Experimental checkbox-style Lightroom control. It may need special toggle handling."
+        "incrementDescription": "Experimental checkbox-style Lightroom control. It may need special toggle handling.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": false
     },
     {
         "id": "AutoLateralCA",
@@ -654,7 +1015,12 @@
         "min": 0,
         "max": 1,
         "default": 0,
-        "incrementDescription": "Experimental checkbox-style Lightroom control. It may need special toggle handling."
+        "incrementDescription": "Experimental checkbox-style Lightroom control. It may need special toggle handling.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": false
     },
     {
         "id": "LensProfileChromaticAberrationScale",
@@ -663,7 +1029,12 @@
         "min": 0,
         "max": 200,
         "default": 100,
-        "incrementDescription": "Unsolved placeholder. Current Lightroom Classic appears to expose Remove Chromatic Aberration as AutoLateralCA instead of this as a normal slider."
+        "incrementDescription": "Unsolved placeholder. Current Lightroom Classic appears to expose Remove Chromatic Aberration as AutoLateralCA instead of this as a normal slider.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": false
     },
     {
         "id": "LensProfileVignettingScale",
@@ -672,7 +1043,12 @@
         "min": 0,
         "max": 200,
         "default": 100,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "LensManualDistortionAmount",
@@ -681,7 +1057,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "DefringePurpleAmount",
@@ -690,7 +1071,12 @@
         "min": 0,
         "max": 20,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "DefringePurpleHueLo",
@@ -699,7 +1085,12 @@
         "min": 0,
         "max": 100,
         "default": 30,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "DefringePurpleHueHi",
@@ -708,7 +1099,12 @@
         "min": 0,
         "max": 100,
         "default": 70,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "DefringeGreenAmount",
@@ -717,7 +1113,12 @@
         "min": 0,
         "max": 20,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "DefringeGreenHueLo",
@@ -726,7 +1127,12 @@
         "min": 0,
         "max": 100,
         "default": 40,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "DefringeGreenHueHi",
@@ -735,7 +1141,12 @@
         "min": 0,
         "max": 100,
         "default": 60,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PerspectiveVertical",
@@ -744,7 +1155,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PerspectiveHorizontal",
@@ -753,7 +1169,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PerspectiveRotate",
@@ -762,7 +1183,12 @@
         "min": -10,
         "max": 10,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 0.1,
+        "numericStep": 0.01,
+        "displayPrecision": 2,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PerspectiveScale",
@@ -771,7 +1197,12 @@
         "min": 50,
         "max": 150,
         "default": 100,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PerspectiveAspect",
@@ -780,7 +1211,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PerspectiveX",
@@ -789,7 +1225,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "PerspectiveY",
@@ -798,7 +1239,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ParametricDarks",
@@ -807,7 +1253,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ParametricLights",
@@ -816,7 +1267,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ParametricShadows",
@@ -825,7 +1281,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ParametricHighlights",
@@ -834,7 +1295,12 @@
         "min": -100,
         "max": 100,
         "default": 0,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ParametricShadowSplit",
@@ -843,7 +1309,12 @@
         "min": 0,
         "max": 100,
         "default": 25,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ParametricMidtoneSplit",
@@ -852,7 +1323,12 @@
         "min": 0,
         "max": 100,
         "default": 50,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     },
     {
         "id": "ParametricHighlightSplit",
@@ -861,6 +1337,11 @@
         "min": 0,
         "max": 100,
         "default": 75,
-        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version."
+        "incrementDescription": "Experimental catalog slider. One LRBridge amount step equals one Lightroom increment if this parameter works in the current Lightroom Classic version.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
     }
 ]

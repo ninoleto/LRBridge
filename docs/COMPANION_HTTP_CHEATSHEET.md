@@ -55,7 +55,9 @@ Method: GET
 - `amount=-1` means one step down.
 - `amount=5` and `amount=-5` are faster jumps.
 - Use `/reset?slider=SLIDER_ID` to reset one slider.
-- `/get`, `/last-result`, and `/set` are experimental and should not be used for normal Companion feedback.
+- Use `/set?slider=SLIDER_ID&value=VALUE` for a validated absolute Develop value.
+- Rapid pending `/set` and `/reset` requests coalesce independently per slider; relative `/adjust` commands retain their existing semantics.
+- `/get` and `/last-result` remain experimental and are not the Web Controller feedback path.
 
 ---
 
@@ -122,6 +124,14 @@ Crop Angle uses the documented `straightenAngle` Develop parameter from -45° to
 ---
 
 ## Slider commands
+
+The Web Controller and HTTP Builder read each slider's absolute range, interaction step, numeric precision, and feedback support from `config/sliders.json`. Example absolute command:
+
+```text
+/set?slider=Exposure&value=1.25
+```
+
+The Web Controller displays authoritative Lightroom polling feedback. A parameter that is unavailable for the active photo or process version displays `--`; LRBridge does not invent a zero value.
 
 Each slider includes ready-made Companion paths for:
 
@@ -705,21 +715,20 @@ curl.exe "http://127.0.0.1:17891/action?action=setAutoTone"
 
 ---
 
-## Do not use for normal Companion buttons yet
+## Experimental result endpoints
 
-These endpoints exist but are experimental:
+These result-slot endpoints remain experimental:
 
 ```text
 /get?slider=Exposure
 /last-result
-/set?slider=Exposure&value=1&experimental=1
 ```
 
 Reason:
 
 ```text
 LRBridge currently uses Lightroom Classic as the visible source of truth.
-Stable feedback should be built later through a proper /state endpoint.
+The Web Controller uses the dedicated authoritative feedback polling routes instead.
 ```
 
 ---
@@ -730,9 +739,9 @@ When building a Companion module or fork:
 
 1. Read `config/sliders.json` for slider IDs, labels, groups, ranges, and defaults.
 2. Read `server/commands.js` for allowed action names.
-3. Use `/adjust`, `/reset`, and `/action` first.
+3. Use `/set` for absolute values, `/adjust` for relative encoders, and `/reset` for one parameter.
 4. Do not build feedback on `/last-result`.
-5. Do not treat `/set` as stable.
+5. Derive absolute ranges and precision from slider metadata rather than duplicating tables.
 6. Keep Lightroom logic inside LRBridge, not inside the Companion module.
 
 Correct future Companion architecture:

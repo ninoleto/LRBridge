@@ -57,6 +57,7 @@ to Lightroom Classic Develop UI
 
 - /adjust?slider=Exposure&amount=1
 - /adjust?slider=Exposure&amount=-1
+- /set?slider=Exposure&value=1.25
 - /reset?slider=Exposure
 - /action?action=setAutoTone
 
@@ -64,9 +65,9 @@ to Lightroom Classic Develop UI
 
 ## Current limitations
 
-- LRBridge is focused on reliable one-way control.
-- Live Lightroom value feedback is not stable yet.
-- /get, /set, /last-result, and native Companion feedback/state should be treated as experimental unless updated later.
+- The Web Controller uses request-scoped authoritative polling snapshots for supported numeric sliders. It distinguishes Loading, explicit Unavailable, and feedback-error states; a missing delta is never treated as unavailable.
+- `/set` is the canonical validated absolute setter; `/adjust` remains the relative encoder API.
+- `/get` and `/last-result` remain experimental result-slot APIs.
 - The native Bitfocus Companion plugin is planned, but the current practical workflow is Generic HTTP Requests.
 
 ## Search keywords

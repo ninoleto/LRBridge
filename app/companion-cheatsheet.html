@@ -462,7 +462,7 @@
                     <select id="builderValue"></select>
                 </div>
                 <div id="builderAmountField" class="builder-field hidden">
-                    <label for="builderAmount">Amount</label>
+                    <label id="builderAmountLabel" for="builderAmount">Amount</label>
                     <input id="builderAmount" type="number" step="1" value="1">
                 </div>
             </div>
@@ -558,6 +558,7 @@
     const builderValue = document.getElementById("builderValue");
     const builderValueLabel = document.getElementById("builderValueLabel");
     const builderAmountField = document.getElementById("builderAmountField");
+    const builderAmountLabel = document.getElementById("builderAmountLabel");
     const builderAmount = document.getElementById("builderAmount");
     const builderDescription = document.getElementById("builderDescription");
     const builderPath = document.getElementById("builderPath");
@@ -578,6 +579,17 @@
             id: "develop",
             label: "Develop",
             types: [
+                {
+                    id: "set",
+                    label: "Set absolute slider value",
+                    command: "develop.set",
+                    route: "set",
+                    valueField: "slider",
+                    valueLabel: "Slider",
+                    valueSource: "sliders",
+                    amountField: "value",
+                    amountLabel: "Absolute value"
+                },
                 {
                     id: "adjust",
                     label: "Adjust Lightroom slider",
@@ -867,7 +879,7 @@
         }
     ];
 
-    const developActionType = builderCommandFamilies[0].types[2];
+    const developActionType = builderCommandFamilies[0].types[3];
     const actions = developActionType.options.map(function (option) {
         return [
             option.label,
@@ -877,6 +889,11 @@
     });
 
     function buildCommandPath(type, value, amount) {
+        if (type.route === "set") {
+            return "/api/set?slider=" + encodeURIComponent(String(value)) +
+                "&value=" + encodeURIComponent(String(amount));
+        }
+
         const parameters = [
             ["command", type.command],
             [type.valueField, value]
@@ -889,6 +906,18 @@
         return "/api/command?" + parameters.map(function (entry) {
             return encodeURIComponent(entry[0]) + "=" + encodeURIComponent(String(entry[1]));
         }).join("&");
+    }
+
+    function parseBuilderAbsoluteValue(slider, rawValue) {
+        if (!slider || typeof rawValue !== "string" || rawValue.trim() !== rawValue || rawValue === "") {
+            return null;
+        }
+        const value = Number(rawValue);
+        if (!Number.isFinite(value) || value < slider.min || value > slider.max) return null;
+        const scaled = (value - slider.min) / slider.numericStep;
+        if (Math.abs(scaled - Math.round(scaled)) >= 1e-9) return null;
+        const decimal = rawValue.split(".")[1] || "";
+        return decimal.length <= slider.displayPrecision ? value : null;
     }
 
     function parseCustomCropDimension(value) {
@@ -981,8 +1010,32 @@
             return;
         }
 
-        builderDescription.textContent = option.description || type.description || "";
-        builderPath.textContent = buildCommandPath(type, option.value, builderAmount.value);
+        let valid = true;
+        if (type.route === "set") {
+            const slider = sliders.find(function (item) { return item.id === option.value; });
+            valid = parseBuilderAbsoluteValue(slider, builderAmount.value) !== null;
+        }
+
+        builderDescription.textContent = valid
+            ? (option.description || type.description || "")
+            : "Enter a value within this slider's declared range and precision.";
+        builderPath.textContent = valid ? buildCommandPath(type, option.value, builderAmount.value) : "";
+        document.getElementById("copyBuilderPath").disabled = !valid;
+        document.getElementById("copyBuilderFull").disabled = !valid;
+    }
+
+    function renderBuilderSliderSelection() {
+        const type = selectedBuilderType();
+        if (type && type.route === "set") {
+            const slider = sliders.find(function (item) { return item.id === builderValue.value; });
+            if (slider) {
+                builderAmount.min = String(slider.min);
+                builderAmount.max = String(slider.max);
+                builderAmount.step = String(slider.numericStep);
+                builderAmount.value = String(slider.default === undefined ? slider.min : slider.default);
+            }
+        }
+        renderBuilderOutput();
     }
 
     function renderBuilderValues() {
@@ -997,8 +1050,10 @@
 
         builderValueLabel.textContent = type.valueLabel || "Value";
         builderAmountField.classList.toggle("hidden", !type.amountField);
+        builderAmountLabel.textContent = type.amountLabel || "Amount";
         builderAmount.min = type.amountMin === undefined ? "" : String(type.amountMin);
         builderAmount.max = type.amountMax === undefined ? "" : String(type.amountMax);
+        builderAmount.step = type.amountStep === undefined ? "1" : String(type.amountStep);
 
         for (const option of builderOptions(type)) {
             const element = document.createElement("option");
@@ -1011,6 +1066,16 @@
             return option.value === previousValue;
         })) {
             builderValue.value = previousValue;
+        }
+
+        if (type.route === "set") {
+            const slider = sliders.find(function (item) { return item.id === builderValue.value; });
+            if (slider) {
+                builderAmount.min = String(slider.min);
+                builderAmount.max = String(slider.max);
+                builderAmount.step = String(slider.numericStep);
+                builderAmount.value = String(slider.default === undefined ? slider.min : slider.default);
+            }
         }
 
         renderBuilderOutput();
@@ -1372,7 +1437,7 @@
 
     builderFamily.addEventListener("change", renderBuilderTypes);
     builderType.addEventListener("change", renderBuilderValues);
-    builderValue.addEventListener("change", renderBuilderOutput);
+    builderValue.addEventListener("change", renderBuilderSliderSelection);
     builderAmount.addEventListener("input", renderBuilderOutput);
     customCropWidth.addEventListener("input", renderCustomCropOutput);
     customCropHeight.addEventListener("input", renderCustomCropOutput);

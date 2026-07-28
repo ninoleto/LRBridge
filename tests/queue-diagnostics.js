@@ -6,13 +6,16 @@ const sliders = require("../server/sliders");
 const { createBridge } = require("../server/bridge");
 
 const ordinary = (index) => ({
-    command: "develop.set",
-    slider: index % 2 === 0 ? "Exposure" : "Contrast",
-    value: index
+    command: "selection.navigate",
+    direction: index % 2 === 0 ? "next" : "previous"
 });
 const reset = (index) => ({
     command: "develop.reset",
     slider: sliders.getIds()[index % sliders.getIds().length]
+});
+const protectedCommand = () => ({
+    command: "develop.action",
+    action: "setAutoTone"
 });
 
 function emptyDiagnostics() {
@@ -101,7 +104,7 @@ function fillTo(length) {
     silenceLogs(function () {
         while (commands.getStatus().queueLength < length) {
             const index = commands.getStatus().queueLength;
-            commands.enqueueCommand(index < 896 ? ordinary(index) : reset(index));
+            commands.enqueueCommand(index < 896 ? ordinary(index) : protectedCommand());
         }
     });
 }
@@ -252,12 +255,10 @@ function testQueuePositionMetadata() {
     const beforeSingles = Date.now();
     assert.equal(commands.tryEnqueueCommand(repeated).status, commands.ADMISSION_ACCEPTED);
     assertQueueMetadataIsSynchronized(1, beforeSingles + 25);
-    assert.equal(commands.tryEnqueueCommand(repeated).status, commands.ADMISSION_ACCEPTED);
-    assertQueueMetadataIsSynchronized(2, beforeSingles + 25);
+    assert.equal(commands.tryEnqueueCommand(repeated).status, commands.ADMISSION_COALESCED);
+    assertQueueMetadataIsSynchronized(1, beforeSingles + 25);
     assert.deepEqual(Object.keys(repeated), originalKeys);
 
-    assert.equal(commands.getNextCommand(), repeated);
-    assertQueueMetadataIsSynchronized(1, beforeSingles + 25);
     assert.equal(commands.getNextCommand(), repeated);
     assertQueueMetadataIsSynchronized(0, beforeSingles + 25);
 
