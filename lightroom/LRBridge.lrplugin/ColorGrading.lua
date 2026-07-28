@@ -175,9 +175,7 @@ end
 
 function ColorGrading.setView(view)
     if views[view] ~= true then error("Invalid Color Grading view") end
-    local photo = prepareDevelop()
-    local processVersion = tonumber(photo:getRawMetadata("processVersion"))
-    if processVersion == nil or processVersion < 3 then error("Color Grading view requires Process Version 3 or newer") end
+    prepareDevelop()
     LrDevelopController.setActiveColorGradingView(view)
     return true
 end
