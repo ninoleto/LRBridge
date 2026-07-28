@@ -370,4 +370,4 @@ Not current priority:
 ```
 # Color Grading Phase 1 implementation state
 
-Authoritative metadata lives in `lightroom/LRBridge.lrplugin/color-grading.json`, bundled inside the self-contained Lightroom plug-in. Backend, polling transport, native Lua dispatch, request-scoped snapshots, and the HTTP Builder are implemented. Runtime verification is still required; do not mark these commands PASS before the documented Lightroom sequence is completed. The existing generic Develop family remains 96 metadata definitions and 93 Web Controller feedback controls.
+Authoritative metadata lives in `lightroom/LRBridge.lrplugin/color-grading.properties`, bundled inside the self-contained Lightroom plug-in and parsed without an undocumented JSON namespace. Backend, polling transport, native Lua dispatch, request-scoped snapshots, and the HTTP Builder are implemented. Runtime verification is still required; do not mark these commands PASS before the documented Lightroom sequence is completed. The existing generic Develop family remains 96 metadata definitions and 93 Web Controller feedback controls.

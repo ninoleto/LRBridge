@@ -366,7 +366,7 @@ http://127.0.0.1:17892/
 lightroom\LRBridge.lrplugin
 ```
 
-Add or copy the entire `LRBridge.lrplugin` folder. Its bundled `color-grading.json` metadata must remain inside the folder; the plug-in is self-contained and does not require the repository or LRBridge application folder beside it.
+Add or copy the entire `LRBridge.lrplugin` folder. Its bundled `color-grading.properties` metadata must remain inside the folder; the plug-in is self-contained and does not require the repository or LRBridge application folder beside it.
 
 ### Option B: run from source for development
 
@@ -424,7 +424,7 @@ Add this plugin folder from the extracted portable package:
 LRBridge\lightroom\LRBridge.lrplugin
 ```
 
-Copy or add the complete `LRBridge.lrplugin` folder, including its bundled `color-grading.json`. The folder is self-contained, so it can also be copied to Lightroom's Modules directory and loaded there without the LRBridge repository or application folder beside it.
+Copy or add the complete `LRBridge.lrplugin` folder, including its bundled `color-grading.properties`. The folder is self-contained, so it can also be copied to Lightroom's Modules directory and loaded there without the LRBridge repository or application folder beside it.
 
 Development example:
 
@@ -1571,7 +1571,7 @@ LRBridge/
     sliders.json
   lightroom/
     LRBridge.lrplugin/
-      color-grading.json
+      color-grading.properties
   app/
   docs/
   README.md

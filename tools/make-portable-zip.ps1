@@ -24,7 +24,7 @@ $required = @(
     "LRBridge.exe",
     "config\settings.txt",
     "config\sliders.json",
-    "lightroom\LRBridge.lrplugin\color-grading.json",
+    "lightroom\LRBridge.lrplugin\color-grading.properties",
     "lightroom\LRBridge.lrplugin\Info.lua",
     "lightroom\LRBridge.lrplugin\Help.lua",
     "lightroom\LRBridge.lrplugin\Application.lua",
