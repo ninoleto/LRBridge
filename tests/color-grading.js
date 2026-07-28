@@ -1,0 +1,43 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const metadataPath = "lightroom/LRBridge.lrplugin/color-grading.json";
+const metadata = require("../" + metadataPath);
+const cg = require("../server/color-grading");
+const commands = require("../server/commands");
+const read = p => fs.readFileSync(path.join(__dirname, "..", p), "utf8");
+assert.deepEqual(Object.keys(metadata.regions), ["shadows", "midtones", "highlights", "global"]);
+assert.deepEqual(Object.keys(metadata.scalarControls), ["shadow_luminance", "midtone_luminance", "highlight_luminance", "global_luminance", "blending", "balance"]);
+assert.deepEqual(metadata.views, ["3-way", "shadow", "midtone", "highlight", "global"]);
+const ids = ["SplitToningShadowHue","SplitToningShadowSaturation","ColorGradeShadowLum","ColorGradeMidtoneHue","ColorGradeMidtoneSat","ColorGradeMidtoneLum","SplitToningHighlightHue","SplitToningHighlightSaturation","ColorGradeHighlightLum","ColorGradeGlobalHue","ColorGradeGlobalSat","ColorGradeGlobalLum","ColorGradeBlending","SplitToningBalance"];
+assert.deepEqual(cg.getParameterIds(), ids); assert.equal(new Set(ids).size, 14);
+for (const guessed of ["ColorGradeShadowHue","ColorGradeShadowSat","ColorGradeHighlightHue","ColorGradeHighlightSat","ColorGradeBalance"]) assert.ok(!JSON.stringify(metadata).includes(guessed));
+for (const command of [{command:"color_grading.wheel.set",region:"shadows",hue:220,saturation:35},{command:"color_grading.value.set",control:"blending",value:50},{command:"color_grading.value.reset",control:"balance"},{command:"color_grading.region.reset",region:"global"},{command:"color_grading.view.set",view:"3-way"}]) assert.equal(commands.validateCommand(command), true);
+for (const command of [{command:"color_grading.wheel.set",region:"shadow",hue:1,saturation:2},{command:"color_grading.wheel.set",region:"shadows",hue:NaN,saturation:2},{command:"color_grading.wheel.set",region:"shadows",hue:1,saturation:2,extra:true},{command:"color_grading.value.set",control:"SplitToningBalance",value:1},{command:"color_grading.view.set",view:"three-way"}]) assert.equal(commands.validateCommand(command), false);
+cg.setRuntimeRange("ColorGradeBlending", 0, 100); assert.equal(commands.validateCommand({command:"color_grading.value.set",control:"blending",value:101}), false); cg.clearRuntimeRanges();
+commands.resetQueueForTests(); commands.enqueueCommand({command:"color_grading.wheel.set",region:"shadows",hue:1,saturation:2}); commands.enqueueCommand({command:"color_grading.wheel.set",region:"shadows",hue:3,saturation:4}); commands.enqueueCommand({command:"color_grading.wheel.set",region:"midtones",hue:5,saturation:6});
+assert.deepEqual(commands.getNextCommand(), {command:"color_grading.wheel.set",region:"shadows",hue:3,saturation:4}); assert.deepEqual(commands.getNextCommand(), {command:"color_grading.wheel.set",region:"midtones",hue:5,saturation:6});
+commands.resetQueueForTests(); commands.enqueueCommand({command:"color_grading.wheel.set",region:"shadows",hue:1,saturation:2}); commands.enqueueCommand({command:"color_grading.value.set",control:"shadow_luminance",value:3}); commands.enqueueCommand({command:"color_grading.value.set",control:"blending",value:4}); commands.enqueueCommand({command:"color_grading.region.reset",region:"shadows"}); commands.enqueueCommand({command:"color_grading.wheel.set",region:"shadows",hue:5,saturation:6});
+assert.deepEqual(commands.getNextCommand(), {command:"color_grading.value.set",control:"blending",value:4}); assert.deepEqual(commands.getNextCommand(), {command:"color_grading.region.reset",region:"shadows"}); assert.deepEqual(commands.getNextCommand(), {command:"color_grading.wheel.set",region:"shadows",hue:5,saturation:6});
+const intendedMetadataFiles = ["config", "lightroom", "server"]
+    .flatMap(directory => fs.readdirSync(path.join(__dirname, "..", directory), { recursive: true, withFileTypes: true })
+        .filter(entry => entry.isFile() && entry.name === "color-grading.json")
+        .map(entry => path.relative(path.join(__dirname, ".."), path.join(entry.parentPath, entry.name)).replace(/\\/g, "/")));
+assert.deepEqual(intendedMetadataFiles, [metadataPath], "Color Grading metadata must have one authoritative source inside the plug-in");
+const lua = read("lightroom/LRBridge.lrplugin/ColorGrading.lua"); assert.match(lua, /LrPathUtils\.child\(_PLUGIN\.path, ["']color-grading\.json["']\)/); assert.match(lua, /LrJson\.decode/);
+assert.doesNotMatch(lua, /LrPathUtils\.parent|\.\.\/|\.\.\\\\/, "Color Grading metadata must not traverse above _PLUGIN.path");
+for (const parameter of ids) assert.ok(!lua.includes(parameter), "Adobe parameter mapping must not be duplicated in Lua: " + parameter);
+const nodeLoader = read("server/color-grading.js");
+assert.match(nodeLoader, /require\(["']\.\.\/lightroom\/LRBridge\.lrplugin\/color-grading\.json["']\)/, "Node must load the plug-in's authoritative metadata");
+assert.doesNotMatch(nodeLoader, /config\/color-grading\.json/, "Node must not load repository-level Color Grading metadata");
+const builder = read("electron-builder.yml");
+assert.match(builder, /- from: lightroom\s+[\s\S]*?to: lightroom/, "Builder must package the complete plug-in tree");
+const portableScript = read("tools/make-portable-zip.ps1");
+assert.ok(portableScript.includes('"lightroom\\LRBridge.lrplugin\\color-grading.json"'), "Portable validation must require bundled Color Grading metadata");
+assert.doesNotMatch(builder + portableScript, /config[\\\/]color-grading\.json/, "Packaging must not require a repository-level metadata copy");
+assert.match(lua, /getRange\(parameter\)/); assert.match(lua, /getTargetPhoto/); assert.match(lua, /getCurrentModuleName/); assert.equal((lua.match(/LrDevelopController\.setValue\(mapping\./g)||[]).length, 2); assert.equal((lua.match(/LrDevelopController\.resetToDefault\(mapping\./g)||[]).length, 3); assert.match(lua, /setActiveColorGradingView/);
+for (const forbidden of ["loadstring","SendKeys","AutoHotkey","WScript.Shell"]) assert.ok(!lua.includes(forbidden));
+const parser = read("lightroom/LRBridge.lrplugin/Parser.lua"); for (const field of ["region","control","hue","saturation","value","view"]) assert.ok(parser.includes(field + " =") || parser.includes("local " + field));
+const dispatch = read("lightroom/LRBridge.lrplugin/Commands.lua"); for (const name of ["color_grading.wheel.set","color_grading.value.set","color_grading.value.reset","color_grading.region.reset","color_grading.view.set"]) assert.ok(dispatch.includes(name));
+assert.match(read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), /getActiveColorGradingView/); assert.match(read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), /color-grading\/view-result/); assert.match(read("app/companion-cheatsheet.html"), /function buildColorGradingPath/); assert.equal(require("../config/sliders.json").length, 96);
+console.log("Color Grading focused tests passed.");

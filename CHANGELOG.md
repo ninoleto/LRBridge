@@ -274,3 +274,6 @@ Expected result:
 ```text
 Smoke test passed.
 ```
+# Unreleased
+
+- Added Phase 1 Color Grading metadata, native command transport, strict runtime-range validation, protected/coalescing queue behavior, request-scoped feedback, view selection, HTTP Builder support, and focused tests. Runtime status remains untested in Lightroom; graphical wheels are deferred to Phase 2.

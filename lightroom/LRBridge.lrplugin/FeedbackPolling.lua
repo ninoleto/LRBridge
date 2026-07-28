@@ -3,8 +3,10 @@ local LrTasks = import "LrTasks"
 local LrApplication = import "LrApplication"
 local LrApplicationView = import "LrApplicationView"
 local LrDate = import "LrDate"
+local LrDevelopController = import "LrDevelopController"
 
 local Query = require "Query"
+local ColorGrading = require "ColorGrading"
 
 local function getPortableRoot()
 
@@ -467,6 +469,40 @@ local function sendAllRequestedValues(id)
 
 end
 
+local function urlEncode(value)
+    return string.gsub(tostring(value), "([^%w%-_%.~])", function(character) return string.format("%%%02X", string.byte(character)) end)
+end
+
+local function sendColorGradingParameter(id, parameter)
+    local ok, value, minimum, maximum = pcall(function()
+        local current = LrDevelopController.getValue(parameter)
+        local minValue, maxValue = LrDevelopController.getRange(parameter)
+        return current, minValue, maxValue
+    end)
+    local url = "http://127.0.0.1:17891/color-grading/result?id=" .. tostring(id) .. "&parameter=" .. urlEncode(parameter)
+    if ok ~= true or type(value) ~= "number" or type(minimum) ~= "number" or type(maximum) ~= "number" or minimum >= maximum then
+        LrHttp.get(url .. "&available=0")
+    else
+        LrHttp.get(url .. "&value=" .. tostring(value) .. "&min=" .. tostring(minimum) .. "&max=" .. tostring(maximum))
+    end
+end
+
+local function sendColorGradingSnapshot(id)
+    waitForNormalCommandToFinish()
+    local regions, controls = ColorGrading.getParameters()
+    local parameters = {}
+    for _, mapping in pairs(regions) do parameters[mapping.hue] = true; parameters[mapping.saturation] = true; parameters[mapping.luminance] = true end
+    for _, parameter in pairs(controls) do parameters[parameter] = true end
+    for parameter, _ in pairs(parameters) do sendColorGradingParameter(id, parameter) end
+    local ok, view = pcall(function() return LrDevelopController.getActiveColorGradingView() end)
+    if ok == true and (view == "3-way" or view == "shadow" or view == "midtone" or view == "highlight" or view == "global") then
+        LrHttp.get("http://127.0.0.1:17891/color-grading/view-result?id=" .. tostring(id) .. "&view=" .. urlEncode(view))
+    else
+        LrHttp.get("http://127.0.0.1:17891/color-grading/view-result?id=" .. tostring(id) .. "&available=0")
+    end
+    log("Color Grading snapshot sent for request " .. tostring(id))
+end
+
 if _G.LRBridgeFeedbackPollingStarted == true then
 
     log("feedback polling already running")
@@ -484,6 +520,12 @@ LrTasks.startAsyncTask(function()
 
         local result = LrHttp.get("http://127.0.0.1:17891/feedback/next")
         local slider = parseSlider(result)
+
+        if string.find(result or "", [["colorGrading":true]], 1, true) then
+            local id = parseRequestId(result)
+            sendColorGradingSnapshot(id)
+            slider = nil
+        end
 
         if slider ~= nil then
 

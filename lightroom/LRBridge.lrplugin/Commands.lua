@@ -4,6 +4,7 @@ local Selection = require "Selection"
 local Application = require "Application"
 local Photo = require "Photo"
 local Crop = require "Crop"
+local ColorGrading = require "ColorGrading"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -25,6 +26,12 @@ function Commands.execute(command)
     if command == nil then
         return
     end
+
+    if command.command == "color_grading.wheel.set" then ColorGrading.setWheel(command.region, command.hue, command.saturation); return end
+    if command.command == "color_grading.value.set" then ColorGrading.setValue(command.control, command.value); return end
+    if command.command == "color_grading.value.reset" then ColorGrading.resetValue(command.control); return end
+    if command.command == "color_grading.region.reset" then ColorGrading.resetRegion(command.region); return end
+    if command.command == "color_grading.view.set" then ColorGrading.setView(command.view); return end
 
     if command.command == "develop.adjust" then
 

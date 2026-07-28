@@ -5,6 +5,7 @@ const commands = require("./commands");
 const sliders = require("./sliders");
 const context = require("./context");
 const numbers = require("./numbers");
+const colorGrading = require("./color-grading");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -22,6 +23,12 @@ function positiveFiniteIntegerOption(options, name, defaultValue) {
     }
 
     return value;
+}
+
+function parseStrictFiniteNumber(value) {
+    if (typeof value !== "string" || value === "" || value.trim() !== value || !/^-?\d+(?:\.\d+)?$/.test(value)) return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
 }
 
 function createBridge(options) {
@@ -57,6 +64,7 @@ const app = express();
 const feedbackRequests = [];
 const feedbackValues = {};
 const feedbackSnapshots = {};
+const colorGradingSnapshots = {};
 let feedbackRequestId = 0;
 let startupLibraryQueued = false;
 const dedicatedFeedbackParameters = new Set(["CropAngle"]);
@@ -194,6 +202,12 @@ app.get("/help", function (req, res) {
             showView: "/command?command=application.view&view=grid",
             applicationAction: "/command?command=application.action&action=toggle_zoom",
             secondaryView: "/command?command=application.secondary_view&view=loupe",
+            setColorGradingWheel: "/command?command=color_grading.wheel.set&region=shadows&hue=220&saturation=35",
+            setColorGradingValue: "/command?command=color_grading.value.set&control=blending&value=50",
+            resetColorGradingRegion: "/command?command=color_grading.region.reset&region=shadows",
+            resetColorGradingValue: "/command?command=color_grading.value.reset&control=balance",
+            selectColorGradingView: "/command?command=color_grading.view.set&view=3-way",
+            requestColorGradingSnapshot: "/color-grading/request",
             deprecatedWakeEndpoint: "/wake-lightroom",
             libraryModuleCommand: "/command?command=application.module&module=library"
         },
@@ -212,6 +226,9 @@ app.get("/help", function (req, res) {
             "Color label metadata strings depend on Lightroom's active Color Label Set.",
             "Selection commands use the Lightroom SDK and do not depend on keyboard shortcuts or AutoHotkey.",
             "Application commands use LrApplicationView and only switch modules when application.module is requested.",
+            "Color Grading uses documented case-sensitive SDK parameters and Lightroom runtime ranges; unavailable values have no static fallback.",
+            "A wheel command carries one Hue/Saturation pair and executes two consecutive native setValue calls in Develop.",
+            "Color Grading view selection requires Process Version 3 or newer.",
             "Selection operations and application controls are ordinary FIFO queue commands; they do not consume the protected reset/action reserve.",
             "After the first valid Lightroom context heartbeat, LRBridge queues one SDK-native switch to Library.",
             "/wake-lightroom is deprecated; use /command?command=application.module&module=library."
@@ -255,6 +272,8 @@ app.get("/context/update", function (req, res) {
         Object.keys(feedbackValues).forEach(function (slider) {
             delete feedbackValues[slider];
         });
+        colorGrading.clearRuntimeRanges();
+        Object.keys(colorGradingSnapshots).forEach(function (id) { delete colorGradingSnapshots[id]; });
     }
 
     if (isValidContextHeartbeat(req.query)) {
@@ -275,6 +294,10 @@ app.get("/sliders", function (req, res) {
     });
 });
 
+app.get("/color-grading", function (req, res) {
+    res.set("Cache-Control", "no-store").json({ colorGrading: colorGrading.getMetadata() });
+});
+
 app.get("/groups", function (req, res) {
     res.json({
         groups: sliders.getGroups()
@@ -291,8 +314,27 @@ app.get("/command", function (req, res) {
 
     const command = { command: commandName };
 
-    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view", "mode", "scope"]) {
+    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view", "mode", "scope", "region", "control"]) {
         if (req.query[field] !== undefined) command[field] = req.query[field];
+    }
+
+    const colorSchemas = {
+        "color_grading.wheel.set": ["command", "region", "hue", "saturation"],
+        "color_grading.value.set": ["command", "control", "value"],
+        "color_grading.value.reset": ["command", "control"],
+        "color_grading.region.reset": ["command", "region"],
+        "color_grading.view.set": ["command", "view"]
+    };
+    if (colorSchemas[commandName]) {
+        const expected = colorSchemas[commandName];
+        const keys = Object.keys(req.query);
+        const invalid = keys.length !== expected.length || keys.some(function (key) {
+            return !expected.includes(key) || Array.isArray(req.query[key]);
+        });
+        if (invalid) command.invalidQueryField = true;
+        for (const field of ["hue", "saturation"]) {
+            if (req.query[field] !== undefined) command[field] = parseStrictFiniteNumber(req.query[field]);
+        }
     }
 
     if (commandName === "photo.crop_aspect") {
@@ -352,6 +394,8 @@ app.get("/command", function (req, res) {
             command.value = Object.keys(req.query).some(function (field) {
                 return !allowedQueryFields.has(field);
             }) ? req.query.value : sliders.parseAbsoluteValue(req.query.slider, req.query.value);
+        } else if (commandName === "color_grading.value.set") {
+            command.value = parseStrictFiniteNumber(req.query.value);
         } else {
             command.value = numbers.parseFiniteNumber(req.query.value);
         }
@@ -589,6 +633,72 @@ app.get("/feedback/next", function (req, res) {
         ok: true,
         request: request
     });
+});
+
+app.get("/color-grading/request", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    feedbackRequestId += 1;
+    const request = { id: feedbackRequestId, colorGrading: true, requestedAt: Date.now() };
+    feedbackRequests.push(request);
+    colorGradingSnapshots[request.id] = {
+        id: request.id,
+        parameters: {},
+        view: null,
+        complete: false,
+        context: context.getContextFields(),
+        requestedAt: request.requestedAt,
+        completedAt: null
+    };
+    res.json({ ok: true, request: request });
+});
+
+app.get("/color-grading/result", function (req, res) {
+    const id = numbers.parseFiniteInteger(req.query.id);
+    const parameter = req.query.parameter;
+    const unavailable = req.query.available === "0";
+    const allowed = unavailable ? ["id", "parameter", "available"] : ["id", "parameter", "value", "min", "max"];
+    if (id === null || !colorGrading.getParameterIds().includes(parameter) || Object.keys(req.query).some(function (key) {
+        return !allowed.includes(key) || Array.isArray(req.query[key]);
+    })) return res.status(400).json({ ok: false, error: "Invalid Color Grading result" });
+    const value = unavailable ? null : numbers.parseFiniteNumber(req.query.value);
+    const min = unavailable ? null : numbers.parseFiniteNumber(req.query.min);
+    const max = unavailable ? null : numbers.parseFiniteNumber(req.query.max);
+    if (!unavailable && (value === null || min === null || max === null || min >= max)) return res.status(400).json({ ok: false, error: "Invalid Color Grading result" });
+    const snapshot = colorGradingSnapshots[id];
+    if (!snapshot) return res.status(404).json({ ok: false, error: "Unknown Color Grading snapshot" });
+    const result = { parameter: parameter, available: !unavailable, value: value, range: unavailable ? null : { min: min, max: max } };
+    snapshot.parameters[parameter] = result;
+    if (!unavailable) colorGrading.setRuntimeRange(parameter, min, max);
+    finishColorGradingSnapshot(snapshot);
+    res.json({ ok: true, result: result });
+});
+
+app.get("/color-grading/view-result", function (req, res) {
+    const id = numbers.parseFiniteInteger(req.query.id);
+    const unavailable = req.query.available === "0";
+    const allowed = unavailable ? ["id", "available"] : ["id", "view"];
+    if (id === null || Object.keys(req.query).some(function (key) { return !allowed.includes(key) || Array.isArray(req.query[key]); }) ||
+        (!unavailable && !colorGrading.metadata.views.includes(req.query.view))) return res.status(400).json({ ok: false, error: "Invalid Color Grading view result" });
+    const snapshot = colorGradingSnapshots[id];
+    if (!snapshot) return res.status(404).json({ ok: false, error: "Unknown Color Grading snapshot" });
+    snapshot.view = { available: !unavailable, value: unavailable ? null : req.query.view };
+    finishColorGradingSnapshot(snapshot);
+    res.json({ ok: true, view: snapshot.view });
+});
+
+function finishColorGradingSnapshot(snapshot) {
+    snapshot.complete = snapshot.view !== null && colorGrading.getParameterIds().every(function (parameter) {
+        return snapshot.parameters[parameter] !== undefined;
+    });
+    if (snapshot.complete && snapshot.completedAt === null) snapshot.completedAt = Date.now();
+}
+
+app.get("/color-grading/snapshot", function (req, res) {
+    const id = numbers.parseFiniteInteger(req.query.id);
+    if (id === null || Object.keys(req.query).length !== 1 || Array.isArray(req.query.id)) return res.status(400).json({ ok: false, error: "Invalid snapshot id" });
+    const snapshot = colorGradingSnapshots[id];
+    if (!snapshot) return res.status(404).json({ ok: false, error: "Unknown Color Grading snapshot" });
+    res.set("Cache-Control", "no-store").json({ ok: true, snapshot: snapshot });
 });
 
 app.get("/feedback/result", function (req, res) {

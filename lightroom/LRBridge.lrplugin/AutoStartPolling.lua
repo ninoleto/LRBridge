@@ -95,6 +95,10 @@ local function commandParameter(command)
         return nil
     end
 
+    if command.command == "color_grading.wheel.set" then return command.region .. " hue=" .. tostring(command.hue) .. " saturation=" .. tostring(command.saturation) end
+    if command.command == "color_grading.value.set" or command.command == "color_grading.value.reset" then return command.control end
+    if command.command == "color_grading.region.reset" then return command.region end
+    if command.command == "color_grading.view.set" then return command.view end
     return command.slider
 
 end

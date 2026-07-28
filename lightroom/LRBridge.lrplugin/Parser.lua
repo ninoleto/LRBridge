@@ -13,6 +13,10 @@ function Parser.parse(json)
     local view = string.match(json, [["view":"([^"]+)"]])
     local mode = string.match(json, [["mode":"([^"]+)"]])
     local scope = string.match(json, [["scope":"([^"]+)"]])
+    local region = string.match(json, [["region":"([^"]+)"]])
+    local control = string.match(json, [["control":"([^"]+)"]])
+    local hue = string.match(json, [["hue":([%-]?%d+%.?%d*)]])
+    local saturation = string.match(json, [["saturation":([%-]?%d+%.?%d*)]])
     local rating = string.match(json, [["rating":([%-]?%d+)]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
     local w = string.match(json, [["w":([%-]?%d+)]])
@@ -29,6 +33,8 @@ function Parser.parse(json)
     if amount then
         amount = tonumber(amount)
     end
+    if hue then hue = tonumber(hue) end
+    if saturation then saturation = tonumber(saturation) end
 
     if rating then
         rating = tonumber(rating)
@@ -63,6 +69,10 @@ function Parser.parse(json)
         w = w,
         h = h,
         value = value
+        ,region = region
+        ,control = control
+        ,hue = hue
+        ,saturation = saturation
     }
 
 end

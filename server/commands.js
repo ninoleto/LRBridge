@@ -1,5 +1,6 @@
 const sliders = require("./sliders");
 const numbers = require("./numbers");
+const colorGrading = require("./color-grading");
 
 const commandQueue = [];
 let latestResult = null;
@@ -125,6 +126,11 @@ function validateCommand(command) {
         "application.view",
         "application.action",
         "application.secondary_view"
+        ,"color_grading.wheel.set"
+        ,"color_grading.value.set"
+        ,"color_grading.value.reset"
+        ,"color_grading.region.reset"
+        ,"color_grading.view.set"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -135,6 +141,30 @@ function validateCommand(command) {
     if (!allowedCommands.includes(command.command)) {
         console.log("Unknown command");
         return false;
+    }
+
+    if (command.command === "color_grading.wheel.set") {
+        if (Object.keys(command).length !== 4 || !colorGrading.regions.includes(command.region)) return false;
+        const region = colorGrading.metadata.regions[command.region];
+        return colorGrading.inRuntimeRange(region.hue, command.hue) &&
+            colorGrading.inRuntimeRange(region.saturation, command.saturation);
+    }
+
+    if (command.command === "color_grading.value.set") {
+        if (Object.keys(command).length !== 3 || !colorGrading.scalarControls.includes(command.control)) return false;
+        return colorGrading.inRuntimeRange(colorGrading.metadata.scalarControls[command.control].parameter, command.value);
+    }
+
+    if (command.command === "color_grading.value.reset") {
+        return Object.keys(command).length === 2 && colorGrading.scalarControls.includes(command.control);
+    }
+
+    if (command.command === "color_grading.region.reset") {
+        return Object.keys(command).length === 2 && colorGrading.regions.includes(command.region);
+    }
+
+    if (command.command === "color_grading.view.set") {
+        return Object.keys(command).length === 2 && colorGrading.metadata.views.includes(command.view);
     }
 
     if (command.command === "selection.navigate") {
@@ -311,6 +341,9 @@ function tryEnqueueCommand(command) {
         return admissionResult(ADMISSION_INVALID);
     }
 
+    const colorAdmission = coalesceColorGrading(command);
+    if (colorAdmission) return colorAdmission;
+
     if (command.command === "develop.adjust") {
         const lastCommand = commandQueue[commandQueue.length - 1];
 
@@ -401,6 +434,62 @@ function tryEnqueueCommand(command) {
     return admissionResult(ADMISSION_ACCEPTED);
 }
 
+function replacePendingAt(index, command, admittedAt, message) {
+    commandQueue.splice(index, 1);
+    queueEntryMetadata.splice(index, 1);
+    commandQueue.push(command);
+    queueEntryMetadata.push({ enqueuedAt: admittedAt });
+    coalescedCommands += 1;
+    lastCoalescedAt = admittedAt;
+    console.log(message, command);
+    return admissionResult(ADMISSION_COALESCED);
+}
+
+function removePending(predicate) {
+    let removed = 0;
+    for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        if (predicate(commandQueue[index])) {
+            commandQueue.splice(index, 1);
+            queueEntryMetadata.splice(index, 1);
+            removed += 1;
+        }
+    }
+    return removed;
+}
+
+function coalesceColorGrading(command) {
+    const admittedAt = Date.now();
+    if (command.command === "color_grading.region.reset") {
+        const luminanceControl = Object.keys(colorGrading.metadata.scalarControls).find(function (control) {
+            return colorGrading.metadata.scalarControls[control].region === command.region;
+        });
+        removePending(function (pending) {
+            return (pending.command === "color_grading.wheel.set" && pending.region === command.region) ||
+                (pending.command === "color_grading.value.set" && pending.control === luminanceControl);
+        });
+        return null;
+    }
+    if (command.command === "color_grading.value.reset") {
+        removePending(function (pending) {
+            return pending.command === "color_grading.value.set" && pending.control === command.control;
+        });
+        return null;
+    }
+    for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        const pending = commandQueue[index];
+        if (command.command === "color_grading.wheel.set" && pending.command === command.command && pending.region === command.region) {
+            return replacePendingAt(index, command, admittedAt, "Coalesced Color Grading wheel:");
+        }
+        if (command.command === "color_grading.value.set" && pending.command === command.command && pending.control === command.control) {
+            return replacePendingAt(index, command, admittedAt, "Coalesced Color Grading scalar:");
+        }
+        if (command.command === "color_grading.view.set" && pending.command === command.command) {
+            return replacePendingAt(index, command, admittedAt, "Coalesced Color Grading view:");
+        }
+    }
+    return null;
+}
+
 function tryEnqueueBatch(batch) {
     if (!Array.isArray(batch) || !batch.every(validateCommand)) {
         return admissionResult(ADMISSION_INVALID);
@@ -434,7 +523,8 @@ function tryEnqueueBatch(batch) {
 }
 
 function isProtectedCommand(command) {
-    return command.command === "develop.reset" || command.command === "develop.action";
+    return command.command === "develop.reset" || command.command === "develop.action" ||
+        command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset";
 }
 
 function admissionResult(status) {
@@ -484,6 +574,11 @@ function getQueueDiagnostics(nowMs) {
         "application.view": 0,
         "application.action": 0,
         "application.secondary_view": 0
+        ,"color_grading.wheel.set": 0
+        ,"color_grading.value.set": 0
+        ,"color_grading.value.reset": 0
+        ,"color_grading.region.reset": 0
+        ,"color_grading.view.set": 0
     };
 
     for (const command of commandQueue) {
@@ -534,8 +629,12 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["application.module"] +
                     pendingByCommand["application.view"] +
                     pendingByCommand["application.action"] +
-                    pendingByCommand["application.secondary_view"],
-                protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"],
+                    pendingByCommand["application.secondary_view"] +
+                    pendingByCommand["color_grading.wheel.set"] +
+                    pendingByCommand["color_grading.value.set"] +
+                    pendingByCommand["color_grading.view.set"],
+                protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
+                    pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"],
                 byCommand: pendingByCommand
             }
         },

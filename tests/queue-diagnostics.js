@@ -60,7 +60,12 @@ function emptyDiagnostics() {
                     "application.module": 0,
                     "application.view": 0,
                     "application.action": 0,
-                    "application.secondary_view": 0
+                    "application.secondary_view": 0,
+                    "color_grading.wheel.set": 0,
+                    "color_grading.value.set": 0,
+                    "color_grading.value.reset": 0,
+                    "color_grading.region.reset": 0,
+                    "color_grading.view.set": 0
                 }
             }
         },
@@ -201,7 +206,12 @@ function testCoreMetrics() {
         "selection.label.set": 1, "selection.label.toggle": 1,
         "selection.operation": 1, "application.module": 1,
         "application.view": 1, "application.action": 1,
-        "application.secondary_view": 1
+        "application.secondary_view": 1,
+        "color_grading.wheel.set": 0,
+        "color_grading.value.set": 0,
+        "color_grading.value.reset": 0,
+        "color_grading.region.reset": 0,
+        "color_grading.view.set": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);

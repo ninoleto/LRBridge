@@ -366,6 +366,8 @@ http://127.0.0.1:17892/
 lightroom\LRBridge.lrplugin
 ```
 
+Add or copy the entire `LRBridge.lrplugin` folder. Its bundled `color-grading.json` metadata must remain inside the folder; the plug-in is self-contained and does not require the repository or LRBridge application folder beside it.
+
 ### Option B: run from source for development
 
 Install dependencies:
@@ -421,6 +423,8 @@ Add this plugin folder from the extracted portable package:
 ```text
 LRBridge\lightroom\LRBridge.lrplugin
 ```
+
+Copy or add the complete `LRBridge.lrplugin` folder, including its bundled `color-grading.json`. The folder is self-contained, so it can also be copied to Lightroom's Modules directory and loaded there without the LRBridge repository or application folder beside it.
 
 Development example:
 
@@ -1567,6 +1571,7 @@ LRBridge/
     sliders.json
   lightroom/
     LRBridge.lrplugin/
+      color-grading.json
   app/
   docs/
   README.md
@@ -1655,3 +1660,8 @@ external controller → Lightroom Classic
 ```
 
 not a full duplicate of Lightroom's Develop panel.
+# Color Grading Phase 1
+
+LRBridge supports native, strictly validated Color Grading transport without graphical wheels. Commands are `color_grading.wheel.set` (`region`, `hue`, `saturation`), `color_grading.value.set` (`control`, `value`), `color_grading.value.reset` (`control`), `color_grading.region.reset` (`region`), and `color_grading.view.set` (`view`). Allowed regions are `shadows`, `midtones`, `highlights`, and `global`; views are `3-way`, `shadow`, `midtone`, `highlight`, and `global`.
+
+Ranges come only from `LrDevelopController.getRange()`. Nil values or invalid ranges are reported as unavailable, with no UI-range fallback. Commands require an active photo and Develop context; view selection additionally requires Process Version 3 or newer. One wheel command preserves the Hue/Saturation pair through transport but Lightroom receives two consecutive documented `setValue()` calls. Graphical wheels remain planned for Phase 2.

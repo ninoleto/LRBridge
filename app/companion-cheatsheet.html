@@ -474,6 +474,15 @@
                     <button id="copyBuilderFull">Copy full URL</button>
                 </div>
             </div>
+            <h3>Color Grading</h3>
+            <p>Build native Color Grading commands from authoritative metadata. Runtime ranges appear after Lightroom reports them.</p>
+            <div class="builder-form">
+                <div class="builder-field"><label for="colorGradingOperation">Command</label><select id="colorGradingOperation"><option value="wheel">Set Wheel</option><option value="scalar">Set Scalar Value</option><option value="region-reset">Reset Region</option><option value="scalar-reset">Reset Scalar Value</option><option value="view">Select Color Grading View</option></select></div>
+                <div class="builder-field"><label for="colorGradingTarget">Region / control / view</label><select id="colorGradingTarget"></select></div>
+                <div class="builder-field" id="colorGradingPrimaryField"><label id="colorGradingPrimaryLabel" for="colorGradingPrimary">Hue</label><input id="colorGradingPrimary" type="number" value="0"></div>
+                <div class="builder-field" id="colorGradingSecondaryField"><label for="colorGradingSecondary">Saturation</label><input id="colorGradingSecondary" type="number" value="0"></div>
+            </div>
+            <div class="builder-output"><div id="colorGradingBuilderError" class="builder-description"></div><div id="colorGradingBuilderPath" class="path"></div><div class="button-row"><button id="copyColorGradingPath" class="primary">Copy path</button><button id="copyColorGradingFull">Copy full URL</button></div></div>
             <h3>Custom Crop</h3>
             <p>Enter whole-number dimensions from 1 to 10000. LRBridge applies the exact ratio through Lightroom’s SDK table form.</p>
             <div class="builder-form">
@@ -546,6 +555,7 @@
     let apiBase = "http://127.0.0.1:17891";
     let stepSize = 1;
     let sliders = [];
+    let colorGradingMetadata = null;
 
     const searchEl = document.getElementById("search");
     const statusEl = document.getElementById("status");
@@ -573,6 +583,10 @@
     const cropAngleBuilderPath = document.getElementById("cropAngleBuilderPath");
     const copyCropAnglePath = document.getElementById("copyCropAnglePath");
     const copyCropAngleFull = document.getElementById("copyCropAngleFull");
+    const colorGradingOperation = document.getElementById("colorGradingOperation");
+    const colorGradingTarget = document.getElementById("colorGradingTarget");
+    const colorGradingPrimary = document.getElementById("colorGradingPrimary");
+    const colorGradingSecondary = document.getElementById("colorGradingSecondary");
 
     const builderCommandFamilies = [
         {
@@ -967,6 +981,58 @@
             : "Angle must be from -45 to 45 with at most two decimal places.";
         copyCropAnglePath.disabled = !valid;
         copyCropAngleFull.disabled = !valid;
+        return path;
+    }
+
+    function strictFiniteBuilderNumber(raw) {
+        if (typeof raw !== "string" || raw === "" || raw.trim() !== raw || !/^-?\d+(?:\.\d+)?$/.test(raw)) return null;
+        const value = Number(raw);
+        return Number.isFinite(value) ? value : null;
+    }
+
+    function buildColorGradingPath(operation, target, primary, secondary) {
+        if (!colorGradingMetadata) return null;
+        const regions = colorGradingMetadata.regions || {};
+        const controls = colorGradingMetadata.scalarControls || {};
+        if (operation === "wheel") {
+            const hue = strictFiniteBuilderNumber(primary), saturation = strictFiniteBuilderNumber(secondary);
+            if (!regions[target] || hue === null || saturation === null) return null;
+            const ranges = colorGradingMetadata.runtimeRanges || {};
+            for (const pair of [[regions[target].hue, hue], [regions[target].saturation, saturation]]) {
+                const range = ranges[pair[0]]; if (range && (pair[1] < range.min || pair[1] > range.max)) return null;
+            }
+            return "/api/command?command=color_grading.wheel.set&region=" + encodeURIComponent(target) + "&hue=" + encodeURIComponent(String(hue)) + "&saturation=" + encodeURIComponent(String(saturation));
+        }
+        if (operation === "scalar") {
+            const value = strictFiniteBuilderNumber(primary); if (!controls[target] || value === null) return null;
+            const range = (colorGradingMetadata.runtimeRanges || {})[controls[target].parameter]; if (range && (value < range.min || value > range.max)) return null;
+            return "/api/command?command=color_grading.value.set&control=" + encodeURIComponent(target) + "&value=" + encodeURIComponent(String(value));
+        }
+        if (operation === "region-reset" && regions[target]) return "/api/command?command=color_grading.region.reset&region=" + encodeURIComponent(target);
+        if (operation === "scalar-reset" && controls[target]) return "/api/command?command=color_grading.value.reset&control=" + encodeURIComponent(target);
+        if (operation === "view" && colorGradingMetadata.views.includes(target)) return "/api/command?command=color_grading.view.set&view=" + encodeURIComponent(target);
+        return null;
+    }
+
+    function renderColorGradingTargets() {
+        if (!colorGradingMetadata) return;
+        const operation = colorGradingOperation.value;
+        const source = operation === "wheel" || operation === "region-reset" ? colorGradingMetadata.regions : operation === "scalar" || operation === "scalar-reset" ? colorGradingMetadata.scalarControls : colorGradingMetadata.views;
+        colorGradingTarget.innerHTML = "";
+        const entries = Array.isArray(source) ? source.map(function (value) { return [value, value]; }) : Object.keys(source).map(function (key) { return [key, source[key].label]; });
+        for (const entry of entries) { const option = document.createElement("option"); option.value = entry[0]; option.textContent = entry[1]; colorGradingTarget.appendChild(option); }
+        document.getElementById("colorGradingPrimaryField").classList.toggle("hidden", operation !== "wheel" && operation !== "scalar");
+        document.getElementById("colorGradingSecondaryField").classList.toggle("hidden", operation !== "wheel");
+        document.getElementById("colorGradingPrimaryLabel").textContent = operation === "wheel" ? "Hue" : "Value";
+        renderColorGradingOutput();
+    }
+
+    function renderColorGradingOutput() {
+        const path = buildColorGradingPath(colorGradingOperation.value, colorGradingTarget.value, colorGradingPrimary.value, colorGradingSecondary.value);
+        const valid = path !== null;
+        document.getElementById("colorGradingBuilderPath").textContent = valid ? path : "";
+        document.getElementById("colorGradingBuilderError").textContent = valid ? "Runtime range is enforced when Lightroom has reported it; Lua validates again." : "Enter finite, unpadded numeric values within any known runtime range.";
+        document.getElementById("copyColorGradingPath").disabled = !valid; document.getElementById("copyColorGradingFull").disabled = !valid;
         return path;
     }
 
@@ -1399,10 +1465,13 @@
     }
 
     async function loadSliders() {
-        const response = await fetch("/api/sliders");
-        const data = await response.json();
+        const responses = await Promise.all([fetch("/api/sliders"), fetch("/api/color-grading")]);
+        const data = await responses[0].json();
+        const colorData = await responses[1].json();
 
         sliders = Array.isArray(data) ? data : data.sliders || [];
+        colorGradingMetadata = colorData.colorGrading;
+        renderColorGradingTargets();
         renderAll();
     }
 
@@ -1442,6 +1511,12 @@
     customCropWidth.addEventListener("input", renderCustomCropOutput);
     customCropHeight.addEventListener("input", renderCustomCropOutput);
     cropAngleValue.addEventListener("input", renderCropAngleOutput);
+    colorGradingOperation.addEventListener("change", renderColorGradingTargets);
+    colorGradingTarget.addEventListener("change", renderColorGradingOutput);
+    colorGradingPrimary.addEventListener("input", renderColorGradingOutput);
+    colorGradingSecondary.addEventListener("input", renderColorGradingOutput);
+    document.getElementById("copyColorGradingPath").addEventListener("click", function () { const path = renderColorGradingOutput(); if (path) copyText(path); });
+    document.getElementById("copyColorGradingFull").addEventListener("click", function () { const path = renderColorGradingOutput(); if (path) copyText(apiBase + path); });
 
     document.getElementById("copyBuilderPath").addEventListener("click", function () {
         copyText(builderPath.textContent);

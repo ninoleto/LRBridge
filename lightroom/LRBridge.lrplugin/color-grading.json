@@ -1,0 +1,20 @@
+{
+  "regions": {
+    "shadows": { "label": "Shadows", "hue": "SplitToningShadowHue", "saturation": "SplitToningShadowSaturation", "luminance": "ColorGradeShadowLum" },
+    "midtones": { "label": "Midtones", "hue": "ColorGradeMidtoneHue", "saturation": "ColorGradeMidtoneSat", "luminance": "ColorGradeMidtoneLum" },
+    "highlights": { "label": "Highlights", "hue": "SplitToningHighlightHue", "saturation": "SplitToningHighlightSaturation", "luminance": "ColorGradeHighlightLum" },
+    "global": { "label": "Global", "hue": "ColorGradeGlobalHue", "saturation": "ColorGradeGlobalSat", "luminance": "ColorGradeGlobalLum" }
+  },
+  "scalarControls": {
+    "shadow_luminance": { "label": "Shadow Luminance", "parameter": "ColorGradeShadowLum", "region": "shadows" },
+    "midtone_luminance": { "label": "Midtone Luminance", "parameter": "ColorGradeMidtoneLum", "region": "midtones" },
+    "highlight_luminance": { "label": "Highlight Luminance", "parameter": "ColorGradeHighlightLum", "region": "highlights" },
+    "global_luminance": { "label": "Global Luminance", "parameter": "ColorGradeGlobalLum", "region": "global" },
+    "blending": { "label": "Blending", "parameter": "ColorGradeBlending" },
+    "balance": { "label": "Balance", "parameter": "SplitToningBalance" }
+  },
+  "views": ["3-way", "shadow", "midtone", "highlight", "global"],
+  "runtimeRangeRequired": true,
+  "feedbackSupported": true,
+  "resetSupported": true
+}

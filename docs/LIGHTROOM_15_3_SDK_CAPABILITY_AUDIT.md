@@ -282,3 +282,8 @@ These use direct documented APIs, have a compact payload, and can be tested with
     Not reliably through a dedicated Quick Collection mutation API. `addOrRemoveFromTargetCollection(true)` affects whichever collection Lightroom currently designates as the target; that target is not guaranteed to be Quick Collection.
 20. **Can LRBridge create, expand, collapse, or remove stacks?**
     No for existing catalog photos. The SDK exposes stack metadata for querying, but no documented stack-management methods. The `stackWithPhoto` option while adding a new catalog photo is not equivalent.
+# Color Grading Phase 1 (runtime untested)
+
+Documented identifiers: `SplitToningShadowHue`, `SplitToningShadowSaturation`, `ColorGradeShadowLum`, `ColorGradeMidtoneHue`, `ColorGradeMidtoneSat`, `ColorGradeMidtoneLum`, `SplitToningHighlightHue`, `SplitToningHighlightSaturation`, `ColorGradeHighlightLum`, `ColorGradeGlobalHue`, `ColorGradeGlobalSat`, `ColorGradeGlobalLum`, `ColorGradeBlending`, and `SplitToningBalance`.
+
+The implementation uses `getRange`, `getValue`, `startTracking`, `setValue`, `resetToDefault`, `getActiveColorGradingView`, and `setActiveColorGradingView`. Runtime ranges and values are mandatory; nil is explicitly unavailable. Develop and an active photo are required, and view selection requires Process Version 3+. A wheel request is one LRBridge command but two consecutive SDK `setValue` calls. Runtime totals remain Tested: 88, PASS: 87, FAIL: 1, UNVERIFIED: 0. No Color Grading command is marked PASS. Graphical wheels are Phase 2.
