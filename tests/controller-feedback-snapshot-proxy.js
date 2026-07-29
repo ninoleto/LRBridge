@@ -108,7 +108,19 @@ async function main() {
     const controllerPort = controllerServer.address().port;
 
     try {
-        let response = await request(controllerPort, "/api/feedback/request-many?sliders=Exposure,Contrast");
+        let response = await request(controllerPort, "/api/color-grading/metadata");
+        assert.equal(response.statusCode, 200);
+        const colorMetadata = JSON.parse(response.body).colorGrading;
+        assert.deepEqual(Object.keys(colorMetadata.regions), ["shadows", "midtones", "highlights", "global"]);
+        assert.deepEqual(colorMetadata.views, ["3-way", "shadow", "midtone", "highlight", "global"]);
+        response = await request(controllerPort, "/api/color-grading/request");
+        assert.equal(response.statusCode, 200);
+        const colorRequestId = JSON.parse(response.body).request.id;
+        response = await request(controllerPort, "/api/color-grading/snapshot?id=" + colorRequestId);
+        assert.equal(response.statusCode, 200);
+        assert.equal(JSON.parse(response.body).snapshot.complete, false);
+
+        response = await request(controllerPort, "/api/feedback/request-many?sliders=Exposure,Contrast");
         assert.equal(response.statusCode, 200);
         const requestId = JSON.parse(response.body).request.id;
         await supplyResult(backendPort, requestId, "Exposure", { min: -5, max: 5 }, false);

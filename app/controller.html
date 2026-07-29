@@ -94,6 +94,106 @@
             margin-bottom: 8px;
         }
 
+        [hidden] { display: none !important; }
+
+        .cg-shell {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        .cg-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding: 10px 13px;
+            border: 1px solid #34506a;
+            border-radius: 8px;
+            background: #14212c;
+            color: #b9dcf2;
+        }
+
+        .cg-status-bar::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #55c98b;
+        }
+
+        .cg-status-bar[data-state="pending"]::before { background: #ffb454; }
+        .cg-status-bar[data-state="warning"]::before { background: #ee6b6e; }
+        .cg-view-selector, .cg-scalar-section {
+            margin-bottom: 16px;
+            padding: 14px;
+            border: 1px solid #2b3744;
+            border-radius: 10px;
+            background: #151d25;
+        }
+
+        .cg-view-selector h2, .cg-scalar-section h2 {
+            margin: 0 0 12px;
+            font-size: 16px;
+        }
+
+        .cg-view-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+        .cg-view-button { min-width: 104px; min-height: 44px; }
+        .cg-view-button.active { background: #2a6f97; border-color: #71c6f5; box-shadow: 0 0 0 2px rgba(113,198,245,.2); }
+        .cg-region-grid { display: grid; grid-template-columns: repeat(4, minmax(230px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .cg-region-card { min-width: 0; padding: 14px; border: 1px solid #2b3744; border-radius: 11px; background: #151d25; }
+        .cg-region-card h3 { display: inline-block; margin: 0 8px 12px 0; font-size: 18px; }
+        .cg-region-card.unavailable { opacity: .72; }
+        .cg-availability { color: #86c7ed; font-size: 12px; }
+        .cg-wheel {
+            position: relative;
+            width: min(100%, 260px);
+            aspect-ratio: 1;
+            margin: 0 auto 12px;
+            border: 2px solid #62788d;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(238,238,238,.98) 0%, rgba(238,238,238,.72) 22%, transparent 72%), conic-gradient(from 90deg, #f00, #f0f, #00f, #0ff, #0f0, #ff0, #f00);
+            box-shadow: inset 0 0 20px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.3);
+            cursor: crosshair;
+            touch-action: none;
+            user-select: none;
+        }
+        .cg-wheel:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #7cc7ff; outline-offset: 2px; }
+        .cg-wheel-pointer { position: absolute; left: 50%; top: 50%; width: 17px; height: 17px; transform: translate(-50%,-50%); border: 3px solid #fff; border-radius: 50%; background: #111; box-shadow: 0 0 0 2px #111, 0 2px 5px #000; pointer-events: none; }
+        .cg-wheel-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
+        .cg-number-label { display: grid; gap: 4px; color: #a9bbc9; font-size: 12px; }
+        .cg-wheel-fields input, .cg-scalar-row input[type="text"] { box-sizing: border-box; width: 100%; min-height: 40px; padding: 8px; border: 1px solid #405263; border-radius: 6px; background: #080c10; color: #f4f7fa; font-size: 16px; }
+        .cg-range-text { color: #8fa2b3; font-size: 11px; font-variant-numeric: tabular-nums; }
+        .cg-wheel-fields > .cg-range-text { grid-column: 1 / -1; }
+        .cg-scalar-row { display: grid; grid-template-columns: minmax(90px,140px) minmax(130px,1fr) 82px 70px auto; gap: 8px; align-items: center; margin-top: 12px; min-width: 0; }
+        .cg-scalar-row > * { min-width: 0; }
+        .cg-scalar-row input[type="range"] { width: 100%; min-height: 44px; accent-color: #2f9ed8; }
+        .cg-reset, .cg-reset-region { min-height: 44px; }
+        .cg-reset-region { width: 100%; margin-top: 10px; }
+        .cg-inline-confirm { display: grid; gap: 8px; grid-template-columns: 1fr auto auto; align-items: center; margin-top: 10px; padding: 9px; border: 1px solid #8a5b39; border-radius: 7px; background: #302218; font-size: 12px; }
+        @media (max-width: 1100px) {
+            .cg-region-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .cg-region-card .cg-scalar-row { grid-template-columns: minmax(0, 1fr) 82px; }
+            .cg-region-card .cg-scalar-row > label,
+            .cg-region-card .cg-scalar-row > input[type="range"],
+            .cg-region-card .cg-scalar-row .cg-reset { grid-column: 1 / -1; }
+        }
+        @media (max-width: 760px) {
+            .cg-scalar-section .cg-scalar-row { grid-template-columns: minmax(0, 1fr) 88px; }
+            .cg-scalar-section .cg-scalar-row > label,
+            .cg-scalar-section .cg-scalar-row > input[type="range"],
+            .cg-scalar-section .cg-scalar-row .cg-reset { grid-column: 1 / -1; }
+        }
+        @media (max-width: 620px) {
+            .content { padding: 12px; }
+            .cg-region-grid { grid-template-columns: minmax(0, 1fr); }
+            .cg-wheel { width: min(82vw, 300px); }
+            .cg-scalar-row { grid-template-columns: minmax(0, 1fr) 88px; }
+            .cg-scalar-row > label, .cg-scalar-row > input[type="range"] { grid-column: 1 / -1; }
+            .cg-scalar-row .cg-reset { grid-column: 1 / -1; }
+            .cg-inline-confirm { grid-template-columns: 1fr 1fr; }
+            .cg-inline-confirm span { grid-column: 1 / -1; }
+        }
+
         .command-group-note {
             max-width: 920px;
             margin: -2px 0 10px;
@@ -663,9 +763,13 @@
         <a class="header-help-button" href="/help" target="_blank" rel="noopener">Open Help</a>
     </header>
 
-    <nav class="tabs" id="tabs"></nav>
-
+    <nav class="tabs" id="tabs" aria-label="Controller tools"></nav>
     <main class="content" id="content"></main>
+
+    <main class="content cg-shell" id="colorGradingWorkspace" hidden>
+        <div class="cg-status-bar" id="colorGradingStatus" role="status" aria-live="polite" data-state="pending">Feedback pending</div>
+        <div id="colorGradingContent"></div>
+    </main>
 
     <div class="status" id="status">Ready.</div>
 
@@ -688,6 +792,7 @@
         </form>
     </div>
 
+    <script src="/controller-color-grading.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -1258,7 +1363,21 @@
         const content = document.getElementById("content");
         const statusBox = document.getElementById("status");
 
-        let activeTab = "sliders";
+        const controllerTabStorageKey = "lrbridge.controller.activeTab";
+        const controllerTabIds = ["sliders", "color-grading", "selection", "crop", "application", "healing", "redEye", "masking"];
+
+        function tabFromLocation() {
+            const hash = window.location.hash.replace(/^#/, "");
+            const hashTab = hash === "develop" ? "sliders" : hash;
+            if (controllerTabIds.includes(hashTab)) return hashTab;
+            try {
+                const stored = window.localStorage.getItem(controllerTabStorageKey);
+                if (controllerTabIds.includes(stored)) return stored;
+            } catch (err) { /* Storage may be disabled. */ }
+            return "sliders";
+        }
+
+        let activeTab = tabFromLocation();
 
         function setStatus(message) {
             statusBox.textContent = message;
@@ -2014,9 +2133,94 @@
         let liveFeedbackPollingStarted = false;
         let liveFeedbackSnapshotInFlight = false;
         let pendingFullFeedbackSnapshot = false;
+        let genericFeedbackActive = false;
+        let genericFeedbackGeneration = 0;
+        let genericFeedbackAbortController = null;
+        const activeSliderInteractions = new Set();
+        let pendingDevelopContextRefresh = false;
         let lastControllerContextCounter = null;
+        let lastControllerDevelopCounter = null;
+        let lastControllerActiveModule = null;
+        let lastControllerSelectedPhotoKey = null;
         let lastControllerHeartbeatAt = null;
         let heartbeatWasStale = false;
+        const DEBUG_DEVELOP_REFRESH = true;
+
+        function classifyControllerContextChange(previous, next) {
+            if (!previous || previous.activeModule === null) return "none";
+            if (
+                next.activeModule !== previous.activeModule ||
+                next.selectedPhotoKey !== previous.selectedPhotoKey
+            ) return "navigation";
+            if (
+                next.contextCounter !== previous.contextCounter ||
+                next.developCounter !== previous.developCounter ||
+                next.developFingerprint !== previous.developFingerprint
+            ) return "develop-revision";
+            if (next.lastHeartbeatAt !== previous.lastHeartbeatAt) return "heartbeat";
+            return "none";
+        }
+
+        function logDevelopRefreshDecision(previous, next, classification, loadingRequested, activeInvalidated) {
+            if (!DEBUG_DEVELOP_REFRESH) return;
+            console.debug("LRBridge Develop refresh", {
+                previousIdentity: previous && {
+                    activeModule: previous.activeModule,
+                    selectedPhotoKey: previous.selectedPhotoKey
+                },
+                nextIdentity: {
+                    activeModule: next.activeModule,
+                    selectedPhotoKey: next.selectedPhotoKey
+                },
+                previousCounters: previous && {
+                    contextCounter: previous.contextCounter,
+                    developCounter: previous.developCounter
+                },
+                nextCounters: {
+                    contextCounter: next.contextCounter,
+                    developCounter: next.developCounter
+                },
+                classification: classification,
+                activeInteractions: activeSliderInteractions.size,
+                loadingOrFullRefreshRequested: loadingRequested,
+                activeControlInvalidated: activeInvalidated
+            });
+        }
+
+        function beginDevelopSliderInteraction(control, kind) {
+            control.interactionKind = kind;
+            control.contextInvalidated = false;
+            activeSliderInteractions.add(control.definition.id);
+        }
+
+        function isDevelopSliderInteracting(control) {
+            return activeSliderInteractions.has(control.definition.id);
+        }
+
+        function cancelDevelopSliderThrottle(control) {
+            if (control.throttleTimer !== null) clearTimeout(control.throttleTimer);
+            control.throttleTimer = null;
+            if (control.pendingKind === "range") {
+                control.pendingValue = null;
+                control.pendingKind = null;
+                control.pendingCompletion = null;
+            }
+        }
+
+        function performPendingDevelopContextRefresh() {
+            if (!pendingDevelopContextRefresh || activeSliderInteractions.size !== 0 || !genericFeedbackActive) return;
+            pendingDevelopContextRefresh = false;
+            markAllDevelopSlidersLoading();
+            requestLiveFeedbackSnapshot(true);
+        }
+
+        function endDevelopSliderInteraction(control) {
+            activeSliderInteractions.delete(control.definition.id);
+            control.interactionKind = null;
+            control.dragging = false;
+            control.editing = false;
+            performPendingDevelopContextRefresh();
+        }
 
         function applyFeedbackSnapshot(snapshot) {
             Object.keys(snapshot.results || {}).forEach(function (slider) {
@@ -2033,13 +2237,15 @@
             });
         }
 
-        async function pollFeedbackSnapshot(requestId, timeoutMs) {
+        async function pollFeedbackSnapshot(requestId, timeoutMs, signal) {
             const startedAt = Date.now();
             const endpoint = "/api/feedback/snapshot?id=" + encodeURIComponent(requestId);
             let latestSnapshot = null;
             while (Date.now() - startedAt < timeoutMs) {
+                if (signal && signal.aborted) return { snapshot: latestSnapshot, timedOut: false, aborted: true };
                 const response = await fetch(endpoint, {
-                    cache: "no-store"
+                    cache: "no-store",
+                    signal: signal
                 });
                 const bodyText = await response.text();
                 let data = null;
@@ -2113,6 +2319,7 @@
         }
 
         async function requestLiveFeedbackSnapshot(forceAll) {
+            if (!genericFeedbackActive || activeTab !== "sliders") return;
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
                 return;
@@ -2129,17 +2336,22 @@
             }
 
             liveFeedbackSnapshotInFlight = true;
+            const generation = genericFeedbackGeneration;
+            const abortController = new AbortController();
+            genericFeedbackAbortController = abortController;
 
             try {
                 const response = await fetch("/api/feedback/request-many?sliders=" + encodeURIComponent(visibleSliders.join(",")), {
-                    cache: "no-store"
+                    cache: "no-store",
+                    signal: abortController.signal
                 });
                 const data = await response.json();
                 const request = data && data.request;
                 if (!response.ok || !request || request.id === undefined) {
                     throw new Error("Feedback snapshot request failed");
                 }
-                const outcome = await pollFeedbackSnapshot(request.id, 4000);
+                const outcome = await pollFeedbackSnapshot(request.id, 4000, abortController.signal);
+                if (generation !== genericFeedbackGeneration || !genericFeedbackActive || activeTab !== "sliders" || outcome.aborted) return;
                 if (outcome.snapshot) {
                     applyFeedbackSnapshot(outcome.snapshot);
                 }
@@ -2157,6 +2369,7 @@
                     return;
                 }
             } catch (err) {
+                if (abortController.signal.aborted || generation !== genericFeedbackGeneration) return;
                 logFeedbackSnapshotFailure(err.feedbackDiagnostic || {
                     endpoint: "/api/feedback/snapshot",
                     reason: "connection-or-response-failure",
@@ -2166,8 +2379,10 @@
                     if (developSliderControls[slider]) markDevelopSliderError(developSliderControls[slider]);
                 });
             } finally {
+                if (generation !== genericFeedbackGeneration) return;
+                genericFeedbackAbortController = null;
                 liveFeedbackSnapshotInFlight = false;
-                if (pendingFullFeedbackSnapshot) {
+                if (pendingFullFeedbackSnapshot && genericFeedbackActive && activeTab === "sliders") {
                     pendingFullFeedbackSnapshot = false;
                     requestLiveFeedbackSnapshot(true);
                 }
@@ -2178,18 +2393,54 @@
             try {
                 const response = await fetch("/api/context", { cache: "no-store" });
                 const data = await response.json();
-                const contextChanged = lastControllerContextCounter !== null &&
-                    data.contextCounter !== lastControllerContextCounter;
+                const previous = {
+                    contextCounter: lastControllerContextCounter,
+                    developCounter: lastControllerDevelopCounter,
+                    activeModule: lastControllerActiveModule,
+                    selectedPhotoKey: lastControllerSelectedPhotoKey,
+                    lastHeartbeatAt: lastControllerHeartbeatAt
+                };
+                const classification = classifyControllerContextChange(previous, data);
                 lastControllerContextCounter = data.contextCounter;
+                lastControllerDevelopCounter = data.developCounter;
+                lastControllerActiveModule = data.activeModule;
+                lastControllerSelectedPhotoKey = data.selectedPhotoKey;
 
                 const heartbeatChanged = lastControllerHeartbeatAt !== null &&
                     data.lastHeartbeatAt !== lastControllerHeartbeatAt;
                 lastControllerHeartbeatAt = data.lastHeartbeatAt;
 
-                if (contextChanged || (heartbeatWasStale && heartbeatChanged)) {
-                    markAllDevelopSlidersLoading();
-                    requestLiveFeedbackSnapshot(true);
+                let loadingRequested = false;
+                let activeInvalidated = false;
+                if (classification === "navigation") {
+                    Object.keys(developSliderControls).forEach(function (slider) {
+                        const control = developSliderControls[slider];
+                        control.lastSubmittedValue = null;
+                        if (!isDevelopSliderInteracting(control)) cancelDevelopSliderStep(control);
+                    });
+                    if (activeSliderInteractions.size !== 0) {
+                        pendingDevelopContextRefresh = true;
+                        activeSliderInteractions.forEach(function (slider) {
+                            const control = developSliderControls[slider];
+                            if (!control) return;
+                            control.contextInvalidated = true;
+                            activeInvalidated = true;
+                            cancelDevelopSliderThrottle(control);
+                        });
+                    } else if (genericFeedbackActive) {
+                        loadingRequested = true;
+                        markAllDevelopSlidersLoading();
+                        requestLiveFeedbackSnapshot(true);
+                    }
+                } else if (heartbeatWasStale && heartbeatChanged && genericFeedbackActive) {
+                    if (activeSliderInteractions.size !== 0) pendingDevelopContextRefresh = true;
+                    else {
+                        loadingRequested = true;
+                        requestLiveFeedbackSnapshot(true);
+                    }
                 }
+
+                logDevelopRefreshDecision(previous, data, classification, loadingRequested, activeInvalidated);
 
                 heartbeatWasStale = !data.lastHeartbeatAt || Date.now() - data.lastHeartbeatAt > 2000;
             } catch (err) {
@@ -2204,14 +2455,32 @@
 
             liveFeedbackPollingStarted = true;
 
-            markAllDevelopSlidersLoading();
-            requestLiveFeedbackSnapshot(true);
             pollControllerContext();
 
             setInterval(function () {
                 requestLiveFeedbackSnapshot(false);
             }, 500);
             setInterval(pollControllerContext, 500);
+        }
+
+        function activateDevelopFeedbackPolling() {
+            if (genericFeedbackActive) return;
+            genericFeedbackActive = true;
+            markAllDevelopSlidersLoading();
+            requestLiveFeedbackSnapshot(true);
+        }
+
+        function deactivateDevelopFeedbackPolling() {
+            genericFeedbackActive = false;
+            Array.from(activeSliderInteractions).forEach(function (slider) {
+                const control = developSliderControls[slider];
+                if (control && control.cancelInteraction) control.cancelInteraction();
+            });
+            genericFeedbackGeneration += 1;
+            if (genericFeedbackAbortController) genericFeedbackAbortController.abort();
+            genericFeedbackAbortController = null;
+            liveFeedbackSnapshotInFlight = false;
+            pendingFullFeedbackSnapshot = false;
         }
 
         function clearContent() {
@@ -2224,7 +2493,11 @@
             const allTabs = [
                 {
                     id: "sliders",
-                    label: "Sliders"
+                    label: "Develop Sliders"
+                },
+                {
+                    id: "color-grading",
+                    label: "Color Grading"
                 },
                 {
                     id: "selection",
@@ -2249,14 +2522,25 @@
                 const button = document.createElement("button");
                 button.textContent = tab.label;
                 button.className = "tab-button" + (tab.id === activeTab ? " active" : "");
+                button.dataset.tab = tab.id;
+                button.setAttribute("aria-selected", String(tab.id === activeTab));
 
                 button.addEventListener("click", function () {
-                    activeTab = tab.id;
-                    render();
+                    selectControllerTab(tab.id, true);
 });
 
                 tabsElement.appendChild(button);
             }
+        }
+
+        function selectControllerTab(tab, updateHistory) {
+            if (!controllerTabIds.includes(tab)) tab = "sliders";
+            if (tab === activeTab && content.isConnected) return;
+            activeTab = tab;
+            try { window.localStorage.setItem(controllerTabStorageKey, tab); } catch (err) { /* Storage may be disabled. */ }
+            const hash = tab === "sliders" ? "develop" : tab;
+            if (updateHistory && window.location.hash !== "#" + hash) window.history.pushState(null, "", "#" + hash);
+            render();
         }
 
         function commandPath(item) {
@@ -2702,6 +2986,24 @@
         }
 
         function applyDevelopSliderFeedbackIfChanged(control, result) {
+            if (isDevelopSliderInteracting(control)) {
+                control.deferredFeedbackResult = result;
+                if (result.available !== false && Number.isFinite(Number(result.value))) {
+                    control.authoritativeValue = Number(result.value);
+                }
+                return;
+            }
+            if (control.confirmationPending && !control.stepConfirmationExpired) {
+                control.deferredFeedbackResult = result;
+                if (result.available !== false && Number.isFinite(Number(result.value))) {
+                    control.authoritativeValue = Number(result.value);
+                    if (valuesMatchDevelopSlider(control.definition, result.value, control.desiredValue)) {
+                        control.numberCommittedValue = Number(result.value);
+                        cancelDevelopSliderStep(control);
+                    }
+                }
+                return;
+            }
             if (result.available === false) {
                 if (control.feedbackState !== "unavailable") markDevelopSliderUnavailable(control);
                 return;
@@ -2723,7 +3025,7 @@
         }
 
         function markDevelopSliderUnavailable(control) {
-            if (control.dragging || control.editing) return;
+            if (isDevelopSliderInteracting(control) || control.confirmationPending) return;
             if (control.feedbackState === "unavailable" && control.desiredValue === null) return;
             cancelDevelopSliderStep(control);
             control.authoritativeValue = null;
@@ -2739,7 +3041,7 @@
         }
 
         function markDevelopSliderLoading(control) {
-            if (control.dragging || control.editing) return;
+            if (isDevelopSliderInteracting(control) || control.confirmationPending) return;
             if (control.feedbackState === "loading" && control.desiredValue === null) return;
             cancelDevelopSliderStep(control);
             control.authoritativeValue = null;
@@ -2755,8 +3057,8 @@
         }
 
         function markDevelopSliderError(control) {
+            if (isDevelopSliderInteracting(control) || control.confirmationPending || control.authoritativeValue !== null) return;
             cancelDevelopSliderStep(control);
-            if (control.dragging || control.editing || control.authoritativeValue !== null) return;
             if (control.feedbackState === "error") return;
             control.number.value = "";
             setDevelopSliderState(control, "error", "Feedback error");
@@ -2831,7 +3133,12 @@
             control.pendingValue = null;
             control.pendingKind = null;
             control.pendingCompletion = null;
-            submitDevelopSliderValue(control, value, kind || null);
+            control.desiredValue = value;
+            control.confirmationPending = true;
+            control.stepConfirmationExpired = false;
+            submitDevelopSliderValue(control, value, kind || null, function (accepted) {
+                handleDevelopSliderStepSubmission(control, value, accepted);
+            });
         }
 
         function clearDevelopSliderStepTimers(control) {
@@ -2848,6 +3155,7 @@
         function cancelDevelopSliderStep(control) {
             clearDevelopSliderStepTimers(control);
             control.desiredValue = null;
+            control.confirmationPending = false;
             control.stepConfirmationExpired = false;
             if (control.pendingKind === "step") {
                 control.pendingValue = null;
@@ -3024,6 +3332,12 @@
                 reset: reset,
                 dragging: false,
                 editing: false,
+                pointerActive: false,
+                interactionKind: null,
+                contextInvalidated: false,
+                confirmationPending: false,
+                deferredFeedbackResult: null,
+                ignoreNextRangeChange: false,
                 requestInFlight: false,
                 pendingValue: null,
                 pendingKind: null,
@@ -3047,37 +3361,62 @@
             increment.disabled = true;
             reset.disabled = true;
 
-            range.addEventListener("pointerdown", function () {
+            row.dataset.sliderId = definition.id;
+
+            range.addEventListener("pointerdown", function (event) {
                 cancelDevelopSliderStep(control);
+                beginDevelopSliderInteraction(control, "range");
+                control.pointerActive = true;
                 control.dragging = true;
+                if (range.setPointerCapture) range.setPointerCapture(event.pointerId);
             });
             range.addEventListener("input", function () {
                 cancelDevelopSliderStep(control);
+                if (!isDevelopSliderInteracting(control)) beginDevelopSliderInteraction(control, "range");
                 const nextValue = developSliderPositionToActual(definition, Number(range.value));
                 showDevelopSliderLocal(control, nextValue);
                 scheduleDevelopSliderValue(control, nextValue);
             });
-            range.addEventListener("pointerup", function () {
+            function finishRangeInteraction(event, submitFinal) {
+                if (!isDevelopSliderInteracting(control)) return;
+                const invalidated = control.contextInvalidated;
+                control.pointerActive = false;
                 control.dragging = false;
-                flushDevelopSliderValue(
-                    control,
-                    developSliderPositionToActual(definition, Number(range.value)),
-                    "range"
-                );
+                if (event && range.hasPointerCapture && range.hasPointerCapture(event.pointerId)) range.releasePointerCapture(event.pointerId);
+                if (submitFinal && !invalidated) {
+                    flushDevelopSliderValue(control, developSliderPositionToActual(definition, Number(range.value)), "range");
+                } else {
+                    cancelDevelopSliderThrottle(control);
+                }
+                endDevelopSliderInteraction(control);
+            }
+            range.addEventListener("pointerup", function (event) {
+                control.ignoreNextRangeChange = true;
+                finishRangeInteraction(event, true);
+            });
+            range.addEventListener("pointercancel", function (event) {
+                control.ignoreNextRangeChange = true;
+                finishRangeInteraction(event, false);
+            });
+            range.addEventListener("lostpointercapture", function (event) {
+                finishRangeInteraction(event, false);
             });
             range.addEventListener("change", function () {
-                control.dragging = false;
-                flushDevelopSliderValue(
-                    control,
-                    developSliderPositionToActual(definition, Number(range.value)),
-                    "range"
-                );
+                if (control.ignoreNextRangeChange) {
+                    control.ignoreNextRangeChange = false;
+                    return;
+                }
+                if (!control.pointerActive) finishRangeInteraction(null, true);
             });
 
             function commitNumericValue() {
                 cancelDevelopSliderStep(control);
+                if (control.contextInvalidated) {
+                    cancelDevelopSliderThrottle(control);
+                    endDevelopSliderInteraction(control);
+                    return;
+                }
                 const nextValue = parseDevelopSliderValue(definition, number.value);
-                control.editing = false;
                 if (nextValue === null) {
                     setStatus("ERROR: Invalid " + definition.label + " value.");
                     if (control.authoritativeValue !== null) {
@@ -3086,6 +3425,7 @@
                         number.value = "";
                         setDevelopSliderState(control, "loading", "Loading…");
                     }
+                    endDevelopSliderInteraction(control);
                     return;
                 }
                 if (nextValue !== control.numberCommittedValue) {
@@ -3093,9 +3433,11 @@
                     control.numberCommittedValue = nextValue;
                     flushDevelopSliderValue(control, nextValue, "numeric");
                 }
+                endDevelopSliderInteraction(control);
             }
 
             number.addEventListener("focus", function () {
+                beginDevelopSliderInteraction(control, "numeric");
                 control.editing = true;
                 control.cancelNextBlur = false;
                 setTimeout(function () {
@@ -3110,12 +3452,15 @@
                 } else if (event.key === "Escape") {
                     event.preventDefault();
                     control.cancelNextBlur = true;
-                    control.editing = false;
                     if (control.authoritativeValue !== null) {
                         showDevelopSliderLocal(control, control.authoritativeValue);
                     }
+                    endDevelopSliderInteraction(control);
                     number.blur();
                 }
+            });
+            number.addEventListener("change", function () {
+                if (control.editing) commitNumericValue();
             });
             number.addEventListener("blur", function () {
                 if (control.cancelNextBlur) {
@@ -3124,6 +3469,13 @@
                 }
                 if (control.editing) commitNumericValue();
             });
+
+            control.cancelInteraction = function () {
+                if (!isDevelopSliderInteracting(control)) return;
+                control.contextInvalidated = true;
+                cancelDevelopSliderThrottle(control);
+                endDevelopSliderInteraction(control);
+            };
 
             row.appendChild(name);
             row.appendChild(range);
@@ -3137,6 +3489,13 @@
             sliderFeedbackElements[definition.id] = row;
             return row;
         }
+
+        window.addEventListener("blur", function () {
+            Array.from(activeSliderInteractions).forEach(function (slider) {
+                const control = developSliderControls[slider];
+                if (control && control.cancelInteraction) control.cancelInteraction();
+            });
+        });
 
         function renderActionGroup(group) {
             const groupElement = document.createElement("section");
@@ -3248,10 +3607,23 @@
 
         function render() {
             renderTabs();
+
+            const colorGradingActive = activeTab === "color-grading";
+            content.hidden = colorGradingActive;
+            document.getElementById("colorGradingWorkspace").hidden = !colorGradingActive;
+            if (colorGradingActive) {
+                deactivateDevelopFeedbackPolling();
+                colorGradingController.activate();
+                return;
+            }
+
+            colorGradingController.deactivate();
+            if (activeTab !== "sliders") deactivateDevelopFeedbackPolling();
             clearContent();
 
             if (activeTab === "sliders") {
                 renderSlidersTab();
+                activateDevelopFeedbackPolling();
                 return;
             }
 
@@ -3295,6 +3667,23 @@
             renderTabs();
             clearContent();
             setStatus("ERROR: Could not load authoritative slider metadata.");
+        });
+
+        const colorGradingController = LRBridgeColorGrading.createController({
+            document: document,
+            window: window,
+            fetch: window.fetch.bind(window),
+            setStatus: setStatus,
+            elements: {
+                cgStatus: document.getElementById("colorGradingStatus"),
+                cgContent: document.getElementById("colorGradingContent"),
+                viewButtons: []
+            }
+        });
+        colorGradingController.initialize();
+        window.addEventListener("hashchange", function () {
+            const hash = window.location.hash.replace(/^#/, "");
+            selectControllerTab(hash === "develop" ? "sliders" : hash, false);
         });
     </script>
 </body>

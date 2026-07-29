@@ -16,6 +16,7 @@ const bridgePath = path.join(projectRoot, "bridge.js");
 const settingsPath = path.join(portableRoot, "config", "settings.txt");
 const trayIconPath = path.join(__dirname, "tray.png");
 const controllerPath = path.join(__dirname, "controller.html");
+const controllerColorGradingPath = path.join(__dirname, "controller-color-grading.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
@@ -290,6 +291,16 @@ async function handleControllerRequest(request, response) {
         return;
     }
 
+    if (requestUrl.pathname === "/controller-color-grading.js") {
+        try {
+            const source = fs.readFileSync(controllerColorGradingPath, "utf8");
+            sendControllerResponse(response, 200, "text/javascript; charset=utf-8", source);
+        } catch (err) {
+            sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
+        }
+        return;
+    }
+
     if (requestUrl.pathname === "/help" || requestUrl.pathname === "/controller-help") {
         try {
             const html = fs.readFileSync(controllerHelpPath, "utf8");
@@ -322,6 +333,21 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/api/sliders") {
         await proxyControllerRequest(request, response, "/sliders");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/color-grading/metadata") {
+        await proxyControllerRequest(request, response, "/color-grading/metadata");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/color-grading/request") {
+        await proxyControllerRequest(request, response, "/color-grading/request");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/color-grading/snapshot") {
+        await proxyControllerRequest(request, response, "/color-grading/snapshot" + requestUrl.search);
         return;
     }
 

@@ -68,8 +68,8 @@ assert.match(controller, /setTimeout\(function \(\) \{[\s\S]*\}, 100\)/);
 assert.match(controller, /"\/api\/set\?slider="/);
 assert.match(controller, /"\/api\/reset\?slider="/);
 assert.match(controller, /requestLiveFeedbackSnapshot\(true\)/);
-assert.match(controller, /pollFeedbackSnapshot\(request\.id, 4000\)/);
-assert.match(controller, /data\.contextCounter !== lastControllerContextCounter/);
+assert.match(controller, /pollFeedbackSnapshot\(request\.id, 4000, abortController\.signal\)/);
+assert.match(controller, /function classifyControllerContextChange\(previous, next\)/);
 assert.match(controller, /markAllDevelopSlidersLoading\(\)/);
 assert.match(controller, /pointerup/);
 assert.match(controller, /event\.key === "Enter"/);
@@ -108,7 +108,39 @@ assert.match(controller, /control\.visualProgress === progressText/);
 assert.match(controller, /if \(unchanged\) return false/);
 assert.match(controller, /if \(control\.range\.disabled\) control\.range\.disabled = false/);
 assert.doesNotMatch(stepConfirmationBlock, /renderSlidersTab|markAllDevelopSlidersLoading|content\.innerHTML|switchTab/);
-assert.match(controller, /range\.addEventListener\("pointerdown", function \(\) \{\s*cancelDevelopSliderStep\(control\)/);
+assert.match(controller, /const activeSliderInteractions = new Set\(\)/);
+assert.match(controller, /beginDevelopSliderInteraction\(control, "range"\)/);
+assert.match(controller, /beginDevelopSliderInteraction\(control, "numeric"\)/);
+assert.match(controller, /if \(isDevelopSliderInteracting\(control\)\) \{[\s\S]*control\.deferredFeedbackResult = result;[\s\S]*return;/);
+assert.match(controller, /range\.addEventListener\("pointercancel"/);
+assert.match(controller, /range\.addEventListener\("lostpointercapture"/);
+assert.match(controller, /window\.addEventListener\("blur"/);
+assert.match(controller, /number\.addEventListener\("change"/);
+assert.match(controller, /control\.contextInvalidated/);
+assert.match(controller, /pendingDevelopContextRefresh = true/);
+assert.match(controller, /next\.activeModule !== previous\.activeModule/);
+assert.match(controller, /next\.selectedPhotoKey !== previous\.selectedPhotoKey/);
+const contextClassifierBlock = controller.match(
+    /function classifyControllerContextChange[\s\S]*?function logDevelopRefreshDecision/
+)[0];
+assert.doesNotMatch(
+    contextClassifierBlock.match(/if \([\s\S]*?\) return "navigation";/)[0],
+    /contextCounter|developCounter|developFingerprint|lastHeartbeatAt/,
+    "Navigation classification must use identity only"
+);
+assert.match(controller, /lastControllerDevelopCounter = data\.developCounter/);
+assert.match(controller, /if \(!genericFeedbackActive \|\| activeTab !== "sliders"\) return/);
+assert.match(controller, /function deactivateDevelopFeedbackPolling\(\)[\s\S]*genericFeedbackAbortController\.abort\(\)/);
+assert.match(controller, /if \(activeTab === "sliders"\) \{\s*renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
+assert.match(controller, /row\.dataset\.sliderId = definition\.id/);
+assert.match(controller, /const DEBUG_DEVELOP_REFRESH = true/);
+const finalConfirmationBlock = controller.match(
+    /function flushDevelopSliderValue[\s\S]*?function clearDevelopSliderStepTimers/
+)[0];
+assert.match(finalConfirmationBlock, /control\.confirmationPending = true/);
+assert.match(finalConfirmationBlock, /handleDevelopSliderStepSubmission/);
+assert.doesNotMatch(finalConfirmationBlock, /renderSlidersTab|switchTab|content\.innerHTML|markAllDevelopSlidersLoading|requestLiveFeedbackSnapshot|request-many/);
+assert.match(controller, /range\.addEventListener\("pointerdown", function \(event\) \{\s*cancelDevelopSliderStep\(control\)/);
 assert.match(controller, /function commitNumericValue\(\) \{\s*cancelDevelopSliderStep\(control\)/);
 assert.match(controller, /makeButton\("Reset"[\s\S]*cancelDevelopSliderStep\(control\)/);
 assert.match(controller, /"\/api\/set\?slider="/);
@@ -128,6 +160,130 @@ assert.match(controller, /@media \(max-width: 760px\)[\s\S]*\.develop-slider-row
 assert.match(controller, /::-webkit-slider-thumb[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
 assert.match(controller, /::-moz-range-thumb[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
 assert.match(controller, /grid-template-columns:\s*minmax\(140px, 210px\)[\s\S]*44px 44px auto/);
+
+{
+    const active = new Set();
+    function fakeClassList() {
+        const values = new Set();
+        return { add(value) { values.add(value); }, remove(...items) { items.forEach(item => values.delete(item)); }, has(value) { return values.has(value); } };
+    }
+    const row = { classList: fakeClassList(), isConnected: true };
+    const range = { value: "4", disabled: false, isConnected: true, style: { value: "40%", setProperty(_key, value) { this.value = value; } } };
+    const number = { value: "4", disabled: false, isConnected: true };
+    const stateNode = { textContent: "", isConnected: true };
+    const control = {
+        definition: { id: "Exposure", min: -5, max: 5, numericStep: 0.01, displayPrecision: 2 },
+        row, range, number, state: stateNode,
+        decrement: { disabled: false }, increment: { disabled: false }, reset: { disabled: false },
+        authoritativeValue: 0, localValue: 4, desiredValue: null, numberCommittedValue: 4,
+        feedbackState: "available", stateMessage: "", visualProgress: "40%",
+        confirmationPending: false, dragging: true, editing: false, stepConfirmationExpired: false,
+        deferredFeedbackResult: null
+    };
+    const context = {
+        Number,
+        isDevelopSliderInteracting(candidate) { return active.has(candidate.definition.id); },
+        actualToDevelopSliderPosition(_definition, value) { return Number(value); },
+        formatDevelopSliderValue(_definition, value) { return String(value); },
+        valuesMatchDevelopSlider(_definition, left, right) { return Number(left) === Number(right); },
+        configureDevelopSliderRange() {},
+        cancelDevelopSliderStep(candidate) { candidate.desiredValue = null; candidate.confirmationPending = false; candidate.stepConfirmationExpired = false; },
+        cancelDevelopSliderStepTimers() {},
+        developSliderControls: { Exposure: control }
+    };
+    require("node:vm").runInNewContext(
+        extractFunctions("setDevelopSliderState", "submitDevelopSliderValue").replace(/\s*async\s*$/, "") +
+        "\nthis.api = { applyDevelopSliderFeedbackIfChanged };",
+        context
+    );
+    const refs = { row, range, number };
+    active.add("Exposure");
+    context.api.applyDevelopSliderFeedbackIfChanged(control, { available: true, value: 1, range: { min: -5, max: 5 } });
+    assert.equal(range.value, "4");
+    assert.equal(number.value, "4");
+    assert.equal(range.style.value, "40%");
+    assert.equal(control.feedbackState, "available");
+    assert.equal(refs.row, control.row);
+    assert.equal(refs.range, control.range);
+    assert.equal(refs.number, control.number);
+    assert.ok(row.isConnected && range.isConnected && number.isConnected);
+    active.delete("Exposure");
+    control.dragging = false;
+    control.desiredValue = 4;
+    control.confirmationPending = true;
+    context.api.applyDevelopSliderFeedbackIfChanged(control, { available: true, value: 4, range: { min: -5, max: 5 } });
+    assert.equal(control.confirmationPending, false, "Matching targeted feedback must silently clear pending state");
+    assert.equal(range.value, "4");
+    assert.equal(number.value, "4");
+    assert.equal(refs.row, control.row);
+    assert.equal(refs.range, control.range);
+    assert.equal(refs.number, control.number);
+}
+
+{
+    const context = {};
+    require("node:vm").runInNewContext(
+        contextClassifierBlock.replace(/\s*function logDevelopRefreshDecision[\s\S]*$/, "") +
+        "\nthis.classify = classifyControllerContextChange;",
+        context
+    );
+    const classify = context.classify;
+    const initial = {
+        activeModule: "develop", selectedPhotoKey: "photo-1",
+        contextCounter: 4, developCounter: 10, developFingerprint: "a", lastHeartbeatAt: 100
+    };
+    assert.equal(classify(initial, { ...initial, contextCounter: 5 }), "develop-revision");
+    assert.equal(classify(initial, { ...initial, developCounter: 11 }), "develop-revision");
+    assert.equal(classify(initial, { ...initial, developFingerprint: "b" }), "develop-revision");
+    assert.equal(classify(initial, { ...initial, selectedPhotoKey: "photo-2" }), "navigation");
+    assert.equal(classify(initial, { ...initial, activeModule: "library" }), "navigation");
+    assert.equal(classify(initial, { ...initial, lastHeartbeatAt: 101 }), "heartbeat");
+    assert.equal(classify(initial, { ...initial }), "none");
+
+    const row = { isConnected: true };
+    const range = { value: "4", isConnected: true, style: { progress: "40%" } };
+    const number = { value: "4", isConnected: true };
+    const control = { row, range, number, contextInvalidated: false };
+    let previous = initial;
+    let pendingRefresh = false;
+    let loadingCalls = 0;
+    let forcedFeedbackCalls = 0;
+    let throttleCancellations = 0;
+    for (let revision = 1; revision <= 10; revision += 1) {
+        const next = { ...previous, contextCounter: previous.contextCounter + 1, lastHeartbeatAt: previous.lastHeartbeatAt + 1 };
+        const classification = classify(previous, next);
+        const navigationContextChanged = classification === "navigation";
+        if (navigationContextChanged) {
+            control.contextInvalidated = true;
+            pendingRefresh = true;
+            loadingCalls += 1;
+            forcedFeedbackCalls += 1;
+            throttleCancellations += 1;
+        }
+        assert.equal(navigationContextChanged, false);
+        assert.equal(control.contextInvalidated, false);
+        assert.equal(pendingRefresh, false);
+        assert.equal(loadingCalls, 0);
+        assert.equal(forcedFeedbackCalls, 0);
+        assert.equal(throttleCancellations, 0);
+        assert.equal(range.value, "4");
+        assert.equal(number.value, "4");
+        assert.equal(range.style.progress, "40%");
+        assert.equal(control.row, row);
+        assert.equal(control.range, range);
+        assert.equal(control.number, number);
+        previous = next;
+    }
+    assert.equal(classify(previous, { ...previous, selectedPhotoKey: "photo-2" }), "navigation");
+    control.contextInvalidated = true;
+    pendingRefresh = true;
+    let deferredRefreshes = 0;
+    if (pendingRefresh) {
+        pendingRefresh = false;
+        deferredRefreshes += 1;
+    }
+    assert.equal(deferredRefreshes, 1, "A real photo change must produce exactly one deferred refresh");
+}
 
 function extractFunctions(firstName, nextName) {
     const start = controller.indexOf("function " + firstName + "(");

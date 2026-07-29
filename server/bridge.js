@@ -298,6 +298,11 @@ app.get("/color-grading", function (req, res) {
     res.set("Cache-Control", "no-store").json({ colorGrading: colorGrading.getMetadata() });
 });
 
+app.get("/color-grading/metadata", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json({ ok: true, colorGrading: colorGrading.getMetadata() });
+});
+
 app.get("/groups", function (req, res) {
     res.json({
         groups: sliders.getGroups()
