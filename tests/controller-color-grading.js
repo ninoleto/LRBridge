@@ -65,6 +65,25 @@ assert.equal(ui.commandPath("color_grading.view.set", { view: "3-way" }), "/api/
 assert.equal(ui.normalizeNumber("12,5"), 12.5);
 assert.equal(ui.normalizeNumber("bad"), null);
 assert.equal(ui.clamp(120, { min: 0, max: 100 }), 100);
+{
+    let textWrites = 0;
+    let stateWrites = 0;
+    let text = "Connected";
+    let state = "connected";
+    const element = {
+        get textContent() { return text; },
+        set textContent(value) { textWrites += 1; text = value; },
+        dataset: {
+            get state() { return state; },
+            set state(value) { stateWrites += 1; state = value; }
+        }
+    };
+    assert.equal(ui.updateStatusElement(element, "Connected", "connected"), false);
+    assert.deepEqual([textWrites, stateWrites], [0, 0], "Stable Connected status must not rewrite the DOM");
+    assert.equal(ui.updateStatusElement(element, "Waiting for Lightroom", "warning"), true);
+    assert.deepEqual([textWrites, stateWrites], [1, 1]);
+    assert.equal(ui.updateStatusElement(element, "Connected", "connected"), true, "Recovery must restore Connected");
+}
 const rect = { left: 0, top: 0, width: 200, height: 200 };
 assert.deepEqual(ui.wheelPoint(100, 0, rect, { min: 0, max: 360 }, { min: 0, max: 100 }), { hue: 90, saturation: 100 });
 assert.deepEqual(ui.wheelPoint(200, 100, rect, { min: 0, max: 360 }, { min: 0, max: 100 }), { hue: 0, saturation: 100 });
@@ -163,6 +182,14 @@ function fakeTimers() {
 }
 
 assert.match(browser, /COMMAND_THROTTLE_MS = 125/);
+assert.doesNotMatch(browser, /Connected · refreshing/);
+const requestSnapshotBlock = browser.match(/async function requestSnapshot[\s\S]*?function contextMessage/)[0];
+assert.doesNotMatch(requestSnapshotBlock, /status\([^\n]*refresh/i, "Ordinary polling must not expose a refreshing status");
+assert.match(browser, /if \(!state\.hasCompleteSnapshot\) status\("Loading Lightroom values…", "pending"\)/);
+assert.match(browser, /status\("Waiting for Lightroom", "warning"\)/);
+assert.match(browser, /status\("Disconnected", "warning"\)/);
+assert.match(browser, /status\(contextMessage\(context\), contextMessage\(context\) === "Connected" \? "connected" : "warning"\)/);
+assert.match(browser, /function updateStatusElement[\s\S]*element\.textContent !== text[\s\S]*element\.dataset\.state !== nextKind/);
 assert.match(browser, /sendWheel\(region, true\)/);
 assert.match(browser, /state\.draggingRegion/);
 assert.match(html, /touch-action: none/);
@@ -175,6 +202,27 @@ assert.match(browser, /signal: signal/);
 assert.match(browser, /!signal\.aborted/);
 assert.match(browser, /!cycleGate\.isCurrent\(cycle\) \|\| signal\.aborted \|\| sequence !== state\.requestSequence/);
 assert.match(browser, /resetSentValueState\(\)/);
+assert.match(browser, /input\.addEventListener\("focus"[\s\S]*card\.editingField = input/);
+assert.match(browser, /control\.editing = true/);
+assert.match(browser, /Boolean\(control && control\.editing\)[\s\S]*Boolean\(card && card\.editingField\)/);
+assert.match(browser, /if \(!card\.editingField\)[\s\S]*element\.disabled = !ready/);
+assert.match(browser, /if \(!control\.editing\)[\s\S]*element\.disabled = !ready/);
+assert.match(browser, /if \(card\.hue\.value !== hueText\) card\.hue\.value = hueText/);
+assert.match(browser, /if \(card\.saturation\.value !== saturationText\) card\.saturation\.value = saturationText/);
+assert.match(browser, /if \(control\.number\.value !== numberText\) control\.number\.value = numberText/);
+assert.match(browser, /card\.authoritativeValue = \{ hue: hue\.value, saturation: saturation\.value \}/);
+assert.match(browser, /control\.authoritativeValue = result\.value/);
+assert.match(browser, /delete state\.pendingSince\[region\]/);
+assert.match(browser, /delete state\.pendingSince\[controlName\]/);
+assert.match(browser, /event\.key === "Escape"[\s\S]*cancelWheelFieldEdit\(card\)/);
+assert.match(browser, /event\.key === "Escape"[\s\S]*showScalarValue\(control, control\.authoritativeValue/);
+assert.match(browser, /input\.addEventListener\("change"[\s\S]*commitWheelFields\(region\)/);
+assert.match(browser, /number\.addEventListener\("change"[\s\S]*commitNumber\(\)/);
+assert.doesNotMatch(browser, /(?:card\.hue|card\.saturation|number)\.addEventListener\("input"/);
+assert.equal(ui.normalizeNumber("-"), null);
+assert.equal(ui.normalizeNumber("."), null);
+assert.equal(ui.normalizeNumber("-."), null);
+assert.equal(ui.normalizeNumber("12,"), 12);
 assert.match(browser, /lostpointercapture/);
 assert.match(browser, /if \(!state\.visible/);
 assert.match(browser, /Parameter unavailable/);

@@ -218,23 +218,104 @@ assert.match(source, /angleRange\.type = "range"/);
 assert.match(source, /angleRange\.min = "-45"/);
 assert.match(source, /angleRange\.max = "45"/);
 assert.match(source, /angleRange\.step = "0\.1"/);
-assert.match(source, /angleNumber\.type = "number"/);
-assert.match(source, /angleNumber\.step = "0\.01"/);
-assert.match(source, /makeButton\("Reset Angle"[\s\S]*photo\.crop_angle\.reset/);
+assert.match(source, /angleNumber\.type = "text"/);
+assert.match(source, /angleNumber\.inputMode = "decimal"/);
+assert.match(source, /angleNumber\.autocomplete = "off"/);
+assert.match(source, /angleNumber\.spellcheck = false/);
+assert.doesNotMatch(source, /angleNumber\.type = "number"/);
+assert.match(source, /makeButton\("−", "develop-slider-step"[\s\S]*makeButton\("\+", "develop-slider-step"[\s\S]*makeButton\("Reset", "reset"/);
+assert.match(source, /row\.appendChild\(name\);\s*row\.appendChild\(angleRange\);\s*row\.appendChild\(angleNumber\);\s*row\.appendChild\(angleDecrementButton\);\s*row\.appendChild\(angleIncrementButton\);\s*row\.appendChild\(angleResetButton\)/);
+assert.match(source, /angleResetButton = makeButton\("Reset", "reset"[\s\S]*showLocalAngle\(0\)[\s\S]*photo\.crop_angle\.reset/);
 assert.match(source, /angleRange\.addEventListener\("input"[\s\S]*showLocalAngle\(value\)[\s\S]*scheduleAngleValue\(value\)/);
 assert.match(source, /setTimeout\(function \(\)[\s\S]*\}, 100\)/);
 assert.match(source, /angleRange\.addEventListener\("pointerup"[\s\S]*flushAngleValue/);
 assert.match(source, /if \(angleDragging[\s\S]*return/);
 assert.match(source, /applyAuthoritativeAngleFeedback\(result\.value\)/);
 assert.match(source, /sliderFeedbackElements\.CropAngle = angleValueLabel/);
+const angleStepBlock = source.match(/function stepAngleValue\(direction\)[\s\S]*?async function submitAngleValue/)[0];
+assert.match(angleStepBlock, /direction \* 0\.1/);
+assert.match(angleStepBlock, /Math\.max\(-45, Math\.min\(45,/);
+assert.match(angleStepBlock, /showLocalAngle\(value\)[\s\S]*scheduleAngleValue\(value\)/);
+assert.match(source, /angleDecrementButton\.disabled = Number\(value\) <= -45/);
+assert.match(source, /angleIncrementButton\.disabled = Number\(value\) >= 45/);
+assert.match(source, /function markAngleUnavailable[\s\S]*angleDecrementButton\.disabled = true[\s\S]*angleIncrementButton\.disabled = true[\s\S]*angleResetButton\.disabled = true/);
+assert.match(source, /\.develop-slider-row,\s*\.angle-control\s*\{[\s\S]*grid-template-columns:\s*minmax\(140px, 210px\) minmax\(180px, 1fr\) 92px 44px 44px auto[\s\S]*min-width:\s*0/);
+assert.match(source, /\.angle-control button\s*\{\s*min-height:\s*44px/);
+assert.match(source, /\.angle-control input\[type="text"\][\s\S]*min-height:\s*44px/);
+assert.match(source, /@media \(max-width: 760px\)[\s\S]*\.angle-control\s*\{[\s\S]*grid-template-columns:\s*minmax\(92px, 1fr\) 44px 44px minmax\(70px, auto\)[\s\S]*\.angle-control input\[type="range"\]\s*\{\s*grid-column:\s*1 \/ -1/);
+assert.match(source, /\.angle-value\s*\{[\s\S]*height:\s*16px[\s\S]*visibility:\s*hidden/);
+assert.match(source, /\.angle-value:not\(:empty\)\s*\{\s*visibility:\s*visible/);
 const parseAngleValue = extractJavaScriptFunction("parseAngleValue", "angleCommandPath", { Number });
 const angleCommandPath = extractJavaScriptFunction("angleCommandPath", "showLocalAngle", {
     encodeURIComponent
 });
 assert.equal(parseAngleValue("-2.5"), -2.5);
 assert.equal(parseAngleValue("12.25"), 12.25);
+assert.equal(parseAngleValue("12,25"), 12.25);
+assert.equal(parseAngleValue("12."), 12);
 assert.equal(parseAngleValue("1.234"), null);
+for (const intermediate of ["", "-", ".", "-."]) assert.equal(parseAngleValue(intermediate), null);
+assert.match(source, /angleNumber\.addEventListener\("focus"[\s\S]*angleEditing = true/);
+assert.doesNotMatch(source, /angleNumber\.addEventListener\("input"/);
+assert.match(source, /event\.key === "Enter"[\s\S]*commitNumericAngle\(\)/);
+assert.match(source, /event\.key === "Escape"[\s\S]*showLocalAngle\(authoritativeAngleValue\)[\s\S]*angleNumber\.blur\(\)/);
+assert.match(source, /angleNumber\.addEventListener\("blur"[\s\S]*if \(angleEditing\) commitNumericAngle\(\)/);
+assert.match(source, /if \(value === null\)[\s\S]*showLocalAngle\(authoritativeAngleValue\)/);
 assert.equal(angleCommandPath(-2.5), "/api/command?command=photo.crop_angle.set&value=-2.5");
+
+{
+    let visibleValue = 0;
+    const scheduled = [];
+    const angleStepContext = {
+        Math,
+        angleNumber: { value: "0" },
+        parseAngleValue(value) { return Number(value); },
+        showLocalAngle(value) { visibleValue = value; angleStepContext.angleNumber.value = String(value); },
+        scheduleAngleValue(value) { scheduled.push(value); },
+        numericAngleCommittedValue: null
+    };
+    const stepStart = source.indexOf("function stepAngleValue(");
+    const stepEnd = source.indexOf("function submitAngleValue(", stepStart);
+    const stepAngleValue = vm.runInNewContext(
+        "(" + source.slice(stepStart, stepEnd).replace(/\s*async\s*$/, "").trim() + ")",
+        angleStepContext
+    );
+    stepAngleValue(-1);
+    assert.equal(visibleValue, -0.1, "Minus must immediately decrease Angle by 0.1 degrees");
+    stepAngleValue(1);
+    assert.equal(visibleValue, 0, "Plus must immediately increase Angle by 0.1 degrees");
+    thisAngleTest(stepAngleValue, -45, -1, -45);
+    thisAngleTest(stepAngleValue, 45, 1, 45);
+    assert.deepEqual(scheduled.slice(0, 2), [-0.1, 0]);
+
+    function thisAngleTest(step, start, direction, expected) {
+        visibleValue = start;
+        angleStepContext.angleNumber.value = String(start);
+        step(direction);
+        assert.equal(visibleValue, expected);
+    }
+}
+
+{
+    const timers = [];
+    const submitted = [];
+    const scheduleAngleValue = extractJavaScriptFunction("scheduleAngleValue", "flushAngleValue", {
+        pendingAngleValue: null,
+        angleThrottleTimer: null,
+        setTimeout(callback, delay) {
+            timers.push({ callback, delay });
+            return 1;
+        },
+        submitAngleValue(value) { submitted.push(value); }
+    });
+    scheduleAngleValue(0.1);
+    scheduleAngleValue(0.2);
+    scheduleAngleValue(0.3);
+    assert.equal(timers.length, 1, "Rapid Angle steps must share the existing throttle timer");
+    assert.equal(timers[0].delay, 100);
+    timers[0].callback();
+    assert.deepEqual(submitted, [0.3], "Only the newest rapidly stepped Angle value should be submitted");
+}
 assert.match(source, /<h2 id="customCropTitle">Custom Crop Ratio<\/h2>/);
 assert.match(source, /id="customCropWidth"[^>]*value="16"/);
 assert.match(source, /id="customCropHeight"[^>]*value="10"/);

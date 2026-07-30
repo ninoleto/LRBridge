@@ -281,7 +281,8 @@
             background: #327eab;
         }
 
-        .develop-slider-row {
+        .develop-slider-row,
+        .angle-control {
             display: grid;
             grid-template-columns: minmax(140px, 210px) minmax(180px, 1fr) 92px 44px 44px auto;
             gap: 8px;
@@ -290,7 +291,8 @@
             min-width: 0;
         }
 
-        .develop-slider-row input[type="range"] {
+        .develop-slider-row input[type="range"],
+        .angle-control input[type="range"] {
             width: 100%;
             min-width: 0;
             height: 40px;
@@ -300,7 +302,8 @@
             background: transparent;
         }
 
-        .develop-slider-row input[type="range"]::-webkit-slider-runnable-track {
+        .develop-slider-row input[type="range"]::-webkit-slider-runnable-track,
+        .angle-control input[type="range"]::-webkit-slider-runnable-track {
             height: 6px;
             border-radius: 999px;
             background: linear-gradient(
@@ -312,7 +315,8 @@
             );
         }
 
-        .develop-slider-row input[type="range"]::-webkit-slider-thumb {
+        .develop-slider-row input[type="range"]::-webkit-slider-thumb,
+        .angle-control input[type="range"]::-webkit-slider-thumb {
             width: 24px;
             height: 24px;
             margin-top: -9px;
@@ -323,19 +327,22 @@
             -webkit-appearance: none;
         }
 
-        .develop-slider-row input[type="range"]::-moz-range-track {
+        .develop-slider-row input[type="range"]::-moz-range-track,
+        .angle-control input[type="range"]::-moz-range-track {
             height: 6px;
             border-radius: 999px;
             background: #405263;
         }
 
-        .develop-slider-row input[type="range"]::-moz-range-progress {
+        .develop-slider-row input[type="range"]::-moz-range-progress,
+        .angle-control input[type="range"]::-moz-range-progress {
             height: 6px;
             border-radius: 999px;
             background: #2f9ed8;
         }
 
-        .develop-slider-row input[type="range"]::-moz-range-thumb {
+        .develop-slider-row input[type="range"]::-moz-range-thumb,
+        .angle-control input[type="range"]::-moz-range-thumb {
             width: 24px;
             height: 24px;
             border: 2px solid #b9e4ff;
@@ -343,7 +350,8 @@
             background: #2f9ed8;
         }
 
-        .develop-slider-row input[type="text"] {
+        .develop-slider-row input[type="text"],
+        .angle-control input[type="text"] {
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -352,7 +360,11 @@
             padding: 8px;
             background: #080c10;
             color: #f4f7fa;
+            min-height: 44px;
         }
+
+        .develop-slider-row button,
+        .angle-control button { min-height: 44px; }
 
         .develop-slider-step {
             width: 44px;
@@ -363,17 +375,30 @@
         }
 
         .develop-slider-state {
-            display: none;
             grid-column: 2 / -1;
             color: #9fb0bf;
             font-size: 12px;
+            min-height: 16px;
+            height: 16px;
+            line-height: 16px;
+            overflow: hidden;
+            visibility: hidden;
         }
 
-        .develop-slider-row.loading .develop-slider-state,
-        .develop-slider-row.unavailable .develop-slider-state,
-        .develop-slider-row.error .develop-slider-state {
-            display: block;
+        .develop-slider-state:not(:empty) {
+            visibility: visible;
         }
+
+        .develop-loading-status {
+            min-height: 20px;
+            height: 20px;
+            line-height: 20px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            color: #9fb0bf;
+        }
+
+        .develop-loading-status:empty { visibility: hidden; }
 
         .develop-slider-row.loading .develop-slider-state {
             color: #9fb0bf;
@@ -622,7 +647,8 @@
                 padding: 0 0 6px 0;
             }
 
-            .develop-slider-row {
+            .develop-slider-row,
+            .angle-control {
                 grid-template-columns: minmax(92px, 1fr) 44px 44px minmax(70px, auto);
                 padding: 10px;
                 border: 1px solid #2b3744;
@@ -631,11 +657,14 @@
             }
 
             .develop-slider-row .slider-name,
-            .develop-slider-row input[type="range"] {
+            .develop-slider-row input[type="range"],
+            .angle-control .slider-name,
+            .angle-control input[type="range"] {
                 grid-column: 1 / -1;
             }
 
-            .develop-slider-row .develop-slider-state {
+            .develop-slider-row .develop-slider-state,
+            .angle-control .angle-value {
                 grid-column: 1 / -1;
             }
         }        .slider-feedback {
@@ -718,42 +747,18 @@
             gap: 8px;
         }
 
-        .angle-control {
-            display: grid;
-            grid-template-columns: minmax(180px, 1fr) 100px auto auto;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .angle-control input[type="range"] {
-            width: 100%;
-        }
-
-        .angle-control input[type="number"] {
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #405263;
-            border-radius: 6px;
-            padding: 8px;
-            background: #080c10;
-            color: #f4f7fa;
-        }
-
         .angle-value {
-            min-width: 58px;
-            color: #7cc7ff;
-            font-variant-numeric: tabular-nums;
+            grid-column: 2 / -1;
+            min-height: 16px;
+            height: 16px;
+            line-height: 16px;
+            overflow: hidden;
+            visibility: hidden;
+            color: #d6a52b;
+            font-size: 12px;
         }
 
-        @media (max-width: 680px) {
-            .angle-control {
-                grid-template-columns: minmax(0, 1fr) 90px;
-            }
-
-            .angle-control input[type="range"] {
-                grid-column: 1 / -1;
-            }
-        }
+        .angle-value:not(:empty) { visibility: visible; }
 
     </style>
 </head>
@@ -2145,6 +2150,9 @@
         let lastControllerHeartbeatAt = null;
         let heartbeatWasStale = false;
         const DEBUG_DEVELOP_REFRESH = true;
+        let currentDevelopRefreshClassification = "initial";
+        let developLoadingStatus = null;
+        let hasReceivedAnyAuthoritativeDevelopValue = false;
 
         function classifyControllerContextChange(previous, next) {
             if (!previous || previous.activeModule === null) return "none";
@@ -2210,7 +2218,6 @@
         function performPendingDevelopContextRefresh() {
             if (!pendingDevelopContextRefresh || activeSliderInteractions.size !== 0 || !genericFeedbackActive) return;
             pendingDevelopContextRefresh = false;
-            markAllDevelopSlidersLoading();
             requestLiveFeedbackSnapshot(true);
         }
 
@@ -2227,7 +2234,7 @@
                 const result = snapshot.results[slider];
                 if (slider === "CropAngle") {
                     if (result.available === false) {
-                        if (!angleState.dragging && !angleState.editing) angleValue.textContent = "Unavailable";
+                        if (!angleDragging) markAngleUnavailable();
                     } else {
                         applyAuthoritativeAngleFeedback(result.value);
                     }
@@ -2355,6 +2362,7 @@
                 if (outcome.snapshot) {
                     applyFeedbackSnapshot(outcome.snapshot);
                 }
+                if (forceAll === true && developLoadingStatus) developLoadingStatus.textContent = "";
                 if (outcome.timedOut) {
                     const returned = outcome.snapshot ? Object.keys(outcome.snapshot.results || {}) : [];
                     const missing = visibleSliders.filter(function (slider) {
@@ -2401,6 +2409,7 @@
                     lastHeartbeatAt: lastControllerHeartbeatAt
                 };
                 const classification = classifyControllerContextChange(previous, data);
+                currentDevelopRefreshClassification = classification;
                 lastControllerContextCounter = data.contextCounter;
                 lastControllerDevelopCounter = data.developCounter;
                 lastControllerActiveModule = data.activeModule;
@@ -2429,7 +2438,6 @@
                         });
                     } else if (genericFeedbackActive) {
                         loadingRequested = true;
-                        markAllDevelopSlidersLoading();
                         requestLiveFeedbackSnapshot(true);
                     }
                 } else if (heartbeatWasStale && heartbeatChanged && genericFeedbackActive) {
@@ -2466,7 +2474,6 @@
         function activateDevelopFeedbackPolling() {
             if (genericFeedbackActive) return;
             genericFeedbackActive = true;
-            markAllDevelopSlidersLoading();
             requestLiveFeedbackSnapshot(true);
         }
 
@@ -2561,17 +2568,25 @@
         let angleRange = null;
         let angleNumber = null;
         let angleValueLabel = null;
+        let angleDecrementButton = null;
+        let angleIncrementButton = null;
+        let angleResetButton = null;
         let angleDragging = false;
         let angleRequestInFlight = false;
         let pendingAngleValue = null;
         let lastSubmittedAngleValue = null;
         let angleThrottleTimer = null;
         let numericAngleCommittedValue = null;
+        let authoritativeAngleValue = 0;
+        let angleEditing = false;
+        let cancelNextAngleBlur = false;
 
         function parseAngleValue(value) {
-            if (typeof value !== "string" || !/^-?\d+(?:\.\d{1,2})?$/.test(value)) return null;
-            const number = Number(value);
-            return Number.isFinite(number) && number >= -45 && number <= 45 ? number : null;
+            if (typeof value !== "string") return null;
+            const normalized = value.replace(",", ".");
+            if (!/^-?(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(normalized)) return null;
+            const number = Number(normalized);
+            return Number.isFinite(number) ? Math.max(-45, Math.min(45, number)) : null;
         }
 
         function angleCommandPath(value) {
@@ -2581,14 +2596,43 @@
         function showLocalAngle(value) {
             if (angleRange) angleRange.value = String(value);
             if (angleNumber) angleNumber.value = String(value);
-            if (angleValueLabel) angleValueLabel.textContent = formatAngleValue(value);
+            if (angleRange) {
+                const progress = 100 * (Number(value) + 45) / 90;
+                angleRange.style.setProperty("--slider-progress", progress + "%");
+            }
+            if (angleValueLabel) angleValueLabel.textContent = "";
+            if (angleRange) angleRange.disabled = false;
+            if (angleNumber) angleNumber.disabled = false;
+            if (angleDecrementButton) angleDecrementButton.disabled = Number(value) <= -45;
+            if (angleIncrementButton) angleIncrementButton.disabled = Number(value) >= 45;
+            if (angleResetButton) angleResetButton.disabled = false;
         }
 
         function applyAuthoritativeAngleFeedback(value) {
             const numericValue = Number(value);
-            if (angleDragging || !Number.isFinite(numericValue) || numericValue < -45 || numericValue > 45) return;
-            showLocalAngle(Math.round(numericValue * 100) / 100);
+            if (!Number.isFinite(numericValue) || numericValue < -45 || numericValue > 45) return;
+            authoritativeAngleValue = Math.round(numericValue * 100) / 100;
+            if (angleDragging || angleEditing) return;
+            showLocalAngle(authoritativeAngleValue);
             numericAngleCommittedValue = Number(angleNumber.value);
+        }
+
+        function markAngleUnavailable() {
+            if (angleValueLabel) angleValueLabel.textContent = "Unavailable";
+            if (angleRange) angleRange.disabled = true;
+            if (angleNumber) angleNumber.disabled = true;
+            if (angleDecrementButton) angleDecrementButton.disabled = true;
+            if (angleIncrementButton) angleIncrementButton.disabled = true;
+            if (angleResetButton) angleResetButton.disabled = true;
+        }
+
+        function stepAngleValue(direction) {
+            const currentValue = parseAngleValue(angleNumber ? angleNumber.value : "");
+            if (currentValue === null) return;
+            const value = Math.max(-45, Math.min(45, Math.round((currentValue + direction * 0.1) * 10) / 10));
+            showLocalAngle(value);
+            numericAngleCommittedValue = value;
+            scheduleAngleValue(value);
         }
 
         async function submitAngleValue(value) {
@@ -2636,6 +2680,10 @@
             const row = document.createElement("div");
             row.className = "angle-control";
 
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = "Angle";
+
             angleRange = document.createElement("input");
             angleRange.type = "range";
             angleRange.min = "-45";
@@ -2645,18 +2693,33 @@
             angleRange.setAttribute("aria-label", "Crop Angle");
 
             angleNumber = document.createElement("input");
-            angleNumber.type = "number";
-            angleNumber.min = "-45";
-            angleNumber.max = "45";
-            angleNumber.step = "0.01";
+            angleNumber.type = "text";
+            angleNumber.inputMode = "decimal";
+            angleNumber.autocomplete = "off";
+            angleNumber.spellcheck = false;
             angleNumber.value = "0";
             angleNumber.setAttribute("aria-label", "Crop Angle numeric value");
 
             angleValueLabel = document.createElement("span");
             angleValueLabel.className = "angle-value";
-            angleValueLabel.textContent = "0°";
+            angleValueLabel.textContent = "";
 
-            const resetButton = makeButton("Reset Angle", "command-neutral", function () {
+            angleDecrementButton = makeButton("−", "develop-slider-step", function () {
+                stepAngleValue(-1);
+            });
+            angleDecrementButton.setAttribute("aria-label", "Decrease Crop Angle");
+
+            angleIncrementButton = makeButton("+", "develop-slider-step", function () {
+                stepAngleValue(1);
+            });
+            angleIncrementButton.setAttribute("aria-label", "Increase Crop Angle");
+
+            angleResetButton = makeButton("Reset", "reset", function () {
+                if (angleThrottleTimer !== null) clearTimeout(angleThrottleTimer);
+                angleThrottleTimer = null;
+                pendingAngleValue = null;
+                showLocalAngle(0);
+                numericAngleCommittedValue = 0;
                 sendCommand("/api/command?command=photo.crop_angle.reset");
             });
 
@@ -2681,27 +2744,63 @@
                 const value = parseAngleValue(angleNumber.value);
                 if (value === null) {
                     setStatus("ERROR: Crop Angle must be between -45 and 45 with at most two decimal places.");
-                    return;
+                    showLocalAngle(authoritativeAngleValue);
+                    numericAngleCommittedValue = authoritativeAngleValue;
+                    angleEditing = false;
+                    return false;
                 }
                 if (value !== numericAngleCommittedValue) {
                     showLocalAngle(value);
                     numericAngleCommittedValue = value;
                     flushAngleValue(value);
                 }
+                angleEditing = false;
+                return true;
             }
 
-            angleNumber.addEventListener("keydown", function (event) {
-                if (event.key === "Enter") commitNumericAngle();
+            angleNumber.addEventListener("focus", function () {
+                angleEditing = true;
+                cancelNextAngleBlur = false;
+                setTimeout(function () {
+                    if (document.activeElement === angleNumber) angleNumber.select();
+                }, 0);
             });
-            angleNumber.addEventListener("blur", commitNumericAngle);
+            angleNumber.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitNumericAngle();
+                    angleNumber.blur();
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelNextAngleBlur = true;
+                    angleEditing = false;
+                    showLocalAngle(authoritativeAngleValue);
+                    numericAngleCommittedValue = authoritativeAngleValue;
+                    angleNumber.blur();
+                }
+            });
+            angleNumber.addEventListener("change", function () {
+                if (angleEditing) commitNumericAngle();
+            });
+            angleNumber.addEventListener("blur", function () {
+                if (cancelNextAngleBlur) {
+                    cancelNextAngleBlur = false;
+                    return;
+                }
+                if (angleEditing) commitNumericAngle();
+            });
 
+            row.appendChild(name);
             row.appendChild(angleRange);
             row.appendChild(angleNumber);
+            row.appendChild(angleDecrementButton);
+            row.appendChild(angleIncrementButton);
+            row.appendChild(angleResetButton);
             row.appendChild(angleValueLabel);
-            row.appendChild(resetButton);
             groupElement.appendChild(row);
             sliderFeedbackElements.CropAngle = angleValueLabel;
             numericAngleCommittedValue = 0;
+            showLocalAngle(0);
         }
 
         function renderCommandGroups(groups) {
@@ -2946,6 +3045,8 @@
             }
 
             control.authoritativeValue = numericValue;
+            control.hasAuthoritativeValueEver = true;
+            hasReceivedAnyAuthoritativeDevelopValue = true;
 
             if (control.desiredValue !== null) {
                 if (valuesMatchDevelopSlider(control.definition, numericValue, control.desiredValue)) {
@@ -2990,6 +3091,8 @@
                 control.deferredFeedbackResult = result;
                 if (result.available !== false && Number.isFinite(Number(result.value))) {
                     control.authoritativeValue = Number(result.value);
+                    control.hasAuthoritativeValueEver = true;
+                    hasReceivedAnyAuthoritativeDevelopValue = true;
                 }
                 return;
             }
@@ -2997,6 +3100,8 @@
                 control.deferredFeedbackResult = result;
                 if (result.available !== false && Number.isFinite(Number(result.value))) {
                     control.authoritativeValue = Number(result.value);
+                    control.hasAuthoritativeValueEver = true;
+                    hasReceivedAnyAuthoritativeDevelopValue = true;
                     if (valuesMatchDevelopSlider(control.definition, result.value, control.desiredValue)) {
                         control.numberCommittedValue = Number(result.value);
                         cancelDevelopSliderStep(control);
@@ -3040,9 +3145,17 @@
             control.reset.disabled = true;
         }
 
-        function markDevelopSliderLoading(control) {
+        function markDevelopSliderLoading(control, reason) {
             if (isDevelopSliderInteracting(control) || control.confirmationPending) return;
+            if (control.hasAuthoritativeValueEver) return;
             if (control.feedbackState === "loading" && control.desiredValue === null) return;
+            console.debug("LRBridge slider visible Loading", {
+                sliderId: control.definition.id,
+                reason: reason || "unspecified",
+                hadAuthoritativeValue: control.hasAuthoritativeValueEver,
+                activeTab: activeTab,
+                classification: currentDevelopRefreshClassification
+            });
             cancelDevelopSliderStep(control);
             control.authoritativeValue = null;
             control.numberCommittedValue = null;
@@ -3064,9 +3177,9 @@
             setDevelopSliderState(control, "error", "Feedback error");
         }
 
-        function markAllDevelopSlidersLoading() {
+        function markUninitializedDevelopSlidersLoading(reason) {
             Object.keys(developSliderControls).forEach(function (slider) {
-                markDevelopSliderLoading(developSliderControls[slider]);
+                markDevelopSliderLoading(developSliderControls[slider], reason);
             });
         }
 
@@ -3273,6 +3386,7 @@
         }
 
         function createDevelopSliderControl(definition) {
+            const previousControl = developSliderControls[definition.id];
             const row = document.createElement("div");
             row.className = "develop-slider-row";
 
@@ -3295,7 +3409,7 @@
 
             const state = document.createElement("span");
             state.className = "develop-slider-state";
-            state.textContent = "Loading…";
+            state.textContent = "";
 
             let control = null;
 
@@ -3344,6 +3458,7 @@
                 pendingCompletion: null,
                 lastSubmittedValue: null,
                 authoritativeValue: null,
+                hasAuthoritativeValueEver: previousControl ? previousControl.hasAuthoritativeValueEver === true : false,
                 localValue: null,
                 desiredValue: null,
                 numberCommittedValue: null,
@@ -3360,6 +3475,17 @@
             decrement.disabled = true;
             increment.disabled = true;
             reset.disabled = true;
+
+            if (previousControl && previousControl.hasAuthoritativeValueEver && previousControl.localValue !== null) {
+                control.authoritativeValue = previousControl.authoritativeValue;
+                control.numberCommittedValue = previousControl.numberCommittedValue;
+                showDevelopSliderLocal(control, previousControl.localValue);
+                range.disabled = false;
+                number.disabled = false;
+                decrement.disabled = false;
+                increment.disabled = false;
+                reset.disabled = false;
+            }
 
             row.dataset.sliderId = definition.id;
 
@@ -3423,7 +3549,7 @@
                         showDevelopSliderLocal(control, control.authoritativeValue);
                     } else {
                         number.value = "";
-                        setDevelopSliderState(control, "loading", "Loading…");
+                        markDevelopSliderLoading(control, "invalid-uninitialized-numeric-input");
                     }
                     endDevelopSliderInteraction(control);
                     return;
@@ -3548,6 +3674,14 @@
         }
 
         function renderSlidersTab() {
+            developLoadingStatus = document.createElement("div");
+            developLoadingStatus.className = "develop-loading-status";
+            developLoadingStatus.role = "status";
+            developLoadingStatus.textContent = (
+                typeof hasReceivedAnyAuthoritativeDevelopValue !== "undefined" &&
+                hasReceivedAnyAuthoritativeDevelopValue
+            ) ? "" : "Loading Lightroom values…";
+            content.appendChild(developLoadingStatus);
             renderActionsForPlacement("top");
 
             const groups = [];
@@ -3583,7 +3717,6 @@
             }
 
             setTimeout(function () {
-                markAllDevelopSlidersLoading();
                 requestLiveFeedbackSnapshot(true);
             }, 0);
         }

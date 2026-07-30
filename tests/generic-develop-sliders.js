@@ -70,7 +70,8 @@ assert.match(controller, /"\/api\/reset\?slider="/);
 assert.match(controller, /requestLiveFeedbackSnapshot\(true\)/);
 assert.match(controller, /pollFeedbackSnapshot\(request\.id, 4000, abortController\.signal\)/);
 assert.match(controller, /function classifyControllerContextChange\(previous, next\)/);
-assert.match(controller, /markAllDevelopSlidersLoading\(\)/);
+assert.match(controller, /function markUninitializedDevelopSlidersLoading\(reason\)/);
+assert.doesNotMatch(controller, /markAllDevelopSlidersLoading/);
 assert.match(controller, /pointerup/);
 assert.match(controller, /event\.key === "Enter"/);
 assert.match(controller, /event\.key === "Escape"/);
@@ -155,11 +156,33 @@ assert.doesNotMatch(controller, /makeButton\("-5"/);
 assert.doesNotMatch(controller, /makeButton\("-1"/);
 assert.doesNotMatch(controller, /makeButton\("\+1"/);
 assert.doesNotMatch(controller, /makeButton\("\+5"/);
-assert.match(controller, /\.develop-slider-row\s*\{[\s\S]*min-width:\s*0/);
+assert.match(controller, /\.develop-slider-row,\s*\.angle-control\s*\{[\s\S]*min-width:\s*0/);
 assert.match(controller, /@media \(max-width: 760px\)[\s\S]*\.develop-slider-row/);
 assert.match(controller, /::-webkit-slider-thumb[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
 assert.match(controller, /::-moz-range-thumb[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
 assert.match(controller, /grid-template-columns:\s*minmax\(140px, 210px\)[\s\S]*44px 44px auto/);
+assert.match(controller, /\.develop-slider-state\s*\{[\s\S]*min-height:\s*16px[\s\S]*height:\s*16px[\s\S]*line-height:\s*16px[\s\S]*visibility:\s*hidden/);
+assert.match(controller, /\.develop-slider-state:not\(:empty\)\s*\{\s*visibility:\s*visible/);
+const developSliderStateCss = controller.match(/\.develop-slider-state\s*\{[\s\S]*?\}/)[0];
+assert.doesNotMatch(developSliderStateCss, /display:\s*none/);
+assert.match(controller, /state\.className = "develop-slider-state";\s*state\.textContent = ""/);
+assert.match(controller, /Loading Lightroom values…/);
+
+const ordinaryPollingBlock = controller.match(
+    /async function requestLiveFeedbackSnapshot[\s\S]*?async function pollControllerContext/
+)[0];
+assert.doesNotMatch(ordinaryPollingBlock, /mark(?:All|Uninitialized)DevelopSlidersLoading/,
+    "Normal feedback polling must not make rows visibly Loading");
+const contextPollingBlock = controller.match(
+    /async function pollControllerContext[\s\S]*?function startLiveFeedbackPolling/
+)[0];
+assert.doesNotMatch(contextPollingBlock, /mark(?:All|Uninitialized)DevelopSlidersLoading/,
+    "Context, revision, navigation, and heartbeat polling must not make rows visibly Loading");
+const renderSlidersBlock = controller.match(
+    /function renderSlidersTab[\s\S]*?function renderToolTab/
+)[0];
+assert.doesNotMatch(renderSlidersBlock, /mark(?:All|Uninitialized)DevelopSlidersLoading/,
+    "Returning to the Develop tab must not make populated rows visibly Loading");
 
 {
     const active = new Set();
@@ -283,6 +306,68 @@ assert.match(controller, /grid-template-columns:\s*minmax\(140px, 210px\)[\s\S]*
         deferredRefreshes += 1;
     }
     assert.equal(deferredRefreshes, 1, "A real photo change must produce exactly one deferred refresh");
+}
+
+{
+    function fakeClassList() {
+        const values = new Set(["develop-slider-row"]);
+        return {
+            add(value) { values.add(value); },
+            remove(...items) { items.forEach((item) => values.delete(item)); },
+            values() { return Array.from(values).sort(); }
+        };
+    }
+    const row = { classList: fakeClassList(), isConnected: true };
+    const range = { value: "1.25", disabled: false, isConnected: true, style: { progress: "62.5%" } };
+    const number = { value: "1.25", disabled: false, isConnected: true };
+    const state = { textContent: "", isConnected: true };
+    const control = {
+        definition: { id: "Exposure" }, row, range, number, state,
+        decrement: { disabled: false }, increment: { disabled: false }, reset: { disabled: false },
+        authoritativeValue: 1.25, hasAuthoritativeValueEver: true, localValue: 1.25,
+        numberCommittedValue: 1.25, desiredValue: null, confirmationPending: false,
+        feedbackState: "available", stateMessage: "", visualProgress: "62.5%"
+    };
+    const diagnosticEvents = [];
+    const layoutContext = {
+        developSliderControls: { Exposure: control },
+        activeTab: "sliders",
+        currentDevelopRefreshClassification: "develop-revision",
+        console: { debug(...args) { diagnosticEvents.push(args); } },
+        isDevelopSliderInteracting() { return false; },
+        cancelDevelopSliderStep() {}
+    };
+    require("node:vm").runInNewContext(
+        extractFunctions("setDevelopSliderState", "submitDevelopSliderValue").replace(/\s*async\s*$/, "") +
+        "\nthis.api = { setDevelopSliderState, markDevelopSliderLoading, markUninitializedDevelopSlidersLoading };",
+        layoutContext
+    );
+    const refs = { row, range, number, state };
+    const classes = row.classList.values();
+
+    for (const [statusName, message] of [
+        ["", ""], ["loading", "Loading…"], ["", "Available"],
+        ["unavailable", "Unavailable"], ["error", "Feedback error"]
+    ]) {
+        layoutContext.api.setDevelopSliderState(control, statusName, message);
+        assert.equal(control.state, refs.state, "Status changes must retain the permanent status node");
+        assert.equal(control.state.isConnected, true);
+    }
+    layoutContext.api.setDevelopSliderState(control, "", "");
+
+    for (let cycle = 0; cycle < 10; cycle += 1) {
+        layoutContext.api.markUninitializedDevelopSlidersLoading("background-refresh");
+        assert.equal(control.row, refs.row);
+        assert.equal(control.range, refs.range);
+        assert.equal(control.number, refs.number);
+        assert.equal(control.state, refs.state);
+        assert.deepEqual(row.classList.values(), classes);
+        assert.equal(range.value, "1.25");
+        assert.equal(number.value, "1.25");
+        assert.equal(range.style.progress, "62.5%");
+        assert.equal(state.textContent, "");
+    }
+    assert.equal(diagnosticEvents.length, 0, "Initialized rows must never be assigned visible Loading");
 }
 
 function extractFunctions(firstName, nextName) {

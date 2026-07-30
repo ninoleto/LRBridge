@@ -20,6 +20,14 @@
         return Math.min(range.max, Math.max(range.min, value));
     }
 
+    function updateStatusElement(element, text, kind) {
+        const nextKind = kind || "connected";
+        let changed = false;
+        if (element.textContent !== text) { element.textContent = text; changed = true; }
+        if (element.dataset.state !== nextKind) { element.dataset.state = nextKind; changed = true; }
+        return changed;
+    }
+
     function wheelPoint(clientX, clientY, rect, hueRange, saturationRange) {
         const radius = Math.max(1, Math.min(rect.width, rect.height) / 2);
         const dx = clientX - (rect.left + rect.width / 2);
@@ -141,7 +149,8 @@
             localRevision: Object.create(null),
             pendingSince: Object.create(null),
             snapshotRequestedAt: 0,
-            throttle: Object.create(null)
+            throttle: Object.create(null),
+            hasCompleteSnapshot: false
         };
         const cycleGate = createCycleGate(function () { return new window.AbortController(); });
 
@@ -154,6 +163,7 @@
 
         function activate() {
             state.visible = true;
+            if (!state.hasCompleteSnapshot) status("Loading Lightroom values…", "pending");
             if (state.metadata) scheduleSnapshot(0, true);
         }
 
@@ -163,8 +173,7 @@
         }
 
         function status(text, kind) {
-            elements.cgStatus.textContent = text;
-            elements.cgStatus.dataset.state = kind || "connected";
+            updateStatusElement(elements.cgStatus, text, kind);
         }
 
         function stopPolling() {
@@ -186,11 +195,9 @@
         }
 
         function invalidateFeedback(message) {
-            state.parameters = Object.create(null);
-            state.activeView = null;
             resetSentValueState();
-            Object.keys(state.controls).forEach(function (key) { setControlPending(state.controls[key]); });
-            status(message || "Feedback pending", "pending");
+            state.pendingSince = Object.create(null);
+            if (!state.hasCompleteSnapshot) status(message || "Loading Lightroom values…", "pending");
         }
 
         async function requestSnapshot(force) {
@@ -199,7 +206,6 @@
             const sequence = ++state.requestSequence;
             const cycle = cycleGate.begin();
             const signal = cycle.controller.signal;
-            status(force ? "Feedback pending" : "Connected · refreshing", "pending");
             try {
                 const requestResponse = await fetchFn("/api/color-grading/request", { cache: "no-store", signal: signal });
                 const requestBody = await requestResponse.json();
@@ -221,7 +227,7 @@
                 }
                 if (sequence === state.requestSequence) status("Waiting for Lightroom", "warning");
             } catch (err) {
-                if (!signal.aborted && cycleGate.isCurrent(cycle) && sequence === state.requestSequence) status("Waiting for Lightroom", "warning");
+                if (!signal.aborted && cycleGate.isCurrent(cycle) && sequence === state.requestSequence) status("Disconnected", "warning");
             } finally {
                 if (cycleGate.isCurrent(cycle) && sequence === state.requestSequence) {
                     cycleGate.retire(cycle);
@@ -242,13 +248,14 @@
         function applySnapshot(snapshot, requestId) {
             if (requestId !== state.activeRequestId || snapshot.complete !== true) return false;
             const context = snapshot.context || {};
-            const nextContextKey = [context.contextCounter, context.selectedPhotoKey, context.developCounter].join("|");
+            const nextContextKey = [context.activeModule, context.selectedPhotoKey].join("|");
             if (state.contextKey !== null && state.contextKey !== nextContextKey) invalidateFeedback("Feedback pending");
             state.contextKey = nextContextKey;
             state.snapshotRequestedAt = snapshot.requestedAt || 0;
             state.parameters = snapshot.parameters || Object.create(null);
             state.activeView = snapshot.view && snapshot.view.available === true ? snapshot.view.value : null;
             renderAuthoritativeState();
+            state.hasCompleteSnapshot = true;
             status(contextMessage(context), contextMessage(context) === "Connected" ? "connected" : "warning");
             return true;
         }
@@ -266,7 +273,9 @@
 
         function isLocallyActive(key) {
             const pendingAt = state.pendingSince[key];
-            return state.draggingRegion === key || Boolean(pendingAt && (state.snapshotRequestedAt <= pendingAt || Date.now() - pendingAt < 900));
+            const control = state.controls[key];
+            const card = state.regionControls[key];
+            return state.draggingRegion === key || Boolean(control && control.editing) || Boolean(card && card.editingField) || Boolean(pendingAt);
         }
 
         function renderAuthoritativeState() {
@@ -285,18 +294,31 @@
                 const luminance = parameterResult(definition.luminance);
                 updateWheelAvailability(card, hue, saturation);
                 updateScalarAvailability(card.luminance, luminance);
-                if (hue && saturation && hue.available && saturation.available && !isLocallyActive(region)) {
-                    showWheelValue(card, hue.value, saturation.value, hue.range, saturation.range);
+                if (hue && saturation && hue.available && saturation.available) {
+                    card.authoritativeValue = { hue: hue.value, saturation: saturation.value };
+                    card.ranges = { hue: hue.range, saturation: saturation.range };
+                    if (state.pendingSince[region] && card.value && Number(hue.value) === Number(card.value.hue) && Number(saturation.value) === Number(card.value.saturation)) {
+                        delete state.pendingSince[region];
+                    }
+                    if (!isLocallyActive(region)) showWheelValue(card, hue.value, saturation.value, hue.range, saturation.range);
                 }
-                if (luminance && luminance.available && !isLocallyActive(card.luminance.control)) {
-                    showScalarValue(card.luminance, luminance.value, luminance.range);
+                if (luminance && luminance.available) {
+                    card.luminance.authoritativeValue = luminance.value;
+                    card.luminance.runtimeRange = luminance.range;
+                    if (state.pendingSince[card.luminance.control] && Number(luminance.value) === Number(card.luminance.value)) delete state.pendingSince[card.luminance.control];
+                    if (!isLocallyActive(card.luminance.control)) showScalarValue(card.luminance, luminance.value, luminance.range);
                 }
             });
             ["blending", "balance"].forEach(function (controlName) {
                 const control = state.controls[controlName];
                 const result = parameterResult(state.metadata.scalarControls[controlName].parameter);
                 updateScalarAvailability(control, result);
-                if (result && result.available && !isLocallyActive(controlName)) showScalarValue(control, result.value, result.range);
+                if (result && result.available) {
+                    control.authoritativeValue = result.value;
+                    control.runtimeRange = result.range;
+                    if (state.pendingSince[controlName] && Number(result.value) === Number(control.value)) delete state.pendingSince[controlName];
+                    if (!isLocallyActive(controlName)) showScalarValue(control, result.value, result.range);
+                }
             });
         }
 
@@ -304,7 +326,7 @@
             const ready = hue && saturation && hue.available === true && saturation.available === true;
             const pending = !hue || !saturation;
             card.available = ready;
-            [card.wheel, card.hue, card.saturation, card.resetRegion].forEach(function (element) { element.disabled = !ready; });
+            if (!card.editingField) [card.wheel, card.hue, card.saturation, card.resetRegion].forEach(function (element) { element.disabled = !ready; });
             card.state.textContent = ready ? "Available" : pending ? "Feedback pending" : "Parameter unavailable";
             card.root.classList.toggle("unavailable", !ready);
         }
@@ -313,15 +335,17 @@
             const ready = result && result.available === true;
             const pending = !result;
             control.available = ready;
-            [control.range, control.number, control.reset].forEach(function (element) { element.disabled = !ready; });
+            if (!control.editing) [control.range, control.number, control.reset].forEach(function (element) { element.disabled = !ready; });
             if (control.state) control.state.textContent = ready ? "Available" : pending ? "Feedback pending" : "Parameter unavailable";
         }
 
         function showWheelValue(card, hue, saturation, hueRange, saturationRange) {
             card.value = { hue: hue, saturation: saturation };
             card.ranges = { hue: hueRange, saturation: saturationRange };
-            card.hue.value = formatNumber(hue);
-            card.saturation.value = formatNumber(saturation);
+            const hueText = formatNumber(hue);
+            const saturationText = formatNumber(saturation);
+            if (card.hue.value !== hueText) card.hue.value = hueText;
+            if (card.saturation.value !== saturationText) card.saturation.value = saturationText;
             const hueFraction = (hue - hueRange.min) / (hueRange.max - hueRange.min);
             const angle = Math.PI / 2 - hueFraction * Math.PI * 2;
             const radial = (saturation - saturationRange.min) / (saturationRange.max - saturationRange.min) * 50;
@@ -337,10 +361,11 @@
             control.range.min = range.min;
             control.range.max = range.max;
             control.range.step = range.max - range.min > 100 ? "1" : "0.1";
-            control.range.value = value;
+            if (String(control.range.value) !== String(value)) control.range.value = value;
             control.number.min = range.min;
             control.number.max = range.max;
-            control.number.value = formatNumber(value);
+            const numberText = formatNumber(value);
+            if (control.number.value !== numberText) control.number.value = numberText;
             control.rangeText.textContent = formatNumber(range.min) + "–" + formatNumber(range.max);
             if (rebaseSentValue !== false && control.dispatcher && !isLocallyActive(control.control)) control.dispatcher.rebase(value);
         }
@@ -392,17 +417,35 @@
         function commitWheelFields(region) {
             const card = state.regionControls[region];
             if (!card.available || !card.ranges) return false;
-            const hue = normalizeNumber(card.hue.value);
-            const saturation = normalizeNumber(card.saturation.value);
-            if (hue === null || saturation === null || hue < card.ranges.hue.min || hue > card.ranges.hue.max || saturation < card.ranges.saturation.min || saturation > card.ranges.saturation.max) {
+            let hue = normalizeNumber(card.hue.value);
+            let saturation = normalizeNumber(card.saturation.value);
+            if (hue === null || saturation === null) {
                 card.hue.setAttribute("aria-invalid", String(hue === null));
                 card.saturation.setAttribute("aria-invalid", String(saturation === null));
+                card.editingField = null;
+                restoreWheelAuthoritative(card);
                 return false;
             }
+            hue = clamp(hue, card.ranges.hue);
+            saturation = clamp(saturation, card.ranges.saturation);
+            card.hue.setAttribute("aria-invalid", "false");
+            card.saturation.setAttribute("aria-invalid", "false");
+            card.editingField = null;
             if (card.value && hue === card.value.hue && saturation === card.value.saturation) return false;
             showWheelValue(card, hue, saturation, card.ranges.hue, card.ranges.saturation);
             sendWheel(region, true);
             return true;
+        }
+
+        function restoreWheelAuthoritative(card) {
+            if (!card.authoritativeValue || !card.ranges) return;
+            showWheelValue(card, card.authoritativeValue.hue, card.authoritativeValue.saturation, card.ranges.hue, card.ranges.saturation);
+        }
+
+        function cancelWheelFieldEdit(card) {
+            card.cancelNextBlur = true;
+            card.editingField = null;
+            restoreWheelAuthoritative(card);
         }
 
         function sendScalar(control, value, final) {
@@ -451,7 +494,7 @@
             rangeText.className = "cg-range-text";
             const reset = makeButton("Reset " + label, "cg-reset");
             row.append(name, range, number, rangeText, reset);
-            const control = { control: controlName, row: row, range: range, number: number, rangeText: rangeText, reset: reset, state: stateHost || null, value: null, runtimeRange: null, dispatcher: null };
+            const control = { control: controlName, row: row, range: range, number: number, rangeText: rangeText, reset: reset, state: stateHost || null, value: null, authoritativeValue: null, runtimeRange: null, dispatcher: null, editing: false, cancelNextBlur: false };
             control.dispatcher = createScalarDispatcher({
                 delay: COMMAND_THROTTLE_MS,
                 setTimeout: window.setTimeout.bind(window),
@@ -465,16 +508,39 @@
             range.addEventListener("pointerup", function () { sendScalar(control, Number(range.value), true); });
             range.addEventListener("change", function () { sendScalar(control, Number(range.value), true); });
             function commitNumber() {
-                const value = normalizeNumber(number.value);
-                if (value === null || !control.runtimeRange || value < control.runtimeRange.min || value > control.runtimeRange.max || value === control.value) {
-                    number.setAttribute("aria-invalid", String(value === null || !control.runtimeRange || value < control.runtimeRange.min || value > control.runtimeRange.max));
-                    return;
+                let value = normalizeNumber(number.value);
+                if (value === null || !control.runtimeRange) {
+                    number.setAttribute("aria-invalid", "true");
+                    control.editing = false;
+                    if (control.authoritativeValue !== null) showScalarValue(control, control.authoritativeValue, control.runtimeRange, false);
+                    return false;
                 }
+                value = clamp(value, control.runtimeRange);
                 number.setAttribute("aria-invalid", "false");
+                control.editing = false;
+                if (value === control.value) return false;
                 sendScalar(control, value, true);
+                return true;
             }
-            number.addEventListener("blur", commitNumber);
-            number.addEventListener("keydown", function (event) { if (event.key === "Enter") commitNumber(); });
+            number.addEventListener("focus", function () { control.editing = true; control.cancelNextBlur = false; });
+            number.addEventListener("change", function () { if (control.editing) commitNumber(); });
+            number.addEventListener("blur", function () {
+                if (control.cancelNextBlur) { control.cancelNextBlur = false; return; }
+                if (control.editing) commitNumber();
+            });
+            number.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitNumber();
+                    number.blur();
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    control.cancelNextBlur = true;
+                    control.editing = false;
+                    if (control.authoritativeValue !== null && control.runtimeRange) showScalarValue(control, control.authoritativeValue, control.runtimeRange, false);
+                    number.blur();
+                }
+            });
             reset.addEventListener("click", function () {
                 markPending(controlName);
                 send(commandPath("color_grading.value.reset", { control: controlName }));
@@ -520,7 +586,7 @@
             const cancel = makeButton("Cancel", "command-neutral");
             confirmation.append(prompt, confirm, cancel);
             cardRoot.append(heading, stateText, wheel, fields, luminance.row, resetRegion, confirmation);
-            const card = { root: cardRoot, wheel: wheel, pointer: pointer, hue: hue.input, saturation: saturation.input, rangeText: rangeText, luminance: luminance, resetRegion: resetRegion, state: stateText, value: null, ranges: null, available: false };
+            const card = { root: cardRoot, wheel: wheel, pointer: pointer, hue: hue.input, saturation: saturation.input, rangeText: rangeText, luminance: luminance, resetRegion: resetRegion, state: stateText, value: null, authoritativeValue: null, ranges: null, available: false, editingField: null, cancelNextBlur: false };
             wheel.addEventListener("pointerdown", function (event) {
                 if (!card.available) return;
                 event.preventDefault();
@@ -566,8 +632,23 @@
                 sendWheel(region, true);
             });
             [card.hue, card.saturation].forEach(function (input) {
-                input.addEventListener("blur", function () { commitWheelFields(region); });
-                input.addEventListener("keydown", function (event) { if (event.key === "Enter") commitWheelFields(region); });
+                input.addEventListener("focus", function () { card.editingField = input; card.cancelNextBlur = false; });
+                input.addEventListener("change", function () { if (card.editingField) commitWheelFields(region); });
+                input.addEventListener("blur", function () {
+                    if (card.cancelNextBlur) { card.cancelNextBlur = false; return; }
+                    if (card.editingField) commitWheelFields(region);
+                });
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        commitWheelFields(region);
+                        input.blur();
+                    } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        cancelWheelFieldEdit(card);
+                        input.blur();
+                    }
+                });
             });
             resetRegion.addEventListener("click", function () { confirmation.hidden = false; confirm.focus(); });
             cancel.addEventListener("click", function () { confirmation.hidden = true; resetRegion.focus(); });
@@ -634,5 +715,5 @@
         return { state: state, initialize: initialize, activate: activate, deactivate: deactivate, applySnapshot: applySnapshot, requestSnapshot: requestSnapshot };
     }
 
-    return { ACTIVE_INTERVAL_MS: ACTIVE_INTERVAL_MS, COMMAND_THROTTLE_MS: COMMAND_THROTTLE_MS, normalizeNumber: normalizeNumber, clamp: clamp, wheelPoint: wheelPoint, commandPath: commandPath, createScalarDispatcher: createScalarDispatcher, createCycleGate: createCycleGate, finishWheelPointer: finishWheelPointer, createController: createController };
+    return { ACTIVE_INTERVAL_MS: ACTIVE_INTERVAL_MS, COMMAND_THROTTLE_MS: COMMAND_THROTTLE_MS, normalizeNumber: normalizeNumber, clamp: clamp, updateStatusElement: updateStatusElement, wheelPoint: wheelPoint, commandPath: commandPath, createScalarDispatcher: createScalarDispatcher, createCycleGate: createCycleGate, finishWheelPointer: finishWheelPointer, createController: createController };
 }));
