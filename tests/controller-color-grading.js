@@ -15,19 +15,20 @@ assert.equal((html.match(/<nav class="tabs"/g) || []).length, 1, "Controller mus
 assert.doesNotMatch(html, /data-workspace|workspace-tabs|workspace-tab-button|developWorkspace/);
 assert.match(html, /id="colorGradingWorkspace"/);
 assert.match(html, /const controllerTabStorageKey = "lrbridge\.controller\.activeTab"/);
-assert.match(html, /const controllerTabIds = \["sliders", "color-grading", "selection", "crop", "application", "healing", "redEye", "masking"\]/);
+assert.match(html, /const controllerTabIds = \["sliders", "color-grading", "tone-curve", "selection", "crop", "application", "retouching"\]/);
 const tabIds = JSON.parse(html.match(/const controllerTabIds = (\[[^;]+\]);/)[1]);
-assert.deepEqual(tabIds, ["sliders", "color-grading", "selection", "crop", "application", "healing", "redEye", "masking"]);
-const expectedTabLabels = ["Develop Sliders", "Color Grading", "Selection", "Crop", "Application", "Healing", "Red Eye", "Masking"];
-const tabLabels = { sliders: "Develop Sliders", "color-grading": "Color Grading", selection: "Selection", crop: "Crop", application: "Application", healing: "Healing", redEye: "Red Eye", masking: "Masking" };
+assert.deepEqual(tabIds, ["sliders", "color-grading", "tone-curve", "selection", "crop", "application", "retouching"]);
+const expectedTabLabels = ["Develop Sliders", "Color Grading", "Tone Curve", "Selection", "Crop", "Application", "Retouching"];
+const tabLabels = { sliders: "Develop Sliders", "color-grading": "Color Grading", "tone-curve": "Tone Curve", selection: "Selection", crop: "Crop", application: "Application", retouching: "Retouching" };
 assert.deepEqual(tabIds.map(id => tabLabels[id]), expectedTabLabels, "Flattened controller tab order drifted");
 assert.match(html, /id: "sliders",\s*label: "Develop Sliders"\s*},\s*{\s*id: "color-grading",\s*label: "Color Grading"/);
 assert.match(html, /window\.addEventListener\("hashchange"/);
 assert.match(html, /hash === "develop" \? "sliders"/);
 assert.match(html, /if \(colorGradingActive\) \{\s*deactivateDevelopFeedbackPolling\(\);\s*colorGradingController\.activate\(\);\s*return;/);
-assert.match(html, /colorGradingController\.deactivate\(\);[\s\S]*if \(activeTab !== "sliders"\) deactivateDevelopFeedbackPolling\(\);/);
+assert.match(html, /colorGradingController\.deactivate\(\);[\s\S]*if \(!isGenericDevelopFeedbackTab\(activeTab\)\) deactivateDevelopFeedbackPolling\(\);/);
 assert.match(html, /if \(activeTab === "sliders"\) \{\s*renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
-assert.match(html, /if \(!genericFeedbackActive \|\| activeTab !== "sliders"\) return;/);
+assert.match(html, /if \(activeTab === "tone-curve"\) \{\s*renderToneCurveTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
+assert.match(html, /if \(!genericFeedbackActive \|\| !isGenericDevelopFeedbackTab\(activeTab\)\) return;/);
 assert.doesNotMatch(browser, /setWorkspace|data\.workspace|TAB_STORAGE_KEY/);
 
 assert.match(browser, /fetchFn\("\/api\/color-grading\/metadata"/);

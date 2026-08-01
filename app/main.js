@@ -351,6 +351,16 @@ async function handleControllerRequest(request, response) {
         return;
     }
 
+    if (requestUrl.pathname === "/api/treatment/request") {
+        await proxyControllerRequest(request, response, "/treatment/request");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/treatment/snapshot") {
+        await proxyControllerRequest(request, response, "/treatment/snapshot" + requestUrl.search);
+        return;
+    }
+
     if (requestUrl.pathname === "/api/groups") {
         await proxyControllerRequest(request, response, "/groups");
         return;

@@ -65,6 +65,7 @@ const feedbackRequests = [];
 const feedbackValues = {};
 const feedbackSnapshots = {};
 const colorGradingSnapshots = {};
+const treatmentSnapshots = {};
 let feedbackRequestId = 0;
 let startupLibraryQueued = false;
 const dedicatedFeedbackParameters = new Set(["CropAngle"]);
@@ -638,6 +639,45 @@ app.get("/feedback/next", function (req, res) {
         ok: true,
         request: request
     });
+});
+
+app.get("/treatment/request", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    feedbackRequestId += 1;
+    const request = { id: feedbackRequestId, treatment: true, requestedAt: Date.now() };
+    feedbackRequests.push(request);
+    treatmentSnapshots[request.id] = { id: request.id, status: "pending", grayscale: null };
+    const treatmentIds = Object.keys(treatmentSnapshots).map(Number).sort(function (a, b) { return a - b; });
+    while (treatmentIds.length > 32) delete treatmentSnapshots[treatmentIds.shift()];
+    res.json({ ok: true, request: { id: request.id } });
+});
+
+app.get("/treatment/result", function (req, res) {
+    const id = numbers.parseFiniteInteger(req.query.id);
+    const status = req.query.status;
+    const allowedFields = status === "available" ? ["id", "status", "grayscale"] : ["id", "status"];
+    if (id === null || !["available", "unavailable"].includes(status) ||
+        Object.keys(req.query).some(function (field) { return !allowedFields.includes(field); }) ||
+        (status === "available" && !["true", "false"].includes(req.query.grayscale))) {
+        return res.status(400).json({ ok: false, error: "Invalid treatment result" });
+    }
+    if (!treatmentSnapshots[id]) return res.status(404).json({ ok: false, error: "Unknown treatment request" });
+    treatmentSnapshots[id] = {
+        id: id,
+        status: status,
+        grayscale: status === "available" ? req.query.grayscale === "true" : null
+    };
+    res.json(treatmentSnapshots[id]);
+});
+
+app.get("/treatment/snapshot", function (req, res) {
+    const id = numbers.parseFiniteInteger(req.query.id);
+    if (id === null || Object.keys(req.query).length !== 1 || Array.isArray(req.query.id)) {
+        return res.status(400).set("Cache-Control", "no-store").json({ error: "Invalid treatment request id" });
+    }
+    const snapshot = treatmentSnapshots[id];
+    if (!snapshot) return res.status(404).set("Cache-Control", "no-store").json({ error: "Unknown treatment request" });
+    res.set("Cache-Control", "no-store").json(snapshot);
 });
 
 app.get("/color-grading/request", function (req, res) {

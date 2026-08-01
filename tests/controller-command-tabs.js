@@ -54,6 +54,7 @@ const selectionGroups = extractJavaScriptValue("const selectionGroups =");
 const cropGroups = extractJavaScriptValue("const cropGroups =");
 const applicationGroups = extractJavaScriptValue("const applicationGroups =");
 const sliderActionGroups = extractJavaScriptValue("const sliderActionGroups =");
+const toolTabs = extractJavaScriptValue("const toolTabs =");
 const selectionItems = flatten(selectionGroups);
 const cropItems = flatten(cropGroups);
 const applicationItems = flatten(applicationGroups);
@@ -65,6 +66,29 @@ assert.match(source, /id:\s*"application",\s*label:\s*"Application"/, "Applicati
 assert.match(source, /activeTab === "selection"[\s\S]*renderCommandGroups\(selectionGroups\)/, "Selection tab renderer is missing");
 assert.match(source, /activeTab === "crop"[\s\S]*renderCommandGroups\(cropGroups\)/, "Crop tab renderer is missing");
 assert.match(source, /activeTab === "application"[\s\S]*renderCommandGroups\(applicationGroups\)/, "Application tab renderer is missing");
+assert.equal((source.match(/label: "Retouching"/g) || []).length, 1, "Retouching must appear exactly once in main navigation");
+assert.doesNotMatch(source.match(/const allTabs = \[[\s\S]*?\];/)[0], /label: "(?:Healing|Red Eye|Masking)"/,
+    "Legacy tools must not remain separate main tabs");
+assert.match(source, /function renderRetouchingTab\(\)[\s\S]*\["healing", "redEye", "masking"\]\.forEach[\s\S]*if \(tab\) renderToolTab\(tab\)/,
+    "Retouching must reuse the existing tool renderer in Healing, Red Eye, Masking order");
+assert.deepEqual(toolTabs.map((tab) => tab.title), ["Healing", "Red Eye", "Masking"]);
+assert.deepEqual(toolTabs.map((tab) => tab.actions.map((action) => [action.label, action.action, action.button])), [
+    [["Healing Tool", "selectHealingTool", "Select"], ["Reset Spot Removal", "resetSpotRemoval", "Reset"]],
+    [["Red Eye Tool", "selectRedEyeTool", "Select"], ["Reset Red Eye", "resetRedeye", "Reset"]],
+    [["Masking Tool", "selectMaskingTool", "Select"]]
+], "Retouching action definitions or command payloads drifted");
+const normalizeControllerTab = extractJavaScriptFunction("normalizeControllerTab", "tabFromLocation", {});
+for (const legacyTab of ["healing", "redEye", "masking"]) {
+    assert.equal(normalizeControllerTab(legacyTab), "retouching", "Legacy tab did not migrate: " + legacyTab);
+}
+assert.equal(normalizeControllerTab("tone-curve"), "tone-curve");
+const tabsCss = source.match(/\.tabs\s*\{[\s\S]*?\}/)[0];
+const tabButtonCss = source.match(/\.tab-button\s*\{[\s\S]*?\}/)[0];
+assert.match(tabsCss, /flex-wrap:\s*wrap/, "Main tabs must continue wrapping");
+assert.match(tabButtonCss, /min-height:\s*(?:4[89]|5\d)px/, "Main tabs require at least a 48px touch target");
+assert.match(tabButtonCss, /align-items:\s*center/, "Main tab labels must remain vertically centered");
+assert.match(source, /\.tab-button\.active\s*\{[\s\S]*box-shadow:\s*inset 0 -3px 0 #ffb454/,
+    "Active-tab underline styling must remain intact");
 assert.match(source, /sendCommand\(commandPath\(item\)\)/, "Command buttons must reuse sendCommand()");
 assert.match(
     source,
@@ -90,8 +114,15 @@ assert.deepEqual(
 );
 
 const placementCalls = [];
-const renderSlidersTab = extractJavaScriptFunction("renderSlidersTab", "renderToolTab", {
+const developSectionDisplayOrder = vm.runInNewContext("(" + source.match(
+    /const developSectionDisplayOrder = Object\.freeze\((\[[\s\S]*?\])\);/
+)[1] + ")");
+const sliderRenderContext = {
     developSliderDefinitions: [{ id: "Exposure", group: "Basic" }],
+    developSectionDisplayOrder,
+    treatmentAuthoritativeState: false,
+    treatmentHasAuthoritativeState: true,
+    developRenderedSections: {},
     renderActionsForPlacement(placement) {
         placementCalls.push(["actions", placement]);
     },
@@ -113,18 +144,29 @@ const renderSlidersTab = extractJavaScriptFunction("renderSlidersTab", "renderTo
     },
     setTimeout() {
         // Snapshot scheduling is covered by the focused generic-slider tests.
-    }
-});
-renderSlidersTab();
-assert.deepEqual(
-    placementCalls,
-    [
-        ["actions", "top"],
-        ["actions", "before:Basic"],
-        ["switches", "before:Basic"]
-    ],
-    "Sliders tab must render top action groups exactly once before the first slider group"
+    },
+    setStatus() {}
+};
+sliderRenderContext.renderBasicControlsRow = function () {};
+sliderRenderContext.getDevelopSectionDisplayLabel = function (section) { return section.label; };
+sliderRenderContext.createDevelopSectionElement = function () { return {}; };
+sliderRenderContext.selectDevelopSectionDefinitions = extractJavaScriptFunction(
+    "selectDevelopSectionDefinitions", "updateTreatmentButton", sliderRenderContext
 );
+sliderRenderContext.validateDevelopSectionMapping = extractJavaScriptFunction(
+    "validateDevelopSectionMapping", "createDevelopSectionElement", sliderRenderContext
+);
+const renderSlidersTab = extractJavaScriptFunction("renderSlidersTab", "renderToneCurveTab", sliderRenderContext);
+renderSlidersTab();
+assert.deepEqual(placementCalls[0], ["actions", "top"], "Develop Actions must remain first");
+assert.ok(!placementCalls.some((entry) => entry[0] === "actions" && entry[1] === "before:Basic"),
+    "Auto Tone must not be duplicated through the old Basic Actions placement");
+assert.match(source, /basicActions\.actions\.find\(function \(item\) \{ return item\.action === "setAutoTone"; \}\)/,
+    "Compact Auto must reuse the existing Auto Tone action definition");
+assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*row\.appendChild\(treatmentButton\)/,
+    "Compact Basic controls must render Auto before B&W");
+assert.equal(new Set(placementCalls.map((entry) => entry.join(":"))).size, placementCalls.length,
+    "Develop action or switch placements must not be duplicated by multi-source sections");
 
 assert.match(
     source,

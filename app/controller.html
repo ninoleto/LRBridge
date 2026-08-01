@@ -53,11 +53,16 @@
 
         .tab-button {
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 52px;
             background: transparent;
             color: #8fa2b3;
             border: 0;
             border-radius: 0;
-            padding: 15px 18px 13px 18px;
+            padding: 15px 18px;
+            line-height: 1.2;
             font-weight: 600;
             letter-spacing: 0.01em;
         }
@@ -92,6 +97,31 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
             margin-bottom: 8px;
+        }
+
+        .basic-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            background: #111a23;
+            border: 1px solid #263543;
+            border-radius: 8px;
+        }
+
+        .basic-controls-row button.active {
+            background: #3f6f5a;
+            color: #ffffff;
+        }
+
+        .basic-controls-row button.pending {
+            opacity: 0.65;
+        }
+
+        .basic-controls-status {
+            color: #d6a75b;
+            font-size: 12px;
         }
 
         [hidden] { display: none !important; }
@@ -1369,20 +1399,29 @@
         const statusBox = document.getElementById("status");
 
         const controllerTabStorageKey = "lrbridge.controller.activeTab";
-        const controllerTabIds = ["sliders", "color-grading", "selection", "crop", "application", "healing", "redEye", "masking"];
+        const controllerTabIds = ["sliders", "color-grading", "tone-curve", "selection", "crop", "application", "retouching"];
+
+        function normalizeControllerTab(tab) {
+            if (tab === "healing" || tab === "redEye" || tab === "masking") return "retouching";
+            return tab;
+        }
 
         function tabFromLocation() {
             const hash = window.location.hash.replace(/^#/, "");
-            const hashTab = hash === "develop" ? "sliders" : hash;
+            const hashTab = normalizeControllerTab(hash === "develop" ? "sliders" : hash);
             if (controllerTabIds.includes(hashTab)) return hashTab;
             try {
-                const stored = window.localStorage.getItem(controllerTabStorageKey);
+                const stored = normalizeControllerTab(window.localStorage.getItem(controllerTabStorageKey));
                 if (controllerTabIds.includes(stored)) return stored;
             } catch (err) { /* Storage may be disabled. */ }
             return "sliders";
         }
 
         let activeTab = tabFromLocation();
+
+        function isGenericDevelopFeedbackTab(tab) {
+            return tab === "sliders" || tab === "tone-curve";
+        }
 
         function setStatus(message) {
             statusBox.textContent = message;
@@ -1593,27 +1632,12 @@
         }
 
         function getSliderJumpSections() {
-            const names = [];
-
-            function add(name) {
-                if (!name || names.includes(name)) {
-                    return;
-                }
-
-                names.push(name);
-            }
-
-            developSliderDefinitions.forEach(function (definition) {
-                add(definition.group);
+            return developSectionDisplayOrder.map(function (section) {
+                return {
+                    id: section.id,
+                    label: getDevelopSectionDisplayLabel(section)
+                };
             });
-
-            if (typeof switchGroups !== "undefined") {
-                switchGroups.forEach(function (group) {
-                    add(group.name);
-                });
-            }
-
-            return names;
         }
 
         function findSliderJumpHeading(content, name) {
@@ -1649,24 +1673,21 @@
             }
 
             const sections = getSliderJumpSections()
-                .map(function (name, index) {
-                    const heading = findSliderJumpHeading(contentHost, name);
+                .map(function (section) {
+                    const heading = findSliderJumpHeading(contentHost, section.label);
 
                     if (!heading) {
                         return null;
                     }
 
-                    const id = "slider-jump-section-" + index + "-" + name
-                        .toLowerCase()
-                        .replace(/[^a-z0-9]+/g, "-")
-                        .replace(/^-|-$/g, "");
+                    const id = "slider-jump-section-" + section.id;
 
                     heading.id = id;
                     heading.classList.add("slider-jump-target");
 
                     return {
                         id: id,
-                        name: name
+                        name: section.label
                     };
                 })
                 .filter(Boolean);
@@ -1751,7 +1772,8 @@
             control.appendChild(mainButton);
             control.appendChild(popover);
 
-            contentHost.insertBefore(control, contentHost.firstChild);
+            const basicControls = contentHost.querySelector(".basic-controls-row");
+            contentHost.insertBefore(control, basicControls ? basicControls.nextSibling : contentHost.firstChild);
         }
 
         function startSliderJumpMenuObserver() {
@@ -2141,6 +2163,17 @@
         let genericFeedbackActive = false;
         let genericFeedbackGeneration = 0;
         let genericFeedbackAbortController = null;
+        let treatmentRequestInFlight = false;
+        let treatmentAbortController = null;
+        let treatmentGeneration = 0;
+        let treatmentAuthoritativeState = false;
+        let treatmentHasAuthoritativeState = false;
+        let treatmentStateFresh = false;
+        let treatmentPending = false;
+        let treatmentDesiredState = null;
+        let treatmentButton = null;
+        let treatmentStatus = null;
+        let developRenderedSections = {};
         const activeSliderInteractions = new Set();
         let pendingDevelopContextRefresh = false;
         let lastControllerContextCounter = null;
@@ -2326,7 +2359,8 @@
         }
 
         async function requestLiveFeedbackSnapshot(forceAll) {
-            if (!genericFeedbackActive || activeTab !== "sliders") return;
+            if (!genericFeedbackActive || !isGenericDevelopFeedbackTab(activeTab)) return;
+            if (activeTab === "sliders") requestTreatmentState();
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
                 return;
@@ -2358,7 +2392,7 @@
                     throw new Error("Feedback snapshot request failed");
                 }
                 const outcome = await pollFeedbackSnapshot(request.id, 4000, abortController.signal);
-                if (generation !== genericFeedbackGeneration || !genericFeedbackActive || activeTab !== "sliders" || outcome.aborted) return;
+                if (generation !== genericFeedbackGeneration || !genericFeedbackActive || !isGenericDevelopFeedbackTab(activeTab) || outcome.aborted) return;
                 if (outcome.snapshot) {
                     applyFeedbackSnapshot(outcome.snapshot);
                 }
@@ -2390,7 +2424,7 @@
                 if (generation !== genericFeedbackGeneration) return;
                 genericFeedbackAbortController = null;
                 liveFeedbackSnapshotInFlight = false;
-                if (pendingFullFeedbackSnapshot && genericFeedbackActive && activeTab === "sliders") {
+                if (pendingFullFeedbackSnapshot && genericFeedbackActive && isGenericDevelopFeedbackTab(activeTab)) {
                     pendingFullFeedbackSnapshot = false;
                     requestLiveFeedbackSnapshot(true);
                 }
@@ -2409,6 +2443,9 @@
                     lastHeartbeatAt: lastControllerHeartbeatAt
                 };
                 const classification = classifyControllerContextChange(previous, data);
+                if (classification === "navigation" || classification === "develop-revision") {
+                    invalidateTreatmentState();
+                }
                 currentDevelopRefreshClassification = classification;
                 lastControllerContextCounter = data.contextCounter;
                 lastControllerDevelopCounter = data.developCounter;
@@ -2507,6 +2544,10 @@
                     label: "Color Grading"
                 },
                 {
+                    id: "tone-curve",
+                    label: "Tone Curve"
+                },
+                {
                     id: "selection",
                     label: "Selection"
                 },
@@ -2517,13 +2558,12 @@
                 {
                     id: "application",
                     label: "Application"
+                },
+                {
+                    id: "retouching",
+                    label: "Retouching"
                 }
-            ].concat(toolTabs.map(function (tab) {
-                return {
-                    id: tab.id,
-                    label: tab.label
-                };
-            }));
+            ];
 
             for (const tab of allTabs) {
                 const button = document.createElement("button");
@@ -2541,6 +2581,7 @@
         }
 
         function selectControllerTab(tab, updateHistory) {
+            tab = normalizeControllerTab(tab);
             if (!controllerTabIds.includes(tab)) tab = "sliders";
             if (tab === activeTab && content.isConnected) return;
             activeTab = tab;
@@ -3673,7 +3714,248 @@
             }
         }
 
+        const toneCurveDisplayOrder = Object.freeze([
+            "ParametricHighlights",
+            "ParametricLights",
+            "ParametricDarks",
+            "ParametricShadows",
+            "ParametricShadowSplit",
+            "ParametricMidtoneSplit",
+            "ParametricHighlightSplit"
+        ]);
+
+        const developSectionDisplayOrder = Object.freeze([
+            { id: "white-balance", label: "White Balance", selectors: [{ group: "Color", ids: ["Temperature", "Tint"] }] },
+            { id: "tone", label: "Tone", selectors: [{ group: "Basic" }] },
+            { id: "presence", label: "Presence", selectors: [{ group: "Presence" }, { group: "Color", ids: ["Vibrance", "Saturation"] }] },
+            { id: "color-mixer", label: "Color Mixer", selectors: [{ group: "Color Mixer / HSL" }, { group: "B&W Mixer" }] },
+            { id: "detail", label: "Detail", selectors: [{ group: "Detail" }] },
+            { id: "lens-corrections", label: "Lens Corrections", selectors: [{ group: "Lens / Defringe" }] },
+            { id: "transform", label: "Transform", selectors: [{ group: "Transform" }] },
+            { id: "effects", label: "Effects", selectors: [{ group: "Effects" }] },
+            { id: "calibration", label: "Calibration", selectors: [{ group: "Calibration" }] }
+        ]);
+
+        function getDevelopSectionDisplayLabel(section) {
+            if (
+                section.id === "color-mixer" &&
+                treatmentHasAuthoritativeState &&
+                treatmentAuthoritativeState
+            ) {
+                return "B&W";
+            }
+            return section.label;
+        }
+
+        function selectDevelopSectionDefinitions(section) {
+            const selected = [];
+            section.selectors.forEach(function (selector) {
+                if (section.id === "color-mixer") {
+                    if (treatmentAuthoritativeState && selector.group !== "B&W Mixer") return;
+                    if (!treatmentAuthoritativeState && selector.group !== "Color Mixer / HSL") return;
+                }
+                const selectedIds = selector.ids ? new Set(selector.ids) : null;
+                developSliderDefinitions.forEach(function (definition) {
+                    if (definition.group !== selector.group) return;
+                    if (selectedIds && !selectedIds.has(definition.id)) return;
+                    selected.push({ definition: definition, subheading: selector.subheading || null });
+                });
+            });
+            return selected;
+        }
+
+        function updateTreatmentButton() {
+            if (!treatmentButton) return;
+            treatmentButton.disabled = treatmentPending || !treatmentHasAuthoritativeState;
+            treatmentButton.setAttribute("role", "switch");
+            treatmentButton.setAttribute("aria-checked", String(treatmentHasAuthoritativeState && treatmentAuthoritativeState));
+            treatmentButton.classList.toggle("active", treatmentAuthoritativeState === true);
+            treatmentButton.classList.toggle("pending", treatmentPending);
+            treatmentButton.title = treatmentAuthoritativeState ? "Black & White mode" : "Color mode";
+            if (treatmentStatus) {
+                treatmentStatus.textContent = treatmentPending ? "Applying…" :
+                    (!treatmentHasAuthoritativeState ? "Loading treatment…" :
+                        (treatmentStateFresh ? (treatmentAuthoritativeState ? "Black & White" : "Color") : "Treatment unavailable"));
+            }
+        }
+
+        function invalidateTreatmentState() {
+            treatmentStateFresh = false;
+            treatmentGeneration += 1;
+            if (treatmentAbortController) treatmentAbortController.abort();
+            treatmentAbortController = null;
+            treatmentRequestInFlight = false;
+            treatmentPending = false;
+            treatmentDesiredState = null;
+            updateTreatmentButton();
+        }
+
+        async function requestTreatmentState() {
+            if (activeTab !== "sliders" || treatmentRequestInFlight) return;
+            treatmentRequestInFlight = true;
+            const generation = treatmentGeneration;
+            const abortController = new AbortController();
+            treatmentAbortController = abortController;
+            try {
+                const response = await fetch("/api/treatment/request", { cache: "no-store", signal: abortController.signal });
+                const data = await response.json();
+                if (!response.ok || !data.request) throw new Error("Treatment request failed");
+                let snapshot = null;
+                const deadline = Date.now() + 4000;
+                while (!abortController.signal.aborted && Date.now() < deadline) {
+                    const snapshotResponse = await fetch("/api/treatment/snapshot?id=" + encodeURIComponent(data.request.id), {
+                        cache: "no-store", signal: abortController.signal
+                    });
+                    snapshot = await snapshotResponse.json();
+                    if (!snapshotResponse.ok) throw new Error("Treatment snapshot failed");
+                    if (snapshot.status !== "pending") break;
+                    await sleep(120);
+                }
+                if (generation !== treatmentGeneration || abortController.signal.aborted || activeTab !== "sliders") return;
+                if (!snapshot || snapshot.status !== "available" || typeof snapshot.grayscale !== "boolean") {
+                    throw new Error("Treatment unavailable");
+                }
+                const changed = !treatmentHasAuthoritativeState || treatmentAuthoritativeState !== snapshot.grayscale;
+                treatmentAuthoritativeState = snapshot.grayscale;
+                treatmentHasAuthoritativeState = true;
+                treatmentStateFresh = true;
+                if (treatmentPending && treatmentDesiredState !== snapshot.grayscale) {
+                    updateTreatmentButton();
+                    return;
+                }
+                treatmentPending = false;
+                treatmentDesiredState = null;
+                updateTreatmentButton();
+                if (changed) rerenderColorMixerSection();
+            } catch (err) {
+                if (abortController.signal.aborted || generation !== treatmentGeneration) return;
+                treatmentPending = false;
+                treatmentDesiredState = null;
+                treatmentStateFresh = false;
+                updateTreatmentButton();
+                setStatus("WARNING: Could not read Lightroom treatment; slider feedback remains active.");
+            } finally {
+                if (generation === treatmentGeneration) {
+                    treatmentRequestInFlight = false;
+                    treatmentAbortController = null;
+                }
+            }
+        }
+
+        async function toggleTreatment() {
+            if (treatmentPending || !treatmentHasAuthoritativeState) return;
+            treatmentGeneration += 1;
+            if (treatmentAbortController) treatmentAbortController.abort();
+            treatmentAbortController = null;
+            treatmentRequestInFlight = false;
+            treatmentPending = true;
+            treatmentDesiredState = !treatmentAuthoritativeState;
+            updateTreatmentButton();
+            const mode = treatmentAuthoritativeState ? "color" : "grayscale";
+            const sent = await sendCommand("/api/command?command=photo.treatment&value=" + encodeURIComponent(mode));
+            if (!sent) {
+                treatmentPending = false;
+                treatmentDesiredState = null;
+                updateTreatmentButton();
+                return;
+            }
+            requestTreatmentState();
+        }
+
+        function validateDevelopSectionMapping(sections) {
+            const expectedIds = developSliderDefinitions.filter(function (definition) {
+                if (definition.group === "Tone Curve") return false;
+                if (treatmentAuthoritativeState && definition.group === "Color Mixer / HSL") return false;
+                if (!treatmentAuthoritativeState && definition.group === "B&W Mixer") return false;
+                return true;
+            }).map(function (definition) {
+                return definition.id;
+            });
+            const selectedIds = sections.flatMap(function (section) {
+                return section.items.map(function (item) { return item.definition.id; });
+            });
+            const seen = new Set();
+            const duplicates = selectedIds.filter(function (id) {
+                if (seen.has(id)) return true;
+                seen.add(id);
+                return false;
+            });
+            const expected = new Set(expectedIds);
+            const selected = new Set(selectedIds);
+            const omitted = expectedIds.filter(function (id) { return !selected.has(id); });
+            const unexpected = selectedIds.filter(function (id) { return !expected.has(id); });
+            if (duplicates.length === 0 && omitted.length === 0 && unexpected.length === 0) return null;
+            return "Develop section mapping error. Duplicated: " + (duplicates.join(", ") || "none") +
+                "; omitted: " + (omitted.join(", ") || "none") +
+                "; unexpected: " + (unexpected.join(", ") || "none") + ".";
+        }
+
+        function createDevelopSectionElement(section) {
+            const groupElement = document.createElement("section");
+            groupElement.className = "group";
+            groupElement.dataset.developSection = section.id;
+            const title = document.createElement("div");
+            title.className = "group-title";
+            title.textContent = section.label;
+            groupElement.appendChild(title);
+            let currentSubheading = null;
+            section.items.forEach(function (item) {
+                if (item.subheading && item.subheading !== currentSubheading) {
+                    const subheading = document.createElement("div");
+                    subheading.className = "section-title";
+                    subheading.textContent = item.subheading;
+                    groupElement.appendChild(subheading);
+                    currentSubheading = item.subheading;
+                }
+                groupElement.appendChild(createDevelopSliderControl(item.definition));
+            });
+            return groupElement;
+        }
+
+        function rerenderColorMixerSection() {
+            if (activeTab !== "sliders" || !developRenderedSections["color-mixer"]) return;
+            const specification = developSectionDisplayOrder.find(function (section) {
+                return section.id === "color-mixer";
+            });
+            const section = {
+                id: specification.id,
+                label: getDevelopSectionDisplayLabel(specification),
+                selectors: specification.selectors,
+                items: selectDevelopSectionDefinitions(specification)
+            };
+            const replacement = createDevelopSectionElement(section);
+            developRenderedSections["color-mixer"].replaceWith(replacement);
+            developRenderedSections["color-mixer"] = replacement;
+            const jumpMenu = content.querySelector(".slider-jump-control");
+            if (jumpMenu) jumpMenu.remove();
+            installSliderJumpMenu();
+            requestLiveFeedbackSnapshot(true);
+        }
+
+        function renderBasicControlsRow() {
+            const basicActions = sliderActionGroups.find(function (group) { return group.name === "Basic Actions"; });
+            const autoTone = basicActions && basicActions.actions.find(function (item) { return item.action === "setAutoTone"; });
+            const row = document.createElement("div");
+            row.className = "basic-controls-row";
+            if (autoTone) {
+                const autoButton = makeButton("Auto", autoTone.className || "positive", function () {
+                    if (isAutoActionCooldownActiveFor(autoTone.action)) return;
+                    sendCommand("/api/action?action=" + encodeURIComponent(autoTone.action));
+                });
+                registerAutoActionButton(autoTone.action, autoButton);
+                row.appendChild(autoButton);
+            }
+            treatmentButton = makeButton("B&W", "command-neutral", toggleTreatment);
+            treatmentStatus = document.createElement("span");
+            treatmentStatus.className = "basic-controls-status";
+            row.appendChild(treatmentButton);
+            row.appendChild(treatmentStatus);
+            updateTreatmentButton();
+            content.appendChild(row);
+        }
+
         function renderSlidersTab() {
+            developRenderedSections = {};
             developLoadingStatus = document.createElement("div");
             developLoadingStatus.className = "develop-loading-status";
             developLoadingStatus.role = "status";
@@ -3682,39 +3964,81 @@
                 hasReceivedAnyAuthoritativeDevelopValue
             ) ? "" : "Loading Lightroom values…";
             content.appendChild(developLoadingStatus);
-            renderActionsForPlacement("top");
-
-            const groups = [];
-            developSliderDefinitions.forEach(function (definition) {
-                let group = groups.find(function (item) {
-                    return item.name === definition.group;
-                });
-                if (!group) {
-                    group = { name: definition.group, sliders: [] };
-                    groups.push(group);
-                }
-                group.sliders.push(definition);
+            renderBasicControlsRow();
+            const sections = developSectionDisplayOrder.map(function (section) {
+                return {
+                    id: section.id,
+                    label: getDevelopSectionDisplayLabel(section),
+                    selectors: section.selectors,
+                    items: selectDevelopSectionDefinitions(section)
+                };
             });
-
-            for (const group of groups) {
-                renderActionsForPlacement("before:" + group.name);
-                renderSwitchesForPlacement("before:" + group.name);
-
-                const groupElement = document.createElement("section");
-                groupElement.className = "group";
-
-                const title = document.createElement("div");
-                title.className = "group-title";
-                title.textContent = group.name;
-
-                groupElement.appendChild(title);
-
-                for (const definition of group.sliders) {
-                    groupElement.appendChild(createDevelopSliderControl(definition));
-                }
-
-                content.appendChild(groupElement);
+            const mappingError = validateDevelopSectionMapping(sections);
+            if (mappingError) {
+                const errorElement = document.createElement("section");
+                errorElement.className = "group";
+                errorElement.textContent = mappingError;
+                content.appendChild(errorElement);
+                setStatus("ERROR: " + mappingError);
+                return;
             }
+            renderActionsForPlacement("top");
+            const renderedActionPlacements = new Set(["before:Basic"]);
+            const renderedSwitchPlacements = new Set();
+
+            for (const section of sections) {
+                section.selectors.forEach(function (selector) {
+                    const placement = "before:" + selector.group;
+                    if (!renderedActionPlacements.has(placement)) {
+                        renderActionsForPlacement(placement);
+                        renderedActionPlacements.add(placement);
+                    }
+                    if (!renderedSwitchPlacements.has(placement)) {
+                        renderSwitchesForPlacement(placement);
+                        renderedSwitchPlacements.add(placement);
+                    }
+                });
+
+                const groupElement = createDevelopSectionElement(section);
+                content.appendChild(groupElement);
+                developRenderedSections[section.id] = groupElement;
+            }
+
+            setTimeout(function () {
+                requestLiveFeedbackSnapshot(true);
+            }, 0);
+        }
+
+        function renderToneCurveTab() {
+            developLoadingStatus = document.createElement("div");
+            developLoadingStatus.className = "develop-loading-status";
+            developLoadingStatus.role = "status";
+            developLoadingStatus.textContent = (
+                typeof hasReceivedAnyAuthoritativeDevelopValue !== "undefined" &&
+                hasReceivedAnyAuthoritativeDevelopValue
+            ) ? "" : "Loading Lightroom values…";
+            content.appendChild(developLoadingStatus);
+
+            const groupElement = document.createElement("section");
+            groupElement.className = "group";
+
+            const title = document.createElement("div");
+            title.className = "group-title";
+            title.textContent = "Parametric Curve";
+            groupElement.appendChild(title);
+
+            const toneCurveDefinitionsById = new Map();
+            developSliderDefinitions.filter(function (definition) {
+                return definition.group === "Tone Curve";
+            }).forEach(function (definition) {
+                toneCurveDefinitionsById.set(definition.id, definition);
+            });
+            toneCurveDisplayOrder.forEach(function (sliderId) {
+                const definition = toneCurveDefinitionsById.get(sliderId);
+                if (!definition) return;
+                groupElement.appendChild(createDevelopSliderControl(definition));
+            });
+            content.appendChild(groupElement);
 
             setTimeout(function () {
                 requestLiveFeedbackSnapshot(true);
@@ -3738,6 +4062,15 @@
             content.appendChild(groupElement);
         }
 
+        function renderRetouchingTab() {
+            ["healing", "redEye", "masking"].forEach(function (tabId) {
+                const tab = toolTabs.find(function (item) {
+                    return item.id === tabId;
+                });
+                if (tab) renderToolTab(tab);
+            });
+        }
+
         function render() {
             renderTabs();
 
@@ -3751,11 +4084,18 @@
             }
 
             colorGradingController.deactivate();
-            if (activeTab !== "sliders") deactivateDevelopFeedbackPolling();
+            if (activeTab !== "sliders") invalidateTreatmentState();
+            if (!isGenericDevelopFeedbackTab(activeTab)) deactivateDevelopFeedbackPolling();
             clearContent();
 
             if (activeTab === "sliders") {
                 renderSlidersTab();
+                activateDevelopFeedbackPolling();
+                return;
+            }
+
+            if (activeTab === "tone-curve") {
+                renderToneCurveTab();
                 activateDevelopFeedbackPolling();
                 return;
             }
@@ -3775,12 +4115,9 @@
                 return;
             }
 
-            const tab = toolTabs.find(function (item) {
-                return item.id === activeTab;
-            });
-
-            if (tab) {
-                renderToolTab(tab);
+            if (activeTab === "retouching") {
+                renderRetouchingTab();
+                return;
             }
         }
 
@@ -3816,7 +4153,7 @@
         colorGradingController.initialize();
         window.addEventListener("hashchange", function () {
             const hash = window.location.hash.replace(/^#/, "");
-            selectControllerTab(hash === "develop" ? "sliders" : hash, false);
+            selectControllerTab(normalizeControllerTab(hash === "develop" ? "sliders" : hash), false);
         });
     </script>
 </body>

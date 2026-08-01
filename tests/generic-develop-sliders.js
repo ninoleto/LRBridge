@@ -12,6 +12,9 @@ const feedback = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Fe
 const query = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Query.lua"), "utf8");
 const parser = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Parser.lua"), "utf8");
 const luaCommands = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Commands.lua"), "utf8");
+const photo = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Photo.lua"), "utf8");
+const mainProcess = fs.readFileSync(path.join(root, "app/main.js"), "utf8");
+const bridge = fs.readFileSync(path.join(root, "server/bridge.js"), "utf8");
 
 assert.equal(metadata.length, 96, "Slider registry count changed");
 assert.equal(new Set(metadata.map((item) => item.id)).size, metadata.length, "Duplicate slider ID");
@@ -34,6 +37,25 @@ for (const item of metadata) {
 
 const feedbackDefinitions = metadata.filter((item) => item.feedbackSupported === true);
 assert.equal(feedbackDefinitions.length, 93, "Generic slider control count changed");
+const toneCurveDefinitions = feedbackDefinitions.filter((item) => item.group === "Tone Curve");
+const metadataToneCurveIds = [
+    "ParametricDarks", "ParametricLights", "ParametricShadows", "ParametricHighlights",
+    "ParametricShadowSplit", "ParametricMidtoneSplit", "ParametricHighlightSplit"
+];
+const expectedToneCurveDisplayOrder = [
+    "ParametricHighlights", "ParametricLights", "ParametricDarks", "ParametricShadows",
+    "ParametricShadowSplit", "ParametricMidtoneSplit", "ParametricHighlightSplit"
+];
+assert.deepEqual(toneCurveDefinitions.map((item) => item.id), metadataToneCurveIds, "Tone Curve metadata group drifted");
+assert.equal(new Set(toneCurveDefinitions.map((item) => item.id)).size, 7, "Tone Curve slider ID duplicated");
+const toneCurveDisplayOrderMatch = controller.match(/const toneCurveDisplayOrder = Object\.freeze\((\[[\s\S]*?\])\);/);
+assert.ok(toneCurveDisplayOrderMatch, "Tone Curve immutable display order is missing");
+const toneCurveDisplayOrder = JSON.parse(toneCurveDisplayOrderMatch[1]);
+assert.deepEqual(toneCurveDisplayOrder, expectedToneCurveDisplayOrder, "Tone Curve rendered order drifted");
+assert.equal(toneCurveDisplayOrder.length, 7, "Tone Curve must render exactly seven controls");
+assert.equal(new Set(toneCurveDisplayOrder).size, 7, "Tone Curve display order duplicated a slider ID");
+assert.deepEqual(new Set(toneCurveDisplayOrder), new Set(metadataToneCurveIds),
+    "Tone Curve display order must reference exactly the existing metadata definitions");
 assert.deepEqual(
     metadata.filter((item) => item.feedbackSupported === false).map((item) => item.id),
     ["LensProfileEnable", "AutoLateralCA", "LensProfileChromaticAberrationScale"]
@@ -130,9 +152,11 @@ assert.doesNotMatch(
     "Navigation classification must use identity only"
 );
 assert.match(controller, /lastControllerDevelopCounter = data\.developCounter/);
-assert.match(controller, /if \(!genericFeedbackActive \|\| activeTab !== "sliders"\) return/);
+assert.match(controller, /function isGenericDevelopFeedbackTab\(tab\) \{\s*return tab === "sliders" \|\| tab === "tone-curve";\s*\}/);
+assert.match(controller, /if \(!genericFeedbackActive \|\| !isGenericDevelopFeedbackTab\(activeTab\)\) return/);
 assert.match(controller, /function deactivateDevelopFeedbackPolling\(\)[\s\S]*genericFeedbackAbortController\.abort\(\)/);
 assert.match(controller, /if \(activeTab === "sliders"\) \{\s*renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
+assert.match(controller, /if \(activeTab === "tone-curve"\) \{\s*renderToneCurveTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
 assert.match(controller, /row\.dataset\.sliderId = definition\.id/);
 assert.match(controller, /const DEBUG_DEVELOP_REFRESH = true/);
 const finalConfirmationBlock = controller.match(
@@ -183,6 +207,168 @@ const renderSlidersBlock = controller.match(
 )[0];
 assert.doesNotMatch(renderSlidersBlock, /mark(?:All|Uninitialized)DevelopSlidersLoading/,
     "Returning to the Develop tab must not make populated rows visibly Loading");
+const slidersOnlyBlock = controller.match(/function renderSlidersTab[\s\S]*?function renderToneCurveTab/)[0];
+const toneCurveBlock = controller.match(/function renderToneCurveTab[\s\S]*?function renderToolTab/)[0];
+const developSectionDisplayOrderMatch = controller.match(/const developSectionDisplayOrder = Object\.freeze\((\[[\s\S]*?\])\);/);
+assert.ok(developSectionDisplayOrderMatch, "Develop presentation specification is missing");
+const developSectionDisplayOrder = JSON.parse(JSON.stringify(
+    require("node:vm").runInNewContext("(" + developSectionDisplayOrderMatch[1] + ")")
+));
+const expectedDevelopSectionLabels = [
+    "White Balance", "Tone", "Presence", "Color Mixer", "Detail",
+    "Lens Corrections", "Transform", "Effects", "Calibration"
+];
+assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), expectedDevelopSectionLabels);
+assert.deepEqual(developSectionDisplayOrder.map((section) => section.id), [
+    "white-balance", "tone", "presence", "color-mixer", "detail",
+    "lens-corrections", "transform", "effects", "calibration"
+]);
+const displayLabelContext = {
+    treatmentHasAuthoritativeState: false,
+    treatmentAuthoritativeState: false
+};
+const getDevelopSectionDisplayLabel = require("node:vm").runInNewContext(
+    "(" + controller.match(/function getDevelopSectionDisplayLabel\(section\) \{[\s\S]*?\n        \}/)[0] + ")",
+    displayLabelContext
+);
+const colorMixerSection = developSectionDisplayOrder.find((section) => section.id === "color-mixer");
+assert.equal(getDevelopSectionDisplayLabel(colorMixerSection), "Color Mixer",
+    "Initial treatment loading must retain the provisional Color Mixer label");
+displayLabelContext.treatmentHasAuthoritativeState = true;
+assert.equal(getDevelopSectionDisplayLabel(colorMixerSection), "Color Mixer",
+    "Authoritative Color must retain the Color Mixer label");
+displayLabelContext.treatmentAuthoritativeState = true;
+assert.equal(getDevelopSectionDisplayLabel(colorMixerSection), "B&W",
+    "Authoritative grayscale treatment must use the B&W label");
+assert.equal(colorMixerSection.id, "color-mixer", "The conditional mixer section identity must remain stable");
+assert.ok(!colorMixerSection.selectors.find((selector) => selector.group === "B&W Mixer").subheading,
+    "B&W mode must not render a redundant internal B&W Mixer subheading");
+function selectMappedDefinitions(section) {
+    return section.selectors.flatMap((selector) => {
+        const ids = selector.ids ? new Set(selector.ids) : null;
+        return feedbackDefinitions.filter((definition) =>
+            definition.group === selector.group && (!ids || ids.has(definition.id))
+        );
+    });
+}
+const mappedSections = developSectionDisplayOrder.map((section) => ({
+    label: section.label,
+    ids: selectMappedDefinitions(section).map((definition) => definition.id)
+}));
+assert.deepEqual(mappedSections.find((section) => section.label === "White Balance").ids,
+    ["Temperature", "Tint"]);
+assert.deepEqual(mappedSections.find((section) => section.label === "Tone").ids,
+    feedbackDefinitions.filter((definition) => definition.group === "Basic").map((definition) => definition.id));
+assert.deepEqual(mappedSections.find((section) => section.label === "Presence").ids,
+    ["Texture", "Clarity", "Dehaze", "Vibrance", "Saturation"]);
+assert.deepEqual(mappedSections.find((section) => section.label === "Color Mixer").ids,
+    feedbackDefinitions.filter((definition) => ["Color Mixer / HSL", "B&W Mixer"].includes(definition.group))
+        .map((definition) => definition.id));
+assert.deepEqual(mappedSections.find((section) => section.label === "Lens Corrections").ids,
+    feedbackDefinitions.filter((definition) => definition.group === "Lens / Defringe").map((definition) => definition.id));
+const mappedDevelopIds = mappedSections.flatMap((section) => section.ids);
+const expectedDevelopIds = feedbackDefinitions.filter((definition) => definition.group !== "Tone Curve")
+    .map((definition) => definition.id);
+assert.equal(new Set(mappedDevelopIds).size, mappedDevelopIds.length, "Develop presentation duplicated a slider ID");
+assert.deepEqual(new Set(mappedDevelopIds), new Set(expectedDevelopIds),
+    "Develop presentation omitted or unexpectedly selected a slider ID");
+assert.doesNotMatch(JSON.stringify(developSectionDisplayOrder), /Tone Curve|Color Grading|Lens Blur/);
+assert.match(controller, /function getSliderJumpSections\(\) \{\s*return developSectionDisplayOrder\.map/,
+    "Jump menu and rendered sections must share the presentation specification");
+assert.match(controller, /function getSliderJumpSections[\s\S]*label: getDevelopSectionDisplayLabel\(section\)/,
+    "Jump labels must use the shared conditional section-label helper");
+assert.match(controller, /title\.textContent = section\.label/,
+    "Rendered headings must consume the shared presentation label");
+assert.match(controller, /jumpMenu\.remove\(\);[\s\S]*installSliderJumpMenu\(\);[\s\S]*requestLiveFeedbackSnapshot\(true\)/,
+    "Mixer replacement must refresh its existing jump label before the normal connected-row snapshot");
+assert.match(slidersOnlyBlock, /validateDevelopSectionMapping\(sections\)/);
+assert.match(slidersOnlyBlock, /setStatus\("ERROR: " \+ mappingError\)/,
+    "Invalid presentation mappings must fail visibly");
+assert.match(controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0],
+    /createDevelopSliderControl\(item\.definition\)/,
+    "Develop presentation must reuse the production slider factory");
+assert.match(controller, /row\.appendChild\(autoButton\)[\s\S]*row\.appendChild\(treatmentButton\)/);
+assert.match(controller, /autoTone\.action === "setAutoTone"|item\.action === "setAutoTone"/);
+assert.match(controller, /command=photo\.treatment&value=/);
+assert.match(controller, /if \(section\.id === "color-mixer"\)[\s\S]*treatmentAuthoritativeState[\s\S]*"B&W Mixer"[\s\S]*"Color Mixer \/ HSL"/);
+assert.match(controller, /rerenderColorMixerSection\(\)[\s\S]*requestLiveFeedbackSnapshot\(true\)/);
+assert.match(controller, /if \(activeTab === "sliders"\) requestTreatmentState\(\)/,
+    "Treatment reads must reuse the existing Develop feedback cadence");
+assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1);
+assert.doesNotMatch(controller + bridge + mainProcess + photo + feedback, /HDREditMode|HDRMaxValue|SDRBlend|ToneCurvePV2012/);
+assert.match(feedback, /photo:getDevelopSettings\(\)[\s\S]*settings\.ConvertToGrayscale/);
+assert.doesNotMatch(feedback, /json.*DevelopSettings|getDevelopSettings.*url/i,
+    "Full Develop settings must never be serialized");
+assert.match(photo, /quickDevelopSetTreatment\("grayscale"\)/);
+assert.match(photo, /quickDevelopSetTreatment\("color"\)/);
+assert.match(bridge, /grayscale: status === "available" \? req\.query\.grayscale === "true" : null/);
+assert.match(mainProcess, /"\/api\/treatment\/request"[\s\S]*"\/treatment\/request"/);
+assert.match(controller, /treatmentButton\.setAttribute\("role", "switch"\)/);
+assert.match(controller, /treatmentButton\.setAttribute\("aria-checked", String\(treatmentHasAuthoritativeState && treatmentAuthoritativeState\)\)/);
+assert.match(controller, /treatmentButton\.disabled = treatmentPending \|\| !treatmentHasAuthoritativeState/);
+assert.match(controller, /treatmentButton\.title = treatmentAuthoritativeState \? "Black & White mode" : "Color mode"/);
+assert.match(controller, /const mode = treatmentAuthoritativeState \? "color" : "grayscale"/);
+assert.match(controller, /treatmentPending && treatmentDesiredState !== snapshot\.grayscale/,
+    "Treatment must remain pending until matching authoritative readback");
+assert.match(controller, /const changed = !treatmentHasAuthoritativeState \|\| treatmentAuthoritativeState !== snapshot\.grayscale/);
+assert.equal(feedbackDefinitions.filter((definition) => definition.group === "Color Mixer / HSL").length, 24);
+assert.equal(feedbackDefinitions.filter((definition) => definition.group === "B&W Mixer").length, 8);
+assert.doesNotMatch(controller, /if \(!treatmentHasAuthoritativeState\) return;/,
+    "First load must provisionally render the Color mixer rather than an empty section");
+assert.match(controller, /let treatmentAuthoritativeState = false/,
+    "The provisional first-load mixer must select the 24 HSL definitions");
+assert.match(controller, /selector\.group !== "B&W Mixer"[\s\S]*selector\.group !== "Color Mixer \/ HSL"/);
+assert.match(feedback, /local LrApplication = import "LrApplication"/);
+assert.match(feedback, /if photo == nil then\s*unavailableReason = "no_photo"/);
+assert.match(feedback, /if ok ~= true then\s*unavailableReason = "settings_error"/);
+assert.match(feedback, /elseif type\(settings\) ~= "table" then\s*unavailableReason = "settings_not_table"/);
+assert.match(feedback, /settings\.ConvertToGrayscale == true then\s*grayscale = true/);
+assert.match(feedback, /settings\.ConvertToGrayscale == false or settings\.ConvertToGrayscale == nil then\s*grayscale = false/);
+assert.match(feedback, /unavailableReason = "unexpected_type"/);
+assert.match(feedback, /log\("treatment request received: id=" \.\. tostring\(id\)\)/);
+assert.match(feedback, /log\("treatment settings read succeeded"\)/);
+assert.match(feedback, /log\("treatment result posted: available " \.\. \(grayscale and "grayscale" or "color"\)\)/);
+assert.match(feedback, /log\("treatment result posted: unavailable " \.\. tostring\(reason\)\)/);
+assert.match(feedback, /local treatmentWorkerActive = false/);
+assert.match(feedback, /if treatmentWorkerActive == true then return end/,
+    "Only one treatment worker may run at a time");
+assert.match(feedback, /LrTasks\.startAsyncTask\(function\(\)[\s\S]*LrApplication\.activeCatalog\(\)[\s\S]*catalog:getTargetPhoto\(\)[\s\S]*photo:getDevelopSettings\(\)/,
+    "Catalog, photo, and Develop settings must be resolved inside the dedicated task");
+assert.equal((feedback.match(/photo:getDevelopSettings\(\)/g) || []).length, 1,
+    "Treatment settings must be read only by the dedicated worker");
+assert.match(feedback, /local treatmentOk = LrTasks\.pcall\(function\(\)[\s\S]*photo:getDevelopSettings\(\)/,
+    "Treatment runtime errors must not terminate the feedback task");
+assert.match(feedback, /local postOk = LrTasks\.pcall\(function\(\) LrHttp\.get\(url \.\. "&status=unavailable"\) end\)/,
+    "Unavailable treatment results must use yield-safe protection");
+assert.match(feedback, /table\.insert\(pendingTreatmentRequestIds, id\)[\s\S]*while #pendingTreatmentRequestIds > 0/,
+    "Every queued treatment request must receive a terminal worker result");
+assert.match(feedback, /startTreatmentWorker\(id\)[\s\S]*slider = nil[\s\S]*if slider ~= nil then/,
+    "The feedback loop must dispatch treatment work without waiting for it");
+assert.match(feedback, /treatment snapshot failure: runtime_error[\s\S]*postUnavailableTreatmentResult\(requestId, "runtime_error"\)/);
+assert.match(feedback, /postUnavailableTreatmentResult[\s\S]*status=unavailable/);
+assert.match(feedback, /log\("treatment result post failed"\)/);
+assert.match(controller, /finally \{[\s\S]*treatmentRequestInFlight = false;[\s\S]*treatmentAbortController = null;/,
+    "Treatment timeout/failure must release the in-flight lock for the next feedback cycle");
+const treatmentFeedbackBlock = feedback.match(
+    /local treatmentWorkerActive = false[\s\S]*?\nend\n\nif _G\.LRBridgeFeedbackPollingStarted/
+)[0];
+assert.doesNotMatch(treatmentFeedbackBlock,
+    /tostring\(settings\)|tostring\(photo\)|photo\.path|filename|getRawMetadata/i,
+    "Treatment diagnostics must not expose photo or settings data");
+assert.match(toneCurveBlock, /title\.textContent = "Parametric Curve"/);
+assert.match(toneCurveBlock, /return definition\.group === "Tone Curve"/);
+assert.match(toneCurveBlock, /toneCurveDefinitionsById\.set\(definition\.id, definition\)/);
+assert.match(toneCurveBlock, /toneCurveDisplayOrder\.forEach\(function \(sliderId\)/);
+assert.match(toneCurveBlock, /if \(!definition\) return;/, "Missing Tone Curve definitions must fail safely");
+assert.match(toneCurveBlock, /groupElement\.appendChild\(createDevelopSliderControl\(definition\)\)/,
+    "Tone Curve must reuse the production Develop control factory");
+assert.match(toneCurveBlock, /createDevelopSliderControl\(definition\)[\s\S]*requestLiveFeedbackSnapshot\(true\)/,
+    "Tone Curve must render cached controls before requesting fresh feedback");
+assert.doesNotMatch(toneCurveBlock, /svg|graph|histogram|Point Curve|ToneCurvePV2012/i);
+assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1,
+    "Generic Develop feedback must retain exactly one snapshot timer");
+assert.match(controller, /Object\.keys\(developSliderControls\)\.filter\(function \(slider\) \{\s*return developSliderControls\[slider\]\.row\.isConnected;/,
+    "Forced feedback snapshots must use only connected rendered controls");
 
 {
     const active = new Set();

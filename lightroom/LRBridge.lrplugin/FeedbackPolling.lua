@@ -503,6 +503,84 @@ local function sendColorGradingSnapshot(id)
     log("Color Grading snapshot sent for request " .. tostring(id))
 end
 
+local treatmentWorkerActive = false
+local pendingTreatmentRequestIds = {}
+
+local function postUnavailableTreatmentResult(id, reason)
+    local url = "http://127.0.0.1:17891/treatment/result?id=" .. tostring(id)
+    local postOk = LrTasks.pcall(function() LrHttp.get(url .. "&status=unavailable") end)
+    if postOk == true then
+        log("treatment result posted: unavailable " .. tostring(reason))
+    else
+        log("treatment result post failed")
+    end
+end
+
+local function startTreatmentWorker(id)
+    table.insert(pendingTreatmentRequestIds, id)
+    if treatmentWorkerActive == true then return end
+
+    treatmentWorkerActive = true
+    local taskStarted = pcall(function()
+        LrTasks.startAsyncTask(function()
+            while #pendingTreatmentRequestIds > 0 do
+                local requestId = table.remove(pendingTreatmentRequestIds, 1)
+                local treatmentOk = LrTasks.pcall(function()
+                    waitForNormalCommandToFinish()
+                    local url = "http://127.0.0.1:17891/treatment/result?id=" .. tostring(requestId)
+                    local unavailableReason = nil
+                    local grayscale = nil
+                    local catalog = LrApplication.activeCatalog()
+                    local photo = catalog and catalog:getTargetPhoto() or nil
+                    if photo == nil then
+                        unavailableReason = "no_photo"
+                    else
+                        local ok, settings = LrTasks.pcall(function() return photo:getDevelopSettings() end)
+                        if ok ~= true then
+                            unavailableReason = "settings_error"
+                        elseif type(settings) ~= "table" then
+                            unavailableReason = "settings_not_table"
+                        else
+                            log("treatment settings read succeeded")
+                            if settings.ConvertToGrayscale == true then
+                                grayscale = true
+                            elseif settings.ConvertToGrayscale == false or settings.ConvertToGrayscale == nil then
+                                grayscale = false
+                            else
+                                unavailableReason = "unexpected_type"
+                            end
+                        end
+                    end
+                    if unavailableReason ~= nil then
+                        postUnavailableTreatmentResult(requestId, unavailableReason)
+                    else
+                        local postOk = LrTasks.pcall(function()
+                            LrHttp.get(url .. "&status=available&grayscale=" .. tostring(grayscale))
+                        end)
+                        if postOk == true then
+                            log("treatment result posted: available " .. (grayscale and "grayscale" or "color"))
+                        else
+                            log("treatment result post failed")
+                        end
+                    end
+                end)
+                if treatmentOk ~= true then
+                    log("treatment snapshot failure: runtime_error")
+                    postUnavailableTreatmentResult(requestId, "runtime_error")
+                end
+            end
+            treatmentWorkerActive = false
+        end)
+    end)
+
+    if taskStarted ~= true then
+        treatmentWorkerActive = false
+        while #pendingTreatmentRequestIds > 0 do
+            postUnavailableTreatmentResult(table.remove(pendingTreatmentRequestIds, 1), "task_start_failed")
+        end
+    end
+end
+
 if _G.LRBridgeFeedbackPollingStarted == true then
 
     log("feedback polling already running")
@@ -524,6 +602,13 @@ LrTasks.startAsyncTask(function()
         if string.find(result or "", [["colorGrading":true]], 1, true) then
             local id = parseRequestId(result)
             sendColorGradingSnapshot(id)
+            slider = nil
+        end
+
+        if string.find(result or "", [["treatment":true]], 1, true) then
+            local id = parseRequestId(result)
+            log("treatment request received: id=" .. tostring(id))
+            startTreatmentWorker(id)
             slider = nil
         end
 

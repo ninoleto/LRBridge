@@ -120,6 +120,23 @@ async function main() {
         assert.equal(response.statusCode, 200);
         assert.equal(JSON.parse(response.body).snapshot.complete, false);
 
+        response = await request(controllerPort, "/api/treatment/request");
+        assert.equal(response.statusCode, 200);
+        const treatmentRequestId = JSON.parse(response.body).request.id;
+        response = await request(controllerPort, "/api/treatment/snapshot?id=" + treatmentRequestId);
+        assert.deepEqual(JSON.parse(response.body), { id: treatmentRequestId, status: "pending", grayscale: null });
+        response = await request(backendPort,
+            "/treatment/result?id=" + treatmentRequestId + "&status=available&grayscale=true");
+        assert.equal(response.statusCode, 200);
+        assert.deepEqual(JSON.parse(response.body), { id: treatmentRequestId, status: "available", grayscale: true });
+        response = await request(controllerPort, "/api/treatment/snapshot?id=" + treatmentRequestId);
+        assert.deepEqual(JSON.parse(response.body), { id: treatmentRequestId, status: "available", grayscale: true });
+        assert.equal((await request(backendPort,
+            "/treatment/result?id=" + treatmentRequestId + "&status=available&grayscale=maybe")).statusCode, 400);
+        response = await request(backendPort,
+            "/treatment/result?id=" + treatmentRequestId + "&status=available&grayscale=false");
+        assert.deepEqual(JSON.parse(response.body), { id: treatmentRequestId, status: "available", grayscale: false });
+
         response = await request(controllerPort, "/api/feedback/request-many?sliders=Exposure,Contrast");
         assert.equal(response.statusCode, 200);
         const requestId = JSON.parse(response.body).request.id;
