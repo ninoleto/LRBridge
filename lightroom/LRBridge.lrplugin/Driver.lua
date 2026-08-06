@@ -139,9 +139,13 @@ end
 
 function Driver.setSlider(slider, value)
 
-    local developSlider = sliderMap[slider]
+    local developSlider = slider == "CropConstrainToWarp" and "CropConstrainToWarp" or sliderMap[slider]
 
     if developSlider == nil then
+        return false
+    end
+
+    if slider == "CropConstrainToWarp" and value ~= 0 and value ~= 1 then
         return false
     end
 

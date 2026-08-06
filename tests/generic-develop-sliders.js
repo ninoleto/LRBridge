@@ -182,8 +182,11 @@ assert.doesNotMatch(controller, /makeButton\("\+1"/);
 assert.doesNotMatch(controller, /makeButton\("\+5"/);
 assert.match(controller, /\.develop-slider-row,\s*\.angle-control\s*\{[\s\S]*min-width:\s*0/);
 assert.match(controller, /@media \(max-width: 760px\)[\s\S]*\.develop-slider-row/);
-assert.match(controller, /::-webkit-slider-thumb[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
-assert.match(controller, /::-moz-range-thumb[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
+assert.match(controller, /input\[type="range"\]::\-webkit-slider-thumb\s*\{[^}]*width:\s*28px[^}]*height:\s*28px/);
+assert.match(controller, /input\[type="range"\]::\-moz-range-thumb\s*\{[^}]*width:\s*28px[^}]*height:\s*28px/);
+assert.match(controller, /input\[type="range"\]\s*\{[^}]*min-height:\s*44px/);
+assert.match(controller, /\.develop-slider-row input\[type="range"\]::\-webkit-slider-runnable-track[\s\S]*var\(--slider-progress/,
+    "Develop and Denoise range controls must preserve their progress fill");
 assert.match(controller, /grid-template-columns:\s*minmax\(140px, 210px\)[\s\S]*44px 44px auto/);
 assert.match(controller, /\.develop-slider-state\s*\{[\s\S]*min-height:\s*16px[\s\S]*height:\s*16px[\s\S]*line-height:\s*16px[\s\S]*visibility:\s*hidden/);
 assert.match(controller, /\.develop-slider-state:not\(:empty\)\s*\{\s*visibility:\s*visible/);

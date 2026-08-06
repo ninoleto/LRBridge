@@ -17,6 +17,7 @@ const settingsPath = path.join(portableRoot, "config", "settings.txt");
 const trayIconPath = path.join(__dirname, "tray.png");
 const controllerPath = path.join(__dirname, "controller.html");
 const controllerColorGradingPath = path.join(__dirname, "controller-color-grading.js");
+const controllerDenoiseStatePath = path.join(__dirname, "controller-denoise-state.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
@@ -298,6 +299,12 @@ async function handleControllerRequest(request, response) {
         } catch (err) {
             sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
         }
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-denoise-state.js") {
+        const script = fs.readFileSync(controllerDenoiseStatePath, "utf8");
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
         return;
     }
 

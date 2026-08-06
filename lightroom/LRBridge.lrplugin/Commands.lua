@@ -5,6 +5,7 @@ local Application = require "Application"
 local Photo = require "Photo"
 local Crop = require "Crop"
 local ColorGrading = require "ColorGrading"
+local Enhance = require "Enhance"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -32,6 +33,8 @@ function Commands.execute(command)
     if command.command == "color_grading.value.reset" then ColorGrading.resetValue(command.control); return end
     if command.command == "color_grading.region.reset" then ColorGrading.resetRegion(command.region); return end
     if command.command == "color_grading.view.set" then ColorGrading.setView(command.view); return end
+    if command.command == "enhance.denoise.set" then Enhance.setDenoise(command.enabled, command.amount); return end
+    if command.command == "enhance.denoise.amount.set" then Enhance.setDenoiseAmount(command.amount); return end
 
     if command.command == "develop.adjust" then
 

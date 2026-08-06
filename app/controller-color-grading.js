@@ -8,6 +8,12 @@
     const ACTIVE_INTERVAL_MS = 400;
     const COMMAND_THROTTLE_MS = 125;
     const SNAPSHOT_TIMEOUT_MS = 4000;
+    const RESET_RETRY_MS = 180;
+    const RESET_MAX_ATTEMPTS = 6;
+    const RESET_DEFAULTS = Object.freeze({
+        shadow_luminance: 0, midtone_luminance: 0, highlight_luminance: 0, global_luminance: 0,
+        blending: 50, balance: 0
+    });
 
     function normalizeNumber(value) {
         const text = String(value).replace(",", ".").trim();
@@ -18,6 +24,85 @@
 
     function clamp(value, range) {
         return Math.min(range.max, Math.max(range.min, value));
+    }
+
+    function updateWheelPair(pair, property, value) {
+        return {
+            hue: property === "hue" ? value : pair.hue,
+            saturation: property === "saturation" ? value : pair.saturation
+        };
+    }
+
+    function createWheelPairDispatcher(options) {
+        let timer = null;
+        let pendingPair = null;
+        let lastSentPair = null;
+        function equal(left, right) {
+            return left && right && Number(left.hue) === Number(right.hue) && Number(left.saturation) === Number(right.saturation);
+        }
+        function deliver(pair) {
+            if (equal(pair, lastSentPair)) return false;
+            lastSentPair = { hue: pair.hue, saturation: pair.saturation };
+            options.send(lastSentPair);
+            return true;
+        }
+        return {
+            schedule(pair) {
+                pendingPair = { hue: pair.hue, saturation: pair.saturation };
+                if (timer !== null) return false;
+                timer = options.setTimeout(function () {
+                    timer = null;
+                    const latest = pendingPair;
+                    pendingPair = null;
+                    deliver(latest);
+                }, options.delay);
+                return true;
+            },
+            finalize(pair) {
+                if (timer !== null) options.clearTimeout(timer);
+                timer = null;
+                pendingPair = null;
+                return deliver(pair);
+            },
+            rebase(pair) {
+                if (timer !== null) options.clearTimeout(timer);
+                timer = null;
+                pendingPair = null;
+                lastSentPair = { hue: pair.hue, saturation: pair.saturation };
+            },
+            cancel() {
+                if (timer !== null) options.clearTimeout(timer);
+                timer = null;
+                pendingPair = null;
+            },
+            resetContext() { this.cancel(); lastSentPair = null; }
+        };
+    }
+
+    function resetSnapshotMatches(parameters, expected) {
+        return Object.keys(expected).every(function (parameter) {
+            const result = parameters && parameters[parameter];
+            return result && result.available === true && typeof result.value === "number" &&
+                Number(result.value) === Number(expected[parameter]);
+        });
+    }
+
+    function createResetConfirmation(expected, generation, contextKey, maxAttempts) {
+        let attempts = 0;
+        let active = true;
+        return {
+            observe(parameters, observedGeneration, observedContextKey) {
+                if (!active) return "retired";
+                if (observedGeneration !== generation || observedContextKey !== contextKey) { active = false; return "obsolete"; }
+                if (resetSnapshotMatches(parameters, expected)) { active = false; return "confirmed"; }
+                attempts += 1;
+                if (attempts >= maxAttempts) { active = false; return "failed"; }
+                return "pending";
+            },
+            cancel() { active = false; },
+            isActive() { return active; },
+            getAttempts() { return attempts; }
+        };
     }
 
     function updateStatusElement(element, text, kind) {
@@ -149,12 +234,16 @@
             localRevision: Object.create(null),
             pendingSince: Object.create(null),
             snapshotRequestedAt: 0,
-            throttle: Object.create(null),
-            hasCompleteSnapshot: false
+            hasCompleteSnapshot: false,
+            pollingGeneration: 0,
+            resetConfirmations: Object.create(null),
+            resetWarning: null,
+            wheelDispatchers: Object.create(null)
         };
         const cycleGate = createCycleGate(function () { return new window.AbortController(); });
 
         function resetSentValueState() {
+            Object.values(state.wheelDispatchers).forEach(function (dispatcher) { dispatcher.resetContext(); });
             Object.keys(state.controls).forEach(function (key) {
                 const control = state.controls[key];
                 if (control.dispatcher) control.dispatcher.resetContext();
@@ -163,12 +252,15 @@
 
         function activate() {
             state.visible = true;
+            state.pollingGeneration += 1;
             if (!state.hasCompleteSnapshot) status("Loading Lightroom values…", "pending");
             if (state.metadata) scheduleSnapshot(0, true);
         }
 
         function deactivate() {
             state.visible = false;
+            state.pollingGeneration += 1;
+            cancelResetConfirmations();
             stopPolling();
         }
 
@@ -197,13 +289,22 @@
         function invalidateFeedback(message) {
             resetSentValueState();
             state.pendingSince = Object.create(null);
+            cancelResetConfirmations();
             if (!state.hasCompleteSnapshot) status(message || "Loading Lightroom values…", "pending");
         }
 
         async function requestSnapshot(force) {
-            if (!state.visible || state.requestInFlight) return;
+            if (!state.visible) return;
+            if (state.requestInFlight && force !== true) return;
+            if (state.requestInFlight) {
+                state.requestSequence += 1;
+                state.activeRequestId = null;
+                state.requestInFlight = false;
+                cycleGate.cancel();
+            }
             state.requestInFlight = true;
             const sequence = ++state.requestSequence;
+            const pollingGeneration = state.pollingGeneration;
             const cycle = cycleGate.begin();
             const signal = cycle.controller.signal;
             try {
@@ -211,14 +312,14 @@
                 const requestBody = await requestResponse.json();
                 const requestId = requestBody && requestBody.request && requestBody.request.id;
                 if (!requestResponse.ok || requestId === undefined) throw new Error("Color Grading feedback request failed");
-                if (!cycleGate.isCurrent(cycle) || signal.aborted || sequence !== state.requestSequence) return;
+                if (!cycleGate.isCurrent(cycle) || signal.aborted || sequence !== state.requestSequence || pollingGeneration !== state.pollingGeneration) return;
                 state.activeRequestId = requestId;
                 const started = Date.now();
                 while (state.visible && sequence === state.requestSequence && Date.now() - started < SNAPSHOT_TIMEOUT_MS) {
                     const response = await fetchFn("/api/color-grading/snapshot?id=" + encodeURIComponent(requestId), { cache: "no-store", signal: signal });
                     const body = await response.json();
                     if (!response.ok || !body.snapshot) throw new Error("Color Grading snapshot failed");
-                    if (!cycleGate.isCurrent(cycle) || requestId !== state.activeRequestId || sequence !== state.requestSequence) return;
+                    if (!cycleGate.isCurrent(cycle) || requestId !== state.activeRequestId || sequence !== state.requestSequence || pollingGeneration !== state.pollingGeneration) return;
                     if (body.snapshot.complete === true) {
                         applySnapshot(body.snapshot, requestId);
                         return;
@@ -233,7 +334,7 @@
                     cycleGate.retire(cycle);
                     state.requestInFlight = false;
                     state.activeRequestId = null;
-                    scheduleSnapshot(ACTIVE_INTERVAL_MS, false);
+                    scheduleSnapshot(hasResetConfirmations() ? RESET_RETRY_MS : ACTIVE_INTERVAL_MS, false);
                 }
             }
         }
@@ -254,10 +355,64 @@
             state.snapshotRequestedAt = snapshot.requestedAt || 0;
             state.parameters = snapshot.parameters || Object.create(null);
             state.activeView = snapshot.view && snapshot.view.available === true ? snapshot.view.value : null;
+            evaluateResetConfirmations(snapshot, nextContextKey);
             renderAuthoritativeState();
             state.hasCompleteSnapshot = true;
-            status(contextMessage(context), contextMessage(context) === "Connected" ? "connected" : "warning");
+            if (state.resetWarning) status(state.resetWarning, "warning");
+            else if (hasResetConfirmations()) status(resetStatusText(), "pending");
+            else status(contextMessage(context), contextMessage(context) === "Connected" ? "connected" : "warning");
             return true;
+        }
+
+        function hasResetConfirmations() {
+            return Object.keys(state.resetConfirmations).length > 0;
+        }
+
+        function cancelResetConfirmations() {
+            Object.values(state.resetConfirmations).forEach(function (confirmation) {
+                confirmation.tracker.cancel();
+                confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
+            });
+            state.resetConfirmations = Object.create(null);
+            state.resetWarning = null;
+        }
+
+        function resetStatusText() {
+            const confirmations = Object.values(state.resetConfirmations);
+            return confirmations.length ? confirmations[0].label : "Confirming Color Grading reset…";
+        }
+
+        function evaluateResetConfirmations(snapshot, contextKey) {
+            Object.keys(state.resetConfirmations).forEach(function (key) {
+                const confirmation = state.resetConfirmations[key];
+                const result = confirmation.tracker.observe(snapshot.parameters, state.pollingGeneration, contextKey);
+                if (result === "obsolete") {
+                    delete state.resetConfirmations[key];
+                    confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
+                    return;
+                }
+                if (result === "confirmed") {
+                    confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
+                    delete state.resetConfirmations[key];
+                    return;
+                }
+                if (result === "failed") {
+                    confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
+                    delete state.resetConfirmations[key];
+                    state.resetWarning = "Color Grading reset confirmation unavailable";
+                }
+            });
+        }
+
+        function beginResetConfirmation(key, kind, expected, pendingKeys, label) {
+            state.resetWarning = null;
+            pendingKeys.forEach(function (pendingKey) { state.pendingSince[pendingKey] = Date.now(); });
+            state.resetConfirmations[key] = {
+                kind: kind, label: label, expected: expected, pendingKeys: pendingKeys,
+                tracker: createResetConfirmation(expected, state.pollingGeneration, state.contextKey, RESET_MAX_ATTEMPTS)
+            };
+            status(label, "pending");
+            requestSnapshot(true);
         }
 
         function setControlPending(control) {
@@ -326,7 +481,7 @@
             const ready = hue && saturation && hue.available === true && saturation.available === true;
             const pending = !hue || !saturation;
             card.available = ready;
-            if (!card.editingField) [card.wheel, card.hue, card.saturation, card.resetRegion].forEach(function (element) { element.disabled = !ready; });
+            if (!card.editingField) [card.wheel, card.hueRange, card.hue, card.saturationRange, card.saturation, card.resetRegion].forEach(function (element) { element.disabled = !ready; });
             card.state.textContent = ready ? "Available" : pending ? "Feedback pending" : "Parameter unavailable";
             card.root.classList.toggle("unavailable", !ready);
         }
@@ -339,20 +494,32 @@
             if (control.state) control.state.textContent = ready ? "Available" : pending ? "Feedback pending" : "Parameter unavailable";
         }
 
-        function showWheelValue(card, hue, saturation, hueRange, saturationRange) {
+        function showWheelValue(card, hue, saturation, hueRange, saturationRange, rebaseSentPair) {
             card.value = { hue: hue, saturation: saturation };
             card.ranges = { hue: hueRange, saturation: saturationRange };
             const hueText = formatNumber(hue);
             const saturationText = formatNumber(saturation);
             if (card.hue.value !== hueText) card.hue.value = hueText;
             if (card.saturation.value !== saturationText) card.saturation.value = saturationText;
+            card.hueRange.min = hueRange.min;
+            card.hueRange.max = hueRange.max;
+            card.hueRange.step = "1";
+            card.saturationRange.min = saturationRange.min;
+            card.saturationRange.max = saturationRange.max;
+            card.saturationRange.step = "1";
+            if (String(card.hueRange.value) !== String(hue)) card.hueRange.value = hue;
+            if (String(card.saturationRange.value) !== String(saturation)) card.saturationRange.value = saturation;
+            card.hueRangeText.textContent = formatNumber(hueRange.min) + "–" + formatNumber(hueRange.max);
+            card.saturationRangeText.textContent = formatNumber(saturationRange.min) + "–" + formatNumber(saturationRange.max);
             const hueFraction = (hue - hueRange.min) / (hueRange.max - hueRange.min);
             const angle = Math.PI / 2 - hueFraction * Math.PI * 2;
             const radial = (saturation - saturationRange.min) / (saturationRange.max - saturationRange.min) * 50;
             card.pointer.style.left = (50 + Math.sin(angle) * radial) + "%";
             card.pointer.style.top = (50 - Math.cos(angle) * radial) + "%";
             card.wheel.setAttribute("aria-valuetext", "Hue " + formatNumber(hue) + ", Saturation " + formatNumber(saturation));
-            card.rangeText.textContent = "H " + formatNumber(hueRange.min) + "–" + formatNumber(hueRange.max) + " · S " + formatNumber(saturationRange.min) + "–" + formatNumber(saturationRange.max);
+            if (rebaseSentPair !== false && !isLocallyActive(card.region) && state.wheelDispatchers[card.region]) {
+                state.wheelDispatchers[card.region].rebase({ hue: hue, saturation: saturation });
+            }
         }
 
         function showScalarValue(control, value, range, rebaseSentValue) {
@@ -374,14 +541,15 @@
             return String(Math.round(Number(value) * 100) / 100);
         }
 
-        async function send(path) {
+        async function send(path, onAccepted) {
             const response = await fetchFn(path, { cache: "no-store" });
             if (!response.ok) {
                 setGlobalStatus("ERROR: Color Grading command failed.");
                 return false;
             }
             setGlobalStatus("OK: Color Grading command accepted");
-            scheduleSnapshot(160, true);
+            if (onAccepted) onAccepted();
+            else scheduleSnapshot(160, true);
             return true;
         }
 
@@ -393,25 +561,25 @@
         function sendWheel(region, final) {
             const card = state.regionControls[region];
             if (!card.available || !card.value) return;
-            const path = commandPath("color_grading.wheel.set", { region: region, hue: card.value.hue, saturation: card.value.saturation });
             markPending(region);
-            if (final) {
-                if (state.throttle[region]) window.clearTimeout(state.throttle[region]);
-                state.throttle[region] = null;
-                send(path);
-                return;
-            }
-            if (state.throttle[region]) return;
-            state.throttle[region] = window.setTimeout(function () {
-                state.throttle[region] = null;
-                send(commandPath("color_grading.wheel.set", { region: region, hue: card.value.hue, saturation: card.value.saturation }));
-            }, COMMAND_THROTTLE_MS);
+            const pair = { hue: card.value.hue, saturation: card.value.saturation };
+            if (final) return state.wheelDispatchers[region].finalize(pair);
+            return state.wheelDispatchers[region].schedule(pair);
+        }
+
+        function updateWheelFromRange(region, property, final) {
+            const card = state.regionControls[region];
+            if (!card.available || !card.value || !card.ranges) return;
+            const range = property === "hue" ? card.hueRange : card.saturationRange;
+            const next = updateWheelPair(card.value, property, clamp(Number(range.value), card.ranges[property]));
+            showWheelValue(card, next.hue, next.saturation, card.ranges.hue, card.ranges.saturation, false);
+            sendWheel(region, final);
         }
 
         function updateWheelFromPointer(region, event) {
             const card = state.regionControls[region];
             const value = wheelPoint(event.clientX, event.clientY, card.wheel.getBoundingClientRect(), card.ranges.hue, card.ranges.saturation);
-            showWheelValue(card, Math.round(value.hue * 10) / 10, Math.round(value.saturation * 10) / 10, card.ranges.hue, card.ranges.saturation);
+            showWheelValue(card, Math.round(value.hue * 10) / 10, Math.round(value.saturation * 10) / 10, card.ranges.hue, card.ranges.saturation, false);
         }
 
         function commitWheelFields(region) {
@@ -432,7 +600,7 @@
             card.saturation.setAttribute("aria-invalid", "false");
             card.editingField = null;
             if (card.value && hue === card.value.hue && saturation === card.value.saturation) return false;
-            showWheelValue(card, hue, saturation, card.ranges.hue, card.ranges.saturation);
+            showWheelValue(card, hue, saturation, card.ranges.hue, card.ranges.saturation, false);
             sendWheel(region, true);
             return true;
         }
@@ -465,17 +633,23 @@
             return button;
         }
 
-        function makeNumber(label, className) {
-            const wrapper = document.createElement("label");
-            wrapper.className = "cg-number-label";
-            const text = document.createElement("span");
-            text.textContent = label;
-            const input = document.createElement("input");
-            input.type = "text";
-            input.inputMode = "decimal";
-            input.className = className;
-            wrapper.append(text, input);
-            return { wrapper: wrapper, input: input };
+        function makeWheelScalarRow(regionLabel, property, className) {
+            const row = document.createElement("div");
+            row.className = "cg-scalar-row cg-wheel-scalar-row";
+            const label = document.createElement("label");
+            label.textContent = property === "hue" ? "Hue" : "Saturation";
+            const range = document.createElement("input");
+            range.type = "range";
+            range.setAttribute("aria-label", regionLabel + " " + label.textContent);
+            const number = document.createElement("input");
+            number.type = "text";
+            number.inputMode = "decimal";
+            number.className = className;
+            number.setAttribute("aria-label", regionLabel + " " + label.textContent + " numeric value");
+            const rangeText = document.createElement("span");
+            rangeText.className = "cg-range-text";
+            row.append(label, range, number, rangeText);
+            return { row: row, range: range, number: number, rangeText: rangeText };
         }
 
         function createScalar(controlName, label, stateHost) {
@@ -543,7 +717,14 @@
             });
             reset.addEventListener("click", function () {
                 markPending(controlName);
-                send(commandPath("color_grading.value.reset", { control: controlName }));
+                send(commandPath("color_grading.value.reset", { control: controlName }), function () {
+                    control.editing = false;
+                    if (control.dispatcher) control.dispatcher.resetContext();
+                    const parameter = state.metadata.scalarControls[controlName].parameter;
+                    const expected = {}; expected[parameter] = RESET_DEFAULTS[controlName];
+                    const label = controlName.indexOf("luminance") >= 0 ? "Resetting Luminance…" : "Resetting " + state.metadata.scalarControls[controlName].label + "…";
+                    beginResetConfirmation(controlName, controlName.indexOf("luminance") >= 0 ? "luminance" : "scalar", expected, [controlName], label);
+                });
             });
             state.controls[controlName] = control;
             setControlPending(control);
@@ -567,13 +748,8 @@
             const pointer = document.createElement("span");
             pointer.className = "cg-wheel-pointer";
             wheel.appendChild(pointer);
-            const fields = document.createElement("div");
-            fields.className = "cg-wheel-fields";
-            const hue = makeNumber("Hue", "cg-hue-input");
-            const saturation = makeNumber("Saturation", "cg-saturation-input");
-            const rangeText = document.createElement("span");
-            rangeText.className = "cg-range-text";
-            fields.append(hue.wrapper, saturation.wrapper, rangeText);
+            const hue = makeWheelScalarRow(definition.label, "hue", "cg-hue-input");
+            const saturation = makeWheelScalarRow(definition.label, "saturation", "cg-saturation-input");
             const luminanceControls = { shadows: "shadow_luminance", midtones: "midtone_luminance", highlights: "highlight_luminance", global: "global_luminance" };
             const luminance = createScalar(luminanceControls[region], "Luminance", stateText);
             const resetRegion = makeButton("Reset Region", "cg-reset-region");
@@ -585,8 +761,22 @@
             const confirm = makeButton("Reset", "command-danger");
             const cancel = makeButton("Cancel", "command-neutral");
             confirmation.append(prompt, confirm, cancel);
-            cardRoot.append(heading, stateText, wheel, fields, luminance.row, resetRegion, confirmation);
-            const card = { root: cardRoot, wheel: wheel, pointer: pointer, hue: hue.input, saturation: saturation.input, rangeText: rangeText, luminance: luminance, resetRegion: resetRegion, state: stateText, value: null, authoritativeValue: null, ranges: null, available: false, editingField: null, cancelNextBlur: false };
+            cardRoot.append(heading, stateText, wheel, hue.row, saturation.row, luminance.row, resetRegion, confirmation);
+            const card = { region: region, root: cardRoot, wheel: wheel, pointer: pointer, hueRange: hue.range, hue: hue.number, hueRangeText: hue.rangeText, saturationRange: saturation.range, saturation: saturation.number, saturationRangeText: saturation.rangeText, luminance: luminance, resetRegion: resetRegion, state: stateText, value: null, authoritativeValue: null, ranges: null, available: false, editingField: null, cancelNextBlur: false };
+            state.wheelDispatchers[region] = createWheelPairDispatcher({
+                delay: COMMAND_THROTTLE_MS,
+                setTimeout: window.setTimeout.bind(window),
+                clearTimeout: window.clearTimeout.bind(window),
+                send: function (pair) { send(commandPath("color_grading.wheel.set", { region: region, hue: pair.hue, saturation: pair.saturation })); }
+            });
+            [
+                { property: "hue", range: card.hueRange },
+                { property: "saturation", range: card.saturationRange }
+            ].forEach(function (editor) {
+                editor.range.addEventListener("input", function () { updateWheelFromRange(region, editor.property, false); });
+                editor.range.addEventListener("pointerup", function () { updateWheelFromRange(region, editor.property, true); });
+                editor.range.addEventListener("change", function () { updateWheelFromRange(region, editor.property, true); });
+            });
             wheel.addEventListener("pointerdown", function (event) {
                 if (!card.available) return;
                 event.preventDefault();
@@ -610,8 +800,8 @@
                     },
                     finalize: function () { sendWheel(region, true); },
                     cancel: function () {
-                        if (state.throttle[region]) window.clearTimeout(state.throttle[region]);
-                        state.throttle[region] = null;
+                        state.wheelDispatchers[region].cancel();
+                        delete state.pendingSince[region];
                     }
                 });
             }
@@ -628,7 +818,7 @@
                 else if (event.key === "ArrowUp") saturationValue += 1;
                 else return;
                 event.preventDefault();
-                showWheelValue(card, clamp(hueValue, card.ranges.hue), clamp(saturationValue, card.ranges.saturation), card.ranges.hue, card.ranges.saturation);
+                showWheelValue(card, clamp(hueValue, card.ranges.hue), clamp(saturationValue, card.ranges.saturation), card.ranges.hue, card.ranges.saturation, false);
                 sendWheel(region, true);
             });
             [card.hue, card.saturation].forEach(function (input) {
@@ -655,7 +845,16 @@
             confirm.addEventListener("click", function () {
                 confirmation.hidden = true;
                 markPending(region);
-                send(commandPath("color_grading.region.reset", { region: region }));
+                send(commandPath("color_grading.region.reset", { region: region }), function () {
+                    card.editingField = null;
+                    state.wheelDispatchers[region].cancel();
+                    if (card.luminance.dispatcher) card.luminance.dispatcher.resetContext();
+                    const expected = {};
+                    expected[definition.hue] = 0;
+                    expected[definition.saturation] = 0;
+                    expected[definition.luminance] = 0;
+                    beginResetConfirmation(region, "region", expected, [region, card.luminance.control], "Resetting Region…");
+                });
             });
             state.regionControls[region] = card;
             updateWheelAvailability(card, null, null);
@@ -715,5 +914,5 @@
         return { state: state, initialize: initialize, activate: activate, deactivate: deactivate, applySnapshot: applySnapshot, requestSnapshot: requestSnapshot };
     }
 
-    return { ACTIVE_INTERVAL_MS: ACTIVE_INTERVAL_MS, COMMAND_THROTTLE_MS: COMMAND_THROTTLE_MS, normalizeNumber: normalizeNumber, clamp: clamp, updateStatusElement: updateStatusElement, wheelPoint: wheelPoint, commandPath: commandPath, createScalarDispatcher: createScalarDispatcher, createCycleGate: createCycleGate, finishWheelPointer: finishWheelPointer, createController: createController };
+    return { ACTIVE_INTERVAL_MS: ACTIVE_INTERVAL_MS, COMMAND_THROTTLE_MS: COMMAND_THROTTLE_MS, RESET_DEFAULTS: RESET_DEFAULTS, normalizeNumber: normalizeNumber, clamp: clamp, updateWheelPair: updateWheelPair, createWheelPairDispatcher: createWheelPairDispatcher, resetSnapshotMatches: resetSnapshotMatches, createResetConfirmation: createResetConfirmation, updateStatusElement: updateStatusElement, wheelPoint: wheelPoint, commandPath: commandPath, createScalarDispatcher: createScalarDispatcher, createCycleGate: createCycleGate, finishWheelPointer: finishWheelPointer, createController: createController };
 }));

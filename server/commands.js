@@ -4,6 +4,8 @@ const colorGrading = require("./color-grading");
 
 const commandQueue = [];
 let latestResult = null;
+let enhanceOperationPending = false;
+let enhanceAmountOperationPending = false;
 
 const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
@@ -126,6 +128,8 @@ function validateCommand(command) {
         "application.view",
         "application.action",
         "application.secondary_view"
+        ,"enhance.denoise.set"
+        ,"enhance.denoise.amount.set"
         ,"color_grading.wheel.set"
         ,"color_grading.value.set"
         ,"color_grading.value.reset"
@@ -138,9 +142,21 @@ function validateCommand(command) {
         return false;
     }
 
+    if (command.command === "enhance.denoise.set") {
+        return Object.keys(command).length === 3 && typeof command.enabled === "boolean" && Number.isInteger(command.amount) &&
+            command.amount >= 1 && command.amount <= 100;
+    }
+    if (command.command === "enhance.denoise.amount.set") {
+        return Object.keys(command).length === 2 && Number.isInteger(command.amount) && command.amount >= 1 && command.amount <= 100;
+    }
+
     if (!allowedCommands.includes(command.command)) {
         console.log("Unknown command");
         return false;
+    }
+
+    if (command.command === "develop.set" && command.slider === "CropConstrainToWarp") {
+        return Object.keys(command).length === 3 && (command.value === 0 || command.value === 1);
     }
 
     if (command.command === "color_grading.wheel.set") {
@@ -340,6 +356,10 @@ function tryEnqueueCommand(command) {
     if (!validateCommand(command)) {
         return admissionResult(ADMISSION_INVALID);
     }
+    if (command.command === "enhance.denoise.set" && enhanceOperationPending) {
+        return admissionResult(ADMISSION_INVALID);
+    }
+    if (command.command === "enhance.denoise.amount.set" && enhanceAmountOperationPending) return admissionResult(ADMISSION_INVALID);
 
     const colorAdmission = coalesceColorGrading(command);
     if (colorAdmission) return colorAdmission;
@@ -423,6 +443,8 @@ function tryEnqueueCommand(command) {
 
     const admittedAt = Date.now();
     commandQueue.push(command);
+    if (command.command === "enhance.denoise.set") enhanceOperationPending = true;
+    if (command.command === "enhance.denoise.amount.set") enhanceAmountOperationPending = true;
     queueEntryMetadata.push({ enqueuedAt: admittedAt });
     enqueuedEntries += 1;
     lastEnqueuedAt = admittedAt;
@@ -698,6 +720,12 @@ function resetQueueForTests() {
     lastDequeuedAt = null;
     lastQueueFullRejectionAt = null;
     latestResult = null;
+    enhanceOperationPending = false;
+    enhanceAmountOperationPending = false;
+}
+
+function finishEnhanceOperation() {
+    enhanceOperationPending = false;
 }
 
 module.exports = {
@@ -722,4 +750,6 @@ module.exports = {
     getSupportedSliders,
     getSliderMetadata,
     resetQueueForTests
+    ,finishEnhanceOperation
+    ,finishEnhanceAmountOperation: function () { enhanceAmountOperationPending = false; }
 };

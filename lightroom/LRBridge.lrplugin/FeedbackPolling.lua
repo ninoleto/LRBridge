@@ -7,6 +7,7 @@ local LrDevelopController = import "LrDevelopController"
 
 local Query = require "Query"
 local ColorGrading = require "ColorGrading"
+local Enhance = require "Enhance"
 
 local function getPortableRoot()
 
@@ -361,12 +362,26 @@ local function sendValue(id, slider, value, minValue, maxValue)
 
 end
 
+local function readFeedbackValue(slider)
+    if slider == "CropConstrainToWarp" then
+        local ok, value = LrTasks.pcall(function()
+            return LrDevelopController.getValue("CropConstrainToWarp")
+        end)
+        if ok == true and type(value) == "number" and (value == 0 or value == 1) then
+            return value, 0, 1
+        end
+        return nil, nil, nil
+    end
+    local value = Query.getDevelopValue(slider)
+    local minValue, maxValue = Query.getDevelopRange(slider)
+    return value, minValue, maxValue
+end
+
 local function sendRequestedValue(id, slider)
 
     waitForNormalCommandToFinish()
 
-    local value = Query.getDevelopValue(slider)
-    local minValue, maxValue = Query.getDevelopRange(slider)
+    local value, minValue, maxValue = readFeedbackValue(slider)
 
     if value ~= nil and minValue ~= nil and maxValue ~= nil then
         lastSentValues[slider] = tostring(value)
@@ -409,8 +424,7 @@ local function sendManyRequestedValues(id, requestedSliders)
 
     for i, slider in ipairs(requestedSliders) do
 
-        local value = Query.getDevelopValue(slider)
-        local minValue, maxValue = Query.getDevelopRange(slider)
+        local value, minValue, maxValue = readFeedbackValue(slider)
 
         if minValue == nil or maxValue == nil then
             value = nil
@@ -444,8 +458,7 @@ local function sendAllRequestedValues(id)
 
     for i, slider in ipairs(watchedSliders) do
 
-        local value = Query.getDevelopValue(slider)
-        local minValue, maxValue = Query.getDevelopRange(slider)
+        local value, minValue, maxValue = readFeedbackValue(slider)
 
         if minValue == nil or maxValue == nil then
             value = nil
@@ -631,6 +644,11 @@ LrTasks.startAsyncTask(function()
         end
 
         maybeSendContextHeartbeat()
+
+        local enhanceRequest = LrHttp.get("http://127.0.0.1:17891/enhance/next")
+        if string.find(enhanceRequest or "", [["requested":true]], 1, true) then
+            Enhance.sendCurrentState()
+        end
 
         LrTasks.sleep(0.1)
 

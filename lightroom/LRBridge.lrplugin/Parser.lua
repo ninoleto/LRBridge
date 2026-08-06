@@ -1,5 +1,28 @@
 local Parser = {}
 
+local function parseBooleanField(json, fieldName)
+    local keyPattern = '"' .. fieldName .. '"%s*:'
+    local count = 0
+
+    for _ in string.gmatch(json, keyPattern) do
+        count = count + 1
+    end
+
+    if count ~= 1 then
+        return nil
+    end
+
+    if string.match(json, keyPattern .. '%s*true%s*[,}]') then
+        return true
+    end
+
+    if string.match(json, keyPattern .. '%s*false%s*[,}]') then
+        return false
+    end
+
+    return nil
+end
+
 function Parser.parse(json)
 
     local command = string.match(json, [["command":"([^"]+)"]])
@@ -19,6 +42,7 @@ function Parser.parse(json)
     local saturation = string.match(json, [["saturation":([%-]?%d+%.?%d*)]])
     local rating = string.match(json, [["rating":([%-]?%d+)]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
+    local enabled = parseBooleanField(json, "enabled")
     local w = string.match(json, [["w":([%-]?%d+)]])
     local h = string.match(json, [["h":([%-]?%d+)]])
     local value = string.match(json, [["value":"([^"]+)"]])
@@ -73,6 +97,7 @@ function Parser.parse(json)
         ,control = control
         ,hue = hue
         ,saturation = saturation
+        ,enabled = enabled
     }
 
 end

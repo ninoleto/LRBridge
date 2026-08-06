@@ -34,7 +34,9 @@ const acceptedCommands = [
     { command: "photo.rotate", direction: "left" },
     { command: "selection.extend", direction: "right", amount: 3 },
     { command: "develop.action", action: "setAutoTone" },
-    { command: "selection.rating.set", rating: 5 }
+    { command: "selection.rating.set", rating: 5 },
+    { command: "enhance.denoise.set", enabled: true, amount: 50 },
+    { command: "enhance.denoise.set", enabled: false, amount: 50 }
 ];
 
 commands.resetQueueForTests();
@@ -46,6 +48,7 @@ for (const command of acceptedCommands) {
         command,
         "Polling JSON changed an accepted command"
     );
+    if (command.command === "enhance.denoise.set") commands.finishEnhanceOperation();
 }
 assert.equal(commands.getNextCommand(), null);
 
@@ -63,6 +66,13 @@ assert.ok(parser.includes('"value":([%-]?%d+%.?%d*)'));
 assert.match(parser, /if value == nil then[\s\S]*value = tonumber\(value\)/);
 assert.match(parser, /\bvalue = value\b/);
 assert.match(parser, /local amount = string\.match[\s\S]*amount = tonumber\(amount\)[\s\S]*\bamount = amount\b/);
+assert.match(parser, /local function parseBooleanField\(json, fieldName\)/);
+assert.match(parser, /for _ in string\.gmatch\(json, keyPattern\)[\s\S]*count = count \+ 1/);
+assert.match(parser, /if count ~= 1 then\s*return nil/);
+assert.match(parser, /keyPattern \.\. '%s\*true%s\*\[,}]'[\s\S]*return true/);
+assert.match(parser, /keyPattern \.\. '%s\*false%s\*\[,}]'[\s\S]*return false/);
+assert.match(parser, /local enabled = parseBooleanField\(json, "enabled"\)/);
+assert.match(parser, /\benabled = enabled\b/);
 assert.match(parser, /local rating = string\.match[\s\S]*rating = tonumber\(rating\)[\s\S]*\brating = rating\b/);
 for (const field of ["w", "h"]) {
     assert.match(parser, new RegExp("local " + field + " = string\\.match"));

@@ -6,6 +6,7 @@ const sliders = require("./sliders");
 const context = require("./context");
 const numbers = require("./numbers");
 const colorGrading = require("./color-grading");
+const enhance = require("./enhance-state").createEnhanceState();
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -68,7 +69,7 @@ const colorGradingSnapshots = {};
 const treatmentSnapshots = {};
 let feedbackRequestId = 0;
 let startupLibraryQueued = false;
-const dedicatedFeedbackParameters = new Set(["CropAngle"]);
+const dedicatedFeedbackParameters = new Set(["CropAngle", "CropConstrainToWarp"]);
 
 function isFeedbackParameter(value) {
     return sliders.exists(value) || dedicatedFeedbackParameters.has(value);
@@ -268,6 +269,7 @@ app.get("/context/update", function (req, res) {
         selectedPhotoKey: req.query.selectedPhotoKey,
         developFingerprint: req.query.developFingerprint
     });
+    enhance.syncContext(updated.contextCounter);
 
     if (updated.contextCounter !== previousContextCounter) {
         Object.keys(feedbackValues).forEach(function (slider) {
@@ -313,6 +315,88 @@ app.get("/groups", function (req, res) {
 app.get("/next", function (req, res) {
     const command = commands.getNextCommand();
     res.json({ command: command });
+});
+
+app.get("/enhance/state", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    enhance.requestRefresh();
+    res.set("Cache-Control", "no-store").json(enhance.get());
+});
+
+app.get("/enhance/next", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.json({ requested: enhance.takeRequest() });
+});
+
+app.get("/enhance/result", function (req, res) {
+    const allowed = new Set(["available", "denoiseState", "denoiseEnabled", "denoiseAmount",
+        "rawDetailsState", "rawDetailsEnabled", "superResState", "superResEnabled",
+        "enhanceNeedsUpdate", "operation", "errorCategory", "info", "requestedEnabled"]);
+    if (Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); })) {
+        return res.status(400).json({ ok: false, error: "Invalid Enhance state" });
+    }
+    function booleanField(name) { return req.query[name] === "true" ? true : req.query[name] === "false" ? false : null; }
+    const amount = req.query.denoiseAmount === "null" ? null : (/^\d+$/.test(req.query.denoiseAmount || "") ? Number(req.query.denoiseAmount) : NaN);
+    const result = { operation: req.query.operation, denoiseAmount: amount };
+    for (const field of ["available", "denoiseState", "denoiseEnabled", "rawDetailsState",
+        "rawDetailsEnabled", "superResState", "superResEnabled", "enhanceNeedsUpdate"]) result[field] = booleanField(field);
+    if (req.query.errorCategory !== undefined) result.errorCategory = req.query.errorCategory;
+    if (req.query.info !== undefined) result.info = req.query.info;
+    if (req.query.requestedEnabled !== undefined) result.requestedEnabled = booleanField("requestedEnabled");
+    if (!enhance.update(result)) return res.status(400).json({ ok: false, error: "Invalid Enhance state" });
+    if (enhance.TERMINAL_STATES.has(result.operation)) commands.finishEnhanceOperation();
+    res.json({ ok: true });
+});
+
+app.get("/enhance/denoise/set", function (req, res) {
+    const keys = Object.keys(req.query);
+    if (keys.length !== 2 || !keys.includes("enabled") || !keys.includes("amount") ||
+        Array.isArray(req.query.enabled) || Array.isArray(req.query.amount) ||
+        (req.query.enabled !== "true" && req.query.enabled !== "false") || !/^\d+$/.test(req.query.amount || "")) {
+        return rejectInvalidCommand(res);
+    }
+    const command = { command: "enhance.denoise.set", enabled: req.query.enabled === "true", amount: Number(req.query.amount) };
+    if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
+    if (!enhance.acceptOperation(command.enabled)) return res.status(409).json({ ok: false, error: "Enhance operation already pending" });
+    const admission = queueCommand(command);
+    if (admission.status === commands.ADMISSION_QUEUE_FULL) {
+        enhance.cancelAdmission();
+        return rejectQueueFull(res, admission.queueLength);
+    }
+    if (!admission.accepted) {
+        enhance.cancelAdmission();
+        return rejectInvalidCommand(res);
+    }
+    enhance.requestRefresh(Date.now(), true);
+    res.json({ ok: true, queued: command });
+});
+
+app.get("/enhance/amount-result", function (req, res) {
+    const allowed = new Set(["available", "denoiseState", "denoiseEnabled", "denoiseAmount",
+        "rawDetailsState", "rawDetailsEnabled", "superResState", "superResEnabled", "enhanceNeedsUpdate",
+        "amountOperation", "requestedAmount", "errorCategory"]);
+    if (Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); })) {
+        return res.status(400).json({ ok: false, error: "Invalid Denoise amount state" });
+    }
+    function bool(name) { return req.query[name] === "true" ? true : req.query[name] === "false" ? false : null; }
+    const input = { amountOperation: req.query.amountOperation, requestedAmount: Number(req.query.requestedAmount),
+        denoiseAmount: req.query.denoiseAmount === "null" ? null : Number(req.query.denoiseAmount) };
+    for (const field of ["available", "denoiseState", "denoiseEnabled", "rawDetailsState", "rawDetailsEnabled",
+        "superResState", "superResEnabled", "enhanceNeedsUpdate"]) input[field] = bool(field);
+    if (req.query.errorCategory !== undefined) input.amountErrorCategory = req.query.errorCategory;
+    if (!enhance.updateAmount(input)) return res.status(400).json({ ok: false, error: "Invalid Denoise amount state" });
+    if (["applied", "failed", "uncertain"].includes(input.amountOperation)) commands.finishEnhanceAmountOperation();
+    res.json({ ok: true });
+});
+
+app.get("/enhance/denoise/amount", function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.amount) || !/^\d+$/.test(req.query.amount || "")) return rejectInvalidCommand(res);
+    const command = { command: "enhance.denoise.amount.set", amount: Number(req.query.amount) };
+    if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
+    const admission = queueCommand(command);
+    if (!admission.accepted) return admission.status === commands.ADMISSION_QUEUE_FULL ? rejectQueueFull(res, admission.queueLength) : res.status(409).json({ ok: false, error: "Denoise amount operation already pending" });
+    enhance.acceptAmountOperation(command.amount);
+    res.json({ ok: true, queued: command });
 });
 
 app.get("/command", function (req, res) {
@@ -382,6 +466,23 @@ app.get("/command", function (req, res) {
         }
     }
 
+    if (commandName === "enhance.denoise.set") {
+        const keys = Object.keys(req.query);
+        if (keys.length !== 3 || !keys.includes("command") || !keys.includes("enabled") || !keys.includes("amount") ||
+            Array.isArray(req.query.command) || Array.isArray(req.query.enabled) || Array.isArray(req.query.amount) ||
+            (req.query.enabled !== "true" && req.query.enabled !== "false") || !/^\d+$/.test(req.query.amount || "")) {
+            command.invalidQueryField = true;
+        }
+        command.enabled = req.query.enabled === "true" ? true : req.query.enabled === "false" ? false : req.query.enabled;
+    }
+    if (commandName === "enhance.denoise.amount.set") {
+        const keys = Object.keys(req.query);
+        if (keys.length !== 2 || !keys.includes("command") || !keys.includes("amount") ||
+            Array.isArray(req.query.command) || Array.isArray(req.query.amount) || !/^\d+$/.test(req.query.amount || "")) {
+            command.invalidQueryField = true;
+        }
+    }
+
     if (req.query.amount !== undefined) {
         command.amount = numbers.parseFiniteNumber(req.query.amount);
     }
@@ -444,7 +545,9 @@ app.get("/set", function (req, res) {
     const hasExtraField = Object.keys(req.query).some(function (field) {
         return !allowedFields.has(field);
     });
-    const value = hasExtraField ? null : sliders.parseAbsoluteValue(slider, req.query.value);
+    const value = hasExtraField ? null : slider === "CropConstrainToWarp"
+        ? (/^[01]$/.test(req.query.value || "") ? Number(req.query.value) : null)
+        : sliders.parseAbsoluteValue(slider, req.query.value);
 
     if (value === null) {
         res.status(400).json({

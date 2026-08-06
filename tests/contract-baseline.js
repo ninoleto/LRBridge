@@ -179,8 +179,14 @@ function validateStaticContract() {
     const controllerSwitchGroups = extractJavaScriptValue(controllerSource, "const switchGroups =");
     const controllerToolTabs = extractJavaScriptValue(controllerSource, "const toolTabs =");
     const controllerCropGroups = extractJavaScriptValue(controllerSource, "const cropGroups =");
+    const dedicatedControllerSwitches = controllerSwitchGroups.flatMap((group) => group.switches)
+        .filter((item) => item.explicitZeroOne === true);
     const controllerSliderReferences = controllerSliderGroups.flatMap((group) => group.sliders)
-        .concat(controllerSwitchGroups.flatMap((group) => group.switches.map((item) => item.slider)));
+        .concat(controllerSwitchGroups.flatMap((group) => group.switches)
+            .filter((item) => item.explicitZeroOne !== true)
+            .map((item) => item.slider));
+    assert.deepEqual(Array.from(dedicatedControllerSwitches, (item) => item.slider), ["CropConstrainToWarp"],
+        "Dedicated explicit 0/1 controller switch contract drifted");
     const controllerActionReferences = controllerActionGroups.flatMap((group) => group.actions.map((item) => item.action))
         .concat(controllerToolTabs.flatMap((tab) => tab.actions.map((item) => item.action)))
         .concat(controllerCropGroups.flatMap((group) => group.commands

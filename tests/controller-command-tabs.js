@@ -148,6 +148,7 @@ const sliderRenderContext = {
     setStatus() {}
 };
 sliderRenderContext.renderBasicControlsRow = function () {};
+sliderRenderContext.renderEnhanceSection = function () {};
 sliderRenderContext.getDevelopSectionDisplayLabel = function (section) { return section.label; };
 sliderRenderContext.createDevelopSectionElement = function () { return {}; };
 sliderRenderContext.selectDevelopSectionDefinitions = extractJavaScriptFunction(

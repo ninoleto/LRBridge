@@ -67,6 +67,38 @@ assert.equal(ui.normalizeNumber("12,5"), 12.5);
 assert.equal(ui.normalizeNumber("bad"), null);
 assert.equal(ui.clamp(120, { min: 0, max: 100 }), 100);
 {
+    const parameter = "ColorGradeShadowLum";
+    const expected = {}; expected[parameter] = 0;
+    const stale = {}; stale[parameter] = { available: true, value: 37, range: { min: -100, max: 100 } };
+    const reset = {}; reset[parameter] = { available: true, value: 0, range: { min: -100, max: 100 } };
+    const confirmation = ui.createResetConfirmation(expected, 4, "develop|photo-a", 6);
+    assert.equal(confirmation.observe(stale, 4, "develop|photo-a"), "pending", "The first stale post-reset snapshot must trigger a retry");
+    assert.equal(confirmation.isActive(), true);
+    assert.equal(confirmation.observe(reset, 4, "develop|photo-a"), "confirmed", "Numeric zero must authoritatively confirm Reset Luminance");
+    assert.equal(confirmation.isActive(), false);
+    assert.equal(confirmation.observe(stale, 4, "develop|photo-a"), "retired", "A later stale result cannot revive a confirmed reset");
+    assert.equal(ui.resetSnapshotMatches(reset, expected), true, "Zero must not be rejected as falsy");
+}
+{
+    const expected = { hue: 0, saturation: 0, luminance: 0 };
+    assert.equal(ui.resetSnapshotMatches({
+        hue: { available: true, value: 0 }, saturation: { available: true, value: 0 }, luminance: { available: true, value: 0 }
+    }, expected), true, "Reset Region must confirm Hue, Saturation, and Luminance");
+    assert.equal(ui.resetSnapshotMatches({
+        hue: { available: true, value: 0 }, saturation: { available: true, value: 12 }, luminance: { available: true, value: 0 }
+    }, expected), false, "A partial region reset must remain pending");
+    assert.equal(ui.RESET_DEFAULTS.blending, 50);
+    assert.equal(ui.RESET_DEFAULTS.balance, 0);
+    assert.equal(ui.resetSnapshotMatches({ blending: { available: true, value: 50 } }, { blending: ui.RESET_DEFAULTS.blending }), true);
+    assert.equal(ui.resetSnapshotMatches({ balance: { available: true, value: 0 } }, { balance: ui.RESET_DEFAULTS.balance }), true);
+}
+{
+    const confirmation = ui.createResetConfirmation({ luminance: 0 }, 8, "develop|photo-a", 2);
+    assert.equal(confirmation.observe({ luminance: { available: true, value: 37 } }, 9, "develop|photo-a"), "obsolete", "A polling-generation change must cancel reset confirmation");
+    const contextConfirmation = ui.createResetConfirmation({ luminance: 0 }, 8, "develop|photo-a", 2);
+    assert.equal(contextConfirmation.observe({ luminance: { available: true, value: 0 } }, 8, "develop|photo-b"), "obsolete", "A photo/context change must cancel reset confirmation");
+}
+{
     let textWrites = 0;
     let stateWrites = 0;
     let text = "Connected";
@@ -90,6 +122,8 @@ assert.deepEqual(ui.wheelPoint(100, 0, rect, { min: 0, max: 360 }, { min: 0, max
 assert.deepEqual(ui.wheelPoint(200, 100, rect, { min: 0, max: 360 }, { min: 0, max: 100 }), { hue: 0, saturation: 100 });
 assert.deepEqual(ui.wheelPoint(100, 200, rect, { min: 0, max: 360 }, { min: 0, max: 100 }), { hue: 270, saturation: 100 });
 assert.deepEqual(ui.wheelPoint(0, 100, rect, { min: 0, max: 360 }, { min: 0, max: 100 }), { hue: 180, saturation: 100 });
+assert.deepEqual(ui.updateWheelPair({ hue: 120, saturation: 40 }, "hue", 150), { hue: 150, saturation: 40 });
+assert.deepEqual(ui.updateWheelPair({ hue: 150, saturation: 40 }, "saturation", 65), { hue: 150, saturation: 65 });
 assert.match(html, /conic-gradient\(from 90deg, #f00, #f0f, #00f, #0ff, #0f0, #ff0, #f00\)/);
 assert.match(browser, /const angle = Math\.PI \/ 2 - hueFraction \* Math\.PI \* 2/);
 assert.match(browser, /const hueDegrees = \(90 - physicalDegrees \+ 360\) % 360/);
@@ -116,6 +150,19 @@ function fakeTimers() {
     dispatcher.finalize(65); // change
     timers.flush();
     assert.deepEqual(sent, [65], "input -> pointerup -> change must send one final scalar value");
+}
+{
+    const timers = fakeTimers();
+    const sent = [];
+    const dispatcher = ui.createWheelPairDispatcher({ delay: 125, setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, send: pair => sent.push(pair) });
+    dispatcher.rebase({ hue: 120, saturation: 40 });
+    dispatcher.schedule(ui.updateWheelPair({ hue: 120, saturation: 40 }, "hue", 130));
+    dispatcher.schedule(ui.updateWheelPair({ hue: 130, saturation: 40 }, "saturation", 55));
+    dispatcher.schedule(ui.updateWheelPair({ hue: 130, saturation: 55 }, "hue", 150));
+    timers.flush();
+    assert.deepEqual(sent, [{ hue: 150, saturation: 55 }], "Rapid Hue/Saturation edits must coalesce to the newest complete pair");
+    dispatcher.finalize({ hue: 150, saturation: 55 });
+    assert.equal(sent.length, 1, "Release/change must not duplicate the already delivered pair");
 }
 {
     const timers = fakeTimers();
@@ -198,6 +245,13 @@ assert.match(browser, /snapshot\.complete !== true/);
 assert.match(browser, /requestId !== state\.activeRequestId/);
 assert.match(browser, /state\.contextKey !== null && state\.contextKey !== nextContextKey/);
 assert.match(browser, /state\.requestInFlight/);
+assert.match(browser, /requestSnapshot\(true\)/, "Reset acceptance must force a fresh request ID");
+assert.match(browser, /scheduleSnapshot\(hasResetConfirmations\(\) \? RESET_RETRY_MS : ACTIVE_INTERVAL_MS/);
+assert.match(browser, /pollingGeneration !== state\.pollingGeneration/);
+assert.match(browser, /beginResetConfirmation\(controlName/);
+assert.match(browser, /expected\[definition\.hue\] = 0[\s\S]*expected\[definition\.saturation\] = 0[\s\S]*expected\[definition\.luminance\] = 0/);
+assert.match(browser, /showScalarValue\(card\.luminance, luminance\.value, luminance\.range\)/, "Confirmed zero must repaint the numeric field, range thumb, and range styling through the normal scalar renderer");
+assert.doesNotMatch(browser, /setInterval\(/, "Reset confirmation must not introduce a second permanent polling interval");
 assert.match(browser, /cycleGate\.cancel\(\)/);
 assert.match(browser, /signal: signal/);
 assert.match(browser, /!signal\.aborted/);
@@ -230,7 +284,36 @@ assert.match(browser, /Parameter unavailable/);
 assert.doesNotMatch(browser, /api\/feedback\/request-many|api\/feedback\/snapshot/);
 assert.match(browser, /api\/color-grading\/request/);
 assert.match(browser, /api\/color-grading\/snapshot\?id=/);
-assert.match(html, /@media \(max-width: 1100px\)[\s\S]*?\.cg-region-card \.cg-scalar-row \{ grid-template-columns: minmax\(0, 1fr\) 82px; \}/);
+assert.match(html, /\.cg-region-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)[^}]*min-width: 0/);
+assert.match(html, /@media \(min-width: 1480px\)[\s\S]*?repeat\(4, minmax\(320px, 1fr\)\)/,
+    "Four columns must require enough content width for four safe cards");
+assert.match(html, /@media \(max-width: 700px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+assert.match(html, /\.cg-region-card \.cg-scalar-row > \.cg-reset \{ width: 100%; \}/);
+assert.match(html, /input\[type="range"\]::\-webkit-slider-thumb\s*\{[^}]*width:\s*28px[^}]*height:\s*28px/,
+    "Color Grading ranges must receive the shared WebKit touch thumb");
+assert.match(html, /input\[type="range"\]::\-moz-range-thumb\s*\{[^}]*width:\s*28px[^}]*height:\s*28px/,
+    "Color Grading ranges must receive the shared Firefox touch thumb");
+assert.match(html, /input\[type="range"\]\s*\{[^}]*min-height:\s*44px/,
+    "Shared range controls must expose at least a 44px interaction height");
+assert.match(html, /input\[type="range"\]::\-webkit-slider-runnable-track\s*\{[^}]*height:\s*6px/,
+    "The larger thumb must retain a thin track");
+assert.doesNotMatch(html + browser, /cg-wheel-fields/, "Numeric-only Hue/Saturation field layout must be removed");
+assert.match(browser, /cardRoot\.append\(heading, stateText, wheel, hue\.row, saturation\.row, luminance\.row, resetRegion, confirmation\)/,
+    "Each region card must own Hue, Saturation, Luminance, and both reset controls");
+assert.equal((browser.match(/makeWheelScalarRow\(definition\.label, "hue"/g) || []).length, 1);
+assert.equal((browser.match(/makeWheelScalarRow\(definition\.label, "saturation"/g) || []).length, 1);
+assert.match(browser, /range\.setAttribute\("aria-label", regionLabel \+ " " \+ label\.textContent\)/);
+assert.match(browser, /card\.hueRange\.min = hueRange\.min[\s\S]*card\.hueRange\.max = hueRange\.max[\s\S]*card\.hueRange\.step = "1"/);
+assert.match(browser, /card\.saturationRange\.min = saturationRange\.min[\s\S]*card\.saturationRange\.max = saturationRange\.max[\s\S]*card\.saturationRange\.step = "1"/);
+assert.match(browser, /showWheelValue\(card[\s\S]*card\.hueRange\.value[\s\S]*card\.saturationRange\.value/,
+    "Wheel and authoritative feedback must update both range inputs");
+assert.match(browser, /updateWheelFromRange\(region, editor\.property, false\)[\s\S]*updateWheelFromRange\(region, editor\.property, true\)/);
+assert.match(browser, /createWheelPairDispatcher[\s\S]*color_grading\.wheel\.set/);
+assert.doesNotMatch(browser + main, /color_grading\.(?:hue|saturation)\.set|color-grading\/(?:hue|saturation)/,
+    "Hue and Saturation must not gain separate commands or routes");
+assert.equal((browser.match(/createScalar\(luminanceControls\[region\], "Luminance"/g) || []).length, 1);
+assert.doesNotMatch(browser, /grid\.appendChild\([^)]*(?:luminance|resetRegion)/,
+    "Region reset controls must not be external grid siblings");
 assert.match(html, /@media \(max-width: 760px\)[\s\S]*?\.cg-scalar-section \.cg-scalar-row/);
 assert.equal(require("../config/sliders.json").length, 96);
 assert.equal(require("../server/sliders").getAll().filter(definition => definition.feedbackSupported === true).length, 93);

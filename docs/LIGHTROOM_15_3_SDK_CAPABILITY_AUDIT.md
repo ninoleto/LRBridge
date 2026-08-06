@@ -282,8 +282,60 @@ These use direct documented APIs, have a compact payload, and can be tested with
     Not reliably through a dedicated Quick Collection mutation API. `addOrRemoveFromTargetCollection(true)` affects whichever collection Lightroom currently designates as the target; that target is not guaranteed to be Quick Collection.
 20. **Can LRBridge create, expand, collapse, or remove stacks?**
     No for existing catalog photos. The SDK exposes stack metadata for querying, but no documented stack-management methods. The `stackWithPhoto` option while adding a new catalog photo is not equivalent.
+## Lens Blur runtime verification
+
+Lightroom Classic 15.3 documents the Develop Controller parameters `LensBlurActive`, `LensBlurAmount`, `LensBlurCatEye`, `LensBlurHighlightsBoost`, and `LensBlurFocalRange`, together with `getSelectedLensBlurBokeh()`, `setLensBlurBokeh()`, and `toggleLensBlurDepthVisualization()`. A controlled read-only runtime diagnostic examined the five parameters with `getValue()`, the four scalar-looking parameters with `getRange()`, the dedicated Bokeh getter, and the documented `photo:getDevelopSettings()` members `LensBlur` and `DepthMapInfo`.
+
+The tested photo was on Process Version 6 with Lens Blur manually enabled and recognizable values visible in Lightroom. Nevertheless, all five `getValue()` calls returned nil and `getSelectedLensBlurBokeh()` returned nil. `getRange()` returned `-100..100` for `LensBlurActive` and `0..100` for `LensBlurAmount`, `LensBlurCatEye`, and `LensBlurHighlightsBoost`. These ranges prove only that Lightroom recognizes the parameter identifiers; a successful range read is not evidence that current live state is readable or safely writable. `photo:getDevelopSettings().LensBlur` existed as an empty Lua table with zero top-level keys, while `photo:getDevelopSettings().DepthMapInfo` was nil.
+
+An earlier diagnostic timeout was caused by stale Lightroom-loaded Lua emitting the old result shape against the newer server validator. It was not a GET-length failure. After Lightroom loaded the current diagnostic, request 116 completed in approximately 43 ms: the JSON payload was 1,370 bytes, its URL-encoded form was 2,128 bytes, and the server returned HTTP 200 with an accepted result.
+
+**Conclusion:** Lightroom Classic 15.3 exposes no authoritative usable read contract for the visible Lens Blur state through either tested documented API source. Lens Blur controls are unsupported and deferred; LRBridge must not implement them from the documented ranges alone.
+
 # Color Grading Phase 1 (runtime untested)
 
 Documented identifiers: `SplitToningShadowHue`, `SplitToningShadowSaturation`, `ColorGradeShadowLum`, `ColorGradeMidtoneHue`, `ColorGradeMidtoneSat`, `ColorGradeMidtoneLum`, `SplitToningHighlightHue`, `SplitToningHighlightSaturation`, `ColorGradeHighlightLum`, `ColorGradeGlobalHue`, `ColorGradeGlobalSat`, `ColorGradeGlobalLum`, `ColorGradeBlending`, and `SplitToningBalance`.
 
 The implementation uses `getRange`, `getValue`, `startTracking`, `setValue`, `resetToDefault`, `getActiveColorGradingView`, and `setActiveColorGradingView`. Runtime ranges and values are mandatory; nil is explicitly unavailable. Develop and an active photo are required, and view selection requires Process Version 3+. A wheel request is one LRBridge command but two consecutive SDK `setValue` calls. Runtime totals remain Tested: 88, PASS: 87, FAIL: 1, UNVERIFIED: 0. No Color Grading command is marked PASS. Graphical wheels are Phase 2.
+
+## Constrain Crop runtime verification
+
+On a Process Version 6 photo in Develop, request 2 read `CropConstrainToWarp` as Lua number `0`; `getRange()` returned numeric `-100..100`. The specific `photo:getDevelopSettings().CropConstrainToWarp` member existed and was numeric `0`. The diagnostic recognized only the proven numeric `0/1` representation, wrote the inverse numeric `1`, and `getValue()` immediately read back numeric `1`. The Develop-settings member still reported `0` during that brief write, so it is not an immediate authoritative feedback source.
+
+The diagnostic restored the exact original numeric `0`. Both `getValue()` and the specific Develop-settings member then read numeric `0`, and the server recorded `restored_successfully`. The result was accepted over HTTP 200 and no other Develop parameter was accessed or changed.
+
+**Conclusion:** `CropConstrainToWarp` uses LRBridge's authoritative switch architecture with `getValue()` as feedback and an explicit numeric `0/1` adapter. The broad `-100..100` range is not the Boolean contract and is never used. The permanent Web Controller switch is placed after the Transform sliders and before Effects in Lightroom order.
+
+## Enhance panel state runtime verification
+
+Read-only request 3 called `LrDevelopController.getEnhancePanelState()` in a dedicated asynchronous task for a Process Version 6 photo in Develop. It completed successfully in less than 1 ms as measured by the Lightroom task, and the sanitized result was accepted by the server over HTTP 200.
+
+The exact returned top-level schema contained all 11 documented fields: Boolean `denoiseState`, `rawDetailsState`, `superResState`, `denoiseEnabled`, `rawDetailsEnabled`, `superResEnabled`, and `enhanceNeedsUpdate`; numeric `denoiseAmount`; and string `denoiseInfoText`, `rawDetailsInfoText`, and `superResInfoText`. For the selected photo, all three state values were false, all three enabled values were true, `denoiseAmount` was 50, and `enhanceNeedsUpdate` was false. The three short informational strings described their respective operations and contained no sensitive data.
+
+**Conclusion:** the selected photo is eligible for Denoise, Raw Details, and Super Resolution according to the enabled flags, and is suitable for a later separately authorized controlled Enhance experiment. No Enhance mutation or processing operation was invoked during this verification.
+
+## Enhance controlled Denoise lifecycle verification
+
+The Lightroom Classic 15.3 SDK documents `setEnhance(paramName, value, denoiseAmount)` as requiring an asynchronous `LrTasks` task while Develop is active. It accepts `denoise`, `rawDetails`, or `superRes`, an explicit Boolean state, and an optional Denoise amount from 1 through 100 (default 50). No return value, processing-status value, callback, confirmation/apply step, cancellation function, or completion function is documented. `changeDenoiseAmount(amount)` changes the amount while Develop is active but does not document starting processing. `toggleEnhance(...)` offers an optional post-toggle callback but is explicitly deprecated in 15.3.
+
+After a harmless unavailable attempt in Library made no Enhance call, LRBridge restored Develop and reduced the selection to the current target. The controlled operation captured one selected photo, four catalog photos, an unchanged target reference, and initial states `denoiseState=false`, `rawDetailsState=false`, `superResState=false`, and `enhanceNeedsUpdate=false`. It then made exactly one processing call: `LrDevelopController.setEnhance("denoise", true, 50)`. Raw Details and Super Resolution were not called because their verified initial states already matched the requested false state.
+
+The SDK call returned without an error after 4,611 ms. During the bounded 185,574 ms diagnostic window, the catalog count remained four and the target reference did not change. The original photo's Develop-settings signature changed, `denoiseState` became true, and `enhanceNeedsUpdate` remained false. A final read-only panel snapshot reported `denoiseAmount=50`, `denoiseState=true`, `rawDetailsState=true` (automatically applied by Denoise), `superResState=false`, `denoiseEnabled=true`, `rawDetailsEnabled=false`, `superResEnabled=false`, and `enhanceNeedsUpdate=false`. No new catalog photo or separate generated-result reference existed to test independently.
+
+**Conclusion:** Lightroom Classic 15.3 applies this Denoise operation to the current catalog photo rather than creating/selecting a new catalog photo. Acceptance is reliably observable as a successful protected call, and the resulting state is reliably readable without names, paths, UUIDs, or metadata. The SDK does not expose a documented processing or completion signal; elapsed call return plus the authoritative panel transition can support `accepted`, `processing/unknown`, `completed`, `failed`, and `unavailable` UI states, but a production UI must label completion conservatively and retain a bounded local timeout without attempting cancellation. The result remains eligible for Denoise adjustment, while Raw Details and Super Resolution are unavailable in the resulting Denoise-selected state.
+
+### Controlled Denoise Off verification
+
+With the Denoised test RAW selected in Develop, the sanitized before state was `denoiseState=true`, `denoiseEnabled=true`, `denoiseAmount=30`, `rawDetailsState=true`, `rawDetailsEnabled=false`, `superResState=false`, `superResEnabled=false`, and `enhanceNeedsUpdate=false`. The catalog contained four photos. LRBridge then made exactly one asynchronous call: `LrDevelopController.setEnhance("denoise", false, 30)`.
+
+The protected call returned successfully and authoritative polling reported `denoiseState=false`. The amount remained available at 30. Raw Details changed to `rawDetailsState=false` and `rawDetailsEnabled=true`; Super Resolution remained off and became enabled. `enhanceNeedsUpdate` remained false, the internally compared target-photo reference was unchanged, and the catalog count remained four. `denoiseEnabled` remained true, so the same photo is eligible for a later explicit On operation. Denoise was not automatically re-enabled.
+
+**Conclusion:** Lightroom Classic 15.3 reliably supports Denoise Off through the explicit Boolean `setEnhance` API. Both On and Off production operations can require a successful protected call plus an authoritative `denoiseState` match to the requested Boolean before reporting applied.
+
+### Controlled Denoise amount-change verification
+
+The Lightroom 15.3 documentation defines `changeDenoiseAmount(amount)` for values 1 through 100 while Develop is active, but documents no return value, asynchronous-task requirement, completion callback, or rapid-update behavior. A controlled probe used an already-Denoised RAW with authoritative amount 42 and made exactly one asynchronous `LrDevelopController.changeDenoiseAmount(35)` call. The protected call completed without error in approximately 5 ms and returned Lua `nil`. The first authoritative panel read after return already reported amount 35, so no additional confirmation sleep was required.
+
+Throughout the probe, `denoiseState=true`, `denoiseEnabled=true`, `rawDetailsState=true`, `superResState=false`, and `enhanceNeedsUpdate=false` remained unchanged. The internally compared target-photo reference also remained unchanged. No On/Off Enhance call was made.
+
+**Conclusion:** amount-only editing while Denoise is On is supported. Production updates use `changeDenoiseAmount`, a 250 ms UI debounce, a single in-flight amount lock, and bounded authoritative confirmation. The fast synchronous-looking runtime transition does not establish that unconstrained rapid calls are safe, so debouncing and serialization remain required.
