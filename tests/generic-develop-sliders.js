@@ -226,6 +226,43 @@ assert.deepEqual(developSectionDisplayOrder.map((section) => section.id), [
     "white-balance", "tone", "presence", "color-mixer", "detail",
     "lens-corrections", "transform", "effects", "calibration"
 ]);
+assert.equal(new Set(developSectionDisplayOrder.map((section) => section.id)).size, 9,
+    "Every main Develop section must render exactly once");
+const developHeaderCss = controller.match(/\.group\[data-develop-section\] > \.group-title \{[\s\S]*?\n        \}/)[0];
+assert.match(developHeaderCss, /width: 100%/);
+assert.match(developHeaderCss, /background: #101010/);
+assert.doesNotMatch(developHeaderCss, /linear-gradient|#7a4c18|#5f3912/,
+    "Main Develop section headers must not retain the orange gradient fill");
+assert.match(developHeaderCss, /border-top: 1px solid #d18a36/);
+assert.match(developHeaderCss, /border-bottom: 1px solid #d18a36/);
+assert.match(developHeaderCss, /color: #f4f4f4/);
+assert.match(developHeaderCss, /padding: 11px 14px/);
+assert.match(developHeaderCss, /font-weight: 700/);
+assert.match(developHeaderCss, /margin: 0 0 28px/,
+    "Main Develop section headers must leave breathing room before their first control");
+assert.match(controller, /\.group\[data-develop-section\]:first-of-type \{\s*margin-top: 4px/,
+    "The first Develop section must avoid the later-section spacing");
+const colorMixerHeadingCss = controller.match(/\.color-mixer-group-heading \{[\s\S]*?\n        \}/)[0];
+assert.match(colorMixerHeadingCss, /font-size: 11px/);
+assert.doesNotMatch(colorMixerHeadingCss, /background:|border-top:|border-bottom:/,
+    "Color Mixer subgroup headings must remain visually subordinate to main panel bars");
+const leadingControlsCss = controller.match(/\.develop-section-leading-controls \{[\s\S]*?\n        \}/)[0];
+assert.match(leadingControlsCss, /margin-bottom: 28px/,
+    "Detail, Lens, and Transform leading controls must share the slider separation");
+const trailingControlsCss = controller.match(/\.develop-section-trailing-controls \{[\s\S]*?\n        \}/)[0];
+assert.match(trailingControlsCss, /margin-top: 16px/);
+assert.match(trailingControlsCss, /margin-bottom: 0/,
+    "Trailing Constrain Crop must preserve its existing spacing without adding a section gap");
+const ordinarySliderRowCss = controller.match(/\.develop-slider-row,\s*\.angle-control \{[\s\S]*?\n        \}/)[0];
+assert.doesNotMatch(ordinarySliderRowCss, /28px/,
+    "Ordinary consecutive sliders must not receive section-level spacing");
+const mixerGroupCss = controller.match(/\.color-mixer-slider-group \{[\s\S]*?\n        \}/)[0];
+const subsequentMixerGroupCss = controller.match(/\.color-mixer-slider-group \+ \.color-mixer-slider-group \{[\s\S]*?\n        \}/)[0];
+assert.match(mixerGroupCss, /border-top: 0/);
+assert.match(subsequentMixerGroupCss, /border-top: 1px solid #405263/,
+    "Color Mixer must retain one divider between complete groups");
+assert.doesNotMatch(controller, /\.color-mixer-slider-group \.develop-slider-row[\s\S]*?border-top/,
+    "Color Mixer must not add dividers between individual slider rows");
 const displayLabelContext = {
     treatmentHasAuthoritativeState: false,
     treatmentAuthoritativeState: false
@@ -269,6 +306,53 @@ assert.deepEqual(mappedSections.find((section) => section.label === "Color Mixer
         .map((definition) => definition.id));
 assert.deepEqual(mappedSections.find((section) => section.label === "Lens Corrections").ids,
     feedbackDefinitions.filter((definition) => definition.group === "Lens / Defringe").map((definition) => definition.id));
+const lensCorrectionsSection = developSectionDisplayOrder.find((section) => section.id === "lens-corrections");
+const transformSection = developSectionDisplayOrder.find((section) => section.id === "transform");
+assert.deepEqual(lensCorrectionsSection.embeddedSwitchGroups, ["Lens / Defringe"],
+    "Lens / Defringe switches must be associated with the Lens Corrections section");
+assert.deepEqual(transformSection.embeddedActionGroups, ["Transform Actions"],
+    "Transform Actions must be associated with the Transform section");
+assert.deepEqual(transformSection.embeddedTrailingSwitchGroups, ["Transform"],
+    "The existing Constrain Crop switch must finish the Transform section");
+assert.equal((controller.match(/"label": "Remove Chromatic Aberration"/g) || []).length, 1,
+    "Remove Chromatic Aberration must have one existing switch definition");
+assert.equal((controller.match(/"label": "Enable Profile Corrections"/g) || []).length, 1,
+    "Enable Profile Corrections must have one existing switch definition");
+const developSectionRenderer = controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0];
+assert.match(developSectionRenderer,
+    /groupElement\.appendChild\(title\);\s*const leadingControls = createSectionControls\(section, "leading"\);\s*if \(leadingControls\) groupElement\.appendChild\(leadingControls\);[\s\S]*section\.items\.forEach/,
+    "Embedded Lens switches and Transform actions must render after the main title and before section sliders");
+assert.match(developSectionRenderer,
+    /section\.items\.forEach[\s\S]*const trailingControls = createSectionControls\(section, "trailing"\);\s*if \(trailingControls\) groupElement\.appendChild\(trailingControls\)/,
+    "Constrain Crop must render after the existing Transform sliders");
+assert.match(controller,
+    /includesDetailControls[\s\S]*controls\.appendChild\(renderEnhanceSection\(\)\)[\s\S]*controls\.appendChild\(renderRawDetailsControl\(\)\)[\s\S]*controls\.appendChild\(renderSuperResolutionControl\(\)\)/,
+    "Detail Enhance controls must use the shared leading-controls wrapper before Sharpness");
+assert.match(slidersOnlyBlock,
+    /switchGroupIsEmbedded[\s\S]*!switchGroupIsEmbedded && !renderedSwitchPlacements\.has\(placement\)/,
+    "Embedded switch groups must not also render as standalone Switches groups");
+assert.match(controller,
+    /function appendEmbeddedSwitchGroups[\s\S]*addSwitchRow\(parent, item\)/,
+    "Embedded Lens switches must reuse the existing switch row renderer");
+assert.match(controller,
+    /function appendEmbeddedActionGroups[\s\S]*addActionRow\(parent, item\)/,
+    "Embedded Transform actions must reuse the existing action row renderer");
+assert.match(slidersOnlyBlock,
+    /actionGroupIsEmbedded[\s\S]*!actionGroupIsEmbedded && !renderedActionPlacements\.has\(placement\)/,
+    "Embedded Transform Actions must not also render as a standalone action group");
+assert.equal((controller.match(/"label": "Upright Tool"/g) || []).length, 1,
+    "Upright Tool must retain exactly one action definition");
+assert.equal((controller.match(/"label": "Reset Transform"/g) || []).length, 1,
+    "Reset Transform must retain exactly one action definition");
+assert.match(controller, /"label": "Upright Tool",\s*"action": "selectUprightTool",\s*"button": "Select"/,
+    "The existing Upright Tool action contract must remain unchanged");
+assert.match(controller, /"label": "Reset Transform",\s*"action": "resetTransforms",\s*"button": "Reset"/,
+    "The existing Reset Transform action contract must remain unchanged");
+assert.ok(lensCorrectionsSection.selectors.some((selector) => selector.group === "Lens / Defringe"),
+    "All Lens / Defringe sliders must remain in Lens Corrections");
+assert.match(controller,
+    /const id = "slider-jump-section-" \+ section\.id;\s*heading\.id = id;\s*heading\.classList\.add\("slider-jump-target"\)/,
+    "The Lens Corrections jump target must remain the shared main section heading");
 const mappedDevelopIds = mappedSections.flatMap((section) => section.ids);
 const expectedDevelopIds = feedbackDefinitions.filter((definition) => definition.group !== "Tone Curve")
     .map((definition) => definition.id);
@@ -278,9 +362,20 @@ assert.deepEqual(new Set(mappedDevelopIds), new Set(expectedDevelopIds),
 assert.doesNotMatch(JSON.stringify(developSectionDisplayOrder), /Tone Curve|Color Grading|Lens Blur/);
 assert.match(controller, /function getSliderJumpSections\(\) \{\s*return developSectionDisplayOrder\.map/,
     "Jump menu and rendered sections must share the presentation specification");
+assert.equal(developSectionDisplayOrder.length, 9, "Jump-to must source exactly nine Develop sections");
+assert.equal(developSectionDisplayOrder[3].id, "color-mixer",
+    "Color Mixer/B&W must remain fourth between Presence and Detail");
 assert.match(controller, /function getSliderJumpSections[\s\S]*label: getDevelopSectionDisplayLabel\(section\)/,
     "Jump labels must use the shared conditional section-label helper");
-assert.match(controller, /title\.textContent = section\.label/,
+const jumpHeadingLookup = controller.match(/function findSliderJumpHeading\(content, sectionId\) \{[\s\S]*?\n        \}/)[0];
+assert.match(jumpHeadingLookup, /data-develop-section/);
+assert.match(jumpHeadingLookup, /> \.group-title/,
+    "Every Jump-to option must resolve the main direct-child section title");
+assert.doesNotMatch(jumpHeadingLookup, /textContent|\.trim\(\)|name/,
+    "Jump-to heading discovery must not depend on visible title text");
+assert.match(controller, /findSliderJumpHeading\(contentHost, section\.id\)/,
+    "Jump-to must resolve headings by stable section identity");
+assert.match(controller, /title\.textContent = section\.id === "color-mixer"[\s\S]*"COLOR MIXER" : section\.label/,
     "Rendered headings must consume the shared presentation label");
 assert.match(controller, /jumpMenu\.remove\(\);[\s\S]*installSliderJumpMenu\(\);[\s\S]*requestLiveFeedbackSnapshot\(true\)/,
     "Mixer replacement must refresh its existing jump label before the normal connected-row snapshot");
@@ -316,6 +411,39 @@ assert.match(controller, /treatmentPending && treatmentDesiredState !== snapshot
 assert.match(controller, /const changed = !treatmentHasAuthoritativeState \|\| treatmentAuthoritativeState !== snapshot\.grayscale/);
 assert.equal(feedbackDefinitions.filter((definition) => definition.group === "Color Mixer / HSL").length, 24);
 assert.equal(feedbackDefinitions.filter((definition) => definition.group === "B&W Mixer").length, 8);
+const colorMixerDefinitions = require("node:vm").runInNewContext(
+    controller.match(/const colorMixerDefinitions = Object\.freeze\((\[[\s\S]*?\])\);/)[1]
+);
+const colorMixerAdjustmentTypes = require("node:vm").runInNewContext(
+    controller.match(/const colorMixerAdjustmentTypes = Object\.freeze\((\[[\s\S]*?\])\);/)[1]
+);
+assert.equal(colorMixerDefinitions.length, 8, "Color Mixer must have one shared definition per color");
+assert.deepEqual(Array.from(colorMixerDefinitions, (item) => item.label),
+    ["Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta"]);
+assert.deepEqual(Array.from(colorMixerAdjustmentTypes, (item) => item.key), ["hue", "saturation", "luminance"]);
+const getColorMixerViewGroups = require("node:vm").runInNewContext(
+    "(" + controller.match(/function getColorMixerViewGroups\(view\) \{[\s\S]*?\n        \}/)[0] + ")",
+    { colorMixerDefinitions, colorMixerAdjustmentTypes }
+);
+const hslGroups = getColorMixerViewGroups("hsl");
+const colorGroups = getColorMixerViewGroups("color");
+const hslIds = Array.from(hslGroups, (group) => Array.from(group.rows, (row) => row.id)).flat();
+const colorIds = Array.from(colorGroups, (group) => Array.from(group.rows, (row) => row.id)).flat();
+const expectedMixerIds = feedbackDefinitions.filter((definition) => definition.group === "Color Mixer / HSL").map((definition) => definition.id);
+assert.deepEqual(hslIds, expectedMixerIds, "HSL must order eight Hue, eight Saturation, then eight Luminance controls");
+assert.deepEqual(new Set(hslIds), new Set(colorIds), "HSL and Color must expose the same identifiers");
+assert.equal(new Set(hslIds).size, 24);
+assert.equal(new Set(colorIds).size, 24);
+assert.equal(colorGroups.length, 8);
+colorGroups.forEach((group) => assert.deepEqual(Array.from(group.rows, (row) => row.label), ["Hue", "Saturation", "Luminance"]));
+assert.match(controller, /button\.textContent = view === "hsl" \? "HSL" : "Color"/);
+assert.match(controller, /let colorMixerView = "hsl"/);
+assert.doesNotMatch(controller, /Point Color/);
+const mixerPresentationBlock = controller.match(/function createColorMixerPresentation\(groupElement, section\) \{[\s\S]*?\n        \}\n\n        function getDevelopSectionDisplayLabel/)[0];
+assert.doesNotMatch(mixerPresentationBlock, /sendCommand|requestLiveFeedbackSnapshot|fetch\(/,
+    "Switching Color Mixer views must be presentation-only");
+assert.match(controller, /container\.appendChild\(control\.row\)/,
+    "View switching must reparent the same slider rows rather than duplicate controls");
 assert.doesNotMatch(controller, /if \(!treatmentHasAuthoritativeState\) return;/,
     "First load must provisionally render the Color mixer rather than an empty section");
 assert.match(controller, /let treatmentAuthoritativeState = false/,

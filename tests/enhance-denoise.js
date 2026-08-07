@@ -111,7 +111,7 @@ assert.doesNotMatch(productionJs, /\/enhance\/denoise\?amount=/);
 assert.doesNotMatch(productionJs, /Apply Denoise|applyDenoise|enhanceApplyButton/);
 assert.doesNotMatch(productionJs, /title\.textContent = "Enhance"|className = "enhance-controls"/,
     "The standalone Enhance section must be absent");
-assert.match(productionJs, /groupElement\.appendChild\(renderEnhanceSection\(\)\);\s*groupElement\.appendChild\(renderRawDetailsControl\(\)\)/,
+assert.match(productionJs, /includesDetailControls[\s\S]*controls\.appendChild\(renderEnhanceSection\(\)\);\s*controls\.appendChild\(renderRawDetailsControl\(\)\)/,
     "Denoise must be owned by the Detail section");
 assert.match(productionJs, /className = "develop-slider-row denoise-slider-row"/);
 assert.match(productionJs, /dataset\.detailControl = "denoise"/);
@@ -126,7 +126,7 @@ assert.match(productionJs, /\.develop-slider-row input\[type="text"\][\s\S]*bord
 assert.match(productionJs, /makeButton\("−", "develop-slider-step denoise-minus"/);
 assert.match(productionJs, /makeButton\("\+", "develop-slider-step denoise-plus"/);
 assert.doesNotMatch(productionJs, /makeButton\("Reset Denoise"|denoise-reset/);
-assert.match(productionJs, /groupElement\.appendChild\(renderEnhanceSection\(\)\);\s*groupElement\.appendChild\(renderRawDetailsControl\(\)\);[\s\S]*let currentSubheading = null;\s*section\.items\.forEach/,
+assert.match(productionJs, /const leadingControls = createSectionControls\(section, "leading"\);\s*if \(leadingControls\) groupElement\.appendChild\(leadingControls\);[\s\S]*let currentSubheading = null;\s*section\.items\.forEach/,
     "Denoise must precede Detail's Sharpening controls");
 assert.doesNotMatch(productionJs, /content\.appendChild\([^)]*(?:enhance|Enhance)/,
     "Denoise must not be an external content sibling");

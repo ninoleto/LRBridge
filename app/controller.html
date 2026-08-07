@@ -99,6 +99,84 @@
             margin-bottom: 8px;
         }
 
+        .group[data-develop-section] {
+            margin-top: 30px;
+        }
+
+        .group[data-develop-section]:first-of-type {
+            margin-top: 4px;
+        }
+
+        .group[data-develop-section] > .group-title {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0 0 28px;
+            padding: 11px 14px;
+            border-top: 1px solid #d18a36;
+            border-bottom: 1px solid #d18a36;
+            background: #101010;
+            color: #f4f4f4;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+        }
+
+        .color-mixer-view-tabs {
+            display: inline-flex;
+            gap: 2px;
+            margin: 0 0 12px;
+            border: 1px solid #344352;
+            border-radius: 7px;
+            overflow: hidden;
+        }
+
+        .color-mixer-view-button {
+            min-height: 36px;
+            min-width: 72px;
+            padding: 7px 14px;
+            border: 0;
+            border-radius: 0;
+            background: #18212a;
+            color: #9fb0bf;
+            font-weight: 600;
+        }
+
+        .color-mixer-view-button.active {
+            background: #2a6f97;
+            color: #fff;
+        }
+
+        .color-mixer-slider-group {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 0;
+        }
+
+        .color-mixer-slider-group + .color-mixer-slider-group {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid #405263;
+        }
+
+        .color-mixer-group-heading {
+            margin-bottom: 5px;
+            color: #aebdca;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .develop-section-leading-controls {
+            margin-bottom: 28px;
+        }
+
+        .develop-section-trailing-controls {
+            margin-top: 16px;
+            margin-bottom: 0;
+        }
+
         .basic-controls-row {
             display: flex;
             align-items: center;
@@ -1694,15 +1772,10 @@
             });
         }
 
-        function findSliderJumpHeading(content, name) {
-            const candidates = Array.from(content.querySelectorAll(
-                "h1, h2, h3, h4, .group-title, .section-title, .slider-group-title, .action-group-title, [class*='title'], [class*='Title']"
-            ));
-
-            return candidates.find(function (element) {
-                return !element.closest(".slider-jump-control") &&
-                    element.textContent.trim() === name;
-            });
+        function findSliderJumpHeading(content, sectionId) {
+            return content.querySelector(
+                '.group[data-develop-section="' + sectionId + '"] > .group-title'
+            );
         }
 
         function installSliderJumpMenu() {
@@ -1728,7 +1801,7 @@
 
             const sections = getSliderJumpSections()
                 .map(function (section) {
-                    const heading = findSliderJumpHeading(contentHost, section.label);
+                    const heading = findSliderJumpHeading(contentHost, section.id);
 
                     if (!heading) {
                         return null;
@@ -3821,6 +3894,51 @@
             }
         }
 
+        function appendEmbeddedSwitchGroups(parent, groupNames) {
+            (groupNames || []).forEach(function (groupName) {
+                const group = switchGroups.find(function (candidate) {
+                    return candidate.name === groupName;
+                });
+                if (!group) return;
+                group.switches.forEach(function (item) {
+                    addSwitchRow(parent, item);
+                });
+            });
+        }
+
+        function appendEmbeddedActionGroups(parent, groupNames) {
+            (groupNames || []).forEach(function (groupName) {
+                const group = sliderActionGroups.find(function (candidate) {
+                    return candidate.name === groupName;
+                });
+                if (!group) return;
+                group.actions.forEach(function (item) {
+                    addActionRow(parent, item);
+                });
+            });
+        }
+
+        function createSectionControls(section, position) {
+            const actionGroups = position === "trailing" ? [] : (section.embeddedActionGroups || []);
+            const switchGroups = position === "trailing"
+                ? (section.embeddedTrailingSwitchGroups || [])
+                : (section.embeddedSwitchGroups || []);
+            const includesDetailControls = position === "leading" && section.id === "detail";
+            if (actionGroups.length === 0 && switchGroups.length === 0 && !includesDetailControls) return null;
+            const controls = document.createElement("div");
+            controls.className = position === "trailing"
+                ? "develop-section-trailing-controls"
+                : "develop-section-leading-controls";
+            appendEmbeddedActionGroups(controls, actionGroups);
+            appendEmbeddedSwitchGroups(controls, switchGroups);
+            if (includesDetailControls) {
+                controls.appendChild(renderEnhanceSection());
+                controls.appendChild(renderRawDetailsControl());
+                controls.appendChild(renderSuperResolutionControl());
+            }
+            return controls;
+        }
+
         const toneCurveDisplayOrder = Object.freeze([
             "ParametricHighlights",
             "ParametricLights",
@@ -3837,11 +3955,109 @@
             { id: "presence", label: "Presence", selectors: [{ group: "Presence" }, { group: "Color", ids: ["Vibrance", "Saturation"] }] },
             { id: "color-mixer", label: "Color Mixer", selectors: [{ group: "Color Mixer / HSL" }, { group: "B&W Mixer" }] },
             { id: "detail", label: "Detail", selectors: [{ group: "Detail" }] },
-            { id: "lens-corrections", label: "Lens Corrections", selectors: [{ group: "Lens / Defringe" }] },
-            { id: "transform", label: "Transform", selectors: [{ group: "Transform" }] },
+            { id: "lens-corrections", label: "Lens Corrections", embeddedSwitchGroups: ["Lens / Defringe"], selectors: [{ group: "Lens / Defringe" }] },
+            { id: "transform", label: "Transform", embeddedActionGroups: ["Transform Actions"], embeddedTrailingSwitchGroups: ["Transform"], selectors: [{ group: "Transform" }] },
             { id: "effects", label: "Effects", selectors: [{ group: "Effects" }] },
             { id: "calibration", label: "Calibration", selectors: [{ group: "Calibration" }] }
         ]);
+
+        const colorMixerDefinitions = Object.freeze([
+            { key: "red", label: "Red", hue: "HueAdjustmentRed", saturation: "SaturationAdjustmentRed", luminance: "LuminanceAdjustmentRed" },
+            { key: "orange", label: "Orange", hue: "HueAdjustmentOrange", saturation: "SaturationAdjustmentOrange", luminance: "LuminanceAdjustmentOrange" },
+            { key: "yellow", label: "Yellow", hue: "HueAdjustmentYellow", saturation: "SaturationAdjustmentYellow", luminance: "LuminanceAdjustmentYellow" },
+            { key: "green", label: "Green", hue: "HueAdjustmentGreen", saturation: "SaturationAdjustmentGreen", luminance: "LuminanceAdjustmentGreen" },
+            { key: "aqua", label: "Aqua", hue: "HueAdjustmentAqua", saturation: "SaturationAdjustmentAqua", luminance: "LuminanceAdjustmentAqua" },
+            { key: "blue", label: "Blue", hue: "HueAdjustmentBlue", saturation: "SaturationAdjustmentBlue", luminance: "LuminanceAdjustmentBlue" },
+            { key: "purple", label: "Purple", hue: "HueAdjustmentPurple", saturation: "SaturationAdjustmentPurple", luminance: "LuminanceAdjustmentPurple" },
+            { key: "magenta", label: "Magenta", hue: "HueAdjustmentMagenta", saturation: "SaturationAdjustmentMagenta", luminance: "LuminanceAdjustmentMagenta" }
+        ]);
+        const colorMixerAdjustmentTypes = Object.freeze([
+            { key: "hue", label: "Hue" },
+            { key: "saturation", label: "Saturation" },
+            { key: "luminance", label: "Luminance" }
+        ]);
+        let colorMixerView = "hsl";
+        try { if (sessionStorage.getItem("lrbridge.colorMixerView") === "color") colorMixerView = "color"; } catch (err) {}
+
+        function getColorMixerViewGroups(view) {
+            if (view === "color") {
+                return colorMixerDefinitions.map(function (color) {
+                    return {
+                        label: color.label,
+                        rows: colorMixerAdjustmentTypes.map(function (adjustment) {
+                            return { id: color[adjustment.key], label: adjustment.label };
+                        })
+                    };
+                });
+            }
+            return colorMixerAdjustmentTypes.map(function (adjustment) {
+                return {
+                    label: adjustment.label,
+                    rows: colorMixerDefinitions.map(function (color) {
+                        return { id: color[adjustment.key], label: adjustment.label + " " + color.label };
+                    })
+                };
+            });
+        }
+
+        function renderColorMixerView(host, buttons) {
+            host.replaceChildren();
+            buttons.hsl.classList.toggle("active", colorMixerView === "hsl");
+            buttons.color.classList.toggle("active", colorMixerView === "color");
+            buttons.hsl.setAttribute("aria-selected", String(colorMixerView === "hsl"));
+            buttons.color.setAttribute("aria-selected", String(colorMixerView === "color"));
+            getColorMixerViewGroups(colorMixerView).forEach(function (group) {
+                const container = document.createElement("div");
+                container.className = "color-mixer-slider-group";
+                container.dataset.mixerGroup = group.label.toLowerCase();
+                const heading = document.createElement("div");
+                heading.className = "color-mixer-group-heading";
+                heading.textContent = group.label;
+                container.appendChild(heading);
+                group.rows.forEach(function (item) {
+                    const control = developSliderControls[item.id];
+                    if (!control) return;
+                    const label = control.row.querySelector(".slider-name");
+                    if (label) label.textContent = item.label;
+                    container.appendChild(control.row);
+                });
+                host.appendChild(container);
+            });
+        }
+
+        function createColorMixerPresentation(groupElement, section) {
+            const tabs = document.createElement("div");
+            tabs.className = "color-mixer-view-tabs";
+            tabs.setAttribute("role", "tablist");
+            const buttons = {};
+            ["hsl", "color"].forEach(function (view) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "color-mixer-view-button";
+                button.textContent = view === "hsl" ? "HSL" : "Color";
+                button.setAttribute("role", "tab");
+                button.addEventListener("click", function () {
+                    if (colorMixerView === view) return;
+                    colorMixerView = view;
+                    try { sessionStorage.setItem("lrbridge.colorMixerView", view); } catch (err) {}
+                    renderColorMixerView(host, buttons);
+                });
+                buttons[view] = button;
+                tabs.appendChild(button);
+            });
+            groupElement.appendChild(tabs);
+            const host = document.createElement("div");
+            host.className = "color-mixer-view-content";
+            groupElement.appendChild(host);
+            const definitionsById = new Map(section.items.map(function (item) { return [item.definition.id, item.definition]; }));
+            colorMixerDefinitions.forEach(function (color) {
+                colorMixerAdjustmentTypes.forEach(function (adjustment) {
+                    const definition = definitionsById.get(color[adjustment.key]);
+                    if (definition) createDevelopSliderControl(definition);
+                });
+            });
+            renderColorMixerView(host, buttons);
+        }
 
         function getDevelopSectionDisplayLabel(section) {
             if (
@@ -4003,12 +4219,13 @@
             groupElement.dataset.developSection = section.id;
             const title = document.createElement("div");
             title.className = "group-title";
-            title.textContent = section.label;
+            title.textContent = section.id === "color-mixer" && !treatmentAuthoritativeState ? "COLOR MIXER" : section.label;
             groupElement.appendChild(title);
-            if (section.id === "detail") {
-                groupElement.appendChild(renderEnhanceSection());
-                groupElement.appendChild(renderRawDetailsControl());
-                groupElement.appendChild(renderSuperResolutionControl());
+            const leadingControls = createSectionControls(section, "leading");
+            if (leadingControls) groupElement.appendChild(leadingControls);
+            if (section.id === "color-mixer" && !treatmentAuthoritativeState) {
+                createColorMixerPresentation(groupElement, section);
+                return groupElement;
             }
             let currentSubheading = null;
             section.items.forEach(function (item) {
@@ -4021,6 +4238,8 @@
                 }
                 groupElement.appendChild(createDevelopSliderControl(item.definition));
             });
+            const trailingControls = createSectionControls(section, "trailing");
+            if (trailingControls) groupElement.appendChild(trailingControls);
             return groupElement;
         }
 
@@ -4338,6 +4557,9 @@
                     id: section.id,
                     label: getDevelopSectionDisplayLabel(section),
                     selectors: section.selectors,
+                    embeddedActionGroups: section.embeddedActionGroups,
+                    embeddedSwitchGroups: section.embeddedSwitchGroups,
+                    embeddedTrailingSwitchGroups: section.embeddedTrailingSwitchGroups,
                     items: selectDevelopSectionDefinitions(section)
                 };
             });
@@ -4353,15 +4575,29 @@
             renderActionsForPlacement("top");
             const renderedActionPlacements = new Set(["before:Basic"]);
             const renderedSwitchPlacements = new Set();
+            const embeddedActionGroupNames = new Set(sections.flatMap(function (section) {
+                return section.embeddedActionGroups || [];
+            }));
+            const embeddedSwitchGroupNames = new Set(sections.flatMap(function (section) {
+                return (section.embeddedSwitchGroups || []).concat(section.embeddedTrailingSwitchGroups || []);
+            }));
 
             for (const section of sections) {
                 section.selectors.forEach(function (selector) {
                     const placement = "before:" + selector.group;
-                    if (!renderedActionPlacements.has(placement)) {
+                    const actionGroupIsEmbedded = sliderActionGroups.some(function (group) {
+                        return (group.placement || "top") === placement &&
+                            embeddedActionGroupNames.has(group.name);
+                    });
+                    if (!actionGroupIsEmbedded && !renderedActionPlacements.has(placement)) {
                         renderActionsForPlacement(placement);
                         renderedActionPlacements.add(placement);
                     }
-                    if (!renderedSwitchPlacements.has(placement)) {
+                    const switchGroupIsEmbedded = switchGroups.some(function (group) {
+                        return (group.placement || "top") === placement &&
+                            embeddedSwitchGroupNames.has(group.name);
+                    });
+                    if (!switchGroupIsEmbedded && !renderedSwitchPlacements.has(placement)) {
                         renderSwitchesForPlacement(placement);
                         renderedSwitchPlacements.add(placement);
                     }

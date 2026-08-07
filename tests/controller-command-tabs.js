@@ -120,6 +120,8 @@ const developSectionDisplayOrder = vm.runInNewContext("(" + source.match(
 const sliderRenderContext = {
     developSliderDefinitions: [{ id: "Exposure", group: "Basic" }],
     developSectionDisplayOrder,
+    sliderActionGroups,
+    switchGroups: extractJavaScriptValue("const switchGroups ="),
     treatmentAuthoritativeState: false,
     treatmentHasAuthoritativeState: true,
     developRenderedSections: {},
