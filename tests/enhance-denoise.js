@@ -27,10 +27,20 @@ assert.equal((productionLua.match(/LrDevelopController\.changeDenoiseAmount\(/g)
 assert.match(lua, /function Enhance\.setDenoiseAmount\(amount\)[\s\S]*LrTasks\.startAsyncTask[\s\S]*changeDenoiseAmount\(amount\)/);
 assert.doesNotMatch(lua.match(/function Enhance\.setDenoiseAmount[\s\S]*?\nend\n/)[0], /setEnhance/,
     "Amount-only changes must never call setEnhance");
-assert.doesNotMatch(productionLua, /setEnhance\("(?:rawDetails|superRes)/);
-assert.equal((productionLua.match(/LrDevelopController\.setEnhance\(/g) || []).length, 1);
+assert.match(lua, /function Enhance\.setRawDetails\(enabled\)[\s\S]*LrTasks\.startAsyncTask[\s\S]*setEnhance\("rawDetails", enabled\)/);
+assert.match(lua, /function Enhance\.setSuperResolution\(enabled\)[\s\S]*LrTasks\.startAsyncTask[\s\S]*setEnhance\("superRes", enabled\)/);
+const superResolutionLua = lua.match(/function Enhance\.setSuperResolution\(enabled\)[\s\S]*?\nend\n/)[0];
+assert.equal((superResolutionLua.match(/setEnhance\("superRes", enabled\)/g) || []).length, 1);
+assert.doesNotMatch(superResolutionLua, /setEnhance\("superRes", enabled\s*,|setEnhance\("(?:denoise|rawDetails)"|changeDenoiseAmount|toggleEnhance/);
+assert.match(superResolutionLua, /confirmed\.superResState == enabled/);
+assert.match(superResolutionLua, /"uncertain", "confirmation_timeout"/);
+assert.doesNotMatch(superResolutionLua, /enabled == true[\s\S]*rawDetailsState/,
+    "Independent Raw Details must not block Super Resolution On");
+assert.equal((productionLua.match(/LrDevelopController\.setEnhance\(/g) || []).length, 3);
 assert.match(commandsLua, /Enhance\.setDenoise\(command\.enabled, command\.amount\)/,
     "Commands.lua must dispatch either Boolean unchanged");
+assert.match(commandsLua, /Enhance\.setRawDetails\(command\.enabled\)/);
+assert.match(commandsLua, /Enhance\.setSuperResolution\(command\.enabled\)/);
 
 function executeLuaBooleanFieldContract(json, fieldName) {
     const key = new RegExp('"' + fieldName + '"\\s*:', "g");
@@ -48,6 +58,20 @@ for (const enabled of [true, false]) {
         "The exact /next JSON Boolean must survive the Lua parser contract");
     assert.equal(JSON.parse(nextJson).command.amount, 50, "Integer amount transport changed");
 }
+for (const enabled of [true, false]) {
+    const nextJson = JSON.stringify({ command: { command: "enhance.raw_details.set", enabled } });
+    assert.equal(executeLuaBooleanFieldContract(nextJson, "enabled"), enabled);
+    assert.equal(commands.validateCommand({ command: "enhance.raw_details.set", enabled }), true);
+}
+for (const enabled of [0, 1, "true", null, undefined]) assert.equal(commands.validateCommand({ command: "enhance.raw_details.set", enabled }), false);
+assert.equal(commands.validateCommand({ command: "enhance.raw_details.set", enabled: true, amount: 50 }), false);
+for (const enabled of [true, false]) {
+    const nextJson = JSON.stringify({ command: { command: "enhance.super_resolution.set", enabled } });
+    assert.equal(executeLuaBooleanFieldContract(nextJson, "enabled"), enabled);
+    assert.equal(commands.validateCommand({ command: "enhance.super_resolution.set", enabled }), true);
+}
+for (const enabled of [0, 1, "true", null, undefined]) assert.equal(commands.validateCommand({ command: "enhance.super_resolution.set", enabled }), false);
+assert.equal(commands.validateCommand({ command: "enhance.super_resolution.set", enabled: true, extra: false }), false);
 for (const invalidJson of [
     '{"command":"enhance.denoise.set","amount":50}',
     '{"command":"enhance.denoise.set","enabled":"true","amount":50}',
@@ -64,6 +88,8 @@ assert.match(lua, /initial\.denoiseState == enabled/);
 assert.match(lua, /operationPending == true/);
 assert.match(lua, /function Enhance\.sendCurrentState\(\)[\s\S]*operationPending == true[\s\S]*sendState\(state, "processing"\)[\s\S]*return/,
     "Passive refreshes must remain processing while the worker owns the operation");
+assert.doesNotMatch(lua.match(/function Enhance\.sendCurrentState\(\)[\s\S]*?\nend\n/)[0], /"applied"|"failed"|"uncertain"/,
+    "Passive Enhance feedback must never report a terminal operation state");
 assert.match(lua, /callOk ~= true[\s\S]*"failed"/);
 assert.match(lua, /callOk[\s\S]*confirmed\.denoiseState == enabled[\s\S]*"applied"/);
 assert.match(lua, /for attempt = 1, 10 do[\s\S]*"uncertain", "confirmation_timeout"/);
@@ -85,7 +111,7 @@ assert.doesNotMatch(productionJs, /\/enhance\/denoise\?amount=/);
 assert.doesNotMatch(productionJs, /Apply Denoise|applyDenoise|enhanceApplyButton/);
 assert.doesNotMatch(productionJs, /title\.textContent = "Enhance"|className = "enhance-controls"/,
     "The standalone Enhance section must be absent");
-assert.match(productionJs, /if \(section\.id === "detail"\) groupElement\.appendChild\(renderEnhanceSection\(\)\)/,
+assert.match(productionJs, /groupElement\.appendChild\(renderEnhanceSection\(\)\);\s*groupElement\.appendChild\(renderRawDetailsControl\(\)\)/,
     "Denoise must be owned by the Detail section");
 assert.match(productionJs, /className = "develop-slider-row denoise-slider-row"/);
 assert.match(productionJs, /dataset\.detailControl = "denoise"/);
@@ -100,12 +126,20 @@ assert.match(productionJs, /\.develop-slider-row input\[type="text"\][\s\S]*bord
 assert.match(productionJs, /makeButton\("−", "develop-slider-step denoise-minus"/);
 assert.match(productionJs, /makeButton\("\+", "develop-slider-step denoise-plus"/);
 assert.doesNotMatch(productionJs, /makeButton\("Reset Denoise"|denoise-reset/);
-assert.match(productionJs, /groupElement\.appendChild\(renderEnhanceSection\(\)\);\s*let currentSubheading = null;\s*section\.items\.forEach/,
+assert.match(productionJs, /groupElement\.appendChild\(renderEnhanceSection\(\)\);\s*groupElement\.appendChild\(renderRawDetailsControl\(\)\);[\s\S]*let currentSubheading = null;\s*section\.items\.forEach/,
     "Denoise must precede Detail's Sharpening controls");
 assert.doesNotMatch(productionJs, /content\.appendChild\([^)]*(?:enhance|Enhance)/,
     "Denoise must not be an external content sibling");
-assert.doesNotMatch(productionJs, /textContent = "(?:Raw Details|Super Resolution)"/,
-    "Unverified Enhance controls must not be rendered");
+assert.match(productionJs, /label\.className = "slider-name"; label\.textContent = "Raw Details"/);
+assert.match(productionJs, /label\.className = "slider-name"; label\.textContent = "Super Resolution"/);
+assert.match(productionJs, /detailControl = "super-resolution"/);
+assert.doesNotMatch(productionJs.match(/function renderSuperResolutionControl\(\)[\s\S]*?return controls;\s*}/)[0], /type = "range"|Apply|Reset/);
+assert.match(productionJs, /Raw Details enabled by Super Resolution/);
+assert.doesNotMatch(productionJs.match(/superResolutionOnButton\.disabled[^;]+;/)[0], /rawDetailsState/);
+assert.doesNotMatch(productionJs.match(/function renderRawDetailsControl\(\)[\s\S]*?return controls;\s*}/)[0], /type = "range"/);
+assert.match(productionJs, /Raw Details enabled by Denoise/);
+assert.match(productionJs, /Applying Raw Details…/);
+assert.match(productionJs, /Removing Raw Details…/);
 assert.match(productionJs, /\.denoise-slider-row \{\s*grid-template-columns: minmax\(140px, 210px\) 64px 64px minmax\(180px, 1fr\) 92px 44px 44px/);
 assert.match(productionJs, /@media \(max-width: 760px\)[\s\S]*\.denoise-slider-row \{\s*grid-template-columns: minmax\(92px, 1fr\) 64px 64px/);
 assert.match(productionJs, /\.denoise-slider-row input\[type="range"\],[\s\S]*\.denoise-slider-row \.enhance-status[\s\S]*grid-column: 1 \/ -1/,
@@ -235,6 +269,12 @@ async function httpJson(port, target) {
             "&rawDetailsState=true&rawDetailsEnabled=false&superResState=false&superResEnabled=false" +
             "&enhanceNeedsUpdate=false&amountOperation=" + amountOperation + "&requestedAmount=" + amount;
     };
+    const rawTerminal = function (operation, enabled, errorCategory) {
+        return "/enhance/result?available=true&denoiseState=false&denoiseEnabled=true&denoiseAmount=50" +
+            "&rawDetailsState=" + String(enabled) + "&rawDetailsEnabled=true&superResState=false&superResEnabled=true" +
+            "&enhanceNeedsUpdate=false&operation=" + operation + "&operationTarget=rawDetails&requestedEnabled=" + String(enabled) +
+            (errorCategory ? "&errorCategory=" + errorCategory : "");
+    };
     async function acceptAndConsume(enabled, amount) {
         assert.equal((await httpJson(port, "/enhance/denoise/set?enabled=" + enabled + "&amount=" + amount)).status, 200);
         const nextResponse = await fetch("http://127.0.0.1:" + port + "/next");
@@ -259,11 +299,46 @@ async function httpJson(port, target) {
             "/enhance/denoise/set?enabled=tru&amount=50",
             "/enhance/denoise/set?enabled=true&amount=50&extra=1"
         ]) assert.equal((await httpJson(port, invalidTarget)).status, 400, invalidTarget);
+        for (const invalidTarget of [
+            "/enhance/super-resolution/set",
+            "/enhance/super-resolution/set?enabled=1",
+            "/enhance/super-resolution/set?enabled=%22false%22",
+            "/enhance/super-resolution/set?enabled=true&extra=1"
+        ]) assert.equal((await httpJson(port, invalidTarget)).status, 400, invalidTarget);
+        const independentRawReady = "/enhance/result?available=true&denoiseState=false&denoiseEnabled=true&denoiseAmount=50" +
+            "&rawDetailsState=true&rawDetailsEnabled=true&superResState=false&superResEnabled=true" +
+            "&enhanceNeedsUpdate=false&operation=ready";
+        assert.equal((await httpJson(port, independentRawReady)).status, 200);
+        assert.equal((await httpJson(port, "/enhance/super-resolution/set?enabled=true")).status, 200,
+            "Independent Raw Details must permit Super Resolution On");
+        let independentRawNext = await httpJson(port, "/next");
+        assert.deepEqual(independentRawNext.body.command, { command: "enhance.super_resolution.set", enabled: true });
+        const independentRawApplied = "/enhance/result?available=true&denoiseState=false&denoiseEnabled=false&denoiseAmount=50" +
+            "&rawDetailsState=true&rawDetailsEnabled=false&superResState=true&superResEnabled=true" +
+            "&enhanceNeedsUpdate=false&operation=applied&operationTarget=superResolution&requestedEnabled=true";
+        assert.equal((await httpJson(port, independentRawApplied)).status, 200);
+        const denoiseOwnedRaw = "/enhance/result?available=true&denoiseState=true&denoiseEnabled=true&denoiseAmount=50" +
+            "&rawDetailsState=true&rawDetailsEnabled=false&superResState=false&superResEnabled=false" +
+            "&enhanceNeedsUpdate=false&operation=ready";
+        assert.equal((await httpJson(port, denoiseOwnedRaw)).status, 200);
+        assert.equal((await httpJson(port, "/enhance/super-resolution/set?enabled=true")).status, 409,
+            "Denoise-owned Raw Details must block Super Resolution On");
+        assert.equal((await httpJson(port, passiveReady)).status, 200);
+        for (const invalidTarget of [
+            "/enhance/raw-details/set",
+            "/enhance/raw-details/set?enabled=1",
+            "/enhance/raw-details/set?enabled=%22true%22",
+            "/enhance/raw-details/set?enabled=true&extra=1"
+        ]) assert.equal((await httpJson(port, invalidTarget)).status, 400, invalidTarget);
         assert.equal((await httpJson(port, "/enhance/denoise/amount?amount=35")).status, 200);
         let amountNext = await httpJson(port, "/next");
         assert.deepEqual(amountNext.body.command, { command: "enhance.denoise.amount.set", amount: 35 });
         assert.equal((await httpJson(port, "/enhance/denoise/amount?amount=36")).status, 409,
             "Only one amount update may be pending");
+        assert.equal((await httpJson(port, "/enhance/raw-details/set?enabled=true")).status, 409,
+            "A pending Denoise amount change must block Raw Details");
+        assert.equal((await httpJson(port, "/enhance/super-resolution/set?enabled=true")).status, 409,
+            "A pending Denoise amount change must block Super Resolution");
         assert.equal((await httpJson(port, amountResult("processing", 35))).status, 200);
         assert.equal((await httpJson(port, passiveReady)).status, 200);
         let amountState = await httpJson(port, "/enhance/state");
@@ -283,6 +358,10 @@ async function httpJson(port, target) {
         assert.equal(processing.body.denoiseState, false);
         assert.equal(processing.body.requestedEnabled, true, "Pending target must survive passive feedback");
         await assertDuplicateLocked("Passive ready feedback must not release duplicate protection");
+        assert.equal((await httpJson(port, "/enhance/raw-details/set?enabled=true")).status, 409,
+            "Denoise pending must block Raw Details");
+        assert.equal((await httpJson(port, "/enhance/super-resolution/set?enabled=true")).status, 409,
+            "Denoise pending must block Super Resolution");
 
         await httpJson(port, "/context/update?activeModule=develop&selectedPhotoKey=photo-b&developFingerprint=two");
         const afterContextChange = await httpJson(port, "/enhance/state");
@@ -306,6 +385,41 @@ async function httpJson(port, target) {
         assert.equal((await httpJson(port, terminalResult("failed", false, "rejected"))).status, 200);
         assert.equal((await httpJson(port, "/enhance/denoise/set?enabled=true&amount=4")).status, 200,
             "Applied, failed, and uncertain terminal results must each release the lock");
+        await httpJson(port, "/next");
+        assert.equal((await httpJson(port, terminalResult("applied", true))).status, 200);
+        assert.equal((await httpJson(port, "/enhance/raw-details/set?enabled=true")).status, 200);
+        const rawNext = await httpJson(port, "/next");
+        assert.deepEqual(rawNext.body.command, { command: "enhance.raw_details.set", enabled: true });
+        assert.equal((await httpJson(port, "/enhance/raw-details/set?enabled=false")).status, 409,
+            "Raw Details pending must block another Raw Details request");
+        assert.equal((await httpJson(port, "/enhance/denoise/set?enabled=true&amount=50")).status, 409,
+            "Raw Details pending must block Denoise");
+        assert.equal((await httpJson(port, passiveReady)).status, 200);
+        assert.equal((await httpJson(port, "/enhance/state")).body.operationTarget, "rawDetails",
+            "Passive feedback must preserve the pending operation target");
+        await httpJson(port, "/context/update?activeModule=develop&selectedPhotoKey=photo-c&developFingerprint=three");
+        assert.equal((await httpJson(port, "/enhance/raw-details/set?enabled=false")).status, 409,
+            "Context changes must not release Raw Details locking");
+        assert.equal((await httpJson(port, rawTerminal("uncertain", true, "confirmation_timeout"))).status, 200);
+        assert.equal((await httpJson(port, "/enhance/raw-details/set?enabled=false")).status, 200,
+            "Uncertain must release the Raw Details lock");
+        await httpJson(port, "/next");
+        assert.equal((await httpJson(port, rawTerminal("applied", false))).status, 200);
+        assert.equal((await httpJson(port, "/enhance/super-resolution/set?enabled=true")).status, 200);
+        const superNext = await httpJson(port, "/next");
+        assert.deepEqual(superNext.body.command, { command: "enhance.super_resolution.set", enabled: true });
+        assert.equal((await httpJson(port, "/enhance/denoise/set?enabled=true&amount=50")).status, 409);
+        assert.equal((await httpJson(port, "/enhance/raw-details/set?enabled=true")).status, 409);
+        assert.equal((await httpJson(port, "/enhance/super-resolution/set?enabled=false")).status, 409);
+        assert.equal((await httpJson(port, "/enhance/denoise/amount?amount=35")).status, 409);
+        assert.equal((await httpJson(port, passiveReady)).status, 200);
+        assert.equal((await httpJson(port, "/enhance/state")).body.operationTarget, "superResolution");
+        await httpJson(port, "/context/update?activeModule=develop&selectedPhotoKey=photo-d&developFingerprint=four");
+        assert.equal((await httpJson(port, "/enhance/super-resolution/set?enabled=false")).status, 409);
+        const superApplied = "/enhance/result?available=true&denoiseState=false&denoiseEnabled=false&denoiseAmount=50" +
+            "&rawDetailsState=true&rawDetailsEnabled=false&superResState=true&superResEnabled=true" +
+            "&enhanceNeedsUpdate=false&operation=applied&operationTarget=superResolution&requestedEnabled=true";
+        assert.equal((await httpJson(port, superApplied)).status, 200);
     } finally {
         await bridge.stop();
         commands.resetQueueForTests();

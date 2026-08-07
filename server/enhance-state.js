@@ -55,6 +55,10 @@ function createEnhanceState() {
             if (typeof input.requestedEnabled !== "boolean") return null;
             result.requestedEnabled = input.requestedEnabled;
         }
+        if (input.operationTarget !== undefined) {
+            if (input.operationTarget !== "denoise" && input.operationTarget !== "rawDetails" && input.operationTarget !== "superResolution") return null;
+            result.operationTarget = input.operationTarget;
+        }
         return result;
     }
 
@@ -66,6 +70,7 @@ function createEnhanceState() {
             if (pending && IDLE_STATES.has(sanitized.operation)) {
                 sanitized.operation = "processing";
                 sanitized.requestedEnabled = state.requestedEnabled;
+                sanitized.operationTarget = state.operationTarget;
                 delete sanitized.errorCategory;
             }
             if (amountPending) {
@@ -94,10 +99,10 @@ function createEnhanceState() {
             amountPending = input.amountOperation === "starting" || input.amountOperation === "processing";
             return true;
         },
-        acceptOperation: function (requestedEnabled) {
-            if (pending) return false;
+        acceptOperation: function (requestedEnabled, operationTarget) {
+            if (pending || amountPending || !["denoise", "rawDetails", "superResolution"].includes(operationTarget)) return false;
             pending = true;
-            state = Object.assign({}, state, { operation: "starting", requestedEnabled: requestedEnabled });
+            state = Object.assign({}, state, { operation: "starting", requestedEnabled: requestedEnabled, operationTarget: operationTarget });
             delete state.errorCategory;
             return true;
         },
@@ -123,12 +128,14 @@ function createEnhanceState() {
         syncContext: function (nextCounter) {
             if (contextCounter !== null && nextCounter !== contextCounter) {
                 const requestedEnabled = state.requestedEnabled;
+                const operationTarget = state.operationTarget;
                 const requestedAmount = state.requestedAmount;
                 state = unavailableState();
                 if (pending) {
                     state.operation = "processing";
                     state.info = "Enhance operation pending";
                     state.requestedEnabled = requestedEnabled;
+                    state.operationTarget = operationTarget;
                 }
                 if (amountPending) {
                     state.amountOperation = "processing";

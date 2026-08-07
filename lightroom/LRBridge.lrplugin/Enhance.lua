@@ -7,6 +7,7 @@ local LrTasks = import "LrTasks"
 local Enhance = {}
 local operationPending = false
 local amountOperationPending = false
+local operationTarget = nil
 
 local function bool(value) return value == true end
 local function encode(value)
@@ -86,6 +87,7 @@ local function sendState(state, operation, errorCategory, info, requestedEnabled
         "&superResEnabled=" .. tostring(state.superResEnabled) ..
         "&enhanceNeedsUpdate=" .. tostring(state.enhanceNeedsUpdate) ..
         "&operation=" .. encode(operation)
+    if operationTarget ~= nil then url = url .. "&operationTarget=" .. encode(operationTarget) end
     if requestedEnabled ~= nil then url = url .. "&requestedEnabled=" .. tostring(requestedEnabled) end
     if errorCategory ~= nil then url = url .. "&errorCategory=" .. encode(errorCategory) end
     if info ~= nil then url = url .. "&info=" .. encode(info) end
@@ -103,7 +105,7 @@ function Enhance.sendCurrentState()
     if state == nil then
         sendState(nil, "unavailable", nil, "Enhance state unavailable")
     elseif state.denoiseState == true then
-        sendState(state, "applied")
+        sendState(state, "ready")
     elseif state.denoiseEnabled == true then
         sendState(state, "ready")
     else
@@ -172,9 +174,15 @@ function Enhance.setDenoise(enabled, amount)
     local initial = Enhance.readState()
     if initial == nil then sendState(nil, "failed", "state_error"); return false end
     if enabled == true and initial.denoiseEnabled ~= true then sendState(initial, "failed", "unavailable", nil, enabled); return false end
-    if initial.denoiseState == enabled then sendState(initial, "applied", nil, nil, enabled); return true end
+    if initial.denoiseState == enabled then
+        operationTarget = "denoise"
+        sendState(initial, "applied", nil, nil, enabled)
+        operationTarget = nil
+        return true
+    end
 
     operationPending = true
+    operationTarget = "denoise"
     sendState(initial, "starting", nil, nil, enabled)
     local started = pcall(function()
         LrTasks.startAsyncTask(function()
@@ -185,31 +193,111 @@ function Enhance.setDenoise(enabled, amount)
             if callOk ~= true or callResult == false then
                 operationPending = false
                 sendState(Enhance.readState(), "failed", callOk == true and "rejected" or "sdk_error", nil, enabled)
+                operationTarget = nil
                 return
             end
             for attempt = 1, 10 do
                 if activeModule() ~= "develop" or targetPhoto() ~= photo then
                     operationPending = false
                     sendState(nil, "uncertain", "confirmation_timeout", nil, enabled)
+                    operationTarget = nil
                     return
                 end
                 local confirmed = Enhance.readState()
                 if confirmed ~= nil and confirmed.denoiseState == enabled then
                     operationPending = false
                     sendState(confirmed, "applied", nil, nil, enabled)
+                    operationTarget = nil
                     return
                 end
                 LrTasks.sleep(0.5)
             end
             operationPending = false
             sendState(Enhance.readState(), "uncertain", "confirmation_timeout", nil, enabled)
+            operationTarget = nil
         end)
     end)
     if started ~= true then
         operationPending = false
         sendState(initial, "failed", "sdk_error", nil, enabled)
+        operationTarget = nil
         return false
     end
+    return true
+end
+
+function Enhance.setRawDetails(enabled)
+    if type(enabled) ~= "boolean" then sendState(Enhance.readState(), "failed", "invalid_enabled"); return false end
+    if operationPending == true or amountOperationPending == true then sendState(Enhance.readState(), "failed", "duplicate"); return false end
+    if activeModule() ~= "develop" then sendState(nil, "failed", "not_develop"); return false end
+    local photo = targetPhoto()
+    if photo == nil then sendState(nil, "failed", "no_photo"); return false end
+    local initial = Enhance.readState()
+    if initial == nil then sendState(nil, "failed", "state_error"); return false end
+    if initial.denoiseState == true then sendState(initial, "failed", "unavailable", nil, enabled); return false end
+    if enabled == true and (initial.rawDetailsEnabled ~= true or initial.rawDetailsState == true) then sendState(initial, "failed", "unavailable", nil, enabled); return false end
+    if enabled == false and initial.rawDetailsState ~= true then sendState(initial, "failed", "unavailable", nil, enabled); return false end
+
+    operationPending = true
+    operationTarget = "rawDetails"
+    sendState(initial, "starting", nil, nil, enabled)
+    local started = pcall(function()
+        LrTasks.startAsyncTask(function()
+            sendState(initial, "processing", nil, nil, enabled)
+            local callOk, callResult = LrTasks.pcall(function()
+                return LrDevelopController.setEnhance("rawDetails", enabled)
+            end)
+            if callOk ~= true or callResult == false then
+                operationPending = false; sendState(Enhance.readState(), "failed", callOk == true and "rejected" or "sdk_error", nil, enabled); operationTarget = nil; return
+            end
+            for attempt = 1, 10 do
+                if activeModule() ~= "develop" or targetPhoto() ~= photo then
+                    operationPending = false; sendState(nil, "uncertain", "confirmation_timeout", nil, enabled); operationTarget = nil; return
+                end
+                local confirmed = Enhance.readState()
+                if confirmed ~= nil and confirmed.rawDetailsState == enabled then
+                    operationPending = false; sendState(confirmed, "applied", nil, nil, enabled); operationTarget = nil; return
+                end
+                LrTasks.sleep(0.5)
+            end
+            operationPending = false; sendState(Enhance.readState(), "uncertain", "confirmation_timeout", nil, enabled); operationTarget = nil
+        end)
+    end)
+    if started ~= true then operationPending = false; sendState(initial, "failed", "sdk_error", nil, enabled); operationTarget = nil; return false end
+    return true
+end
+
+function Enhance.setSuperResolution(enabled)
+    if type(enabled) ~= "boolean" then sendState(Enhance.readState(), "failed", "invalid_enabled"); return false end
+    if operationPending == true or amountOperationPending == true then sendState(Enhance.readState(), "failed", "duplicate"); return false end
+    if activeModule() ~= "develop" then sendState(nil, "failed", "not_develop"); return false end
+    local photo = targetPhoto()
+    if photo == nil then sendState(nil, "failed", "no_photo"); return false end
+    local initial = Enhance.readState()
+    if initial == nil then sendState(nil, "failed", "state_error"); return false end
+    if initial.superResEnabled ~= true then sendState(initial, "failed", "unavailable", nil, enabled); return false end
+    if enabled == true and (initial.denoiseState == true or initial.superResState == true) then sendState(initial, "failed", "unavailable", nil, enabled); return false end
+    if enabled == false and initial.superResState ~= true then sendState(initial, "failed", "unavailable", nil, enabled); return false end
+    operationPending = true; operationTarget = "superResolution"
+    sendState(initial, "starting", nil, nil, enabled)
+    local started = pcall(function()
+        LrTasks.startAsyncTask(function()
+            sendState(initial, "processing", nil, nil, enabled)
+            local callOk, callResult = LrTasks.pcall(function() return LrDevelopController.setEnhance("superRes", enabled) end)
+            if callOk ~= true or callResult == false then
+                operationPending = false; sendState(Enhance.readState(), "failed", callOk == true and "rejected" or "sdk_error", nil, enabled); operationTarget = nil; return
+            end
+            for attempt = 1, 10 do
+                local confirmed = Enhance.readState()
+                if targetPhoto() == photo and confirmed ~= nil and confirmed.superResState == enabled then
+                    operationPending = false; sendState(confirmed, "applied", nil, nil, enabled); operationTarget = nil; return
+                end
+                LrTasks.sleep(0.5)
+            end
+            operationPending = false; sendState(Enhance.readState(), "uncertain", "confirmation_timeout", nil, enabled); operationTarget = nil
+        end)
+    end)
+    if started ~= true then operationPending = false; sendState(initial, "failed", "sdk_error", nil, enabled); operationTarget = nil; return false end
     return true
 end
 

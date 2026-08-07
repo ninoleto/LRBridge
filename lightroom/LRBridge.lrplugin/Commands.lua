@@ -35,6 +35,8 @@ function Commands.execute(command)
     if command.command == "color_grading.view.set" then ColorGrading.setView(command.view); return end
     if command.command == "enhance.denoise.set" then Enhance.setDenoise(command.enabled, command.amount); return end
     if command.command == "enhance.denoise.amount.set" then Enhance.setDenoiseAmount(command.amount); return end
+    if command.command == "enhance.raw_details.set" then Enhance.setRawDetails(command.enabled); return end
+    if command.command == "enhance.super_resolution.set" then Enhance.setSuperResolution(command.enabled); return end
 
     if command.command == "develop.adjust" then
 

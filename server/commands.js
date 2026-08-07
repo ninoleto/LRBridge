@@ -130,6 +130,8 @@ function validateCommand(command) {
         "application.secondary_view"
         ,"enhance.denoise.set"
         ,"enhance.denoise.amount.set"
+        ,"enhance.raw_details.set"
+        ,"enhance.super_resolution.set"
         ,"color_grading.wheel.set"
         ,"color_grading.value.set"
         ,"color_grading.value.reset"
@@ -149,6 +151,10 @@ function validateCommand(command) {
     if (command.command === "enhance.denoise.amount.set") {
         return Object.keys(command).length === 2 && Number.isInteger(command.amount) && command.amount >= 1 && command.amount <= 100;
     }
+    if (command.command === "enhance.raw_details.set") {
+        return Object.keys(command).length === 2 && typeof command.enabled === "boolean";
+    }
+    if (command.command === "enhance.super_resolution.set") return Object.keys(command).length === 2 && typeof command.enabled === "boolean";
 
     if (!allowedCommands.includes(command.command)) {
         console.log("Unknown command");
@@ -356,10 +362,10 @@ function tryEnqueueCommand(command) {
     if (!validateCommand(command)) {
         return admissionResult(ADMISSION_INVALID);
     }
-    if (command.command === "enhance.denoise.set" && enhanceOperationPending) {
+    if ((command.command === "enhance.denoise.set" || command.command === "enhance.raw_details.set" || command.command === "enhance.super_resolution.set") && (enhanceOperationPending || enhanceAmountOperationPending)) {
         return admissionResult(ADMISSION_INVALID);
     }
-    if (command.command === "enhance.denoise.amount.set" && enhanceAmountOperationPending) return admissionResult(ADMISSION_INVALID);
+    if (command.command === "enhance.denoise.amount.set" && (enhanceAmountOperationPending || enhanceOperationPending)) return admissionResult(ADMISSION_INVALID);
 
     const colorAdmission = coalesceColorGrading(command);
     if (colorAdmission) return colorAdmission;
@@ -443,7 +449,7 @@ function tryEnqueueCommand(command) {
 
     const admittedAt = Date.now();
     commandQueue.push(command);
-    if (command.command === "enhance.denoise.set") enhanceOperationPending = true;
+    if (command.command === "enhance.denoise.set" || command.command === "enhance.raw_details.set" || command.command === "enhance.super_resolution.set") enhanceOperationPending = true;
     if (command.command === "enhance.denoise.amount.set") enhanceAmountOperationPending = true;
     queueEntryMetadata.push({ enqueuedAt: admittedAt });
     enqueuedEntries += 1;

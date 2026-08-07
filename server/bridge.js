@@ -331,7 +331,7 @@ app.get("/enhance/next", function (req, res) {
 app.get("/enhance/result", function (req, res) {
     const allowed = new Set(["available", "denoiseState", "denoiseEnabled", "denoiseAmount",
         "rawDetailsState", "rawDetailsEnabled", "superResState", "superResEnabled",
-        "enhanceNeedsUpdate", "operation", "errorCategory", "info", "requestedEnabled"]);
+        "enhanceNeedsUpdate", "operation", "operationTarget", "errorCategory", "info", "requestedEnabled"]);
     if (Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); })) {
         return res.status(400).json({ ok: false, error: "Invalid Enhance state" });
     }
@@ -343,6 +343,7 @@ app.get("/enhance/result", function (req, res) {
     if (req.query.errorCategory !== undefined) result.errorCategory = req.query.errorCategory;
     if (req.query.info !== undefined) result.info = req.query.info;
     if (req.query.requestedEnabled !== undefined) result.requestedEnabled = booleanField("requestedEnabled");
+    if (req.query.operationTarget !== undefined) result.operationTarget = req.query.operationTarget;
     if (!enhance.update(result)) return res.status(400).json({ ok: false, error: "Invalid Enhance state" });
     if (enhance.TERMINAL_STATES.has(result.operation)) commands.finishEnhanceOperation();
     res.json({ ok: true });
@@ -357,7 +358,7 @@ app.get("/enhance/denoise/set", function (req, res) {
     }
     const command = { command: "enhance.denoise.set", enabled: req.query.enabled === "true", amount: Number(req.query.amount) };
     if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
-    if (!enhance.acceptOperation(command.enabled)) return res.status(409).json({ ok: false, error: "Enhance operation already pending" });
+    if (!enhance.acceptOperation(command.enabled, "denoise")) return res.status(409).json({ ok: false, error: "Enhance operation already pending" });
     const admission = queueCommand(command);
     if (admission.status === commands.ADMISSION_QUEUE_FULL) {
         enhance.cancelAdmission();
@@ -370,6 +371,39 @@ app.get("/enhance/denoise/set", function (req, res) {
     enhance.requestRefresh(Date.now(), true);
     res.json({ ok: true, queued: command });
 });
+
+app.get("/enhance/raw-details/set", function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.enabled) ||
+        (req.query.enabled !== "true" && req.query.enabled !== "false")) return rejectInvalidCommand(res);
+    const command = { command: "enhance.raw_details.set", enabled: req.query.enabled === "true" };
+    if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
+    if (!enhance.acceptOperation(command.enabled, "rawDetails")) return res.status(409).json({ ok: false, error: "Enhance operation already pending" });
+    const admission = queueCommand(command);
+    if (!admission.accepted) { enhance.cancelAdmission(); return res.status(409).json({ ok: false, error: "Enhance operation already pending" }); }
+    enhance.requestRefresh(Date.now(), true);
+    res.json({ ok: true, queued: command });
+});
+
+app.get("/enhance/super-resolution/set", function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.enabled) ||
+        (req.query.enabled !== "true" && req.query.enabled !== "false")) return rejectInvalidCommand(res);
+    const command = { command: "enhance.super_resolution.set", enabled: req.query.enabled === "true" };
+    if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
+    const currentEnhance = enhance.get();
+    if (command.enabled === true && (currentEnhance.available !== true || currentEnhance.superResEnabled !== true ||
+        currentEnhance.superResState === true || currentEnhance.denoiseState === true)) {
+        return res.status(409).json({ ok: false, error: "Super Resolution unavailable" });
+    }
+    if (command.enabled === false && (currentEnhance.available !== true || currentEnhance.superResEnabled !== true || currentEnhance.superResState !== true)) {
+        return res.status(409).json({ ok: false, error: "Super Resolution unavailable" });
+    }
+    if (!enhance.acceptOperation(command.enabled, "superResolution")) return res.status(409).json({ ok: false, error: "Enhance operation already pending" });
+    const admission = queueCommand(command);
+    if (!admission.accepted) { enhance.cancelAdmission(); return res.status(409).json({ ok: false, error: "Enhance operation already pending" }); }
+    enhance.requestRefresh(Date.now(), true);
+    res.json({ ok: true, queued: command });
+});
+
 
 app.get("/enhance/amount-result", function (req, res) {
     const allowed = new Set(["available", "denoiseState", "denoiseEnabled", "denoiseAmount",

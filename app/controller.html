@@ -2235,6 +2235,12 @@
         let enhanceMinusButton = null;
         let enhancePlusButton = null;
         let enhanceStatus = null;
+        let rawDetailsOffButton = null;
+        let rawDetailsOnButton = null;
+        let rawDetailsStatus = null;
+        let superResolutionOffButton = null;
+        let superResolutionOnButton = null;
+        let superResolutionStatus = null;
         let enhanceRequestInFlight = false;
         const enhanceAmountModel = LRBridgeDenoiseState.create();
         let enhanceAmountDebounceTimer = null;
@@ -3999,7 +4005,11 @@
             title.className = "group-title";
             title.textContent = section.label;
             groupElement.appendChild(title);
-            if (section.id === "detail") groupElement.appendChild(renderEnhanceSection());
+            if (section.id === "detail") {
+                groupElement.appendChild(renderEnhanceSection());
+                groupElement.appendChild(renderRawDetailsControl());
+                groupElement.appendChild(renderSuperResolutionControl());
+            }
             let currentSubheading = null;
             section.items.forEach(function (item) {
                 if (item.subheading && item.subheading !== currentSubheading) {
@@ -4082,7 +4092,9 @@
         }
 
         function updateEnhanceControls() {
-            if (!enhanceOffButton || !enhanceOnButton || !enhanceMinusButton || !enhancePlusButton || !enhanceStatus) return;
+            if (!enhanceOffButton || !enhanceOnButton || !enhanceMinusButton || !enhancePlusButton || !enhanceStatus ||
+                !rawDetailsOffButton || !rawDetailsOnButton || !rawDetailsStatus ||
+                !superResolutionOffButton || !superResolutionOnButton || !superResolutionStatus) return;
             const hasPhoto = lastControllerSelectedPhotoKey !== null && lastControllerSelectedPhotoKey !== "";
             const inDevelop = lastControllerActiveModule === "develop";
             const state = enhanceState;
@@ -4105,15 +4117,43 @@
             displayDenoiseAmount(displayedAmount, !enhanceAmountModel.editing);
             enhanceMinusButton.disabled = enhanceAmountRange.disabled || !validDenoiseAmount(displayedAmount) || displayedAmount <= 1;
             enhancePlusButton.disabled = enhanceAmountRange.disabled || !validDenoiseAmount(displayedAmount) || displayedAmount >= 100;
+            const rawOn = !!state && state.rawDetailsState === true;
+            const denoiseOwnsRaw = !!state && state.denoiseState === true && rawOn && state.rawDetailsEnabled === false;
+            const superResolutionOwnsRaw = !!state && state.superResState === true && rawOn && state.rawDetailsEnabled === false;
+            const rawUnavailable = unavailable || !hasPhoto || !inDevelop || (!!state && state.rawDetailsEnabled !== true);
+            rawDetailsOffButton.classList.toggle("active", !!state && !rawOn);
+            rawDetailsOnButton.classList.toggle("active", rawOn);
+            rawDetailsOffButton.disabled = pending || localAmountPending || rawUnavailable || denoiseOwnsRaw || !rawOn;
+            rawDetailsOnButton.disabled = pending || localAmountPending || rawUnavailable || denoiseOwnsRaw || rawOn || (!!state && state.denoiseState === true);
+            if (!state) rawDetailsStatus.textContent = "Loading Enhance state…";
+            else if (pending && state.operationTarget === "rawDetails") rawDetailsStatus.textContent = state.requestedEnabled === false ? "Removing Raw Details…" : "Applying Raw Details…";
+            else if (denoiseOwnsRaw) rawDetailsStatus.textContent = "Raw Details enabled by Denoise";
+            else if (superResolutionOwnsRaw) rawDetailsStatus.textContent = "Raw Details enabled by Super Resolution";
+            else if (state.operation === "uncertain" && state.operationTarget === "rawDetails") rawDetailsStatus.textContent = "Raw Details result uncertain — check Lightroom";
+            else if (state.operation === "failed" && state.operationTarget === "rawDetails") rawDetailsStatus.textContent = "Raw Details failed";
+            else if (rawUnavailable) rawDetailsStatus.textContent = "Raw Details unavailable for this photo";
+            else rawDetailsStatus.textContent = rawOn ? "Raw Details On" : "Raw Details Off";
+            const superResolutionOn = !!state && state.superResState === true;
+            const superResolutionUnavailable = unavailable || !hasPhoto || !inDevelop || (!!state && state.superResEnabled !== true);
+            superResolutionOffButton.classList.toggle("active", !!state && !superResolutionOn);
+            superResolutionOnButton.classList.toggle("active", superResolutionOn);
+            superResolutionOffButton.disabled = pending || localAmountPending || superResolutionUnavailable || !superResolutionOn;
+            superResolutionOnButton.disabled = pending || localAmountPending || superResolutionUnavailable || superResolutionOn || (!!state && state.denoiseState === true);
+            if (!state) superResolutionStatus.textContent = "Loading Enhance state…";
+            else if (pending && state.operationTarget === "superResolution") superResolutionStatus.textContent = state.requestedEnabled === false ? "Removing Super Resolution…" : "Applying Super Resolution…";
+            else if (state.operation === "uncertain" && state.operationTarget === "superResolution") superResolutionStatus.textContent = "Super Resolution result uncertain — check Lightroom";
+            else if (state.operation === "failed" && state.operationTarget === "superResolution") superResolutionStatus.textContent = "Super Resolution failed";
+            else if (superResolutionUnavailable) superResolutionStatus.textContent = "Super Resolution unavailable for this photo";
+            else superResolutionStatus.textContent = superResolutionOn ? "Super Resolution On" : "Super Resolution Off";
             if (!state) enhanceStatus.textContent = "Loading Enhance state…";
-            else if (pending) enhanceStatus.textContent = state.requestedEnabled === false ? "Removing Denoise…" : "Applying Denoise…";
+            else if (pending && state.operationTarget === "denoise") enhanceStatus.textContent = state.requestedEnabled === false ? "Removing Denoise…" : "Applying Denoise…";
             else if (localAmountPending) enhanceStatus.textContent = "Updating Denoise Amount…";
             else if (state.amountOperation === "uncertain") enhanceStatus.textContent = "Denoise amount uncertain — check Lightroom";
             else if (state.operation === "uncertain") enhanceStatus.textContent = "Denoise result uncertain — check Lightroom";
             else if (state.operation === "failed") enhanceStatus.textContent = "Denoise failed";
             else if (state.denoiseState === true && state.denoiseAmount !== null) enhanceStatus.textContent = "Denoise On — Amount: " + state.denoiseAmount;
             else if (state.denoiseState === true) enhanceStatus.textContent = "Denoise On";
-            else if (!hasPhoto || !inDevelop || unavailable) enhanceStatus.textContent = "Denoise unavailable for this photo";
+            else if (!hasPhoto || !inDevelop || unavailable || state.denoiseEnabled !== true) enhanceStatus.textContent = "Denoise unavailable for this photo";
             else enhanceStatus.textContent = "Denoise Off";
         }
 
@@ -4147,6 +4187,51 @@
                 return;
             }
             requestEnhanceState();
+        }
+
+        async function setRawDetails(enabled) {
+            enhanceState = Object.assign({}, enhanceState || {}, { operation: "starting", operationTarget: "rawDetails", requestedEnabled: enabled });
+            updateEnhanceControls();
+            const accepted = await sendCommand("/api/enhance/raw-details/set?enabled=" + String(enabled));
+            if (!accepted) await requestEnhanceState();
+            else requestEnhanceState();
+        }
+
+        function renderRawDetailsControl() {
+            const controls = document.createElement("div");
+            controls.className = "develop-slider-row denoise-slider-row raw-details-row";
+            controls.dataset.detailControl = "raw-details";
+            const label = document.createElement("div");
+            label.className = "slider-name"; label.textContent = "Raw Details";
+            rawDetailsOffButton = makeButton("Off", "command-neutral", function () { setRawDetails(false); });
+            rawDetailsOnButton = makeButton("On", "command-primary", function () { setRawDetails(true); });
+            rawDetailsStatus = document.createElement("div");
+            rawDetailsStatus.className = "enhance-status"; rawDetailsStatus.setAttribute("role", "status");
+            controls.appendChild(label); controls.appendChild(rawDetailsOffButton); controls.appendChild(rawDetailsOnButton); controls.appendChild(rawDetailsStatus);
+            updateEnhanceControls();
+            return controls;
+        }
+
+        async function setSuperResolution(enabled) {
+            enhanceState = Object.assign({}, enhanceState || {}, { operation: "starting", operationTarget: "superResolution", requestedEnabled: enabled });
+            updateEnhanceControls();
+            const accepted = await sendCommand("/api/enhance/super-resolution/set?enabled=" + String(enabled));
+            if (!accepted) await requestEnhanceState(); else requestEnhanceState();
+        }
+
+        function renderSuperResolutionControl() {
+            const controls = document.createElement("div");
+            controls.className = "develop-slider-row denoise-slider-row super-resolution-row";
+            controls.dataset.detailControl = "super-resolution";
+            const label = document.createElement("div");
+            label.className = "slider-name"; label.textContent = "Super Resolution";
+            superResolutionOffButton = makeButton("Off", "command-neutral", function () { setSuperResolution(false); });
+            superResolutionOnButton = makeButton("On", "command-primary", function () { setSuperResolution(true); });
+            superResolutionStatus = document.createElement("div");
+            superResolutionStatus.className = "enhance-status"; superResolutionStatus.setAttribute("role", "status");
+            controls.appendChild(label); controls.appendChild(superResolutionOffButton); controls.appendChild(superResolutionOnButton); controls.appendChild(superResolutionStatus);
+            updateEnhanceControls();
+            return controls;
         }
 
         function renderEnhanceSection() {
