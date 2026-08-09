@@ -65,7 +65,12 @@ function emptyDiagnostics() {
                     "color_grading.value.set": 0,
                     "color_grading.value.reset": 0,
                     "color_grading.region.reset": 0,
-                    "color_grading.view.set": 0
+                    "color_grading.view.set": 0,
+                    "point_color.value.set": 0,
+                    "point_color.range.set": 0,
+                    "point_color.range.translate": 0,
+                    "point_color.range_visualization.toggle": 0,
+                    "point_color.tool.select": 0
                 }
             }
         },
@@ -211,7 +216,12 @@ function testCoreMetrics() {
         "color_grading.value.set": 0,
         "color_grading.value.reset": 0,
         "color_grading.region.reset": 0,
-        "color_grading.view.set": 0
+        "color_grading.view.set": 0,
+        "point_color.value.set": 0,
+        "point_color.range.set": 0,
+        "point_color.range.translate": 0,
+        "point_color.range_visualization.toggle": 0,
+        "point_color.tool.select": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);

@@ -19,6 +19,14 @@
     "/groups",
     "/next",
     "/enhance/state",
+    "/point-color/state",
+    "/point-color/next",
+    "/point-color/result",
+    "/point-color/value",
+    "/point-color/range",
+    "/point-color/range/translate",
+    "/point-color/range-visualization/toggle",
+    "/point-color/tool/select",
     "/enhance/next",
     "/enhance/result",
     "/enhance/denoise/set",
@@ -83,6 +91,11 @@
     "color_grading.value.reset",
     "color_grading.region.reset",
     "color_grading.view.set"
+    ,"point_color.value.set"
+    ,"point_color.range.set"
+    ,"point_color.range.translate"
+    ,"point_color.range_visualization.toggle"
+    ,"point_color.tool.select"
   ],
   "selectionOperations": [
     "select_all",

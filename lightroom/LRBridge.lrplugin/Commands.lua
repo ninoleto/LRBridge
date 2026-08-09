@@ -6,6 +6,7 @@ local Photo = require "Photo"
 local Crop = require "Crop"
 local ColorGrading = require "ColorGrading"
 local Enhance = require "Enhance"
+local PointColor = require "PointColor"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -37,6 +38,11 @@ function Commands.execute(command)
     if command.command == "enhance.denoise.amount.set" then Enhance.setDenoiseAmount(command.amount); return end
     if command.command == "enhance.raw_details.set" then Enhance.setRawDetails(command.enabled); return end
     if command.command == "enhance.super_resolution.set" then Enhance.setSuperResolution(command.enabled); return end
+    if command.command == "point_color.value.set" then PointColor.setValue(command.field, command.value, command.expectedSelectedIndex); return end
+    if command.command == "point_color.range.set" then PointColor.setRange(command.range, command.boundary, command.value, command.expectedSelectedIndex); return end
+    if command.command == "point_color.range.translate" then PointColor.translateRange(command.range, command.LowerNone, command.LowerFull, command.UpperFull, command.UpperNone, command.expectedSelectedIndex); return end
+    if command.command == "point_color.range_visualization.toggle" then PointColor.toggleRangeVisualization(); return end
+    if command.command == "point_color.tool.select" then PointColor.selectTool(); return end
 
     if command.command == "develop.adjust" then
 

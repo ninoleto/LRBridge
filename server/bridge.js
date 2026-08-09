@@ -7,6 +7,8 @@ const context = require("./context");
 const numbers = require("./numbers");
 const colorGrading = require("./color-grading");
 const enhance = require("./enhance-state").createEnhanceState();
+const pointColorDefinition = require("./point-color-state");
+const pointColor = pointColorDefinition.createPointColorState();
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -61,6 +63,10 @@ if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
 }
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
 const app = express();
+commands.setPointColorAdmissionContextProvider(function () {
+    const current = pointColor.get();
+    return { selectedIndex: current.available ? current.selectedIndex : 0, contextCounter: context.getContextFields().contextCounter };
+});
 
 const feedbackRequests = [];
 const feedbackValues = {};
@@ -270,6 +276,7 @@ app.get("/context/update", function (req, res) {
         developFingerprint: req.query.developFingerprint
     });
     enhance.syncContext(updated.contextCounter);
+    pointColor.syncContext(updated.contextCounter);
 
     if (updated.contextCounter !== previousContextCounter) {
         Object.keys(feedbackValues).forEach(function (slider) {
@@ -321,6 +328,104 @@ app.get("/enhance/state", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     enhance.requestRefresh();
     res.set("Cache-Control", "no-store").json(enhance.get());
+});
+
+app.get("/point-color/state", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    pointColor.requestRefresh();
+    res.set("Cache-Control", "no-store").json({ ok: true, state: pointColor.get() });
+});
+
+app.get("/point-color/next", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.json({ requested: pointColor.takeRequest() });
+});
+
+app.get("/point-color/result", function (req, res) {
+    const available = req.query.available === "true" ? true : req.query.available === "false" ? false : null;
+    const selectionTransient = req.query.selectionTransient === "true" ? true : req.query.selectionTransient === "false" ? false : null;
+    const swatchCount = typeof req.query.swatchCount === "string" && /^\d+$/.test(req.query.swatchCount) ? Number(req.query.swatchCount) : null;
+    const selectedIndex = typeof req.query.selectedIndex === "string" && /^\d+$/.test(req.query.selectedIndex) ? Number(req.query.selectedIndex) : null;
+    const allowed = new Set(["available", "swatchCount", "selectedIndex", "selectionTransient", "HueShift", "SatScale", "LumScale", "Variance", "RangeAmount"]);
+    for (const rangeName of pointColorDefinition.rangeNames) {
+        allowed.add(pointColorDefinition.markerFields[rangeName]);
+        for (const boundary of pointColorDefinition.boundaries) allowed.add(rangeName + "." + boundary);
+    }
+    if (available === null || swatchCount === null || selectedIndex === null || selectionTransient === null || Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); })) {
+        return res.status(400).json({ ok: false, error: "Invalid Point Color state" });
+    }
+    const input = { available: available, swatchCount: swatchCount, selectedIndex: selectedIndex, selectionTransient: selectionTransient };
+    for (const field of pointColorDefinition.fields) {
+        if (req.query[field] !== undefined) input[field] = parseStrictFiniteNumber(req.query[field]);
+    }
+    for (const rangeName of pointColorDefinition.rangeNames) {
+        const markerField = pointColorDefinition.markerFields[rangeName];
+        if (req.query[markerField] !== undefined) input[markerField] = parseStrictFiniteNumber(req.query[markerField]);
+        input[rangeName] = {};
+        for (const boundary of pointColorDefinition.boundaries) {
+            const key = rangeName + "." + boundary;
+            if (req.query[key] !== undefined) input[rangeName][boundary] = parseStrictFiniteNumber(req.query[key]);
+        }
+    }
+    if (!pointColor.update(input)) return res.status(400).json({ ok: false, error: "Invalid Point Color state" });
+    res.json({ ok: true });
+});
+
+app.get("/point-color/value", function (req, res) {
+    const keys = Object.keys(req.query);
+    const value = parseStrictFiniteNumber(req.query.value);
+    if (keys.length !== 2 || !keys.includes("field") || !keys.includes("value") || Array.isArray(req.query.field) || Array.isArray(req.query.value)) return rejectInvalidCommand(res);
+    const current = pointColor.get();
+    const contextFields = context.getContextFields();
+    if (!current.available || current.selectedIndex <= 0) return res.status(409).json({ ok: false, error: "No selected Point Color swatch" });
+    const command = { command: "point_color.value.set", field: req.query.field, value: value,
+        expectedSelectedIndex: current.selectedIndex, expectedContextCounter: contextFields.contextCounter };
+    if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
+    queueOrReject(res, command, null, function () { pointColor.requestRefresh(Date.now(), true); });
+});
+
+app.get("/point-color/range", function (req, res) {
+    const keys = Object.keys(req.query);
+    const value = parseStrictFiniteNumber(req.query.value);
+    if (keys.length !== 3 || !keys.includes("range") || !keys.includes("boundary") || !keys.includes("value") ||
+        keys.some(function (key) { return Array.isArray(req.query[key]); })) return rejectInvalidCommand(res);
+    const current = pointColor.get(); const contextFields = context.getContextFields();
+    if (!current.available || current.selectedIndex <= 0) return res.status(409).json({ ok: false, error: "No selected Point Color swatch" });
+    const proposed = Object.assign({}, current[req.query.range]);
+    if (!proposed || !pointColorDefinition.validRangeValue(req.query.range, req.query.boundary, value)) return rejectInvalidCommand(res);
+    proposed[req.query.boundary] = value;
+    const marker = pointColorDefinition.effectiveMarker(current[req.query.range], current[pointColorDefinition.markerFields[req.query.range]]);
+    if (marker === null || !pointColorDefinition.validRangeTranslation(req.query.range, proposed) || !pointColorDefinition.rangeContainsMarker(proposed, marker) || !pointColorDefinition.safeFullRangeWidth(proposed)) return rejectInvalidCommand(res);
+    const command = { command: "point_color.range.set", range: req.query.range, boundary: req.query.boundary, value: value,
+        expectedSelectedIndex: current.selectedIndex, expectedContextCounter: contextFields.contextCounter };
+    if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
+    queueOrReject(res, command, null, function () { pointColor.requestRefresh(Date.now(), true); });
+});
+
+app.get("/point-color/range/translate", function (req, res) {
+    const expected = ["range", "LowerNone", "LowerFull", "UpperFull", "UpperNone"];
+    const keys = Object.keys(req.query);
+    if (keys.length !== expected.length || keys.some(function (key) { return !expected.includes(key) || Array.isArray(req.query[key]); })) return rejectInvalidCommand(res);
+    const translated = {};
+    for (const boundary of pointColorDefinition.boundaries) translated[boundary] = parseStrictFiniteNumber(req.query[boundary]);
+    const current = pointColor.get(); const contextFields = context.getContextFields();
+    if (!current.available || current.selectedIndex <= 0) return res.status(409).json({ ok: false, error: "No selected Point Color swatch" });
+    const marker = pointColorDefinition.effectiveMarker(current[req.query.range], current[pointColorDefinition.markerFields[req.query.range]]);
+    if (marker === null || !pointColorDefinition.validRangeTranslation(req.query.range, translated) || !pointColorDefinition.rangeContainsMarker(translated, marker) || !pointColorDefinition.safeFullRangeWidth(translated)) return rejectInvalidCommand(res);
+    const command = Object.assign({ command: "point_color.range.translate", range: req.query.range }, translated,
+        { expectedSelectedIndex: current.selectedIndex, expectedContextCounter: contextFields.contextCounter });
+    if (!commands.validateCommand(command)) return rejectInvalidCommand(res);
+    queueOrReject(res, command, null, function () { pointColor.requestRefresh(Date.now(), true); });
+});
+
+app.get("/point-color/range-visualization/toggle", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return rejectInvalidCommand(res);
+    queueOrReject(res, { command: "point_color.range_visualization.toggle" });
+});
+
+app.get("/point-color/tool/select", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return rejectInvalidCommand(res);
+    queueOrReject(res, { command: "point_color.tool.select" });
 });
 
 app.get("/enhance/next", function (req, res) {
@@ -438,7 +543,7 @@ app.get("/command", function (req, res) {
 
     const command = { command: commandName };
 
-    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view", "mode", "scope", "region", "control"]) {
+    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view", "mode", "scope", "region", "control", "field", "range", "boundary", "LowerNone", "LowerFull", "UpperFull", "UpperNone"]) {
         if (req.query[field] !== undefined) command[field] = req.query[field];
     }
 
@@ -449,6 +554,22 @@ app.get("/command", function (req, res) {
         "color_grading.region.reset": ["command", "region"],
         "color_grading.view.set": ["command", "view"]
     };
+    if (commandName === "point_color.value.set") {
+        const keys = Object.keys(req.query);
+        if (keys.length !== 3 || !keys.includes("command") || !keys.includes("field") || !keys.includes("value") || keys.some(function (key) { return Array.isArray(req.query[key]); })) command.invalidQueryField = true;
+    }
+    if (commandName === "point_color.range.set") {
+        const keys = Object.keys(req.query);
+        if (keys.length !== 4 || !keys.includes("command") || !keys.includes("range") || !keys.includes("boundary") || !keys.includes("value") || keys.some(function (key) { return Array.isArray(req.query[key]); })) command.invalidQueryField = true;
+    }
+    if (commandName === "point_color.range.translate") {
+        const expected = ["command", "range", "LowerNone", "LowerFull", "UpperFull", "UpperNone"];
+        const keys = Object.keys(req.query);
+        if (keys.length !== expected.length || keys.some(function (key) { return !expected.includes(key) || Array.isArray(req.query[key]); })) command.invalidQueryField = true;
+        for (const boundary of pointColorDefinition.boundaries) command[boundary] = parseStrictFiniteNumber(req.query[boundary]);
+    }
+    if (commandName === "point_color.range_visualization.toggle" && (Object.keys(req.query).length !== 1 || Array.isArray(req.query.command))) command.invalidQueryField = true;
+    if (commandName === "point_color.tool.select" && (Object.keys(req.query).length !== 1 || Array.isArray(req.query.command))) command.invalidQueryField = true;
     if (colorSchemas[commandName]) {
         const expected = colorSchemas[commandName];
         const keys = Object.keys(req.query);
@@ -544,6 +665,17 @@ app.get("/command", function (req, res) {
 
     if (req.query.rating !== undefined) {
         command.rating = numbers.parseFiniteNumber(req.query.rating);
+    }
+
+    if (commandName === "point_color.range.set" || commandName === "point_color.range.translate") {
+        const current = pointColor.get();
+        if (!current.available || current.selectedIndex <= 0) return res.status(409).json({ ok: false, error: "No selected Point Color swatch" });
+        const proposed = commandName === "point_color.range.set" ? Object.assign({}, current[command.range]) :
+            { LowerNone: command.LowerNone, LowerFull: command.LowerFull, UpperFull: command.UpperFull, UpperNone: command.UpperNone };
+        if (commandName === "point_color.range.set" && proposed) proposed[command.boundary] = command.value;
+        const marker = pointColorDefinition.effectiveMarker(current[command.range], current[pointColorDefinition.markerFields[command.range]]);
+        if (!proposed || marker === null || !pointColorDefinition.validRangeTranslation(command.range, proposed) ||
+            !pointColorDefinition.rangeContainsMarker(proposed, marker) || !pointColorDefinition.safeFullRangeWidth(proposed)) return rejectInvalidCommand(res);
     }
 
     queueOrReject(res, command, null, command.command === "develop.get"

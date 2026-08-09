@@ -8,6 +8,7 @@ local LrDevelopController = import "LrDevelopController"
 local Query = require "Query"
 local ColorGrading = require "ColorGrading"
 local Enhance = require "Enhance"
+local PointColor = require "PointColor"
 
 local function getPortableRoot()
 
@@ -648,6 +649,11 @@ LrTasks.startAsyncTask(function()
         local enhanceRequest = LrHttp.get("http://127.0.0.1:17891/enhance/next")
         if string.find(enhanceRequest or "", [["requested":true]], 1, true) then
             Enhance.sendCurrentState()
+        end
+
+        local pointColorRequest = LrHttp.get("http://127.0.0.1:17891/point-color/next")
+        if string.find(pointColorRequest or "", [["requested":true]], 1, true) then
+            PointColor.sendCurrentState()
         end
 
         LrTasks.sleep(0.1)

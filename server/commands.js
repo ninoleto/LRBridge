@@ -1,11 +1,14 @@
 const sliders = require("./sliders");
 const numbers = require("./numbers");
 const colorGrading = require("./color-grading");
+const pointColor = require("./point-color-state");
+const context = require("./context");
 
 const commandQueue = [];
 let latestResult = null;
 let enhanceOperationPending = false;
 let enhanceAmountOperationPending = false;
+let pointColorAdmissionContextProvider = null;
 
 const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
@@ -137,12 +140,41 @@ function validateCommand(command) {
         ,"color_grading.value.reset"
         ,"color_grading.region.reset"
         ,"color_grading.view.set"
+        ,"point_color.value.set"
+        ,"point_color.range.set"
+        ,"point_color.range.translate"
+        ,"point_color.range_visualization.toggle"
+        ,"point_color.tool.select"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
         console.log("Invalid command");
         return false;
     }
+
+    if (command.command === "point_color.value.set") {
+        const keys = Object.keys(command);
+        const publicShape = keys.length === 3;
+        const internalShape = keys.length === 5 && Number.isInteger(command.expectedSelectedIndex) && command.expectedSelectedIndex >= 1 && command.expectedSelectedIndex <= 8 &&
+            Number.isInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0;
+        return (publicShape || internalShape) && typeof command.field === "string" && pointColor.validValue(command.field, command.value);
+    }
+    if (command.command === "point_color.range.set") {
+        const keys = Object.keys(command);
+        const publicShape = keys.length === 4;
+        const internalShape = keys.length === 6 && Number.isInteger(command.expectedSelectedIndex) && command.expectedSelectedIndex >= 1 && command.expectedSelectedIndex <= 8 &&
+            Number.isInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0;
+        return (publicShape || internalShape) && pointColor.validRangeValue(command.range, command.boundary, command.value);
+    }
+    if (command.command === "point_color.range.translate") {
+        const keys = Object.keys(command); const publicShape = keys.length === 6;
+        const internalShape = keys.length === 8 && Number.isInteger(command.expectedSelectedIndex) && command.expectedSelectedIndex >= 1 && command.expectedSelectedIndex <= 8 &&
+            Number.isInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0;
+        const translated = { LowerNone: command.LowerNone, LowerFull: command.LowerFull, UpperFull: command.UpperFull, UpperNone: command.UpperNone };
+        return (publicShape || internalShape) && pointColor.validRangeTranslation(command.range, translated) && pointColor.safeFullRangeWidth(translated);
+    }
+    if (command.command === "point_color.range_visualization.toggle") return Object.keys(command).length === 1;
+    if (command.command === "point_color.tool.select") return Object.keys(command).length === 1;
 
     if (command.command === "enhance.denoise.set") {
         return Object.keys(command).length === 3 && typeof command.enabled === "boolean" && Number.isInteger(command.amount) &&
@@ -362,6 +394,17 @@ function tryEnqueueCommand(command) {
     if (!validateCommand(command)) {
         return admissionResult(ADMISSION_INVALID);
     }
+    if ((command.command === "point_color.value.set" && Object.keys(command).length === 3) ||
+        (command.command === "point_color.range.set" && Object.keys(command).length === 4)) {
+        const admissionContext = pointColorAdmissionContextProvider && pointColorAdmissionContextProvider();
+        if (!admissionContext || !Number.isInteger(admissionContext.selectedIndex) || admissionContext.selectedIndex <= 0 || !Number.isInteger(admissionContext.contextCounter)) return admissionResult(ADMISSION_INVALID);
+        command = Object.assign({}, command, { expectedSelectedIndex: admissionContext.selectedIndex, expectedContextCounter: admissionContext.contextCounter });
+    }
+    if (command.command === "point_color.range.translate" && Object.keys(command).length === 6) {
+        const admissionContext = pointColorAdmissionContextProvider && pointColorAdmissionContextProvider();
+        if (!admissionContext || !Number.isInteger(admissionContext.selectedIndex) || admissionContext.selectedIndex <= 0 || !Number.isInteger(admissionContext.contextCounter)) return admissionResult(ADMISSION_INVALID);
+        command = Object.assign({}, command, { expectedSelectedIndex: admissionContext.selectedIndex, expectedContextCounter: admissionContext.contextCounter });
+    }
     if ((command.command === "enhance.denoise.set" || command.command === "enhance.raw_details.set" || command.command === "enhance.super_resolution.set") && (enhanceOperationPending || enhanceAmountOperationPending)) {
         return admissionResult(ADMISSION_INVALID);
     }
@@ -369,6 +412,19 @@ function tryEnqueueCommand(command) {
 
     const colorAdmission = coalesceColorGrading(command);
     if (colorAdmission) return colorAdmission;
+
+    if (command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate") {
+        const admittedAt = Date.now();
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+            const sameOperation = command.command === "point_color.value.set" ? pending.field === command.field :
+                command.command === "point_color.range.set" ? pending.range === command.range && pending.boundary === command.boundary : pending.range === command.range;
+            if (pending.command === command.command && sameOperation &&
+                pending.expectedSelectedIndex === command.expectedSelectedIndex && pending.expectedContextCounter === command.expectedContextCounter) {
+                return replacePendingAt(index, command, admittedAt, "Coalesced Point Color value:");
+            }
+        }
+    }
 
     if (command.command === "develop.adjust") {
         const lastCommand = commandQueue[commandQueue.length - 1];
@@ -565,15 +621,15 @@ function admissionResult(status) {
 }
 
 function getNextCommand() {
-    if (commandQueue.length === 0) {
-        return null;
+    while (commandQueue.length > 0) {
+        const command = commandQueue.shift();
+        queueEntryMetadata.shift();
+        dequeuedEntries += 1;
+        lastDequeuedAt = Date.now();
+        if ((command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate") && command.expectedContextCounter !== context.getContextFields().contextCounter) continue;
+        return command;
     }
-
-    const command = commandQueue.shift();
-    queueEntryMetadata.shift();
-    dequeuedEntries += 1;
-    lastDequeuedAt = Date.now();
-    return command;
+    return null;
 }
 
 function getQueueDiagnostics(nowMs) {
@@ -607,6 +663,11 @@ function getQueueDiagnostics(nowMs) {
         ,"color_grading.value.reset": 0
         ,"color_grading.region.reset": 0
         ,"color_grading.view.set": 0
+        ,"point_color.value.set": 0
+        ,"point_color.range.set": 0
+        ,"point_color.range.translate": 0
+        ,"point_color.range_visualization.toggle": 0
+        ,"point_color.tool.select": 0
     };
 
     for (const command of commandQueue) {
@@ -660,7 +721,12 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["application.secondary_view"] +
                     pendingByCommand["color_grading.wheel.set"] +
                     pendingByCommand["color_grading.value.set"] +
-                    pendingByCommand["color_grading.view.set"],
+                    pendingByCommand["color_grading.view.set"] +
+                    pendingByCommand["point_color.value.set"] +
+                    pendingByCommand["point_color.range.set"] +
+                    pendingByCommand["point_color.range.translate"] +
+                    pendingByCommand["point_color.range_visualization.toggle"] +
+                    pendingByCommand["point_color.tool.select"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
                     pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"],
                 byCommand: pendingByCommand
@@ -734,6 +800,10 @@ function finishEnhanceOperation() {
     enhanceOperationPending = false;
 }
 
+function setPointColorAdmissionContextProvider(provider) {
+    pointColorAdmissionContextProvider = typeof provider === "function" ? provider : null;
+}
+
 module.exports = {
     HARD_QUEUE_CAPACITY,
     ORDINARY_ADMISSION_CEILING,
@@ -757,5 +827,6 @@ module.exports = {
     getSliderMetadata,
     resetQueueForTests
     ,finishEnhanceOperation
+    ,setPointColorAdmissionContextProvider
     ,finishEnhanceAmountOperation: function () { enhanceAmountOperationPending = false; }
 };

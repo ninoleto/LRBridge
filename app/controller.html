@@ -168,6 +168,23 @@
             text-transform: uppercase;
         }
 
+        .point-color-detail-range { margin: 14px 0 18px; }
+        .point-color-range-layout { display: grid; grid-template-columns: 72px minmax(220px, 1fr) 72px; gap: 12px; align-items: center; }
+        .point-color-range-pair { color: #c8d3dc; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+        .point-color-range-track { position: relative; height: 44px; touch-action: none; }
+        .point-color-range-rail { position: absolute; left: 0; right: 0; top: 19px; height: 6px; border-radius: 999px; background: #405263; }
+        .point-color-range-transition { position: absolute; top: 19px; height: 6px; }
+        .point-color-range-transition { background: #54758a; }
+        .point-color-range-full-box { position: absolute; top: 8px; height: 28px; padding: 0; border: 2px solid #8ec9e8; border-radius: 4px; background: rgba(47, 158, 216, 0.38); touch-action: none; cursor: grab; z-index: 2; }
+        .point-color-range-full-box:active { cursor: grabbing; }
+        .point-color-range-inner-edge { position: absolute; top: -8px; bottom: -8px; width: 20px; padding: 0; border: 0; background: transparent; touch-action: none; z-index: 4; }
+        .point-color-range-inner-edge.lower { left: -10px; cursor: ew-resize; }
+        .point-color-range-inner-edge.upper { right: -10px; cursor: ew-resize; }
+        .point-color-range-outer { position: absolute; top: 9px; width: 30px; height: 30px; min-height: 30px; padding: 0; transform: translateX(-50%); border: 0; background: transparent; touch-action: none; z-index: 3; }
+        .point-color-range-outer::before { content: ""; display: block; margin: 7px auto 0; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 13px solid #c8d9e4; }
+        .point-color-range-marker { position: absolute; top: 14px; width: 14px; height: 14px; transform: translateX(-50%); border-radius: 50%; border: 2px solid #eef7fc; background: #4db3e7; box-shadow: 0 0 0 2px #17242d; pointer-events: none; z-index: 5; }
+        .point-color-range-full-box:focus-visible, .point-color-range-inner-edge:focus-visible, .point-color-range-outer:focus-visible { outline: 2px solid #55b8ed; outline-offset: 2px; }
+
         .develop-section-leading-controls {
             margin-bottom: 28px;
         }
@@ -2300,6 +2317,14 @@
         let treatmentDesiredState = null;
         let treatmentButton = null;
         let treatmentStatus = null;
+        let pointColorState = { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false };
+        let pointColorRequestInFlight = false;
+        let pointColorHost = null;
+        let pointColorControls = {};
+        let pointColorRangeControls = {};
+        let pointColorWriteInFlight = false;
+        let pointColorPendingWrites = [];
+        let pointColorEditGeneration = 0;
         let enhanceState = null;
         let enhanceAmountInput = null;
         let enhanceAmountRange = null;
@@ -2510,6 +2535,7 @@
         async function requestLiveFeedbackSnapshot(forceAll) {
             if (!genericFeedbackActive || !isGenericDevelopFeedbackTab(activeTab)) return;
             if (activeTab === "sliders") requestTreatmentState();
+            if (activeTab === "sliders" && colorMixerView === "point-color") requestPointColorState();
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
                 return;
@@ -2596,6 +2622,7 @@
                     invalidateTreatmentState();
                 }
                 if (classification === "navigation") {
+                    invalidatePointColorState();
                     enhanceState = null;
                     enhanceAmountModel.reset();
                     if (enhanceAmountDebounceTimer !== null) clearTimeout(enhanceAmountDebounceTimer);
@@ -3976,8 +4003,314 @@
             { key: "saturation", label: "Saturation" },
             { key: "luminance", label: "Luminance" }
         ]);
+        const pointColorDefinitions = Object.freeze([
+            { field: "HueShift", label: "Hue Shift", min: -100, max: 100, reset: 0 },
+            { field: "SatScale", label: "Saturation Shift", min: -100, max: 100, reset: 0 },
+            { field: "LumScale", label: "Luminance Shift", min: -100, max: 100, reset: 0 },
+            { field: "Variance", label: "Variance", min: -100, max: 100, reset: 0 },
+            { field: "RangeAmount", label: "Range", min: 0, max: 100, reset: 50 }
+        ]);
+        function pointColorSdkToUi(value) { return Math.round(Number(value) * 100); }
+        function pointColorUiToSdk(value) { return Number(value) / 100; }
+
+        function invalidatePointColorState() {
+            pointColorEditGeneration += 1;
+            pointColorPendingWrites = [];
+            pointColorState = { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false };
+            Object.keys(pointColorControls).forEach(function (field) {
+                const control = pointColorControls[field];
+                if (control.timer !== null) clearTimeout(control.timer);
+                control.timer = null; control.editing = false; control.dirty = false;
+            });
+            Object.keys(pointColorRangeControls).forEach(function (rangeName) { pointColorRangeControls[rangeName].cancel(); });
+            if (pointColorHost && pointColorHost.isConnected && colorMixerView === "point-color") renderPointColorView(pointColorHost);
+        }
+
+        async function requestPointColorState() {
+            if (pointColorRequestInFlight || activeTab !== "sliders" || colorMixerView !== "point-color") return;
+            pointColorRequestInFlight = true;
+            try {
+                const response = await fetch("/api/point-color/state", { cache: "no-store" });
+                const data = await response.json();
+                if (response.ok && data && data.state) applyPointColorState(data.state);
+            } catch (err) {
+                /* Existing context polling will retry. */
+            } finally { pointColorRequestInFlight = false; }
+        }
+
+        function applyPointColorState(next) {
+            const previousIndex = pointColorState.selectedIndex;
+            const selectionChanged = previousIndex !== next.selectedIndex || pointColorState.available !== next.available;
+            pointColorState = next;
+            if (selectionChanged) {
+                pointColorEditGeneration += 1;
+                pointColorPendingWrites = [];
+                if (pointColorHost && pointColorHost.isConnected) renderPointColorView(pointColorHost);
+                return;
+            }
+            if (!next.available || next.selectedIndex <= 0) return;
+            pointColorDefinitions.forEach(function (definition) {
+                const control = pointColorControls[definition.field];
+                if (!control || control.editing) return;
+                const ui = pointColorSdkToUi(next[definition.field]);
+                if (control.dirty && ui !== control.committed) return;
+                control.dirty = false;
+                control.range.value = String(ui); control.number.value = String(ui); control.committed = ui;
+            });
+            ["HueRange", "SatRange", "LumRange"].forEach(function (rangeName) {
+                const control = pointColorRangeControls[rangeName];
+                if (control) control.applyAuthoritative(next[rangeName], getPointColorRangeMarker(rangeName, next));
+            });
+        }
+
+        function enqueuePointColorWrite(field, uiValue, selectedIndex, generation) {
+            if (!pointColorWritesAllowed()) return;
+            for (let index = pointColorPendingWrites.length - 1; index >= 0; index -= 1) {
+                const pending = pointColorPendingWrites[index];
+                if (pending.type === "scalar" && pending.field === field && pending.selectedIndex === selectedIndex && pending.generation === generation) {
+                    pending.uiValue = uiValue; processPointColorWrites(); return;
+                }
+            }
+            pointColorPendingWrites.push({ type: "scalar", field: field, uiValue: uiValue, selectedIndex: selectedIndex, generation: generation });
+            processPointColorWrites();
+        }
+
+        function enqueuePointColorRangeWrite(rangeName, boundary, uiValue, selectedIndex, generation) {
+            if (!pointColorWritesAllowed()) return;
+            for (let index = pointColorPendingWrites.length - 1; index >= 0; index -= 1) {
+                const pending = pointColorPendingWrites[index];
+                if (pending.type === "range" && pending.rangeName === rangeName && pending.boundary === boundary && pending.selectedIndex === selectedIndex && pending.generation === generation) {
+                    pending.uiValue = uiValue; processPointColorWrites(); return;
+                }
+            }
+            pointColorPendingWrites.push({ type: "range", rangeName: rangeName, boundary: boundary, uiValue: uiValue, selectedIndex: selectedIndex, generation: generation });
+            processPointColorWrites();
+        }
+
+        function enqueuePointColorRangeTranslation(rangeName, uiRange, selectedIndex, generation) {
+            if (!pointColorWritesAllowed()) return;
+            for (let index = pointColorPendingWrites.length - 1; index >= 0; index -= 1) {
+                const pending = pointColorPendingWrites[index];
+                if (pending.type === "range-translate" && pending.rangeName === rangeName && pending.selectedIndex === selectedIndex && pending.generation === generation) {
+                    pending.uiRange = Object.assign({}, uiRange); processPointColorWrites(); return;
+                }
+            }
+            pointColorPendingWrites.push({ type: "range-translate", rangeName: rangeName, uiRange: Object.assign({}, uiRange), selectedIndex: selectedIndex, generation: generation });
+            processPointColorWrites();
+        }
+
+        async function processPointColorWrites() {
+            if (pointColorWriteInFlight || pointColorPendingWrites.length === 0) return;
+            const edit = pointColorPendingWrites.shift();
+            if (!pointColorWritesAllowed() || edit.generation !== pointColorEditGeneration || edit.selectedIndex !== pointColorState.selectedIndex) { processPointColorWrites(); return; }
+            pointColorWriteInFlight = true;
+            const control = edit.type === "scalar" ? pointColorControls[edit.field] : pointColorRangeControls[edit.rangeName];
+            try {
+                let path;
+                if (edit.type === "scalar") path = "/api/point-color/value?field=" + encodeURIComponent(edit.field) + "&value=" + encodeURIComponent(String(pointColorUiToSdk(edit.uiValue)));
+                else if (edit.type === "range") path = "/api/point-color/range?range=" + encodeURIComponent(edit.rangeName) + "&boundary=" + encodeURIComponent(edit.boundary) + "&value=" + encodeURIComponent(String(pointColorUiToSdk(edit.uiValue)));
+                else path = "/api/point-color/range/translate?range=" + encodeURIComponent(edit.rangeName) + pointColorRangeBoundaries.map(function (boundary) {
+                    return "&" + boundary + "=" + encodeURIComponent(String(pointColorUiToSdk(edit.uiRange[boundary])));
+                }).join("");
+                const accepted = await sendCommand(path);
+                if (!accepted && control) {
+                    if (edit.type === "scalar") control.dirty = false;
+                    else if (edit.type === "range") delete control.dirtyBoundaries[edit.boundary];
+                    else pointColorRangeBoundaries.forEach(function (boundary) { delete control.dirtyBoundaries[boundary]; });
+                }
+            } finally {
+                pointColorWriteInFlight = false;
+                requestPointColorState();
+                processPointColorWrites();
+            }
+        }
+
+        const pointColorRangeBoundaries = Object.freeze(["LowerNone", "LowerFull", "UpperFull", "UpperNone"]);
+        const pointColorMarkerFields = Object.freeze({ HueRange: "HueRangeMarker", SatRange: "SatRangeMarker", LumRange: "LumRangeMarker" });
+        const pointColorMarkerEpsilon = 1e-8;
+        const pointColorMinimumFullRangeUi = 1;
+        function pointColorMarkerIntegerLimits(markerSdkExact) {
+            if (typeof markerSdkExact !== "number" || !Number.isFinite(markerSdkExact)) return { markerUiExact: null, lowerFullMaxUi: null, upperFullMinUi: null };
+            const markerUiExact = markerSdkExact * 100;
+            return { markerUiExact: markerUiExact, lowerFullMaxUi: Math.floor(markerUiExact + pointColorMarkerEpsilon), upperFullMinUi: Math.ceil(markerUiExact - pointColorMarkerEpsilon) };
+        }
+        function getPointColorRangeMarker(rangeName, swatch) {
+            const value = swatch && swatch[pointColorMarkerFields[rangeName]];
+            return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+        }
+        function pointColorWritesAllowed() { return pointColorState.available === true && pointColorState.swatchCount > 0 && pointColorState.selectedIndex > 0 && pointColorState.selectionTransient !== true; }
+        function createPointColorRangeControl(rangeName, label, sdkRange, sdkMarker) {
+            const root = document.createElement("section"); root.className = "point-color-detail-range"; root.dataset.pointColorRange = rangeName;
+            const heading = document.createElement("div"); heading.className = "color-mixer-group-heading"; heading.textContent = label; root.appendChild(heading);
+            const layout = document.createElement("div"); layout.className = "point-color-range-layout";
+            const leftPair = document.createElement("div"); leftPair.className = "point-color-range-pair";
+            const rightPair = document.createElement("div"); rightPair.className = "point-color-range-pair";
+            const track = document.createElement("div"); track.className = "point-color-range-track";
+            const rail = document.createElement("div"); rail.className = "point-color-range-rail";
+            const leftTransition = document.createElement("div"); leftTransition.className = "point-color-range-transition";
+            const rightTransition = document.createElement("div"); rightTransition.className = "point-color-range-transition";
+            const fullBox = document.createElement("button"); fullBox.type = "button"; fullBox.className = "point-color-range-full-box";
+            fullBox.setAttribute("role", "slider"); fullBox.setAttribute("aria-label", label + " full range translation");
+            const markerElement = document.createElement("div"); markerElement.className = "point-color-range-marker";
+            const values = {}; const handles = {}; const timers = {}; const active = {};
+            let markerSdkExact = sdkMarker; let markerLimits = pointColorMarkerIntegerLimits(markerSdkExact);
+            let markerUiExact = markerLimits.markerUiExact; let lowerFullMaxUi = markerLimits.lowerFullMaxUi; let upperFullMinUi = markerLimits.upperFullMinUi;
+            const dirtyBoundaries = {};
+            let groupActive = false; let groupStartX = 0; let groupStartValues = null;
+            pointColorRangeBoundaries.forEach(function (boundary) { values[boundary] = pointColorSdkToUi(sdkRange[boundary]); timers[boundary] = null; active[boundary] = false; });
+            function clampBoundary(boundary, value) {
+                value = Math.max(0, Math.min(100, Math.round(value)));
+                if (boundary === "LowerNone") return Math.min(value, values.LowerFull);
+                if (boundary === "LowerFull") return Math.max(values.LowerNone, Math.min(value, values.UpperFull - pointColorMinimumFullRangeUi, lowerFullMaxUi === null ? values.UpperFull - pointColorMinimumFullRangeUi : lowerFullMaxUi));
+                if (boundary === "UpperFull") return Math.max(values.LowerFull + pointColorMinimumFullRangeUi, upperFullMinUi === null ? values.LowerFull + pointColorMinimumFullRangeUi : upperFullMinUi, Math.min(value, values.UpperNone));
+                return Math.max(values.UpperFull, value);
+            }
+            function translatedRange(start, delta) {
+                delta = Math.round(delta);
+                if (markerUiExact !== null) {
+                    const minimumDelta = Math.ceil(markerUiExact - start.UpperFull - pointColorMarkerEpsilon);
+                    const maximumDelta = Math.floor(markerUiExact - start.LowerFull + pointColorMarkerEpsilon);
+                    delta = Math.max(minimumDelta, Math.min(delta, maximumDelta));
+                }
+                const next = {};
+                pointColorRangeBoundaries.forEach(function (boundary) { next[boundary] = Math.max(0, Math.min(100, start[boundary] + delta)); });
+                return next;
+            }
+            function paint() {
+                leftPair.textContent = values.LowerNone + " / " + values.LowerFull;
+                rightPair.textContent = values.UpperFull + " / " + values.UpperNone;
+                leftTransition.style.left = values.LowerNone + "%"; leftTransition.style.width = (values.LowerFull - values.LowerNone) + "%";
+                fullBox.style.left = values.LowerFull + "%"; fullBox.style.width = (values.UpperFull - values.LowerFull) + "%";
+                rightTransition.style.left = values.UpperFull + "%"; rightTransition.style.width = (values.UpperNone - values.UpperFull) + "%";
+                pointColorRangeBoundaries.forEach(function (boundary) {
+                    if (boundary === "LowerNone" || boundary === "UpperNone") handles[boundary].style.left = values[boundary] + "%";
+                    handles[boundary].setAttribute("aria-valuenow", String(values[boundary]));
+                });
+                markerElement.hidden = markerUiExact === null;
+                if (markerUiExact !== null) markerElement.style.left = markerUiExact + "%";
+                fullBox.disabled = markerUiExact === null || !pointColorWritesAllowed();
+                handles.LowerFull.disabled = markerUiExact === null || !pointColorWritesAllowed(); handles.UpperFull.disabled = markerUiExact === null || !pointColorWritesAllowed();
+                handles.LowerNone.disabled = !pointColorWritesAllowed(); handles.UpperNone.disabled = !pointColorWritesAllowed();
+                fullBox.setAttribute("aria-valuenow", String(Math.round((values.LowerFull + values.UpperFull) / 2)));
+            }
+            function queue(boundary, value, immediate) {
+                values[boundary] = clampBoundary(boundary, value); dirtyBoundaries[boundary] = true; paint();
+                if (timers[boundary] !== null) clearTimeout(timers[boundary]);
+                const selected = pointColorState.selectedIndex; const generation = pointColorEditGeneration;
+                if (immediate) enqueuePointColorRangeWrite(rangeName, boundary, values[boundary], selected, generation);
+                else timers[boundary] = setTimeout(function () { timers[boundary] = null; enqueuePointColorRangeWrite(rangeName, boundary, values[boundary], selected, generation); }, 225);
+            }
+            pointColorRangeBoundaries.forEach(function (boundary) {
+                const handle = document.createElement("button"); handle.type = "button"; handle.className = "point-color-range-handle";
+                handle.className = boundary === "LowerNone" || boundary === "UpperNone" ? "point-color-range-outer" : "point-color-range-inner-edge " + (boundary === "LowerFull" ? "lower" : "upper");
+                handle.setAttribute("role", "slider"); handle.setAttribute("aria-valuemin", "0"); handle.setAttribute("aria-valuemax", "100");
+                handle.setAttribute("aria-label", label + " " + boundary.replace(/([A-Z])/g, " $1").trim()); handles[boundary] = handle;
+                if (boundary === "LowerFull" || boundary === "UpperFull") fullBox.appendChild(handle); else track.appendChild(handle);
+                handle.addEventListener("pointerdown", function (event) { active[boundary] = true; handle.setPointerCapture(event.pointerId); event.preventDefault(); });
+                handle.addEventListener("pointermove", function (event) { if (!active[boundary]) return; const rect = track.getBoundingClientRect(); queue(boundary, ((event.clientX - rect.left) / rect.width) * 100, false); });
+                function finish(event, commit) { if (!active[boundary]) return; active[boundary] = false; if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId); if (commit) queue(boundary, values[boundary], true); }
+                handle.addEventListener("pointerup", function (event) { finish(event, true); });
+                handle.addEventListener("pointercancel", function (event) { finish(event, true); });
+                handle.addEventListener("lostpointercapture", function (event) { finish(event, true); });
+                handle.addEventListener("keydown", function (event) {
+                    let delta = 0; if (event.key === "ArrowLeft" || event.key === "ArrowDown") delta = -1; if (event.key === "ArrowRight" || event.key === "ArrowUp") delta = 1;
+                    if (delta !== 0) { event.preventDefault(); queue(boundary, values[boundary] + delta, true); }
+                });
+            });
+            fullBox.addEventListener("pointerdown", function (event) {
+                if (event.target !== fullBox) return;
+                groupActive = true; groupStartX = event.clientX; groupStartValues = Object.assign({}, values); fullBox.setPointerCapture(event.pointerId); event.preventDefault();
+            });
+            fullBox.addEventListener("pointermove", function (event) {
+                if (!groupActive) return;
+                const rect = track.getBoundingClientRect(); const next = translatedRange(groupStartValues, Math.round(((event.clientX - groupStartX) / rect.width) * 100));
+                Object.assign(values, next); pointColorRangeBoundaries.forEach(function (boundary) { dirtyBoundaries[boundary] = true; }); paint();
+            });
+            function finishGroup(event, commit) {
+                if (!groupActive) return; groupActive = false;
+                if (fullBox.hasPointerCapture(event.pointerId)) fullBox.releasePointerCapture(event.pointerId);
+                if (commit) enqueuePointColorRangeTranslation(rangeName, values, pointColorState.selectedIndex, pointColorEditGeneration);
+            }
+            fullBox.addEventListener("pointerup", function (event) { finishGroup(event, true); });
+            fullBox.addEventListener("pointercancel", function (event) { finishGroup(event, false); });
+            fullBox.addEventListener("keydown", function (event) {
+                let delta = 0; if (event.key === "ArrowLeft" || event.key === "ArrowDown") delta = -1; if (event.key === "ArrowRight" || event.key === "ArrowUp") delta = 1;
+                if (!delta) return; event.preventDefault(); const next = translatedRange(values, delta); Object.assign(values, next);
+                pointColorRangeBoundaries.forEach(function (boundary) { dirtyBoundaries[boundary] = true; }); paint();
+                enqueuePointColorRangeTranslation(rangeName, values, pointColorState.selectedIndex, pointColorEditGeneration);
+            });
+            track.append(rail, leftTransition, fullBox, rightTransition, markerElement);
+            paint(); layout.append(leftPair, track, rightPair); root.appendChild(layout);
+            return {
+                root: root, values: values, handles: handles, dirtyBoundaries: dirtyBoundaries,
+                applyAuthoritative: function (nextRange, nextMarker) {
+                    markerSdkExact = nextMarker; markerLimits = pointColorMarkerIntegerLimits(markerSdkExact); markerUiExact = markerLimits.markerUiExact;
+                    lowerFullMaxUi = markerLimits.lowerFullMaxUi; upperFullMinUi = markerLimits.upperFullMinUi;
+                    pointColorRangeBoundaries.forEach(function (boundary) {
+                        const ui = pointColorSdkToUi(nextRange[boundary]);
+                        if (active[boundary] || groupActive) return;
+                        if (dirtyBoundaries[boundary] && ui !== values[boundary]) return;
+                        delete dirtyBoundaries[boundary]; values[boundary] = ui;
+                    }); paint();
+                },
+                markerSdkExact: function () { return markerSdkExact; }, markerUiExact: function () { return markerUiExact; }, translatedRange: translatedRange,
+                cancel: function () { groupActive = false; pointColorRangeBoundaries.forEach(function (boundary) { if (timers[boundary] !== null) clearTimeout(timers[boundary]); timers[boundary] = null; active[boundary] = false; }); }
+            };
+        }
+
+        function renderPointColorView(host) {
+            host.replaceChildren(); pointColorHost = host; pointColorControls = {}; pointColorRangeControls = {};
+            const heading = document.createElement("div"); heading.className = "color-mixer-group-heading"; heading.textContent = "POINT COLOR"; host.appendChild(heading);
+            const picker = makeButton("Select Color Picker", "command-neutral", function () { sendCommand("/api/point-color/tool/select"); });
+            picker.id = "pointColorPickerSelect"; host.appendChild(picker);
+            if (!pointColorState.available) {
+                const message = document.createElement("p"); message.textContent = "Point Color is unavailable in the current Lightroom context."; host.appendChild(message); return;
+            }
+            if (pointColorState.swatchCount === 0) {
+                const message = document.createElement("p"); message.textContent = "Create or select a Point Color sample in Lightroom."; host.appendChild(message); return;
+            }
+            if (pointColorState.selectionTransient && !pointColorState.displaySelectedIndex) {
+                const message = document.createElement("p"); message.textContent = "Point Color sample selection in progress..."; host.appendChild(message); return;
+            }
+            if (pointColorState.selectionTransient) {
+                const status = document.createElement("p"); status.className = "point-color-selection-status"; status.textContent = "Selecting Point Color sample..."; host.appendChild(status);
+            }
+            pointColorDefinitions.forEach(function (definition) {
+                const row = document.createElement("div"); row.className = "develop-slider-row point-color-slider-row"; row.dataset.pointColorField = definition.field;
+                const label = document.createElement("div"); label.className = "slider-name"; label.textContent = definition.label;
+                const range = document.createElement("input"); range.type = "range"; range.min = String(definition.min); range.max = String(definition.max); range.step = "1";
+                const number = document.createElement("input"); number.type = "text"; number.inputMode = "numeric"; number.setAttribute("aria-label", definition.label + " numeric value");
+                let ui = pointColorSdkToUi(pointColorState[definition.field]); range.value = String(ui); number.value = String(ui);
+                const control = { range: range, number: number, editing: false, dirty: false, timer: null, committed: ui };
+                function show(value) { range.value = String(value); number.value = String(value); control.committed = value; }
+                function submit(value, debounce) {
+                    value = Math.round(Number(value)); if (!Number.isFinite(value) || value < definition.min || value > definition.max) { show(control.committed); return; }
+                    show(value); control.dirty = true;
+                    if (control.timer !== null) clearTimeout(control.timer);
+                    const selected = pointColorState.selectedIndex; const generation = pointColorEditGeneration;
+                    if (debounce) control.timer = setTimeout(function () { control.timer = null; enqueuePointColorWrite(definition.field, value, selected, generation); }, 225);
+                    else enqueuePointColorWrite(definition.field, value, selected, generation);
+                }
+                range.addEventListener("input", function () { submit(range.value, true); });
+                range.addEventListener("change", function () { submit(range.value, false); });
+                number.addEventListener("focus", function () { control.editing = true; number.select(); });
+                number.addEventListener("blur", function () { control.editing = false; submit(number.value, false); });
+                number.addEventListener("keydown", function (event) { if (event.key === "Enter") number.blur(); });
+                const minus = makeButton("−", "develop-slider-step", function () { submit(control.committed - 1, false); });
+                const plus = makeButton("+", "develop-slider-step", function () { submit(control.committed + 1, false); });
+                const reset = makeButton("Reset", "reset", function () { submit(definition.reset, false); });
+                range.disabled = !pointColorWritesAllowed(); number.disabled = !pointColorWritesAllowed(); minus.disabled = !pointColorWritesAllowed(); plus.disabled = !pointColorWritesAllowed(); reset.disabled = !pointColorWritesAllowed();
+                row.append(label, range, number, minus, plus, reset); host.appendChild(row); pointColorControls[definition.field] = control;
+            });
+            [{ name: "HueRange", label: "Hue Range" }, { name: "SatRange", label: "Saturation Range" }, { name: "LumRange", label: "Luminance Range" }].forEach(function (definition) {
+                const control = createPointColorRangeControl(definition.name, definition.label, pointColorState[definition.name], getPointColorRangeMarker(definition.name, pointColorState));
+                pointColorRangeControls[definition.name] = control; host.appendChild(control.root);
+            });
+            const toggle = makeButton("Toggle Visualize Range", "command-neutral", function () { sendCommand("/api/point-color/range-visualization/toggle"); });
+            toggle.id = "pointColorVisualizeRange"; host.appendChild(toggle);
+        }
         let colorMixerView = "hsl";
-        try { if (sessionStorage.getItem("lrbridge.colorMixerView") === "color") colorMixerView = "color"; } catch (err) {}
+        try { if (["color", "point-color"].includes(sessionStorage.getItem("lrbridge.colorMixerView"))) colorMixerView = sessionStorage.getItem("lrbridge.colorMixerView"); } catch (err) {}
 
         function getColorMixerViewGroups(view) {
             if (view === "color") {
@@ -4004,8 +4337,11 @@
             host.replaceChildren();
             buttons.hsl.classList.toggle("active", colorMixerView === "hsl");
             buttons.color.classList.toggle("active", colorMixerView === "color");
+            buttons.pointColor.classList.toggle("active", colorMixerView === "point-color");
             buttons.hsl.setAttribute("aria-selected", String(colorMixerView === "hsl"));
             buttons.color.setAttribute("aria-selected", String(colorMixerView === "color"));
+            buttons.pointColor.setAttribute("aria-selected", String(colorMixerView === "point-color"));
+            if (colorMixerView === "point-color") { renderPointColorView(host); requestPointColorState(); return; }
             getColorMixerViewGroups(colorMixerView).forEach(function (group) {
                 const container = document.createElement("div");
                 container.className = "color-mixer-slider-group";
@@ -4030,11 +4366,11 @@
             tabs.className = "color-mixer-view-tabs";
             tabs.setAttribute("role", "tablist");
             const buttons = {};
-            ["hsl", "color"].forEach(function (view) {
+            ["hsl", "color", "point-color"].forEach(function (view) {
                 const button = document.createElement("button");
                 button.type = "button";
                 button.className = "color-mixer-view-button";
-                button.textContent = view === "hsl" ? "HSL" : "Color";
+                button.textContent = view === "hsl" ? "HSL" : view === "color" ? "Color" : "Point Color";
                 button.setAttribute("role", "tab");
                 button.addEventListener("click", function () {
                     if (colorMixerView === view) return;
@@ -4042,7 +4378,7 @@
                     try { sessionStorage.setItem("lrbridge.colorMixerView", view); } catch (err) {}
                     renderColorMixerView(host, buttons);
                 });
-                buttons[view] = button;
+                buttons[view === "point-color" ? "pointColor" : view] = button;
                 tabs.appendChild(button);
             });
             groupElement.appendChild(tabs);

@@ -38,6 +38,15 @@ function Parser.parse(json)
     local scope = string.match(json, [["scope":"([^"]+)"]])
     local region = string.match(json, [["region":"([^"]+)"]])
     local control = string.match(json, [["control":"([^"]+)"]])
+    local field = string.match(json, [["field":"([^"]+)"]])
+    local range = string.match(json, [["range":"([^"]+)"]])
+    local boundary = string.match(json, [["boundary":"([^"]+)"]])
+    local expectedSelectedIndex = string.match(json, [["expectedSelectedIndex":([%-]?%d+)]])
+    local expectedContextCounter = string.match(json, [["expectedContextCounter":([%-]?%d+)]])
+    local lowerNone = string.match(json, [["LowerNone":([%-]?%d+%.?%d*)]])
+    local lowerFull = string.match(json, [["LowerFull":([%-]?%d+%.?%d*)]])
+    local upperFull = string.match(json, [["UpperFull":([%-]?%d+%.?%d*)]])
+    local upperNone = string.match(json, [["UpperNone":([%-]?%d+%.?%d*)]])
     local hue = string.match(json, [["hue":([%-]?%d+%.?%d*)]])
     local saturation = string.match(json, [["saturation":([%-]?%d+%.?%d*)]])
     local rating = string.match(json, [["rating":([%-]?%d+)]])
@@ -71,6 +80,12 @@ function Parser.parse(json)
     if h then
         h = tonumber(h)
     end
+    if expectedSelectedIndex then expectedSelectedIndex = tonumber(expectedSelectedIndex) end
+    if expectedContextCounter then expectedContextCounter = tonumber(expectedContextCounter) end
+    if lowerNone then lowerNone = tonumber(lowerNone) end
+    if lowerFull then lowerFull = tonumber(lowerFull) end
+    if upperFull then upperFull = tonumber(upperFull) end
+    if upperNone then upperNone = tonumber(upperNone) end
 
     if command == nil then
         return nil
@@ -98,6 +113,15 @@ function Parser.parse(json)
         ,hue = hue
         ,saturation = saturation
         ,enabled = enabled
+        ,field = field
+        ,range = range
+        ,boundary = boundary
+        ,LowerNone = lowerNone
+        ,LowerFull = lowerFull
+        ,UpperFull = upperFull
+        ,UpperNone = upperNone
+        ,expectedSelectedIndex = expectedSelectedIndex
+        ,expectedContextCounter = expectedContextCounter
     }
 
 end

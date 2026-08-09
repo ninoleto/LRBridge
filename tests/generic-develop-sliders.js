@@ -436,12 +436,12 @@ assert.equal(new Set(hslIds).size, 24);
 assert.equal(new Set(colorIds).size, 24);
 assert.equal(colorGroups.length, 8);
 colorGroups.forEach((group) => assert.deepEqual(Array.from(group.rows, (row) => row.label), ["Hue", "Saturation", "Luminance"]));
-assert.match(controller, /button\.textContent = view === "hsl" \? "HSL" : "Color"/);
+assert.match(controller, /button\.textContent = view === "hsl" \? "HSL" : view === "color" \? "Color" : "Point Color"/);
 assert.match(controller, /let colorMixerView = "hsl"/);
-assert.doesNotMatch(controller, /Point Color/);
+assert.match(controller, /\["hsl", "color", "point-color"\]/);
 const mixerPresentationBlock = controller.match(/function createColorMixerPresentation\(groupElement, section\) \{[\s\S]*?\n        \}\n\n        function getDevelopSectionDisplayLabel/)[0];
-assert.doesNotMatch(mixerPresentationBlock, /sendCommand|requestLiveFeedbackSnapshot|fetch\(/,
-    "Switching Color Mixer views must be presentation-only");
+assert.doesNotMatch(mixerPresentationBlock, /sendCommand/,
+    "Switching Color Mixer views must not itself mutate Lightroom");
 assert.match(controller, /container\.appendChild\(control\.row\)/,
     "View switching must reparent the same slider rows rather than duplicate controls");
 assert.doesNotMatch(controller, /if \(!treatmentHasAuthoritativeState\) return;/,
