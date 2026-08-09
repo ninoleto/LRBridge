@@ -678,6 +678,13 @@
             border-bottom: 1px solid #26313d;
         }
 
+        .slider-jump-sentinel {
+            height: 1px;
+            margin-bottom: -1px;
+            pointer-events: none;
+            visibility: hidden;
+        }
+
         .slider-jump-label {
             color: #9fb4c8;
             font-size: 13px;
@@ -709,6 +716,43 @@
             border-color: #f0a64a;
             color: #ffffff;
             box-shadow: 0 0 0 2px rgba(240, 166, 74, 0.22);
+        }
+
+        .slider-jump-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .slider-jump-top-button {
+            display: none;
+            min-height: 44px;
+            flex: 0 0 auto;
+            border: 1px solid #d18a36;
+            border-radius: 12px;
+            background: #111111;
+            color: #f4f4f4;
+            padding: 10px 13px;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .slider-jump-control.slider-jump-docked .slider-jump-top-button {
+            display: inline-block;
+        }
+
+        .slider-jump-top-button:hover {
+            background: #1a1a1a;
+            border-color: #f0a64a;
+        }
+
+        .slider-jump-top-button:focus-visible {
+            border-color: #f0a64a;
+            outline: 2px solid rgba(240, 166, 74, 0.75);
+            outline-offset: 2px;
         }
 
         .slider-jump-popover {
@@ -762,6 +806,11 @@
             }
 
             .slider-jump-main-button {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .slider-jump-buttons {
                 width: 100%;
             }
 
@@ -1795,6 +1844,29 @@
             );
         }
 
+        let sliderJumpDockObserver = null;
+        let sliderJumpDockSentinel = null;
+
+        function disconnectSliderJumpDockObserver() {
+            if (sliderJumpDockObserver) sliderJumpDockObserver.disconnect();
+            if (sliderJumpDockSentinel) sliderJumpDockSentinel.remove();
+            sliderJumpDockObserver = null;
+            sliderJumpDockSentinel = null;
+        }
+
+        function observeSliderJumpDocking(control, sentinel) {
+            disconnectSliderJumpDockObserver();
+            sliderJumpDockSentinel = sentinel;
+            if (typeof IntersectionObserver === "undefined") return;
+            sliderJumpDockObserver = new IntersectionObserver(function (entries) {
+                const entry = entries[entries.length - 1];
+                const stickyTop = parseFloat(window.getComputedStyle(control).top) || 0;
+                const docked = !entry.isIntersecting && entry.boundingClientRect.top < stickyTop;
+                control.classList.toggle("slider-jump-docked", docked);
+            });
+            sliderJumpDockObserver.observe(sentinel);
+        }
+
         function installSliderJumpMenu() {
             const contentHost = document.getElementById("content");
 
@@ -1805,6 +1877,7 @@
             const existing = contentHost.querySelector(".slider-jump-control");
 
             if (!contentHost.querySelector(".develop-slider-row")) {
+                disconnectSliderJumpDockObserver();
                 if (existing) {
                     existing.remove();
                 }
@@ -1815,6 +1888,8 @@
             if (existing) {
                 return;
             }
+
+            disconnectSliderJumpDockObserver();
 
             const sections = getSliderJumpSections()
                 .map(function (section) {
@@ -1852,6 +1927,19 @@
             mainButton.className = "slider-jump-main-button";
             mainButton.textContent = "Slider Group ▾";
             mainButton.setAttribute("aria-expanded", "false");
+
+            const topButton = document.createElement("button");
+            topButton.type = "button";
+            topButton.className = "slider-jump-top-button";
+            topButton.textContent = "↑ Top";
+            topButton.setAttribute("aria-label", "Back to top");
+            topButton.addEventListener("click", function () {
+                const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                window.scrollTo({
+                    top: 0,
+                    behavior: reducedMotion ? "auto" : "smooth"
+                });
+            });
 
             const popover = document.createElement("div");
             popover.className = "slider-jump-popover";
@@ -1912,12 +2000,23 @@
                 }
             });
 
+            const buttons = document.createElement("div");
+            buttons.className = "slider-jump-buttons";
+            buttons.appendChild(mainButton);
+            buttons.appendChild(topButton);
+
             control.appendChild(label);
-            control.appendChild(mainButton);
+            control.appendChild(buttons);
             control.appendChild(popover);
 
             const basicControls = contentHost.querySelector(".basic-controls-row");
-            contentHost.insertBefore(control, basicControls ? basicControls.nextSibling : contentHost.firstChild);
+            const insertionPoint = basicControls ? basicControls.nextSibling : contentHost.firstChild;
+            const sentinel = document.createElement("div");
+            sentinel.className = "slider-jump-sentinel";
+            sentinel.setAttribute("aria-hidden", "true");
+            contentHost.insertBefore(sentinel, insertionPoint);
+            contentHost.insertBefore(control, insertionPoint);
+            observeSliderJumpDocking(control, sentinel);
         }
 
         function startSliderJumpMenuObserver() {
@@ -4261,8 +4360,9 @@
         function renderPointColorView(host) {
             host.replaceChildren(); pointColorHost = host; pointColorControls = {}; pointColorRangeControls = {};
             const heading = document.createElement("div"); heading.className = "color-mixer-group-heading"; heading.textContent = "POINT COLOR"; host.appendChild(heading);
+            const leadingControls = document.createElement("div"); leadingControls.className = "develop-section-leading-controls";
             const picker = makeButton("Select Color Picker", "command-neutral", function () { sendCommand("/api/point-color/tool/select"); });
-            picker.id = "pointColorPickerSelect"; host.appendChild(picker);
+            picker.id = "pointColorPickerSelect"; leadingControls.appendChild(picker); host.appendChild(leadingControls);
             if (!pointColorState.available) {
                 const message = document.createElement("p"); message.textContent = "Point Color is unavailable in the current Lightroom context."; host.appendChild(message); return;
             }
@@ -4594,7 +4694,10 @@
             developRenderedSections["color-mixer"].replaceWith(replacement);
             developRenderedSections["color-mixer"] = replacement;
             const jumpMenu = content.querySelector(".slider-jump-control");
-            if (jumpMenu) jumpMenu.remove();
+            if (jumpMenu) {
+                disconnectSliderJumpDockObserver();
+                jumpMenu.remove();
+            }
             installSliderJumpMenu();
             requestLiveFeedbackSnapshot(true);
         }

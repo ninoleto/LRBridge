@@ -12,6 +12,7 @@ const dispatcher = read("lightroom/LRBridge.lrplugin/Commands.lua");
 const parser = read("lightroom/LRBridge.lrplugin/Parser.lua");
 const feedback = read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua");
 const bridge = read("server/bridge.js");
+const pointStateSource = read("server/point-color-state.js");
 const controller = read("app/controller.html");
 
 assert.match(lua, /getValue\("PointColors"\)/);
@@ -150,6 +151,14 @@ assert.match(controller, /Toggle Visualize Range/);
 assert.match(controller, /Select Color Picker/);
 assert.match(controller, /\/api\/point-color\/tool\/select/);
 assert.ok(controller.indexOf('picker.id = "pointColorPickerSelect"') < controller.indexOf("if (!pointColorState.available)"));
+const pointColorRender = controller.match(/function renderPointColorView\(host\) \{[\s\S]*?\n        \}\n        let colorMixerView/)[0];
+assert.match(pointColorRender,
+    /leadingControls\.className = "develop-section-leading-controls";[\s\S]*leadingControls\.appendChild\(picker\); host\.appendChild\(leadingControls\)/,
+    "Point Color picker must reuse the shared leading-controls spacing convention");
+assert.ok(pointColorRender.indexOf("host.appendChild(leadingControls)") < pointColorRender.indexOf("pointColorDefinitions.forEach"),
+    "Hue Shift and the remaining scalar controls must follow the Point Color leading controls");
+assert.equal((pointColorRender.match(/leadingControls\.appendChild\(picker\)/g) || []).length, 1,
+    "Select Color Picker must remain the sole Point Color leading control");
 assert.doesNotMatch(lua + controller, /SendKeys|mouse_event|keybd_event/);
 assert.doesNotMatch(controller, /Lightroom does not expose the current Visualize Range state\./);
 assert.doesNotMatch(controller, /browser eyedropper|Delete Sample|Delete All|sample selector|color field/i);
@@ -189,6 +198,10 @@ assert.match(controller, /edit\.selectedIndex !== pointColorState\.selectedIndex
 assert.ok(lua.indexOf("safeFullRangeWidth(completeSwatch[rangeName])") < lua.indexOf("updateSelectedPointColorSwatch(completeSwatch, false)", lua.indexOf("function PointColor.setRange")));
 assert.ok(lua.indexOf("safeFullRangeWidth(translated)") < lua.indexOf("updateSelectedPointColorSwatch(completeSwatch, false)", lua.indexOf("function PointColor.translateRange")));
 assert.doesNotMatch(lua + bridge, /point-color-threshold-probe|postThresholdResult/);
+assert.doesNotMatch(lua + bridge + pointStateSource + controller, /rangeVisualization/,
+    "Visualize Range must remain momentary when Lightroom exposes no authoritative readable state");
+assert.doesNotMatch(lua + bridge, /point-color-visualization-return-probe/,
+    "Temporary Visualize Range return diagnostics must not remain in production");
 assert.match(controller, /if \(control\.dirty && ui !== control\.committed\) return/);
 assert.match(controller, /225/);
 console.log("Point Color production contracts passed.");

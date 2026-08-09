@@ -363,6 +363,9 @@ assert.doesNotMatch(JSON.stringify(developSectionDisplayOrder), /Tone Curve|Colo
 assert.match(controller, /function getSliderJumpSections\(\) \{\s*return developSectionDisplayOrder\.map/,
     "Jump menu and rendered sections must share the presentation specification");
 assert.equal(developSectionDisplayOrder.length, 9, "Jump-to must source exactly nine Develop sections");
+assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), [
+    "White Balance", "Tone", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Transform", "Effects", "Calibration"
+], "Jump-to section ordering must remain unchanged");
 assert.equal(developSectionDisplayOrder[3].id, "color-mixer",
     "Color Mixer/B&W must remain fourth between Presence and Detail");
 assert.match(controller, /function getSliderJumpSections[\s\S]*label: getDevelopSectionDisplayLabel\(section\)/,
@@ -379,6 +382,27 @@ assert.match(controller, /title\.textContent = section\.id === "color-mixer"[\s\
     "Rendered headings must consume the shared presentation label");
 assert.match(controller, /jumpMenu\.remove\(\);[\s\S]*installSliderJumpMenu\(\);[\s\S]*requestLiveFeedbackSnapshot\(true\)/,
     "Mixer replacement must refresh its existing jump label before the normal connected-row snapshot");
+assert.equal((controller.match(/className = "slider-jump-top-button"/g) || []).length, 1,
+    "Exactly one Back-to-Top button must be created");
+assert.match(controller, /topButton\.textContent = "↑ Top"/);
+assert.match(controller, /topButton\.setAttribute\("aria-label", "Back to top"\)/);
+assert.match(controller, /buttons\.appendChild\(mainButton\);\s*buttons\.appendChild\(topButton\)/,
+    "Top must remain beside Jump-to inside the same toolbar button group");
+assert.match(controller, /\.slider-jump-top-button \{[\s\S]*?display: none;/,
+    "Top must be hidden before docking");
+assert.match(controller, /\.slider-jump-control\.slider-jump-docked \.slider-jump-top-button \{\s*display: inline-block;/,
+    "Docked state must reveal Top");
+assert.match(controller, /new IntersectionObserver/);
+assert.match(controller, /!entry\.isIntersecting && entry\.boundingClientRect\.top < stickyTop/,
+    "Docking must follow the sentinel crossing the computed sticky offset");
+assert.doesNotMatch(controller, /scrollY\s*>\s*\d+/,
+    "Docking must not use an arbitrary scroll threshold");
+assert.match(controller, /window\.scrollTo\(\{\s*top: 0,\s*behavior: reducedMotion \? "auto" : "smooth"/);
+assert.match(controller, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+assert.match(controller, /slider-jump-sentinel[\s\S]*insertBefore\(sentinel, insertionPoint\);\s*contentHost\.insertBefore\(control, insertionPoint\)/,
+    "The docking sentinel must be immediately before the sticky toolbar");
+assert.match(controller, /sliderJumpDockObserver\.disconnect\(\)/,
+    "Jump-to rebuilds must disconnect the previous docking observer");
 assert.match(slidersOnlyBlock, /validateDevelopSectionMapping\(sections\)/);
 assert.match(slidersOnlyBlock, /setStatus\("ERROR: " \+ mappingError\)/,
     "Invalid presentation mappings must fail visibly");
