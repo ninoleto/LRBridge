@@ -458,7 +458,7 @@ poll_interval_ms=100
 
 The Electron app can edit this value. Lightroom reloads the polling setting automatically.
 
-After the first valid context heartbeat confirms that Lightroom plug-in polling is active, LRBridge queues one SDK-native switch to the Library module. This happens once per bridge lifecycle and does not activate the Lightroom window or simulate keyboard input.
+Context heartbeats confirm that Lightroom plug-in polling is active and update LRBridge's reported Lightroom state. They do not enqueue commands or switch modules. Starting or restarting LRBridge leaves Lightroom in its currently selected module until an explicit `application.module` command is requested.
 
 The older compatibility endpoint remains available but is deprecated:
 

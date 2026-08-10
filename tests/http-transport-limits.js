@@ -152,9 +152,7 @@ async function testPropertiesAndRepresentativeRoutes(bridge) {
         "/context/update?activeModule=develop&selectedPhotoKey=photo-1&developFingerprint=abc"
     );
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(drainQueue(), [
-        { command: "application.module", module: "library" }
-    ]);
+    assert.deepEqual(drainQueue(), [], "context heartbeat must not enqueue a module command");
 
     response = await requestJson(port, "/wake-lightroom");
     assert.deepEqual(response.body, {

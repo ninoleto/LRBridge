@@ -472,9 +472,7 @@ async function validateHttpAndWebSocketContract() {
 
     result = await request(captured, "/context/update", { activeModule: "develop", selectedPhotoKey: "photo-1", developFingerprint: "abc" });
     assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey"]);
-    assert.deepEqual(await drainCommands(captured, 1), [
-        { command: "application.module", module: "library" }
-    ]);
+    assert.deepEqual(await drainCommands(captured, 0), [], "context heartbeat must not enqueue a module command");
 
     result = await request(captured, "/result", { command: "develop.get.result", slider: "Exposure", value: "1.25" });
     assert.deepEqual(result.body, { ok: true });

@@ -289,7 +289,8 @@ async function httpJson(port, target) {
     }
     try {
         await httpJson(port, "/context/update?activeModule=develop&selectedPhotoKey=photo-a&developFingerprint=one");
-        await httpJson(port, "/next"); // Consume the one-time startup Library command.
+        assert.deepEqual((await httpJson(port, "/next")).body, { command: null },
+            "context heartbeat must not enqueue startup Library");
         for (const invalidTarget of [
             "/enhance/denoise/set?amount=50",
             "/enhance/denoise/set?enabled=%22true%22&amount=50",

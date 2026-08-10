@@ -404,8 +404,13 @@ assert.match(controller, /\.slider-jump-control\.slider-jump-docked \.slider-jum
     "Docked state must reveal Top and its separator together");
 assert.match(controller, /runLightroomHistoryCommand\("lightroom\.undo"\)/);
 assert.match(controller, /runLightroomHistoryCommand\("lightroom\.redo"\)/);
-assert.match(controller, /sliderJumpUndoButton\.disabled = !historyState\.available \|\| !historyState\.canUndo/);
-assert.match(controller, /sliderJumpRedoButton\.disabled = !historyState\.available \|\| !historyState\.canRedo/);
+assert.match(controller, /const historyActionCooldownMs = 3000;/);
+assert.match(controller, /function markSliderCommandSent\(\) \{\s*startAutoActionCooldown\(\);\s*startHistoryActionCooldown\(\);\s*\}/,
+    "Every actual generic slider submission must restart the history cooldown");
+assert.match(controller, /markSliderCommandSent\(\);\s*const accepted = await sendCommand\(/,
+    "Reusable slider Set submissions must restart the history cooldown");
+assert.match(controller, /const reset = makeButton\("Reset"[\s\S]*markSliderCommandSent\(\);\s*sendCommand\("\/api\/reset/,
+    "Reusable slider Reset must restart the history cooldown");
 assert.doesNotMatch(controller, /SendKeys|keybd_event|mouse_event|AutoHotkey/i,
     "Web Controller must not emulate keyboard input for history");
 assert.match(historyLua, /LrUndo\.canUndo\(\)/);
@@ -418,9 +423,138 @@ assert.doesNotMatch(controller + bridge + luaCommands + historyLua, /SendKeys|ke
     "History commands must remain SDK-driven throughout production");
 assert.doesNotMatch(controller + bridge + luaCommands + historyLua, /undoStack|redoStack/i,
     "LRBridge must not maintain a synthetic history stack");
+assert.doesNotMatch(driver + historyLua, /stopTracking|setTrackingDelay|setMultipleAdjustmentThreshold/,
+    "History cooldown must not manipulate Lightroom tracking or grouping");
+assert.doesNotMatch(historyLua, /LrTasks\.sleep/,
+    "Native Undo and Redo must not sleep");
 assert.doesNotMatch(controller + bridge + luaCommands + historyLua,
     /undo-diagnostic|undo-diagnostics|temporaryUndoDiagnostics|diagnosticSequence|sendDiagnostic|readDiagnosticState|before_canUndo|after_canUndo|immediately_before_undo|immediately_after_undo|after_sendCurrentState/,
     "Temporary Undo investigation diagnostics must not remain in production");
+
+const historyCooldownStart = controller.indexOf("const historyActionCooldownMs = 3000;");
+const historyCooldownEnd = controller.indexOf("async function requestHistoryState()", historyCooldownStart);
+assert.notEqual(historyCooldownStart, -1);
+assert.notEqual(historyCooldownEnd, -1);
+const historyCooldownBlock = controller.slice(historyCooldownStart, historyCooldownEnd);
+const historyButtonUpdateStart = historyCooldownBlock.indexOf("function updateSliderJumpHistoryButtons()");
+const historyButtonUpdateEnd = historyCooldownBlock.indexOf("function startHistoryActionCooldown()", historyButtonUpdateStart);
+assert.notEqual(historyButtonUpdateStart, -1);
+assert.notEqual(historyButtonUpdateEnd, -1);
+const historyButtonUpdate = historyCooldownBlock.slice(historyButtonUpdateStart, historyButtonUpdateEnd);
+assert.match(historyButtonUpdate,
+    /sliderJumpUndoButton\.disabled = busy \|\| !historyState\.available \|\| !historyState\.canUndo/,
+    "Undo availability must combine the cooldown with authoritative canUndo");
+assert.match(historyButtonUpdate,
+    /sliderJumpRedoButton\.disabled = busy \|\| !historyState\.available \|\| !historyState\.canRedo/,
+    "Redo availability must combine the cooldown with authoritative canRedo");
+assert.match(historyButtonUpdate, /sliderJumpUndoButton\.textContent = busy \? "Busy " \+ remainingSeconds : "Undo"/);
+assert.match(historyButtonUpdate, /sliderJumpRedoButton\.textContent = busy \? "Busy " \+ remainingSeconds : "Redo"/);
+assert.match(controller,
+    /async function requestHistoryState\(\)[\s\S]*historyState = data\.state; updateSliderJumpHistoryButtons\(\)/,
+    "Every authoritative history-state response must update the Web Controller buttons");
+assert.match(controller,
+    /async function requestLiveFeedbackSnapshot\(forceAll\)[\s\S]*if \(activeTab === "sliders"\) requestHistoryState\(\)/,
+    "The existing live-feedback loop must continuously refresh Lightroom history state");
+assert.match(controller,
+    /async function runLightroomHistoryCommand\(command\)[\s\S]*sendCommand\("\/api\/command\?command="[\s\S]*requestHistoryState\(\)/,
+    "Undo and Redo commands must refresh authoritative history state afterward");
+
+{
+    let now = 0;
+    let intervalId = 0;
+    let historyRefreshes = 0;
+    const intervals = new Map();
+    const undo = { disabled: false, textContent: "Undo" };
+    const redo = { disabled: false, textContent: "Redo" };
+    const context = {
+        undo,
+        redo,
+        Date: { now() { return now; } },
+        setInterval(callback, delay) {
+            intervalId += 1;
+            intervals.set(intervalId, { id: intervalId, callback, delay });
+            return intervalId;
+        },
+        clearInterval(id) { intervals.delete(id); },
+        requestHistoryState() { historyRefreshes += 1; }
+    };
+    require("node:vm").runInNewContext(`
+        let sliderJumpUndoButton = this.undo;
+        let sliderJumpRedoButton = this.redo;
+        ${historyCooldownBlock}
+        this.cooldown = {
+            start: startHistoryActionCooldown,
+            active: isHistoryActionCooldownActive,
+            timer: function () { return historyActionCooldownTimer; },
+            setHistory: function (state) { historyState = state; updateSliderJumpHistoryButtons(); }
+        };`, context);
+
+    context.cooldown.setHistory({ available: true, canUndo: true, canRedo: true });
+    assert.equal(undo.disabled, false);
+    assert.equal(redo.disabled, false);
+    context.cooldown.start();
+    assert.equal(context.cooldown.active(), true);
+    assert.equal(undo.disabled, true, "Undo must disable immediately after a slider submission");
+    assert.equal(redo.disabled, true, "Redo must disable immediately after a slider submission");
+    assert.equal(undo.textContent, "Busy 3");
+    assert.equal(redo.textContent, "Busy 3");
+    const firstInterval = Array.from(intervals.values())[0];
+    assert.equal(firstInterval.delay, 250);
+
+    now = 1000;
+    firstInterval.callback();
+    assert.equal(undo.textContent, "Busy 2");
+    assert.equal(redo.textContent, "Busy 2");
+
+    context.cooldown.start();
+    assert.equal(undo.textContent, "Busy 3", "A new slider mutation must restart the full countdown");
+    assert.equal(redo.textContent, "Busy 3", "A new slider mutation must restart the full countdown");
+    const secondInterval = Array.from(intervals.values())[0];
+    assert.notEqual(secondInterval.id, firstInterval.id);
+
+    now = 2000;
+    secondInterval.callback();
+    assert.equal(undo.textContent, "Busy 2");
+    assert.equal(redo.textContent, "Busy 2");
+
+    now = 3000;
+    firstInterval.callback();
+    assert.equal(undo.textContent, "Busy 1", "A stale callback must not finish a newer countdown early");
+    assert.equal(redo.textContent, "Busy 1", "A stale callback must not finish a newer countdown early");
+    assert.equal(undo.disabled, true);
+    assert.equal(redo.disabled, true);
+    assert.equal(context.cooldown.timer(), secondInterval.id);
+
+    now = 4000;
+    secondInterval.callback();
+    assert.equal(context.cooldown.active(), false);
+    assert.equal(context.cooldown.timer(), null);
+    assert.equal(undo.textContent, "Undo");
+    assert.equal(redo.textContent, "Redo");
+    assert.equal(undo.disabled, true, "Undo must remain disabled until fresh authoritative state arrives");
+    assert.equal(redo.disabled, true, "Redo must remain disabled until fresh authoritative state arrives");
+    assert.equal(historyRefreshes, 1, "Cooldown expiry must request fresh authoritative history state");
+
+    context.cooldown.setHistory({ available: true, canUndo: true, canRedo: false });
+    assert.equal(undo.disabled, false);
+    assert.equal(redo.disabled, true);
+
+    context.cooldown.setHistory({ available: true, canUndo: false, canRedo: true });
+    assert.equal(undo.disabled, true);
+    assert.equal(redo.disabled, false);
+
+    context.cooldown.setHistory({ available: true, canUndo: false, canRedo: false });
+    assert.equal(undo.disabled, true);
+    assert.equal(redo.disabled, true);
+
+    context.cooldown.setHistory({ available: false, canUndo: true, canRedo: true });
+    assert.equal(undo.disabled, true);
+    assert.equal(redo.disabled, true);
+
+    context.cooldown.setHistory({ available: true, canUndo: true, canRedo: true });
+    assert.equal(undo.disabled, false, "History changes while idle must update Undo immediately");
+    assert.equal(redo.disabled, false, "History changes while idle must update Redo immediately");
+}
 const testedHistoryState = historyStateFactory();
 assert.deepEqual(testedHistoryState.get(), { available: false, canUndo: false, canRedo: false });
 assert.equal(testedHistoryState.update({ available: true, canUndo: true, canRedo: false }), true);
@@ -501,7 +635,11 @@ colorGroups.forEach((group) => assert.deepEqual(Array.from(group.rows, (row) => 
 assert.match(controller, /button\.textContent = view === "hsl" \? "HSL" : view === "color" \? "Color" : "Point Color"/);
 assert.match(controller, /let colorMixerView = "hsl"/);
 assert.match(controller, /\["hsl", "color", "point-color"\]/);
-const mixerPresentationBlock = controller.match(/function createColorMixerPresentation\(groupElement, section\) \{[\s\S]*?\n        \}\n\n        function getDevelopSectionDisplayLabel/)[0];
+const mixerPresentationStart = controller.indexOf("function createColorMixerPresentation(groupElement, section) {");
+const mixerPresentationEnd = controller.indexOf("function getDevelopSectionDisplayLabel(section) {", mixerPresentationStart);
+assert.notEqual(mixerPresentationStart, -1);
+assert.notEqual(mixerPresentationEnd, -1);
+const mixerPresentationBlock = controller.slice(mixerPresentationStart, mixerPresentationEnd);
 assert.doesNotMatch(mixerPresentationBlock, /sendCommand/,
     "Switching Color Mixer views must not itself mutate Lightroom");
 assert.match(controller, /container\.appendChild\(control\.row\)/,

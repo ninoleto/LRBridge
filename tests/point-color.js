@@ -151,7 +151,11 @@ assert.match(controller, /Toggle Visualize Range/);
 assert.match(controller, /Select Color Picker/);
 assert.match(controller, /\/api\/point-color\/tool\/select/);
 assert.ok(controller.indexOf('picker.id = "pointColorPickerSelect"') < controller.indexOf("if (!pointColorState.available)"));
-const pointColorRender = controller.match(/function renderPointColorView\(host\) \{[\s\S]*?\n        \}\n        let colorMixerView/)[0];
+const pointColorRenderStart = controller.indexOf("function renderPointColorView(host) {");
+const pointColorRenderEnd = controller.indexOf('let colorMixerView = "hsl";', pointColorRenderStart);
+assert.notEqual(pointColorRenderStart, -1);
+assert.notEqual(pointColorRenderEnd, -1);
+const pointColorRender = controller.slice(pointColorRenderStart, pointColorRenderEnd);
 assert.match(pointColorRender,
     /leadingControls\.className = "develop-section-leading-controls";[\s\S]*leadingControls\.appendChild\(picker\); host\.appendChild\(leadingControls\)/,
     "Point Color picker must reuse the shared leading-controls spacing convention");

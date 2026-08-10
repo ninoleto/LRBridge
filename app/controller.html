@@ -1875,6 +1875,7 @@
 
         function markSliderCommandSent() {
             startAutoActionCooldown();
+            startHistoryActionCooldown();
         }
 
         function registerAutoActionButton(action, button) {
@@ -1906,12 +1907,53 @@
         let sliderJumpDockSentinel = null;
         let sliderJumpUndoButton = null;
         let sliderJumpRedoButton = null;
+        const historyActionCooldownMs = 3000;
+        let historyActionCooldownUntil = 0;
+        let historyActionCooldownTimer = null;
         let historyState = { available: false, canUndo: false, canRedo: false };
         let historyStateRequestInFlight = false;
 
+        function isHistoryActionCooldownActive() {
+            return Date.now() < historyActionCooldownUntil;
+        }
+
         function updateSliderJumpHistoryButtons() {
-            if (sliderJumpUndoButton) sliderJumpUndoButton.disabled = !historyState.available || !historyState.canUndo;
-            if (sliderJumpRedoButton) sliderJumpRedoButton.disabled = !historyState.available || !historyState.canRedo;
+            const remainingMs = Math.max(0, historyActionCooldownUntil - Date.now());
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+            const busy = remainingMs > 0;
+
+            if (sliderJumpUndoButton) {
+                sliderJumpUndoButton.disabled = busy || !historyState.available || !historyState.canUndo;
+                sliderJumpUndoButton.textContent = busy ? "Busy " + remainingSeconds : "Undo";
+            }
+
+            if (sliderJumpRedoButton) {
+                sliderJumpRedoButton.disabled = busy || !historyState.available || !historyState.canRedo;
+                sliderJumpRedoButton.textContent = busy ? "Busy " + remainingSeconds : "Redo";
+            }
+        }
+
+        function startHistoryActionCooldown() {
+            historyActionCooldownUntil = Date.now() + historyActionCooldownMs;
+
+            if (historyActionCooldownTimer !== null) {
+                clearInterval(historyActionCooldownTimer);
+            }
+
+            updateSliderJumpHistoryButtons();
+
+            historyActionCooldownTimer = setInterval(function () {
+                if (!isHistoryActionCooldownActive()) {
+                    clearInterval(historyActionCooldownTimer);
+                    historyActionCooldownTimer = null;
+                    historyState = { available: false, canUndo: false, canRedo: false };
+                    updateSliderJumpHistoryButtons();
+                    requestHistoryState();
+                    return;
+                }
+
+                updateSliderJumpHistoryButtons();
+            }, 250);
         }
 
         async function requestHistoryState() {

@@ -75,7 +75,6 @@ const feedbackSnapshots = {};
 const colorGradingSnapshots = {};
 const treatmentSnapshots = {};
 let feedbackRequestId = 0;
-let startupLibraryQueued = false;
 const dedicatedFeedbackParameters = new Set(["CropAngle", "CropConstrainToWarp"]);
 
 function isFeedbackParameter(value) {
@@ -106,26 +105,6 @@ function createFeedbackSnapshot(id, requestedSliders) {
 
 function queueCommand(command) {
     return commands.tryEnqueueCommand(command);
-}
-
-function isValidContextHeartbeat(query) {
-    return typeof query.activeModule === "string" &&
-        typeof query.selectedPhotoKey === "string" &&
-        typeof query.developFingerprint === "string";
-}
-
-function queueStartupLibraryOnce() {
-    if (startupLibraryQueued) return;
-
-    const admission = queueCommand({
-        command: "application.module",
-        module: "library"
-    });
-
-    if (admission.accepted) {
-        startupLibraryQueued = true;
-        console.log("Queued startup Library module command.");
-    }
 }
 
 function rejectInvalidCommand(res) {
@@ -239,7 +218,7 @@ app.get("/help", function (req, res) {
             "A wheel command carries one Hue/Saturation pair and executes two consecutive native setValue calls in Develop.",
             "Color Grading view selection requires Process Version 3 or newer.",
             "Selection operations and application controls are ordinary FIFO queue commands; they do not consume the protected reset/action reserve.",
-            "After the first valid Lightroom context heartbeat, LRBridge queues one SDK-native switch to Library.",
+            "Context heartbeats report Lightroom state and do not enqueue commands or switch modules.",
             "/wake-lightroom is deprecated; use /command?command=application.module&module=library."
         ]
     });
@@ -286,10 +265,6 @@ app.get("/context/update", function (req, res) {
         });
         colorGrading.clearRuntimeRanges();
         Object.keys(colorGradingSnapshots).forEach(function (id) { delete colorGradingSnapshots[id]; });
-    }
-
-    if (isValidContextHeartbeat(req.query)) {
-        queueStartupLibraryOnce();
     }
 
     const status = commands.getStatus();
@@ -1354,7 +1329,6 @@ function start() {
 
     lifecycleState = "starting";
     stopRequested = false;
-    startupLibraryQueued = false;
     startPromise = (async function () {
         try {
             const results = await Promise.allSettled([listenHttp(), listenWebSocket()]);

@@ -26,7 +26,7 @@
 - Controlled Lightroom Classic 15.3 testing confirmed Black & White, Color, and Show in Explorer with visible results, exact queue deltas, continued heartbeat, and no execution errors.
 - Manual Web Controller verification confirmed Open Crop Tool and all seven crop-aspect modes. The 2:3 preset and Camera Crop may correctly match Original for compatible source-photo metadata; Reset Crop remains a separate complete-crop reset.
 - Manual Web Controller verification also confirmed fixed 16:10 and Custom Crop. The exact `{ w = 16, h = 10 }` values survived the complete transport and SDK pipeline, and the LRBridge-owned Custom Crop modal worked as designed.
-- Startup now waits for the first valid Lightroom context heartbeat and admits exactly one SDK-native `application.module / library` command per bridge lifecycle. The previous Windows focus, PID-watcher, and keyboard-shortcut mechanism was removed.
+- Startup module switching was removed. Context heartbeats now report Lightroom state without enqueueing commands, and LRBridge preserves the current module until an explicit `application.module` request. The previous Windows focus/PID watcher, keyboard shortcut, and intermediate one-shot SDK startup switch are removed.
 - The deprecated `/wake-lightroom` compatibility endpoint now queues the same SDK-native Library command without activating Lightroom or simulating keyboard input. New integrations should use `/command?command=application.module&module=library`.
 - Queue diagnostics now count all seven selection command families as ordinary commands without exposing their payload values.
 - The generic `/command` route now copies `action` correctly and normalizes HTTP rating query values before shared validation.

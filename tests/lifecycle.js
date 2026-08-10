@@ -128,7 +128,7 @@ function drainCommands() {
     return drained;
 }
 
-async function testStartupLibraryLifecycle() {
+async function testContextHeartbeatPreservesModuleLifecycle() {
     const bridge = isolatedBridge();
     try {
         commands.resetQueueForTests();
@@ -137,14 +137,27 @@ async function testStartupLibraryLifecycle() {
         assert.deepEqual(drainCommands(), []);
 
         await getJson(port, "/context/update?activeModule=develop&selectedPhotoKey=photo-1");
-        assert.deepEqual(drainCommands(), [], "invalid heartbeat queued startup Library");
+        assert.deepEqual(drainCommands(), [], "partial heartbeat must not enqueue a module command");
 
         const heartbeat = "/context/update?activeModule=develop&selectedPhotoKey=photo-1&developFingerprint=abc";
         await getJson(port, heartbeat);
         await getJson(port, heartbeat);
-        assert.deepEqual(drainCommands(), [
-            { command: "application.module", module: "library" }
-        ], "repeated heartbeat queued startup Library more than once");
+        assert.deepEqual(drainCommands(), [], "context heartbeats must not enqueue a module command");
+
+        const libraryCommand = { command: "application.module", module: "library" };
+        const developCommand = { command: "application.module", module: "develop" };
+        assert.deepEqual((await getJson(port, "/command?command=application.module&module=library")).body, {
+            ok: true,
+            queued: libraryCommand
+        });
+        await getJson(port, heartbeat);
+        assert.deepEqual((await getJson(port, "/command?command=application.module&module=develop")).body, {
+            ok: true,
+            queued: developCommand
+        });
+        await getJson(port, heartbeat);
+        assert.deepEqual(drainCommands(), [libraryCommand, developCommand],
+            "explicit Library and Develop commands must retain normal FIFO order across heartbeats");
 
         await bridge.stop();
         await bridge.start();
@@ -158,25 +171,16 @@ async function testStartupLibraryLifecycle() {
         }
         await getJson(restartedPort, heartbeat);
         assert.equal(commands.getStatus().queueLength, commands.ORDINARY_ADMISSION_CEILING);
-        assert.deepEqual(commands.getNextCommand(), {
-            command: "application.module",
-            module: "develop"
-        });
-        await getJson(restartedPort, heartbeat);
-
         const queued = drainCommands();
         assert.equal(queued.length, commands.ORDINARY_ADMISSION_CEILING);
-        assert.deepEqual(queued[queued.length - 1], {
-            command: "application.module",
-            module: "library"
-        }, "later heartbeat did not retry startup Library admission");
+        assert.ok(queued.every(function (command) {
+            return command.command === "application.module" && command.module === "develop";
+        }), "heartbeat must not alter a full ordinary FIFO queue");
 
         await bridge.stop();
         await bridge.start();
         await getJson(bridge.getHttpServer().address().port, heartbeat);
-        assert.deepEqual(drainCommands(), [
-            { command: "application.module", module: "library" }
-        ], "new bridge lifecycle did not reset startup Library guard");
+        assert.deepEqual(drainCommands(), [], "new bridge lifecycle must not enqueue startup Library");
     } finally {
         await bridge.stop();
         commands.resetQueueForTests();
@@ -331,7 +335,7 @@ async function main() {
     testProductionDefaults();
     await testConstructionDoesNotListen();
     await testStartupAndPortRelease();
-    await testStartupLibraryLifecycle();
+    await testContextHeartbeatPreservesModuleLifecycle();
     await testConcurrentTransitions();
     await testOccupiedPort("http");
     await testOccupiedPort("websocket");

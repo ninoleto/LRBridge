@@ -498,13 +498,13 @@
     <section class="box warning">
         <h3>Lightroom does not respond to Web Controller or Companion commands</h3>
         <p>
-            For LRBridge to work properly, Lightroom Classic should be in <strong>Library</strong> mode when LRBridge starts.
-            After Lightroom plug-in polling sends its first valid context heartbeat, LRBridge queues one SDK-native switch
-            to Library. It does not activate the Lightroom window or simulate keyboard input.
+            LRBridge does not switch Lightroom modules when it starts or restarts. Lightroom remains in the currently
+            selected module until an explicit module-navigation command is requested.
         </p>
         <p>
             In rare cases, especially after a Lightroom crash, plugin reload, problematic photo file,
-            or on slower computers, the plug-in heartbeat may not arrive.
+            or on slower computers, the plug-in heartbeat may not arrive. Check the Web Controller connection status
+            to confirm that Lightroom plug-in polling is active.
         </p>
         <p>
             If LRBridge is running but Lightroom does not respond to Web Controller or Bitfocus Companion commands,
