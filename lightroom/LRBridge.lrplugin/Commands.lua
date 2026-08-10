@@ -7,6 +7,7 @@ local Crop = require "Crop"
 local ColorGrading = require "ColorGrading"
 local Enhance = require "Enhance"
 local PointColor = require "PointColor"
+local History = require "History"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -43,6 +44,8 @@ function Commands.execute(command)
     if command.command == "point_color.range.translate" then PointColor.translateRange(command.range, command.LowerNone, command.LowerFull, command.UpperFull, command.UpperNone, command.expectedSelectedIndex); return end
     if command.command == "point_color.range_visualization.toggle" then PointColor.toggleRangeVisualization(); return end
     if command.command == "point_color.tool.select" then PointColor.selectTool(); return end
+    if command.command == "lightroom.undo" then History.undo(); return end
+    if command.command == "lightroom.redo" then History.redo(); return end
 
     if command.command == "develop.adjust" then
 

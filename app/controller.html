@@ -723,10 +723,59 @@
             align-items: center;
             gap: 10px;
             min-width: 0;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .slider-jump-jump-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1 1 250px;
+        }
+
+        .slider-jump-history-group,
+        .slider-jump-top-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .slider-jump-separator {
+            width: 1px;
+            height: 26px;
+            flex: 0 0 1px;
+            background: #344352;
+            pointer-events: none;
+        }
+
+        .slider-jump-history-button {
+            min-height: 44px;
+            flex: 0 0 auto;
+            border: 1px solid #d18a36;
+            border-radius: 12px;
+            background: #111111;
+            color: #f4f4f4;
+            padding: 10px 13px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .slider-jump-history-button:hover:not(:disabled),
+        .slider-jump-history-button:focus-visible {
+            background: #1a1a1a;
+            border-color: #f0a64a;
+        }
+
+        .slider-jump-history-button:disabled {
+            opacity: 0.45;
+            cursor: default;
         }
 
         .slider-jump-top-button {
-            display: none;
             min-height: 44px;
             flex: 0 0 auto;
             border: 1px solid #d18a36;
@@ -740,8 +789,12 @@
             cursor: pointer;
         }
 
-        .slider-jump-control.slider-jump-docked .slider-jump-top-button {
-            display: inline-block;
+        .slider-jump-top-group {
+            display: none;
+        }
+
+        .slider-jump-control.slider-jump-docked .slider-jump-top-group {
+            display: flex;
         }
 
         .slider-jump-top-button:hover {
@@ -808,10 +861,15 @@
             .slider-jump-main-button {
                 min-width: 0;
                 width: 100%;
+                flex: 1 1 auto;
             }
 
             .slider-jump-buttons {
                 width: 100%;
+            }
+
+            .slider-jump-jump-group {
+                flex-basis: 210px;
             }
 
             .slider-jump-popover {
@@ -1846,6 +1904,34 @@
 
         let sliderJumpDockObserver = null;
         let sliderJumpDockSentinel = null;
+        let sliderJumpUndoButton = null;
+        let sliderJumpRedoButton = null;
+        let historyState = { available: false, canUndo: false, canRedo: false };
+        let historyStateRequestInFlight = false;
+
+        function updateSliderJumpHistoryButtons() {
+            if (sliderJumpUndoButton) sliderJumpUndoButton.disabled = !historyState.available || !historyState.canUndo;
+            if (sliderJumpRedoButton) sliderJumpRedoButton.disabled = !historyState.available || !historyState.canRedo;
+        }
+
+        async function requestHistoryState() {
+            if (historyStateRequestInFlight || activeTab !== "sliders") return;
+            historyStateRequestInFlight = true;
+            try {
+                const response = await fetch("/api/history/state", { cache: "no-store" });
+                const data = await response.json();
+                if (response.ok && data && data.state) { historyState = data.state; updateSliderJumpHistoryButtons(); }
+            } catch (err) {
+                historyState = { available: false, canUndo: false, canRedo: false }; updateSliderJumpHistoryButtons();
+            } finally { historyStateRequestInFlight = false; }
+        }
+
+        async function runLightroomHistoryCommand(command) {
+            historyState = { available: false, canUndo: false, canRedo: false }; updateSliderJumpHistoryButtons();
+            const accepted = await sendCommand("/api/command?command=" + encodeURIComponent(command));
+            if (accepted) requestLiveFeedbackSnapshot(true);
+            requestHistoryState();
+        }
 
         function disconnectSliderJumpDockObserver() {
             if (sliderJumpDockObserver) sliderJumpDockObserver.disconnect();
@@ -1878,6 +1964,7 @@
 
             if (!contentHost.querySelector(".develop-slider-row")) {
                 disconnectSliderJumpDockObserver();
+                sliderJumpUndoButton = null; sliderJumpRedoButton = null;
                 if (existing) {
                     existing.remove();
                 }
@@ -1941,6 +2028,14 @@
                 });
             });
 
+            const undoButton = document.createElement("button");
+            undoButton.type = "button"; undoButton.className = "slider-jump-history-button"; undoButton.textContent = "Undo";
+            undoButton.addEventListener("click", function () { runLightroomHistoryCommand("lightroom.undo"); });
+            const redoButton = document.createElement("button");
+            redoButton.type = "button"; redoButton.className = "slider-jump-history-button"; redoButton.textContent = "Redo";
+            redoButton.addEventListener("click", function () { runLightroomHistoryCommand("lightroom.redo"); });
+            sliderJumpUndoButton = undoButton; sliderJumpRedoButton = redoButton; updateSliderJumpHistoryButtons();
+
             const popover = document.createElement("div");
             popover.className = "slider-jump-popover";
             popover.hidden = true;
@@ -2002,10 +2097,14 @@
 
             const buttons = document.createElement("div");
             buttons.className = "slider-jump-buttons";
-            buttons.appendChild(mainButton);
-            buttons.appendChild(topButton);
+            const jumpGroup = document.createElement("div"); jumpGroup.className = "slider-jump-jump-group"; jumpGroup.append(label, mainButton);
+            const firstSeparator = document.createElement("span"); firstSeparator.className = "slider-jump-separator"; firstSeparator.setAttribute("aria-hidden", "true");
+            const historyGroup = document.createElement("div"); historyGroup.className = "slider-jump-history-group"; historyGroup.append(undoButton, redoButton);
+            const topGroup = document.createElement("div"); topGroup.className = "slider-jump-top-group";
+            const secondSeparator = document.createElement("span"); secondSeparator.className = "slider-jump-separator slider-jump-top-separator"; secondSeparator.setAttribute("aria-hidden", "true");
+            topGroup.append(secondSeparator, topButton);
+            buttons.append(jumpGroup, firstSeparator, historyGroup, topGroup);
 
-            control.appendChild(label);
             control.appendChild(buttons);
             control.appendChild(popover);
 
@@ -2017,6 +2116,7 @@
             contentHost.insertBefore(sentinel, insertionPoint);
             contentHost.insertBefore(control, insertionPoint);
             observeSliderJumpDocking(control, sentinel);
+            requestHistoryState();
         }
 
         function startSliderJumpMenuObserver() {
@@ -2634,6 +2734,7 @@
         async function requestLiveFeedbackSnapshot(forceAll) {
             if (!genericFeedbackActive || !isGenericDevelopFeedbackTab(activeTab)) return;
             if (activeTab === "sliders") requestTreatmentState();
+            if (activeTab === "sliders") requestHistoryState();
             if (activeTab === "sliders" && colorMixerView === "point-color") requestPointColorState();
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;

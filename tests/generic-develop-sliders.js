@@ -15,6 +15,8 @@ const luaCommands = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin
 const photo = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Photo.lua"), "utf8");
 const mainProcess = fs.readFileSync(path.join(root, "app/main.js"), "utf8");
 const bridge = fs.readFileSync(path.join(root, "server/bridge.js"), "utf8");
+const historyLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/History.lua"), "utf8");
+const historyStateFactory = require("../server/history-state").createHistoryState;
 
 assert.equal(metadata.length, 96, "Slider registry count changed");
 assert.equal(new Set(metadata.map((item) => item.id)).size, metadata.length, "Duplicate slider ID");
@@ -384,14 +386,50 @@ assert.match(controller, /jumpMenu\.remove\(\);[\s\S]*installSliderJumpMenu\(\);
     "Mixer replacement must refresh its existing jump label before the normal connected-row snapshot");
 assert.equal((controller.match(/className = "slider-jump-top-button"/g) || []).length, 1,
     "Exactly one Back-to-Top button must be created");
+assert.equal((controller.match(/undoButton\.textContent = "Undo"/g) || []).length, 1,
+    "Exactly one Undo button must be created");
+assert.equal((controller.match(/redoButton\.textContent = "Redo"/g) || []).length, 1,
+    "Exactly one Redo button must be created");
 assert.match(controller, /topButton\.textContent = "↑ Top"/);
 assert.match(controller, /topButton\.setAttribute\("aria-label", "Back to top"\)/);
-assert.match(controller, /buttons\.appendChild\(mainButton\);\s*buttons\.appendChild\(topButton\)/,
-    "Top must remain beside Jump-to inside the same toolbar button group");
-assert.match(controller, /\.slider-jump-top-button \{[\s\S]*?display: none;/,
-    "Top must be hidden before docking");
-assert.match(controller, /\.slider-jump-control\.slider-jump-docked \.slider-jump-top-button \{\s*display: inline-block;/,
-    "Docked state must reveal Top");
+assert.match(controller, /jumpGroup\.append\(label, mainButton\)[\s\S]*historyGroup\.append\(undoButton, redoButton\)[\s\S]*topGroup\.append\(secondSeparator, topButton\)[\s\S]*buttons\.append\(jumpGroup, firstSeparator, historyGroup, topGroup\)/,
+    "Toolbar must keep Jump, history, and Top in three ordered groups");
+assert.equal((controller.match(/className = "slider-jump-separator/g) || []).length, 2,
+    "Exactly two structural toolbar separators must be created");
+assert.equal((controller.match(/setAttribute\("aria-hidden", "true"\)/g) || []).length >= 2, true,
+    "Toolbar separators must be hidden from assistive technology");
+assert.match(controller, /\.slider-jump-top-group \{\s*display: none;/,
+    "Top and its preceding separator must be hidden before docking");
+assert.match(controller, /\.slider-jump-control\.slider-jump-docked \.slider-jump-top-group \{\s*display: flex;/,
+    "Docked state must reveal Top and its separator together");
+assert.match(controller, /runLightroomHistoryCommand\("lightroom\.undo"\)/);
+assert.match(controller, /runLightroomHistoryCommand\("lightroom\.redo"\)/);
+assert.match(controller, /sliderJumpUndoButton\.disabled = !historyState\.available \|\| !historyState\.canUndo/);
+assert.match(controller, /sliderJumpRedoButton\.disabled = !historyState\.available \|\| !historyState\.canRedo/);
+assert.doesNotMatch(controller, /SendKeys|keybd_event|mouse_event|AutoHotkey/i,
+    "Web Controller must not emulate keyboard input for history");
+assert.match(historyLua, /LrUndo\.canUndo\(\)/);
+assert.match(historyLua, /LrUndo\.canRedo\(\)/);
+assert.match(historyLua, /LrUndo\.undo\(\)/);
+assert.match(historyLua, /LrUndo\.redo\(\)/);
+assert.match(luaCommands, /command\.command == "lightroom\.undo"[\s\S]*History\.undo\(\)/);
+assert.match(luaCommands, /command\.command == "lightroom\.redo"[\s\S]*History\.redo\(\)/);
+assert.doesNotMatch(controller + bridge + luaCommands + historyLua, /SendKeys|keybd_event|mouse_event/i,
+    "History commands must remain SDK-driven throughout production");
+assert.doesNotMatch(controller + bridge + luaCommands + historyLua, /undoStack|redoStack/i,
+    "LRBridge must not maintain a synthetic history stack");
+assert.doesNotMatch(controller + bridge + luaCommands + historyLua,
+    /undo-diagnostic|undo-diagnostics|temporaryUndoDiagnostics|diagnosticSequence|sendDiagnostic|readDiagnosticState|before_canUndo|after_canUndo|immediately_before_undo|immediately_after_undo|after_sendCurrentState/,
+    "Temporary Undo investigation diagnostics must not remain in production");
+const testedHistoryState = historyStateFactory();
+assert.deepEqual(testedHistoryState.get(), { available: false, canUndo: false, canRedo: false });
+assert.equal(testedHistoryState.update({ available: true, canUndo: true, canRedo: false }), true);
+assert.deepEqual(testedHistoryState.get(), { available: true, canUndo: true, canRedo: false });
+assert.equal(testedHistoryState.update({ available: true, canUndo: 1, canRedo: false }), false,
+    "History availability must accept only authoritative booleans");
+testedHistoryState.invalidate();
+assert.deepEqual(testedHistoryState.get(), { available: false, canUndo: false, canRedo: false },
+    "Context invalidation must disable both history controls until authoritative feedback returns");
 assert.match(controller, /new IntersectionObserver/);
 assert.match(controller, /!entry\.isIntersecting && entry\.boundingClientRect\.top < stickyTop/,
     "Docking must follow the sentinel crossing the computed sticky offset");

@@ -9,6 +9,7 @@ local Query = require "Query"
 local ColorGrading = require "ColorGrading"
 local Enhance = require "Enhance"
 local PointColor = require "PointColor"
+local History = require "History"
 
 local function getPortableRoot()
 
@@ -654,6 +655,11 @@ LrTasks.startAsyncTask(function()
         local pointColorRequest = LrHttp.get("http://127.0.0.1:17891/point-color/next")
         if string.find(pointColorRequest or "", [["requested":true]], 1, true) then
             PointColor.sendCurrentState()
+        end
+
+        local historyRequest = LrHttp.get("http://127.0.0.1:17891/history/next")
+        if string.find(historyRequest or "", [["requested":true]], 1, true) then
+            History.sendCurrentState()
         end
 
         LrTasks.sleep(0.1)

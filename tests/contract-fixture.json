@@ -20,6 +20,9 @@
     "/next",
     "/enhance/state",
     "/point-color/state",
+    "/history/state",
+    "/history/next",
+    "/history/result",
     "/point-color/next",
     "/point-color/result",
     "/point-color/value",
@@ -96,6 +99,8 @@
     ,"point_color.range.translate"
     ,"point_color.range_visualization.toggle"
     ,"point_color.tool.select"
+    ,"lightroom.undo"
+    ,"lightroom.redo"
   ],
   "selectionOperations": [
     "select_all",

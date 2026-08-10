@@ -70,7 +70,9 @@ function emptyDiagnostics() {
                     "point_color.range.set": 0,
                     "point_color.range.translate": 0,
                     "point_color.range_visualization.toggle": 0,
-                    "point_color.tool.select": 0
+                    "point_color.tool.select": 0,
+                    "lightroom.undo": 0,
+                    "lightroom.redo": 0
                 }
             }
         },
@@ -221,7 +223,9 @@ function testCoreMetrics() {
         "point_color.range.set": 0,
         "point_color.range.translate": 0,
         "point_color.range_visualization.toggle": 0,
-        "point_color.tool.select": 0
+        "point_color.tool.select": 0,
+        "lightroom.undo": 0,
+        "lightroom.redo": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);

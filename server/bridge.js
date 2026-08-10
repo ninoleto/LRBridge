@@ -8,6 +8,7 @@ const numbers = require("./numbers");
 const colorGrading = require("./color-grading");
 const enhance = require("./enhance-state").createEnhanceState();
 const pointColorDefinition = require("./point-color-state");
+const history = require("./history-state").createHistoryState();
 const pointColor = pointColorDefinition.createPointColorState();
 
 const HTTP_PORT = 17891;
@@ -279,6 +280,7 @@ app.get("/context/update", function (req, res) {
     pointColor.syncContext(updated.contextCounter);
 
     if (updated.contextCounter !== previousContextCounter) {
+        history.invalidate();
         Object.keys(feedbackValues).forEach(function (slider) {
             delete feedbackValues[slider];
         });
@@ -336,6 +338,23 @@ app.get("/point-color/state", function (req, res) {
     res.set("Cache-Control", "no-store").json({ ok: true, state: pointColor.get() });
 });
 
+app.get("/history/state", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    history.requestRefresh();
+    res.set("Cache-Control", "no-store").json({ ok: true, state: history.get() });
+});
+app.get("/history/next", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.json({ requested: history.takeRequest() });
+});
+app.get("/history/result", function (req, res) {
+    const allowed = ["sequence", "available", "canUndo", "canRedo"];
+    const booleanValue = function (name) { return req.query[name] === "true" ? true : req.query[name] === "false" ? false : null; };
+    const next = { available: booleanValue("available"), canUndo: booleanValue("canUndo"), canRedo: booleanValue("canRedo") };
+    if (!/^\d+$/.test(req.query.sequence || "") || Object.keys(req.query).some(function (key) { return !allowed.includes(key) || Array.isArray(req.query[key]); }) ||
+        Object.values(next).some(function (value) { return value === null; }) || !history.update(next)) return res.status(400).json({ ok: false, error: "Invalid history state" });
+    res.json({ ok: true });
+});
 app.get("/point-color/next", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     res.json({ requested: pointColor.takeRequest() });
@@ -680,7 +699,9 @@ app.get("/command", function (req, res) {
 
     queueOrReject(res, command, null, command.command === "develop.get"
         ? commands.clearLatestResult
-        : null);
+        : (command.command === "lightroom.undo" || command.command === "lightroom.redo")
+            ? function () { history.invalidate(); history.requestRefresh(); pointColor.requestRefresh(Date.now(), true); }
+            : null);
 });
 
 app.get("/adjust", function (req, res) {

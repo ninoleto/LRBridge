@@ -145,6 +145,8 @@ function validateCommand(command) {
         ,"point_color.range.translate"
         ,"point_color.range_visualization.toggle"
         ,"point_color.tool.select"
+        ,"lightroom.undo"
+        ,"lightroom.redo"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -175,6 +177,7 @@ function validateCommand(command) {
     }
     if (command.command === "point_color.range_visualization.toggle") return Object.keys(command).length === 1;
     if (command.command === "point_color.tool.select") return Object.keys(command).length === 1;
+    if (command.command === "lightroom.undo" || command.command === "lightroom.redo") return Object.keys(command).length === 1;
 
     if (command.command === "enhance.denoise.set") {
         return Object.keys(command).length === 3 && typeof command.enabled === "boolean" && Number.isInteger(command.amount) &&
@@ -608,7 +611,8 @@ function tryEnqueueBatch(batch) {
 
 function isProtectedCommand(command) {
     return command.command === "develop.reset" || command.command === "develop.action" ||
-        command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset";
+        command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset" ||
+        command.command === "lightroom.undo" || command.command === "lightroom.redo";
 }
 
 function admissionResult(status) {
@@ -668,6 +672,8 @@ function getQueueDiagnostics(nowMs) {
         ,"point_color.range.translate": 0
         ,"point_color.range_visualization.toggle": 0
         ,"point_color.tool.select": 0
+        ,"lightroom.undo": 0
+        ,"lightroom.redo": 0
     };
 
     for (const command of commandQueue) {
