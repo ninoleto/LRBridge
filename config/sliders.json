@@ -1006,7 +1006,7 @@
         "numericStep": 1,
         "displayPrecision": 0,
         "resetSupported": true,
-        "feedbackSupported": false
+        "feedbackSupported": true
     },
     {
         "id": "AutoLateralCA",
@@ -1020,7 +1020,7 @@
         "numericStep": 1,
         "displayPrecision": 0,
         "resetSupported": true,
-        "feedbackSupported": false
+        "feedbackSupported": true
     },
     {
         "id": "LensProfileChromaticAberrationScale",
@@ -1065,6 +1065,34 @@
         "feedbackSupported": true
     },
     {
+        "id": "VignetteAmount",
+        "label": "Manual Lens Vignetting Amount",
+        "group": "Lens / Defringe",
+        "min": -100,
+        "max": 100,
+        "default": 0,
+        "incrementDescription": "Lightroom Lens Corrections Manual Vignetting Amount. One LRBridge amount step equals one Lightroom increment.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
+    },
+    {
+        "id": "VignetteMidpoint",
+        "label": "Manual Lens Vignetting Midpoint",
+        "group": "Lens / Defringe",
+        "min": 0,
+        "max": 100,
+        "default": 50,
+        "incrementDescription": "Lightroom Lens Corrections Manual Vignetting Midpoint. One LRBridge amount step equals one Lightroom increment.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "resetSupported": true,
+        "feedbackSupported": true
+    },
+    {
         "id": "DefringePurpleAmount",
         "label": "Purple Defringe Amount",
         "group": "Lens / Defringe",
@@ -1090,7 +1118,8 @@
         "numericStep": 1,
         "displayPrecision": 0,
         "resetSupported": true,
-        "feedbackSupported": true
+        "feedbackSupported": true,
+        "useRuntimeRangeForAdmission": false
     },
     {
         "id": "DefringePurpleHueHi",
@@ -1104,7 +1133,8 @@
         "numericStep": 1,
         "displayPrecision": 0,
         "resetSupported": true,
-        "feedbackSupported": true
+        "feedbackSupported": true,
+        "useRuntimeRangeForAdmission": false
     },
     {
         "id": "DefringeGreenAmount",
@@ -1132,7 +1162,8 @@
         "numericStep": 1,
         "displayPrecision": 0,
         "resetSupported": true,
-        "feedbackSupported": true
+        "feedbackSupported": true,
+        "useRuntimeRangeForAdmission": false
     },
     {
         "id": "DefringeGreenHueHi",
@@ -1146,7 +1177,8 @@
         "numericStep": 1,
         "displayPrecision": 0,
         "resetSupported": true,
-        "feedbackSupported": true
+        "feedbackSupported": true,
+        "useRuntimeRangeForAdmission": false
     },
     {
         "id": "PerspectiveVertical",

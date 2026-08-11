@@ -86,7 +86,7 @@ assert.equal(familyById.application.types.reduce((total, type) => total + type.o
 assert.equal(
     sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length * 3 +
         developTypes.action.options.length,
-    297,
+    303,
     "Develop concrete Builder combination count changed"
 );
 assert.match(builderSource, /id="builderFamily"/);

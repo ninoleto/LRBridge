@@ -9,7 +9,9 @@ const polling = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Fee
 const driver = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Driver.lua"), "utf8");
 
 assert.match(controller, /"label": "Constrain Crop"[\s\S]*?"slider": "CropConstrainToWarp"[\s\S]*?"explicitZeroOne": true/);
-assert.match(controller, /"name": "Transform"[\s\S]*?"placement": "before:Effects"/);
+assert.match(controller, /"name": "Lens \/ Defringe"[\s\S]*?"slider": "CropConstrainToWarp"/);
+assert.match(controller, /manualPanel[\s\S]*appendSwitch\(manualPanel, "CropConstrainToWarp"\)/);
+assert.doesNotMatch(controller, /embeddedTrailingSwitchGroups:\s*\["Transform"\]/);
 assert.match(controller, /explicitZeroOne[\s\S]*?"&value=0"[\s\S]*?"&value=1"/);
 assert.doesNotMatch(controller, /CropConstrainToWarp[^\n]*(?:amount|reset)/);
 

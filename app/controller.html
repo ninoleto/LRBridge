@@ -194,6 +194,153 @@
             margin-bottom: 0;
         }
 
+        .lens-corrections-tabs {
+            display: inline-flex;
+            gap: 2px;
+            margin: 0 0 18px;
+            border: 1px solid #344352;
+            border-radius: 7px;
+            overflow: hidden;
+        }
+
+        .lens-corrections-tab {
+            min-width: 92px;
+            min-height: 36px;
+            padding: 7px 16px;
+            border: 0;
+            border-radius: 0;
+            background: #18212a;
+            color: #9fb0bf;
+            font-weight: 600;
+        }
+
+        .lens-corrections-tab.active {
+            background: #2a6f97;
+            color: #ffffff;
+        }
+
+        .lens-corrections-panel {
+            max-width: 1120px;
+        }
+
+        .lens-subheading {
+            margin: 18px 0 9px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #344352;
+            color: #aebdca;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .lens-subheading:first-child {
+            margin-top: 0;
+        }
+
+        .lens-color-heading {
+            margin: 15px 0 7px;
+            color: #d7e1ea;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .compound-develop-range-row {
+            display: grid;
+            grid-template-columns: minmax(140px, 210px) minmax(180px, 1fr) 92px auto;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+            min-width: 0;
+        }
+
+        .compound-develop-range-track {
+            --compound-fill-start: 0%;
+            --compound-fill-end: 100%;
+            position: relative;
+            height: 44px;
+            min-width: 0;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .compound-develop-range-rail,
+        .compound-develop-range-fill {
+            position: absolute;
+            top: 19px;
+            height: 6px;
+            border-radius: 999px;
+            pointer-events: none;
+        }
+
+        .compound-develop-range-rail {
+            left: 0;
+            right: 0;
+            background: #405263;
+        }
+
+        .compound-develop-range-fill {
+            left: var(--compound-fill-start);
+            right: calc(100% - var(--compound-fill-end));
+            background: #2f9ed8;
+        }
+
+        .compound-develop-range-handle {
+            position: absolute;
+            top: 8px;
+            width: 28px;
+            min-width: 28px;
+            height: 28px;
+            min-height: 28px;
+            padding: 0;
+            transform: translateX(-50%);
+            border: 2px solid #b9e4ff;
+            border-radius: 50%;
+            background: #2f9ed8;
+            cursor: ew-resize;
+            touch-action: none;
+            z-index: 2;
+        }
+
+        .compound-develop-range-handle:hover {
+            background: #327eab;
+        }
+
+        .compound-develop-range-handle:disabled:hover {
+            background: #2f9ed8;
+        }
+
+        .compound-develop-range-value {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            min-height: 44px;
+            padding: 8px;
+            border: 1px solid #405263;
+            border-radius: 6px;
+            background: #080c10;
+            color: #f4f7fa;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .compound-develop-range-row > button {
+            min-height: 44px;
+        }
+
+        .compound-develop-range-row .develop-slider-state {
+            grid-column: 2 / -1;
+        }
+
+        .compound-develop-range-row.unavailable .develop-slider-state {
+            color: #d6a52b;
+        }
+
+        .compound-develop-range-row.error .develop-slider-state {
+            color: #ff7b72;
+        }
+
         .basic-controls-row {
             display: flex;
             align-items: center;
@@ -941,6 +1088,20 @@
             }
 
             .denoise-slider-row .slider-name { grid-column: 1; }
+
+            .compound-develop-range-row {
+                grid-template-columns: minmax(92px, 1fr) auto;
+                padding: 10px;
+                border: 1px solid #2b3744;
+                border-radius: 8px;
+                background: #18212a;
+            }
+
+            .compound-develop-range-row .slider-name,
+            .compound-develop-range-track,
+            .compound-develop-range-row .develop-slider-state {
+                grid-column: 1 / -1;
+            }
         }        .slider-feedback {
             display: block;
             margin-top: 4px;
@@ -1191,6 +1352,8 @@
                         "LensProfileDistortionScale",
                         "LensProfileVignettingScale",
                         "LensManualDistortionAmount",
+                        "VignetteAmount",
+                        "VignetteMidpoint",
                         "DefringePurpleAmount",
                         "DefringePurpleHueLo",
                         "DefringePurpleHueHi",
@@ -1301,6 +1464,8 @@
         "AutoLateralCA": "Remove Chromatic Aberration",
         "LensProfileVignettingScale": "Profile Vignetting",
         "LensManualDistortionAmount": "Manual Distortion",
+        "VignetteAmount": "Manual Lens Vignetting Amount",
+        "VignetteMidpoint": "Manual Lens Vignetting Midpoint",
         "DefringePurpleAmount": "Purple Defringe Amount",
         "DefringePurpleHueLo": "Purple Hue Low",
         "DefringePurpleHueHi": "Purple Hue High",
@@ -1378,27 +1543,23 @@
 
         const switchGroups = [
         {
-                "name": "Transform",
-                "placement": "before:Effects",
-                "switches": [
-                        {
-                                "label": "Constrain Crop",
-                                "slider": "CropConstrainToWarp",
-                                "explicitZeroOne": true
-                        }
-                ]
-        },
-        {
                 "name": "Lens / Defringe",
                 "placement": "before:Lens / Defringe",
                 "switches": [
                         {
                                 "label": "Remove Chromatic Aberration",
-                                "slider": "AutoLateralCA"
+                                "slider": "AutoLateralCA",
+                                "authoritativeZeroOne": true
                         },
                         {
                                 "label": "Enable Profile Corrections",
-                                "slider": "LensProfileEnable"
+                                "slider": "LensProfileEnable",
+                                "authoritativeZeroOne": true
+                        },
+                        {
+                                "label": "Constrain Crop",
+                                "slider": "CropConstrainToWarp",
+                                "explicitZeroOne": true
                         }
                 ]
         }
@@ -2259,8 +2420,12 @@
             "BlueHue",
             "BlueSaturation",
             "LensProfileDistortionScale",
+            "LensProfileEnable",
+            "AutoLateralCA",
             "LensProfileVignettingScale",
             "LensManualDistortionAmount",
+            "VignetteAmount",
+            "VignetteMidpoint",
             "DefringePurpleAmount",
             "DefringePurpleHueLo",
             "DefringePurpleHueHi",
@@ -3348,6 +3513,8 @@
         function addSwitchRow(groupElement, item) {
             const row = document.createElement("div");
             row.className = "switch-row";
+            row.dataset.sliderId = item.slider;
+            const usesAuthoritativeZeroOne = item.explicitZeroOne === true || item.authoritativeZeroOne === true;
 
             const name = document.createElement("div");
             name.className = "slider-name";
@@ -3360,30 +3527,39 @@
 
             const offButton = makeButton("Off", "negative", function () {
                 markSliderCommandSent();
-                sendCommand(item.explicitZeroOne
+                sendCommand(usesAuthoritativeZeroOne
                     ? "/api/set?slider=" + encodeURIComponent(item.slider) + "&value=0"
-                    : "/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=-5");
+                    : "/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=-5").then(function (accepted) {
+                        if (accepted && usesAuthoritativeZeroOne) setTimeout(function () { requestLiveFeedbackSnapshot(true); }, 300);
+                    });
                 status.textContent = "Sent OFF";
             });
             row.appendChild(offButton);
 
             const onButton = makeButton("On", "positive", function () {
                 markSliderCommandSent();
-                sendCommand(item.explicitZeroOne
+                sendCommand(usesAuthoritativeZeroOne
                     ? "/api/set?slider=" + encodeURIComponent(item.slider) + "&value=1"
-                    : "/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=5");
+                    : "/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=5").then(function (accepted) {
+                        if (accepted && usesAuthoritativeZeroOne) setTimeout(function () { requestLiveFeedbackSnapshot(true); }, 300);
+                    });
                 status.textContent = "Sent ON";
             });
             row.appendChild(onButton);
 
-            if (item.explicitZeroOne) {
+            if (usesAuthoritativeZeroOne) {
+                offButton.disabled = true;
+                onButton.disabled = true;
                 developSliderControls[item.slider] = {
                     row: row,
                     definition: { id: item.slider },
                     applySwitchFeedback: function (value) {
-                        offButton.classList.toggle("active", value === 0);
-                        onButton.classList.toggle("active", value === 1);
-                        status.textContent = value === 0 ? "Off" : value === 1 ? "On" : "Unavailable";
+                        const available = value === 0 || value === 1;
+                        offButton.disabled = !available;
+                        onButton.disabled = !available;
+                        offButton.classList.toggle("active", available && value === 0);
+                        onButton.classList.toggle("active", available && value === 1);
+                        status.textContent = available ? (value === 0 ? "Off" : "On") : "Unavailable";
                     }
                 };
                 sliderFeedbackElements[item.slider] = row;
@@ -3497,6 +3673,11 @@
             return true;
         }
 
+        function notifyDevelopSliderPresentation(control) {
+            if (control.compoundRange) updateCompoundDevelopRange(control.compoundRange);
+            if (control.onPresentationChange) control.onPresentationChange(control);
+        }
+
         function showDevelopSliderLocal(control, value) {
             const numericValue = Number(value);
             const visualPosition = actualToDevelopSliderPosition(control.definition, value);
@@ -3513,7 +3694,10 @@
                 control.visualProgress === progressText &&
                 control.feedbackState === "available";
             control.localValue = numericValue;
-            if (unchanged) return false;
+            if (unchanged) {
+                notifyDevelopSliderPresentation(control);
+                return false;
+            }
             if (control.range.value !== visualText) control.range.value = visualText;
             if (control.visualProgress !== progressText) {
                 control.range.style.setProperty("--slider-progress", progressText);
@@ -3521,6 +3705,7 @@
             }
             if (control.number.value !== numberText) control.number.value = numberText;
             setDevelopSliderState(control, "", "");
+            notifyDevelopSliderPresentation(control);
             return true;
         }
 
@@ -3537,6 +3722,7 @@
             control.authoritativeValue = numericValue;
             control.hasAuthoritativeValueEver = true;
             hasReceivedAnyAuthoritativeDevelopValue = true;
+            if (control.hideWhenUnavailable) control.row.hidden = false;
 
             if (control.desiredValue !== null) {
                 if (valuesMatchDevelopSlider(control.definition, numericValue, control.desiredValue)) {
@@ -3574,6 +3760,7 @@
             if (control.decrement.disabled) control.decrement.disabled = false;
             if (control.increment.disabled) control.increment.disabled = false;
             if (control.reset.disabled) control.reset.disabled = false;
+            notifyDevelopSliderPresentation(control);
         }
 
         function applyDevelopSliderFeedbackIfChanged(control, result) {
@@ -3633,6 +3820,8 @@
             control.decrement.disabled = true;
             control.increment.disabled = true;
             control.reset.disabled = true;
+            if (control.hideWhenUnavailable) control.row.hidden = true;
+            notifyDevelopSliderPresentation(control);
         }
 
         function markDevelopSliderLoading(control, reason) {
@@ -3657,6 +3846,7 @@
             control.reset.disabled = true;
             control.number.value = "";
             setDevelopSliderState(control, "loading", "Loading…");
+            notifyDevelopSliderPresentation(control);
         }
 
         function markDevelopSliderError(control) {
@@ -3665,11 +3855,13 @@
             if (control.feedbackState === "error") return;
             control.number.value = "";
             setDevelopSliderState(control, "error", "Feedback error");
+            notifyDevelopSliderPresentation(control);
         }
 
         function markUninitializedDevelopSlidersLoading(reason) {
             Object.keys(developSliderControls).forEach(function (slider) {
-                markDevelopSliderLoading(developSliderControls[slider], reason);
+                const control = developSliderControls[slider];
+                if (!control.applySwitchFeedback) markDevelopSliderLoading(control, reason);
             });
         }
 
@@ -4106,6 +4298,509 @@
             return row;
         }
 
+        let lensCorrectionsView = "profile";
+        try {
+            if (["profile", "manual"].includes(sessionStorage.getItem("lrbridge.lensCorrectionsView"))) {
+                lensCorrectionsView = sessionStorage.getItem("lrbridge.lensCorrectionsView");
+            }
+        } catch (err) {}
+
+        function compoundDevelopRangeValue(control) {
+            if (control.localValue !== null) return Number(control.localValue);
+            if (control.authoritativeValue !== null) return Number(control.authoritativeValue);
+            return NaN;
+        }
+
+        function compoundDevelopRangeVisualProgress(value, visualMinimum, visualMaximum) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue) || visualMaximum <= visualMinimum) return 0;
+            const clamped = Math.min(visualMaximum, Math.max(visualMinimum, numericValue));
+            return 100 * (clamped - visualMinimum) / (visualMaximum - visualMinimum);
+        }
+
+        function roundCompoundDevelopRangeVisualValue(definition, value, visualMinimum, visualMaximum) {
+            const clamped = Math.min(visualMaximum, Math.max(visualMinimum, Number(value)));
+            const snapped = visualMinimum +
+                Math.round((clamped - visualMinimum) / definition.rangeStep) * definition.rangeStep;
+            const rounded = Number(snapped.toFixed(definition.displayPrecision));
+            return Math.min(visualMaximum, Math.max(visualMinimum, rounded));
+        }
+
+        function compoundDevelopRangePointerValue(
+            definition,
+            clientX,
+            trackRect,
+            visualMinimum,
+            visualMaximum
+        ) {
+            if (!trackRect || !Number.isFinite(trackRect.width) || trackRect.width <= 0) return NaN;
+            const progress = Math.min(1, Math.max(0, (Number(clientX) - trackRect.left) / trackRect.width));
+            return roundCompoundDevelopRangeVisualValue(
+                definition,
+                visualMinimum + progress * (visualMaximum - visualMinimum),
+                visualMinimum,
+                visualMaximum
+            );
+        }
+
+        function compoundDevelopRangeControl(compound, role) {
+            return role === "low" ? compound.lowControl : compound.highControl;
+        }
+
+        function compoundDevelopRangeOtherControl(compound, role) {
+            return role === "low" ? compound.highControl : compound.lowControl;
+        }
+
+        function compoundDevelopRangeHandle(compound, role) {
+            return role === "low" ? compound.lowHandle : compound.highHandle;
+        }
+
+        function compoundDevelopRangeEffectiveBounds(compound, role) {
+            const visualMinimum = Number(compound.visualMinimum);
+            const visualMaximum = Number(compound.visualMaximum);
+            const otherValue = compoundDevelopRangeValue(compoundDevelopRangeOtherControl(compound, role));
+            const minimumGap = Number(compound.minimumGap);
+            if (!Number.isFinite(otherValue) || !Number.isFinite(minimumGap)) {
+                return { minimum: visualMinimum, maximum: visualMaximum };
+            }
+            if (role === "low") {
+                return {
+                    minimum: visualMinimum,
+                    maximum: Math.max(visualMinimum, Math.min(visualMaximum, otherValue - minimumGap))
+                };
+            }
+            return {
+                minimum: Math.min(visualMaximum, Math.max(visualMinimum, otherValue + minimumGap)),
+                maximum: visualMaximum
+            };
+        }
+
+        function clampCompoundDevelopRangeValue(compound, role, requestedValue) {
+            const requested = Number(requestedValue);
+            if (!Number.isFinite(requested)) return requested;
+            const bounds = compoundDevelopRangeEffectiveBounds(compound, role);
+            return Math.min(bounds.maximum, Math.max(bounds.minimum, requested));
+        }
+
+        function updateCompoundDevelopRange(compound) {
+            if (!compound) return;
+            const lowValue = compoundDevelopRangeValue(compound.lowControl);
+            const highValue = compoundDevelopRangeValue(compound.highControl);
+            const lowAvailable = Number.isFinite(lowValue) && compound.lowControl.authoritativeValue !== null &&
+                compound.lowControl.feedbackState === "available";
+            const highAvailable = Number.isFinite(highValue) && compound.highControl.authoritativeValue !== null &&
+                compound.highControl.feedbackState === "available";
+            const available = lowAvailable && highAvailable;
+
+            if (Number.isFinite(lowValue)) {
+                compound.lowControl.range.value = String(actualToDevelopSliderPosition(compound.lowControl.definition, lowValue));
+            }
+            if (Number.isFinite(highValue)) {
+                compound.highControl.range.value = String(actualToDevelopSliderPosition(compound.highControl.definition, highValue));
+            }
+
+            const lowProgress = compoundDevelopRangeVisualProgress(
+                lowValue,
+                compound.visualMinimum,
+                compound.visualMaximum
+            );
+            const highProgress = compoundDevelopRangeVisualProgress(
+                highValue,
+                compound.visualMinimum,
+                compound.visualMaximum
+            );
+            compound.lowHandle.style.left = lowProgress + "%";
+            compound.highHandle.style.left = highProgress + "%";
+            compound.track.style.setProperty("--compound-fill-start", Math.min(lowProgress, highProgress) + "%");
+            compound.track.style.setProperty("--compound-fill-end", Math.max(lowProgress, highProgress) + "%");
+            compound.value.textContent = available
+                ? formatDevelopSliderValue(compound.lowControl.definition, lowValue) + " / " +
+                    formatDevelopSliderValue(compound.highControl.definition, highValue)
+                : "-- / --";
+            compound.lowControl.range.disabled = !available;
+            compound.highControl.range.disabled = !available;
+            compound.lowHandle.disabled = !available;
+            compound.highHandle.disabled = !available;
+            compound.reset.disabled = !available;
+            const lowBounds = compoundDevelopRangeEffectiveBounds(compound, "low");
+            const highBounds = compoundDevelopRangeEffectiveBounds(compound, "high");
+            compound.lowHandle.setAttribute("aria-valuemin", String(lowBounds.minimum));
+            compound.lowHandle.setAttribute("aria-valuemax", String(lowBounds.maximum));
+            compound.highHandle.setAttribute("aria-valuemin", String(highBounds.minimum));
+            compound.highHandle.setAttribute("aria-valuemax", String(highBounds.maximum));
+            compound.lowHandle.setAttribute("aria-valuenow", Number.isFinite(lowValue) ? String(lowValue) : "");
+            compound.highHandle.setAttribute("aria-valuenow", Number.isFinite(highValue) ? String(highValue) : "");
+            compound.lowHandle.setAttribute("aria-valuetext", available
+                ? "Lo " + formatDevelopSliderValue(compound.lowControl.definition, lowValue) +
+                    ", Hi " + formatDevelopSliderValue(compound.highControl.definition, highValue)
+                : "Unavailable");
+            compound.highHandle.setAttribute("aria-valuetext", available
+                ? "Hi " + formatDevelopSliderValue(compound.highControl.definition, highValue) +
+                    ", Lo " + formatDevelopSliderValue(compound.lowControl.definition, lowValue)
+                : "Unavailable");
+
+            compound.row.classList.remove("loading", "unavailable", "error");
+            if (available) {
+                compound.state.textContent = "";
+            } else if (
+                compound.lowControl.feedbackState === "error" ||
+                compound.highControl.feedbackState === "error"
+            ) {
+                compound.row.classList.add("error");
+                compound.state.textContent = "Feedback error";
+            } else if (
+                compound.lowControl.feedbackState === "unavailable" ||
+                compound.highControl.feedbackState === "unavailable"
+            ) {
+                compound.row.classList.add("unavailable");
+                compound.state.textContent = "Unavailable";
+            } else {
+                compound.row.classList.add("loading");
+                compound.state.textContent = "Loading…";
+            }
+        }
+
+        function moveCompoundDevelopRangeEndpoint(compound, role, clientX) {
+            if (compound.activeEndpoint !== role) return null;
+            const control = compoundDevelopRangeControl(compound, role);
+            const requested = compoundDevelopRangePointerValue(
+                control.definition,
+                clientX,
+                compound.track.getBoundingClientRect(),
+                compound.visualMinimum,
+                compound.visualMaximum
+            );
+            const nextValue = clampCompoundDevelopRangeValue(compound, role, requested);
+            if (!Number.isFinite(nextValue)) return null;
+            const currentValue = compoundDevelopRangeValue(control);
+            compound.dragValue = nextValue;
+            if (Number.isFinite(currentValue) && valuesMatchDevelopSlider(control.definition, currentValue, nextValue)) {
+                return nextValue;
+            }
+            compound.dragChanged = true;
+            showDevelopSliderLocal(control, nextValue);
+            scheduleDevelopSliderValue(control, nextValue);
+            return nextValue;
+        }
+
+        function finishCompoundDevelopRangeDrag(compound, role, event, submitFinal) {
+            if (compound.activeEndpoint !== role) return;
+            if (event && event.pointerId !== undefined && event.pointerId !== compound.activePointerId) return;
+            const control = compoundDevelopRangeControl(compound, role);
+            const handle = compoundDevelopRangeHandle(compound, role);
+            const pointerId = compound.activePointerId;
+            const finalValue = compound.dragValue;
+            const changed = compound.dragChanged;
+            const invalidated = control.contextInvalidated;
+            compound.activeEndpoint = null;
+            compound.activePointerId = null;
+            compound.dragChanged = false;
+            compound.dragValue = null;
+            control.pointerActive = false;
+            control.dragging = false;
+            if (handle.hasPointerCapture && handle.hasPointerCapture(pointerId)) {
+                handle.releasePointerCapture(pointerId);
+            }
+            if (submitFinal && changed && !invalidated && Number.isFinite(finalValue)) {
+                flushDevelopSliderValue(control, finalValue, "range");
+            } else {
+                cancelDevelopSliderThrottle(control);
+            }
+            endDevelopSliderInteraction(control);
+        }
+
+        function stepCompoundDevelopRangeEndpoint(compound, role, direction) {
+            const control = compoundDevelopRangeControl(compound, role);
+            const currentValue = compoundDevelopRangeValue(control);
+            if (!Number.isFinite(currentValue)) return;
+            const requested = roundCompoundDevelopRangeVisualValue(
+                control.definition,
+                currentValue + direction * control.definition.rangeStep,
+                compound.visualMinimum,
+                compound.visualMaximum
+            );
+            const nextValue = clampCompoundDevelopRangeValue(compound, role, requested);
+            if (valuesMatchDevelopSlider(control.definition, currentValue, nextValue)) return;
+            cancelDevelopSliderStep(control);
+            control.desiredValue = nextValue;
+            control.stepConfirmationExpired = false;
+            showDevelopSliderLocal(control, nextValue);
+            control.numberCommittedValue = nextValue;
+            scheduleDevelopSliderStepSubmission(control);
+        }
+
+        function bindCompoundDevelopRangeHandle(compound, role) {
+            const control = compoundDevelopRangeControl(compound, role);
+            const handle = compoundDevelopRangeHandle(compound, role);
+            handle.addEventListener("pointerdown", function (event) {
+                if (compound.activeEndpoint !== null || (event.button !== undefined && event.button !== 0)) return;
+                cancelDevelopSliderStep(control);
+                beginDevelopSliderInteraction(control, "range");
+                control.pointerActive = true;
+                control.dragging = true;
+                compound.activeEndpoint = role;
+                compound.activePointerId = event.pointerId;
+                compound.dragChanged = false;
+                compound.dragValue = compoundDevelopRangeValue(control);
+                if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+                event.preventDefault();
+            });
+            handle.addEventListener("pointermove", function (event) {
+                if (compound.activeEndpoint !== role || event.pointerId !== compound.activePointerId) return;
+                moveCompoundDevelopRangeEndpoint(compound, role, event.clientX);
+            });
+            handle.addEventListener("pointerup", function (event) {
+                finishCompoundDevelopRangeDrag(compound, role, event, true);
+            });
+            handle.addEventListener("pointercancel", function (event) {
+                finishCompoundDevelopRangeDrag(compound, role, event, false);
+            });
+            handle.addEventListener("lostpointercapture", function (event) {
+                finishCompoundDevelopRangeDrag(compound, role, event, false);
+            });
+            handle.addEventListener("keydown", function (event) {
+                let direction = 0;
+                if (event.key === "ArrowLeft" || event.key === "ArrowDown") direction = -1;
+                if (event.key === "ArrowRight" || event.key === "ArrowUp") direction = 1;
+                if (!direction) return;
+                event.preventDefault();
+                stepCompoundDevelopRangeEndpoint(compound, role, direction);
+            });
+            control.cancelInteraction = function () {
+                finishCompoundDevelopRangeDrag(compound, role, null, false);
+            };
+        }
+
+        function createCompoundDevelopRangeControl(label, lowDefinition, highDefinition) {
+            createDevelopSliderControl(lowDefinition);
+            createDevelopSliderControl(highDefinition);
+            const lowControl = developSliderControls[lowDefinition.id];
+            const highControl = developSliderControls[highDefinition.id];
+            const row = document.createElement("div");
+            row.className = "compound-develop-range-row";
+            row.dataset.compoundRange = lowDefinition.id + ":" + highDefinition.id;
+
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = label;
+
+            const track = document.createElement("div");
+            track.className = "compound-develop-range-track";
+            const rail = document.createElement("span");
+            rail.className = "compound-develop-range-rail";
+            const fill = document.createElement("span");
+            fill.className = "compound-develop-range-fill";
+            const lowHandle = document.createElement("button");
+            const highHandle = document.createElement("button");
+            lowHandle.type = "button";
+            highHandle.type = "button";
+            lowHandle.className = "compound-develop-range-handle compound-range-low";
+            highHandle.className = "compound-develop-range-handle compound-range-high";
+            lowControl.range.dataset.sliderId = lowDefinition.id;
+            highControl.range.dataset.sliderId = highDefinition.id;
+            lowHandle.dataset.sliderId = lowDefinition.id;
+            highHandle.dataset.sliderId = highDefinition.id;
+            lowHandle.setAttribute("role", "slider");
+            highHandle.setAttribute("role", "slider");
+            lowHandle.setAttribute("aria-label", label + " Lo endpoint");
+            highHandle.setAttribute("aria-label", label + " Hi endpoint");
+            lowHandle.setAttribute("aria-valuemin", "0");
+            lowHandle.setAttribute("aria-valuemax", "100");
+            highHandle.setAttribute("aria-valuemin", "0");
+            highHandle.setAttribute("aria-valuemax", "100");
+            track.appendChild(rail);
+            track.appendChild(fill);
+            track.appendChild(lowHandle);
+            track.appendChild(highHandle);
+
+            const value = document.createElement("output");
+            value.className = "compound-develop-range-value";
+            value.setAttribute("aria-label", label + " range value");
+
+            const state = document.createElement("span");
+            state.className = "develop-slider-state";
+            state.setAttribute("role", "status");
+
+            let compound = null;
+            const reset = makeButton("Reset", "reset", function () {
+                cancelDevelopSliderStep(lowControl);
+                cancelDevelopSliderStep(highControl);
+                markSliderCommandSent();
+                Promise.all([
+                    sendCommand("/api/reset?slider=" + encodeURIComponent(lowDefinition.id)),
+                    sendCommand("/api/reset?slider=" + encodeURIComponent(highDefinition.id))
+                ]).then(function (accepted) {
+                    if (accepted.every(Boolean)) setTimeout(function () { requestLiveFeedbackSnapshot(true); }, 300);
+                });
+            });
+            reset.setAttribute("aria-label", "Reset both " + label + " endpoints");
+
+            compound = {
+                row: row,
+                track: track,
+                value: value,
+                state: state,
+                reset: reset,
+                lowControl: lowControl,
+                highControl: highControl,
+                lowHandle: lowHandle,
+                highHandle: highHandle,
+                activeEndpoint: null,
+                activePointerId: null,
+                dragChanged: false,
+                dragValue: null,
+                visualMinimum: 0,
+                visualMaximum: 100,
+                minimumGap: 10
+            };
+            lowControl.row = row;
+            highControl.row = row;
+            lowControl.compoundRange = compound;
+            highControl.compoundRange = compound;
+            sliderFeedbackElements[lowDefinition.id] = row;
+            sliderFeedbackElements[highDefinition.id] = row;
+            bindCompoundDevelopRangeHandle(compound, "low");
+            bindCompoundDevelopRangeHandle(compound, "high");
+
+            row.appendChild(name);
+            row.appendChild(track);
+            row.appendChild(value);
+            row.appendChild(reset);
+            row.appendChild(state);
+            updateCompoundDevelopRange(compound);
+            return row;
+        }
+
+        function createLensSubheading(text) {
+            const heading = document.createElement("div");
+            heading.className = "lens-subheading";
+            heading.textContent = text;
+            return heading;
+        }
+
+        function createLensColorHeading(text) {
+            const heading = document.createElement("div");
+            heading.className = "lens-color-heading";
+            heading.textContent = text;
+            return heading;
+        }
+
+        function renderLensCorrectionsSection(groupElement, section) {
+            const definitions = new Map(section.items.map(function (item) {
+                return [item.definition.id, item.definition];
+            }));
+            const switchGroup = switchGroups.find(function (group) { return group.name === "Lens / Defringe"; });
+            const switches = new Map((switchGroup ? switchGroup.switches : []).map(function (item) {
+                return [item.slider, item];
+            }));
+
+            function sliderDefinition(id, label) {
+                const definition = definitions.get(id);
+                return definition ? Object.assign({}, definition, { label: label }) : null;
+            }
+
+            function appendSlider(panel, id, label) {
+                const definition = sliderDefinition(id, label);
+                if (definition) panel.appendChild(createDevelopSliderControl(definition));
+                return definition ? developSliderControls[id] : null;
+            }
+
+            function appendSwitch(panel, id) {
+                const definition = switches.get(id);
+                if (definition) addSwitchRow(panel, definition);
+            }
+
+            const tabs = document.createElement("div");
+            tabs.className = "lens-corrections-tabs";
+            tabs.setAttribute("role", "tablist");
+            tabs.setAttribute("aria-label", "Lens Corrections view");
+            const profilePanel = document.createElement("div");
+            const manualPanel = document.createElement("div");
+            profilePanel.className = "lens-corrections-panel";
+            manualPanel.className = "lens-corrections-panel";
+            profilePanel.id = "lens-corrections-profile-panel";
+            manualPanel.id = "lens-corrections-manual-panel";
+            profilePanel.setAttribute("role", "tabpanel");
+            manualPanel.setAttribute("role", "tabpanel");
+            const buttons = {};
+
+            function selectLensCorrectionsView(view) {
+                lensCorrectionsView = view === "manual" ? "manual" : "profile";
+                try { sessionStorage.setItem("lrbridge.lensCorrectionsView", lensCorrectionsView); } catch (err) {}
+                profilePanel.hidden = lensCorrectionsView !== "profile";
+                manualPanel.hidden = lensCorrectionsView !== "manual";
+                ["profile", "manual"].forEach(function (id) {
+                    buttons[id].classList.toggle("active", lensCorrectionsView === id);
+                    buttons[id].setAttribute("aria-selected", String(lensCorrectionsView === id));
+                });
+            }
+
+            [["profile", "Profile", profilePanel], ["manual", "Manual", manualPanel]].forEach(function (entry) {
+                const button = makeButton(entry[1], "lens-corrections-tab", function () {
+                    selectLensCorrectionsView(entry[0]);
+                    requestLiveFeedbackSnapshot(true);
+                });
+                button.setAttribute("role", "tab");
+                button.setAttribute("aria-controls", entry[2].id);
+                buttons[entry[0]] = button;
+                tabs.appendChild(button);
+            });
+
+            profilePanel.appendChild(createLensSubheading("Profile"));
+            appendSwitch(profilePanel, "AutoLateralCA");
+            appendSwitch(profilePanel, "LensProfileEnable");
+            const profileAmountHeading = createLensSubheading("Amount");
+            profilePanel.appendChild(profileAmountHeading);
+            const profileAmountRows = [];
+            [["LensProfileDistortionScale", "Distortion"], ["LensProfileVignettingScale", "Vignetting"]]
+                .forEach(function (entry) {
+                    const control = appendSlider(profilePanel, entry[0], entry[1]);
+                    if (!control) return;
+                    control.hideWhenUnavailable = true;
+                    control.row.classList.add("lens-profile-amount-row");
+                    profileAmountRows.push(control.row);
+                });
+            function updateProfileAmountVisibility() {
+                profileAmountHeading.hidden = profileAmountRows.length === 0 || profileAmountRows.every(function (row) {
+                    return row.hidden;
+                });
+            }
+            profileAmountRows.forEach(function (row) {
+                const control = developSliderControls[row.dataset.sliderId];
+                if (control) control.onPresentationChange = updateProfileAmountVisibility;
+            });
+            updateProfileAmountVisibility();
+
+            manualPanel.appendChild(createLensSubheading("Distortion"));
+            appendSlider(manualPanel, "LensManualDistortionAmount", "Amount");
+            appendSwitch(manualPanel, "CropConstrainToWarp");
+
+            manualPanel.appendChild(createLensSubheading("Defringe"));
+            manualPanel.appendChild(createLensColorHeading("Purple"));
+            appendSlider(manualPanel, "DefringePurpleAmount", "Amount");
+            const purpleLow = sliderDefinition("DefringePurpleHueLo", "Purple Hue Low");
+            const purpleHigh = sliderDefinition("DefringePurpleHueHi", "Purple Hue High");
+            if (purpleLow && purpleHigh) {
+                manualPanel.appendChild(createCompoundDevelopRangeControl("Purple Hue", purpleLow, purpleHigh));
+            }
+            manualPanel.appendChild(createLensColorHeading("Green"));
+            appendSlider(manualPanel, "DefringeGreenAmount", "Amount");
+            const greenLow = sliderDefinition("DefringeGreenHueLo", "Green Hue Low");
+            const greenHigh = sliderDefinition("DefringeGreenHueHi", "Green Hue High");
+            if (greenLow && greenHigh) {
+                manualPanel.appendChild(createCompoundDevelopRangeControl("Green Hue", greenLow, greenHigh));
+            }
+
+            manualPanel.appendChild(createLensSubheading("Vignetting"));
+            appendSlider(manualPanel, "VignetteAmount", "Amount");
+            appendSlider(manualPanel, "VignetteMidpoint", "Midpoint");
+
+            groupElement.appendChild(tabs);
+            groupElement.appendChild(profilePanel);
+            groupElement.appendChild(manualPanel);
+            selectLensCorrectionsView(lensCorrectionsView);
+        }
+
         window.addEventListener("blur", function () {
             Array.from(activeSliderInteractions).forEach(function (slider) {
                 const control = developSliderControls[slider];
@@ -4225,7 +4920,7 @@
             { id: "color-mixer", label: "Color Mixer", selectors: [{ group: "Color Mixer / HSL" }, { group: "B&W Mixer" }] },
             { id: "detail", label: "Detail", selectors: [{ group: "Detail" }] },
             { id: "lens-corrections", label: "Lens Corrections", embeddedSwitchGroups: ["Lens / Defringe"], selectors: [{ group: "Lens / Defringe" }] },
-            { id: "transform", label: "Transform", embeddedActionGroups: ["Transform Actions"], embeddedTrailingSwitchGroups: ["Transform"], selectors: [{ group: "Transform" }] },
+            { id: "transform", label: "Transform", embeddedActionGroups: ["Transform Actions"], selectors: [{ group: "Transform" }] },
             { id: "effects", label: "Effects", selectors: [{ group: "Effects" }] },
             { id: "calibration", label: "Calibration", selectors: [{ group: "Calibration" }] }
         ]);
@@ -4800,6 +5495,10 @@
             title.className = "group-title";
             title.textContent = section.id === "color-mixer" && !treatmentAuthoritativeState ? "COLOR MIXER" : section.label;
             groupElement.appendChild(title);
+            if (section.id === "lens-corrections") {
+                renderLensCorrectionsSection(groupElement, section);
+                return groupElement;
+            }
             const leadingControls = createSectionControls(section, "leading");
             if (leadingControls) groupElement.appendChild(leadingControls);
             if (section.id === "color-mixer" && !treatmentAuthoritativeState) {

@@ -18,7 +18,7 @@ const bridge = fs.readFileSync(path.join(root, "server/bridge.js"), "utf8");
 const historyLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/History.lua"), "utf8");
 const historyStateFactory = require("../server/history-state").createHistoryState;
 
-assert.equal(metadata.length, 96, "Slider registry count changed");
+assert.equal(metadata.length, 98, "Slider registry count changed");
 assert.equal(new Set(metadata.map((item) => item.id)).size, metadata.length, "Duplicate slider ID");
 
 for (const item of metadata) {
@@ -38,7 +38,7 @@ for (const item of metadata) {
 }
 
 const feedbackDefinitions = metadata.filter((item) => item.feedbackSupported === true);
-assert.equal(feedbackDefinitions.length, 93, "Generic slider control count changed");
+assert.equal(feedbackDefinitions.length, 97, "Authoritative feedback definition count changed");
 const toneCurveDefinitions = feedbackDefinitions.filter((item) => item.group === "Tone Curve");
 const metadataToneCurveIds = [
     "ParametricDarks", "ParametricLights", "ParametricShadows", "ParametricHighlights",
@@ -60,7 +60,7 @@ assert.deepEqual(new Set(toneCurveDisplayOrder), new Set(metadataToneCurveIds),
     "Tone Curve display order must reference exactly the existing metadata definitions");
 assert.deepEqual(
     metadata.filter((item) => item.feedbackSupported === false).map((item) => item.id),
-    ["LensProfileEnable", "AutoLateralCA", "LensProfileChromaticAberrationScale"]
+    ["LensProfileChromaticAberrationScale"]
 );
 const effectiveMetadata = sliders.getAll();
 assert.equal(effectiveMetadata.find((item) => item.id === "Temperature").visualScale, "temperature");
@@ -130,7 +130,7 @@ assert.match(controller, /function applyDevelopSliderFeedbackIfChanged\(control,
 assert.match(controller, /control\.range\.value === visualText/);
 assert.match(controller, /control\.number\.value === numberText/);
 assert.match(controller, /control\.visualProgress === progressText/);
-assert.match(controller, /if \(unchanged\) return false/);
+assert.match(controller, /if \(unchanged\) \{\s*notifyDevelopSliderPresentation\(control\);\s*return false/);
 assert.match(controller, /if \(control\.range\.disabled\) control\.range\.disabled = false/);
 assert.doesNotMatch(stepConfirmationBlock, /renderSlidersTab|markAllDevelopSlidersLoading|content\.innerHTML|switchTab/);
 assert.match(controller, /const activeSliderInteractions = new Set\(\)/);
@@ -314,19 +314,21 @@ assert.deepEqual(lensCorrectionsSection.embeddedSwitchGroups, ["Lens / Defringe"
     "Lens / Defringe switches must be associated with the Lens Corrections section");
 assert.deepEqual(transformSection.embeddedActionGroups, ["Transform Actions"],
     "Transform Actions must be associated with the Transform section");
-assert.deepEqual(transformSection.embeddedTrailingSwitchGroups, ["Transform"],
-    "The existing Constrain Crop switch must finish the Transform section");
+assert.equal(transformSection.embeddedTrailingSwitchGroups, undefined,
+    "Constrain Crop must no longer be presented under Transform");
 assert.equal((controller.match(/"label": "Remove Chromatic Aberration"/g) || []).length, 1,
     "Remove Chromatic Aberration must have one existing switch definition");
 assert.equal((controller.match(/"label": "Enable Profile Corrections"/g) || []).length, 1,
     "Enable Profile Corrections must have one existing switch definition");
+assert.equal((controller.match(/"label": "Constrain Crop"/g) || []).length, 1,
+    "Constrain Crop must have one switch definition in Lens Corrections");
 const developSectionRenderer = controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0];
 assert.match(developSectionRenderer,
-    /groupElement\.appendChild\(title\);\s*const leadingControls = createSectionControls\(section, "leading"\);\s*if \(leadingControls\) groupElement\.appendChild\(leadingControls\);[\s\S]*section\.items\.forEach/,
-    "Embedded Lens switches and Transform actions must render after the main title and before section sliders");
+    /groupElement\.appendChild\(title\);\s*if \(section\.id === "lens-corrections"\) \{\s*renderLensCorrectionsSection\(groupElement, section\);\s*return groupElement;/,
+    "Lens Corrections must use its dedicated local-tab renderer after the shared section title");
 assert.match(developSectionRenderer,
     /section\.items\.forEach[\s\S]*const trailingControls = createSectionControls\(section, "trailing"\);\s*if \(trailingControls\) groupElement\.appendChild\(trailingControls\)/,
-    "Constrain Crop must render after the existing Transform sliders");
+    "Other Develop sections must retain the generic leading/slider/trailing renderer");
 assert.match(controller,
     /includesDetailControls[\s\S]*controls\.appendChild\(renderEnhanceSection\(\)\)[\s\S]*controls\.appendChild\(renderRawDetailsControl\(\)\)[\s\S]*controls\.appendChild\(renderSuperResolutionControl\(\)\)/,
     "Detail Enhance controls must use the shared leading-controls wrapper before Sharpness");
@@ -334,8 +336,8 @@ assert.match(slidersOnlyBlock,
     /switchGroupIsEmbedded[\s\S]*!switchGroupIsEmbedded && !renderedSwitchPlacements\.has\(placement\)/,
     "Embedded switch groups must not also render as standalone Switches groups");
 assert.match(controller,
-    /function appendEmbeddedSwitchGroups[\s\S]*addSwitchRow\(parent, item\)/,
-    "Embedded Lens switches must reuse the existing switch row renderer");
+    /function renderLensCorrectionsSection[\s\S]*function appendSwitch\(panel, id\)[\s\S]*addSwitchRow\(panel, definition\)/,
+    "Lens Corrections switches must reuse the existing switch row renderer");
 assert.match(controller,
     /function appendEmbeddedActionGroups[\s\S]*addActionRow\(parent, item\)/,
     "Embedded Transform actions must reuse the existing action row renderer");
@@ -1050,4 +1052,4 @@ assert.match(parser, /value = string\.match\(json, \[\["value":\(\[%\-\]\?%d\+%\
 assert.match(luaCommands, /Driver\.setSlider\(\s*command\.slider,\s*command\.value\s*\)/);
 
 console.log("Generic Develop slider metadata, controller, Builder, and feedback contracts passed.");
-console.log("Validated 96 definitions and 93 reusable authoritative-feedback controls.");
+console.log("Validated 98 definitions and 97 authoritative-feedback definitions.");

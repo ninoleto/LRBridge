@@ -57,7 +57,7 @@ for (const forbidden of ["setProcessVersion", "applyDevelopSettings", "loadstrin
 assert.doesNotMatch(lua, /\bload\s*\(/, "Metadata parsing must not dynamically evaluate code");
 const parser = read("lightroom/LRBridge.lrplugin/Parser.lua"); for (const field of ["region","control","hue","saturation","value","view"]) assert.ok(parser.includes(field + " =") || parser.includes("local " + field));
 const dispatch = read("lightroom/LRBridge.lrplugin/Commands.lua"); for (const name of ["color_grading.wheel.set","color_grading.value.set","color_grading.value.reset","color_grading.region.reset","color_grading.view.set"]) assert.ok(dispatch.includes(name));
-assert.match(read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), /getActiveColorGradingView/); assert.match(read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), /color-grading\/view-result/); assert.match(read("app/companion-cheatsheet.html"), /function buildColorGradingPath/); assert.equal(require("../config/sliders.json").length, 96);
+assert.match(read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), /getActiveColorGradingView/); assert.match(read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), /color-grading\/view-result/); assert.match(read("app/companion-cheatsheet.html"), /function buildColorGradingPath/); assert.equal(require("../config/sliders.json").length, 98);
 const runtimeAudit = read("docs/LIGHTROOM_15_3_SDK_CAPABILITY_AUDIT.md");
 assert.match(runtimeAudit, /Tested: 88, PASS: 87, FAIL: 1, UNVERIFIED: 0/); assert.match(runtimeAudit, /No Color Grading command is marked PASS/);
 console.log("Color Grading focused tests passed.");

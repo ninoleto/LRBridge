@@ -580,6 +580,16 @@ Reset
 | Manual Distortion | `LensManualDistortionAmount` | Reset | `/reset?slider=LensManualDistortionAmount` | `http://127.0.0.1:17891/reset?slider=LensManualDistortionAmount` |
 | Manual Distortion | `LensManualDistortionAmount` | +1 | `/adjust?slider=LensManualDistortionAmount&amount=1` | `http://127.0.0.1:17891/adjust?slider=LensManualDistortionAmount&amount=1` |
 | Manual Distortion | `LensManualDistortionAmount` | +5 | `/adjust?slider=LensManualDistortionAmount&amount=5` | `http://127.0.0.1:17891/adjust?slider=LensManualDistortionAmount&amount=5` |
+| Manual Lens Vignetting Amount | `VignetteAmount` | -5 | `/adjust?slider=VignetteAmount&amount=-5` | `http://127.0.0.1:17891/adjust?slider=VignetteAmount&amount=-5` |
+| Manual Lens Vignetting Amount | `VignetteAmount` | -1 | `/adjust?slider=VignetteAmount&amount=-1` | `http://127.0.0.1:17891/adjust?slider=VignetteAmount&amount=-1` |
+| Manual Lens Vignetting Amount | `VignetteAmount` | Reset | `/reset?slider=VignetteAmount` | `http://127.0.0.1:17891/reset?slider=VignetteAmount` |
+| Manual Lens Vignetting Amount | `VignetteAmount` | +1 | `/adjust?slider=VignetteAmount&amount=1` | `http://127.0.0.1:17891/adjust?slider=VignetteAmount&amount=1` |
+| Manual Lens Vignetting Amount | `VignetteAmount` | +5 | `/adjust?slider=VignetteAmount&amount=5` | `http://127.0.0.1:17891/adjust?slider=VignetteAmount&amount=5` |
+| Manual Lens Vignetting Midpoint | `VignetteMidpoint` | -5 | `/adjust?slider=VignetteMidpoint&amount=-5` | `http://127.0.0.1:17891/adjust?slider=VignetteMidpoint&amount=-5` |
+| Manual Lens Vignetting Midpoint | `VignetteMidpoint` | -1 | `/adjust?slider=VignetteMidpoint&amount=-1` | `http://127.0.0.1:17891/adjust?slider=VignetteMidpoint&amount=-1` |
+| Manual Lens Vignetting Midpoint | `VignetteMidpoint` | Reset | `/reset?slider=VignetteMidpoint` | `http://127.0.0.1:17891/reset?slider=VignetteMidpoint` |
+| Manual Lens Vignetting Midpoint | `VignetteMidpoint` | +1 | `/adjust?slider=VignetteMidpoint&amount=1` | `http://127.0.0.1:17891/adjust?slider=VignetteMidpoint&amount=1` |
+| Manual Lens Vignetting Midpoint | `VignetteMidpoint` | +5 | `/adjust?slider=VignetteMidpoint&amount=5` | `http://127.0.0.1:17891/adjust?slider=VignetteMidpoint&amount=5` |
 | Purple Defringe Amount | `DefringePurpleAmount` | -5 | `/adjust?slider=DefringePurpleAmount&amount=-5` | `http://127.0.0.1:17891/adjust?slider=DefringePurpleAmount&amount=-5` |
 | Purple Defringe Amount | `DefringePurpleAmount` | -1 | `/adjust?slider=DefringePurpleAmount&amount=-1` | `http://127.0.0.1:17891/adjust?slider=DefringePurpleAmount&amount=-1` |
 | Purple Defringe Amount | `DefringePurpleAmount` | Reset | `/reset?slider=DefringePurpleAmount` | `http://127.0.0.1:17891/reset?slider=DefringePurpleAmount` |

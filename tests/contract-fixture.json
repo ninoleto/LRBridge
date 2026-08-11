@@ -204,12 +204,10 @@
     "Transform",
     "Tone Curve"
   ],
-  "sliderCount": 96,
-  "sliderIdsSha256": "e2bfd3f358986aa3d535867028f8da29f19a2b21aa264c025254f74c33eb1267",
+  "sliderCount": 98,
+  "sliderIdsSha256": "19f64e0b0a5123fb76f03561a75c70efb848e6cace34c9ba2a87bccbaabcf6bc",
   "groupsSha256": "29fceb62a482ed4e583d8d168a6139df7305bda3f4b792a562f411884e3040f6",
   "nonReadableSliders": [
-    "LensProfileEnable",
-    "AutoLateralCA",
     "LensProfileChromaticAberrationScale"
   ],
   "webControllerExcludedSliders": [

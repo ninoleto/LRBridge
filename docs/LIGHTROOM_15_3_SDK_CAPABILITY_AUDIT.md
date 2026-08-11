@@ -304,7 +304,21 @@ On a Process Version 6 photo in Develop, request 2 read `CropConstrainToWarp` as
 
 The diagnostic restored the exact original numeric `0`. Both `getValue()` and the specific Develop-settings member then read numeric `0`, and the server recorded `restored_successfully`. The result was accepted over HTTP 200 and no other Develop parameter was accessed or changed.
 
-**Conclusion:** `CropConstrainToWarp` uses LRBridge's authoritative switch architecture with `getValue()` as feedback and an explicit numeric `0/1` adapter. The broad `-100..100` range is not the Boolean contract and is never used. The permanent Web Controller switch is placed after the Transform sliders and before Effects in Lightroom order.
+**Conclusion:** `CropConstrainToWarp` uses LRBridge's authoritative switch architecture with `getValue()` as feedback and an explicit numeric `0/1` adapter. The broad `-100..100` range is not the Boolean contract and is never used. The Web Controller presents this switch in Lens Corrections > Manual beside Manual Distortion; this local organization does not alter Lightroom's panel or tab state.
+
+## Lens Corrections SDK surface and Web Controller organization
+
+The Lightroom Classic 15.3 `LrDevelopController` parameter catalog explicitly lists `AutoLateralCA`, `LensProfileEnable`, `LensProfileDistortionScale`, `LensProfileVignettingScale`, `LensManualDistortionAmount`, `DefringePurpleAmount`, `DefringePurpleHueLo`, `DefringePurpleHueHi`, `DefringeGreenAmount`, `DefringeGreenHueLo`, `DefringeGreenHueHi`, `VignetteAmount`, and `VignetteMidpoint` under `lensCorrectionsPanel`. These parameters use the normal documented controller read/write surface: `getValue`, `getRange`, `startTracking`, `setValue`, and `resetToDefault`. LRBridge treats a nil value or invalid/nil runtime range as unavailable and does not substitute the configured seed range for authoritative feedback.
+
+The metadata contracts used for admission and initial rendering are: Profile Distortion and Profile Vignetting `0..200`, default `100`; Manual Distortion `-100..100`, default `0`; Purple and Green Amount `0..20`, default `0`; Purple Hue `0..100`, defaults `30/70`; Green Hue `0..100`, defaults `40/60`; Manual Lens Vignetting Amount (`VignetteAmount`) `-100..100`, default `0`; and Manual Lens Vignetting Midpoint (`VignetteMidpoint`) `0..100`, default `50`. Runtime `getRange()` feedback remains authoritative when available. The compound Purple/Green Hue controls preserve the two existing endpoint parameters and reset each endpoint with its own documented `resetToDefault` operation.
+
+The four Defringe Hue endpoints are a narrow server-admission exception: Lightroom's endpoint-specific `getRange()` values encode a transient cross-endpoint gap and can lag a rapid move of the opposite endpoint. LRBridge continues to store and report those runtime ranges, but validates absolute writes for `DefringePurpleHueLo`, `DefringePurpleHueHi`, `DefringeGreenHueLo`, and `DefringeGreenHueHi` against their permanent `0..100` parameter domain. The server does not attempt to enforce the cross-endpoint gap from cached feedback; the Web Controller constrains its compound interaction synchronously and Lightroom remains authoritative for the settled Develop state.
+
+The 15.3 parameter catalog and documented `LrPhoto:getDevelopSettings()` members do not expose Lens Profile Setup, Make, Model, or Profile selection. They also expose no dedicated authoritative built-in-lens-profile status getter. LRBridge therefore does not render those selectors or a built-in-profile status line. Slider availability alone is not used to infer that a built-in profile is applied.
+
+`LrDevelopController.selectTool()` accepts only `loupe`, `crop`, `dust`, `redeye`, `masking`, `upright`, `point_color`, `local_point_color`, and `depth_refinement`. No Defringe eyedropper/tool-selection value is documented. LRBridge omits the Defringe eyedropper and does not attempt browser-side image picking.
+
+**Conclusion:** the Web Controller's Profile/Manual tabs are presentation-only session UI. Profile and Manual scalar controls remain Lightroom-authoritative, Profile Amount rows are omitted when their individual controller values/ranges are authoritatively unavailable, and undocumented profile selectors, built-in-profile inference, and Defringe eyedropper selection remain unsupported.
 
 ## Enhance panel state runtime verification
 

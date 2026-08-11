@@ -62,6 +62,15 @@ function getEffectiveRange(sliderId) {
     return runtimeRanges[sliderId] || { min: slider.min, max: slider.max };
 }
 
+function getAdmissionRange(sliderId) {
+    const slider = getById(sliderId);
+    if (slider === null) return null;
+    if (slider.useRuntimeRangeForAdmission === false) {
+        return { min: slider.min, max: slider.max };
+    }
+    return getEffectiveRange(sliderId);
+}
+
 function decimalPlaces(step) {
     const text = String(step);
     return text.includes(".") ? text.length - text.indexOf(".") - 1 : 0;
@@ -84,7 +93,7 @@ function parseAbsoluteValue(sliderId, rawValue) {
 
 function isValidAbsoluteValue(sliderId, value) {
     const slider = getById(sliderId);
-    const range = getEffectiveRange(sliderId);
+    const range = getAdmissionRange(sliderId);
     if (
         slider === null ||
         typeof value !== "number" ||
@@ -108,6 +117,7 @@ module.exports = {
     getDefaultValue,
     setRuntimeRange,
     getEffectiveRange,
+    getAdmissionRange,
     parseAbsoluteValue,
     isValidAbsoluteValue
 };
