@@ -117,12 +117,20 @@ function validateStaticContract() {
         assert.ok(fixture.groups.includes(slider.group), slider.id + " has an invalid group");
         assert.equal(typeof slider.min, "number", slider.id + " min must be numeric");
         assert.equal(typeof slider.max, "number", slider.id + " max must be numeric");
-        assert.equal(typeof slider.default, "number", slider.id + " default must be numeric");
         assert.ok(Number.isFinite(slider.min), slider.id + " min must be finite");
         assert.ok(Number.isFinite(slider.max), slider.id + " max must be finite");
-        assert.ok(Number.isFinite(slider.default), slider.id + " default must be finite");
         assert.ok(slider.min <= slider.max, slider.id + " has an inverted range");
-        assert.ok(slider.default >= slider.min && slider.default <= slider.max, slider.id + " default is outside its range");
+        if (slider.resetSupported !== false) {
+            if (slider.resetDefaultSource === "lightroom") {
+                assert.equal(slider.default, undefined, slider.id + " must use Lightroom's native default without publishing a number");
+            } else {
+                assert.equal(typeof slider.default, "number", slider.id + " default must be numeric");
+                assert.ok(Number.isFinite(slider.default), slider.id + " default must be finite");
+                assert.ok(slider.default >= slider.min && slider.default <= slider.max, slider.id + " default is outside its range");
+            }
+        } else {
+            assert.equal(slider.default, undefined, slider.id + " must not publish an unproven reset default");
+        }
     }
 
     const commandsSource = read("server/commands.js");

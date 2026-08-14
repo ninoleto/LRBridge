@@ -20,6 +20,24 @@
     "/next",
     "/enhance/state",
     "/point-color/state",
+    "/lens-blur/state",
+    "/lens-blur/next",
+    "/lens-blur/result",
+    "/lens-blur/apply",
+    "/lens-blur/bokeh",
+    "/lens-blur/depth-visualization/toggle",
+    "/lens-blur/brush/:control/set",
+    "/lens-blur/brush/:control/adjust",
+    "/lens-blur/brush/:control/reset",
+    "/lens-blur/visualize-depth",
+    "/lens-blur/auto-mask",
+    "/lens-blur/refinement-mode",
+    "/lens-blur/refinement-disclosure",
+    "/lens-blur/refinement-reset",
+    "/lens-blur/focal-range/set",
+    "/lens-blur/focal-range/adjust",
+    "/lens-blur/depth-refinement/select",
+    "/lens-blur/depth-refinement/close",
     "/history/state",
     "/history/next",
     "/history/result",
@@ -101,6 +119,11 @@
     ,"point_color.tool.select"
     ,"lightroom.undo"
     ,"lightroom.redo"
+    ,"lens_blur.active.set"
+    ,"lens_blur.bokeh.set"
+    ,"lens_blur.depth_refinement.select"
+    ,"lens_blur.depth_refinement.close"
+    ,"lens_blur.focal_range.set"
   ],
   "selectionOperations": [
     "select_all",
@@ -202,11 +225,12 @@
     "Calibration",
     "Lens / Defringe",
     "Transform",
-    "Tone Curve"
+    "Tone Curve",
+    "Lens Blur"
   ],
-  "sliderCount": 98,
-  "sliderIdsSha256": "19f64e0b0a5123fb76f03561a75c70efb848e6cace34c9ba2a87bccbaabcf6bc",
-  "groupsSha256": "29fceb62a482ed4e583d8d168a6139df7305bda3f4b792a562f411884e3040f6",
+  "sliderCount": 101,
+  "sliderIdsSha256": "7a34be0ed59a35b63d0ee4aeef074d61c7151ec47c5bdf9bc268854d6a68ca0b",
+  "groupsSha256": "2d75f11ffbad7874142a3e8dd1299bc5d1c39022b22e4a0b905f6c49cf206e85",
   "nonReadableSliders": [
     "LensProfileChromaticAberrationScale"
   ],

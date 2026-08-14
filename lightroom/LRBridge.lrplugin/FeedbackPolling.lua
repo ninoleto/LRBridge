@@ -10,6 +10,7 @@ local ColorGrading = require "ColorGrading"
 local Enhance = require "Enhance"
 local PointColor = require "PointColor"
 local History = require "History"
+local LensBlur = require "LensBlur"
 
 local function getPortableRoot()
 
@@ -135,7 +136,10 @@ local watchedSliders = {
     "ParametricHighlights",
     "ParametricShadowSplit",
     "ParametricMidtoneSplit",
-    "ParametricHighlightSplit"
+    "ParametricHighlightSplit",
+    "LensBlurAmount",
+    "LensBlurCatEye",
+    "LensBlurHighlightsBoost"
 }
 
 local lastSentValues = {}
@@ -664,6 +668,11 @@ LrTasks.startAsyncTask(function()
         local historyRequest = LrHttp.get("http://127.0.0.1:17891/history/next")
         if string.find(historyRequest or "", [["requested":true]], 1, true) then
             History.sendCurrentState()
+        end
+
+        local lensBlurRequest = LrHttp.get("http://127.0.0.1:17891/lens-blur/next")
+        if string.find(lensBlurRequest or "", [["requested":true]], 1, true) then
+            LensBlur.sendCurrentState()
         end
 
         LrTasks.sleep(0.1)

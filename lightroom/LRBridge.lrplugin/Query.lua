@@ -100,7 +100,10 @@ local developControllerMap = {
     ParametricHighlights = "ParametricHighlights",
     ParametricShadowSplit = "ParametricShadowSplit",
     ParametricMidtoneSplit = "ParametricMidtoneSplit",
-    ParametricHighlightSplit = "ParametricHighlightSplit"
+    ParametricHighlightSplit = "ParametricHighlightSplit",
+    LensBlurAmount = "LensBlurAmount",
+    LensBlurCatEye = "LensBlurCatEye",
+    LensBlurHighlightsBoost = "LensBlurHighlightsBoost"
 }
 
 function Query.getDevelopValue(slider)

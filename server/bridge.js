@@ -10,6 +10,10 @@ const enhance = require("./enhance-state").createEnhanceState();
 const pointColorDefinition = require("./point-color-state");
 const history = require("./history-state").createHistoryState();
 const pointColor = pointColorDefinition.createPointColorState();
+const lensBlurDefinition = require("./lens-blur-state");
+const lensBlur = lensBlurDefinition.createLensBlurState();
+const focalRangeDefinition = require("./lens-blur-focal-range");
+const windowsNativeDefinition = require("./windows-lightroom-native");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -59,6 +63,17 @@ const httpKeepAliveTimeoutMs = positiveFiniteIntegerOption(
 const httpMaxHeadersCount = positiveFiniteIntegerOption(
     options, "httpMaxHeadersCount", HTTP_MAX_HEADERS_COUNT
 );
+const windowsNativeBackend = options.windowsNativeBackend ||
+    windowsNativeDefinition.createUnavailableWindowsBackend("Windows native backend was not configured");
+if (!windowsNativeBackend || typeof windowsNativeBackend.readState !== "function" ||
+    typeof windowsNativeBackend.setBrushValue !== "function" || typeof windowsNativeBackend.resetBrushValue !== "function" ||
+    typeof windowsNativeBackend.adjustBrushValue !== "function" ||
+    typeof windowsNativeBackend.setCheckbox !== "function" || typeof windowsNativeBackend.setRefinementMode !== "function" ||
+    typeof windowsNativeBackend.setRefinementDisclosure !== "function" ||
+    typeof windowsNativeBackend.resetRefinement !== "function" ||
+    typeof windowsNativeBackend.stop !== "function") {
+    throw new TypeError("windowsNativeBackend must implement the LRBridge Windows native backend interface");
+}
 if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
     throw new RangeError("httpHeadersTimeoutMs must not exceed httpRequestTimeoutMs");
 }
@@ -196,6 +211,19 @@ app.get("/help", function (req, res) {
             resetColorGradingValue: "/command?command=color_grading.value.reset&control=balance",
             selectColorGradingView: "/command?command=color_grading.view.set&view=3-way",
             requestColorGradingSnapshot: "/color-grading/request",
+            setLensBlurApply: "/lens-blur/apply?enabled=true",
+            setLensBlurBokeh: "/lens-blur/bokeh?value=Circle",
+            setLensBlurDepthVisualization: "/lens-blur/visualize-depth?enabled=true",
+            setLensBlurAutoMask: "/lens-blur/auto-mask?enabled=true",
+            setLensBlurRefinementMode: "/lens-blur/refinement-mode?value=focus",
+            setLensBlurRefinementDisclosure: "/lens-blur/refinement-disclosure?open=true",
+            resetLensBlurRefinement: "/lens-blur/refinement-reset?confirmed=true",
+            setLensBlurBrushSize: "/lens-blur/brush/size/set?value=31.0",
+            adjustLensBlurBrushSize: "/lens-blur/brush/size/adjust?amount=0.1",
+            resetLensBlurBrushSize: "/lens-blur/brush/size/reset",
+            setLensBlurFocalRange: "/lens-blur/focal-range/set?nearOuter=-80&nearInner=0&farInner=55&farOuter=135&expected=-43%2037%2057%20137",
+            selectLensBlurDepthRefinement: "/lens-blur/depth-refinement/select",
+            lensBlurState: "/lens-blur/state",
             deprecatedWakeEndpoint: "/wake-lightroom",
             libraryModuleCommand: "/command?command=application.module&module=library"
         },
@@ -217,6 +245,11 @@ app.get("/help", function (req, res) {
             "Color Grading uses documented case-sensitive SDK parameters and Lightroom runtime ranges; unavailable values have no static fallback.",
             "A wheel command carries one Hue/Saturation pair and executes two consecutive native setValue calls in Develop.",
             "Color Grading view selection requires Process Version 3 or newer.",
+            "Lens Blur Amount, Cat Eye, and Boost are available only when Lightroom reports numeric values and runtime ranges; nil is unavailable.",
+            "Lens Blur Bokeh selection is authoritative only after getSelectedLensBlurBokeh reports it; the getter can lag a successful setter.",
+            "On Windows, Brush Refinement controls and Lens Blur checkboxes use dynamically discovered native controls and fail closed when identity is ambiguous.",
+            "Visualize Depth and Auto Mask require explicit targets and authoritative BM_GETCHECK readback; blind toggles are not accepted.",
+            "LensBlurFocalRange is a strict four-integer compound value and uses authoritative Lightroom SDK readback after writes.",
             "Selection operations and application controls are ordinary FIFO queue commands; they do not consume the protected reset/action reserve.",
             "Context heartbeats report Lightroom state and do not enqueue commands or switch modules.",
             "/wake-lightroom is deprecated; use /command?command=application.module&module=library."
@@ -257,6 +290,7 @@ app.get("/context/update", function (req, res) {
     });
     enhance.syncContext(updated.contextCounter);
     pointColor.syncContext(updated.contextCounter);
+    lensBlur.syncContext(updated.contextCounter);
 
     if (updated.contextCounter !== previousContextCounter) {
         history.invalidate();
@@ -311,6 +345,242 @@ app.get("/point-color/state", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     pointColor.requestRefresh();
     res.set("Cache-Control", "no-store").json({ ok: true, state: pointColor.get() });
+});
+
+app.get("/lens-blur/state", async function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    lensBlur.requestRefresh();
+    let windowsNative;
+    try { windowsNative = await windowsNativeBackend.readState(); }
+    catch (error) { windowsNative = windowsNativeDefinition.unavailableNativeState(error.message); }
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        state: Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) })
+    });
+});
+
+app.get("/lens-blur/next", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.json({ requested: lensBlur.takeRequest() });
+});
+
+app.get("/lens-blur/result", function (req, res) {
+    const allowed = new Set([
+        "activeAvailable", "active", "bokehAvailable", "bokeh", "selectedToolAvailable", "selectedTool",
+        "focalRangeAvailable", "focalRange"
+    ]);
+    const booleanValue = function (name) {
+        return req.query[name] === "true" ? true : req.query[name] === "false" ? false : null;
+    };
+    const input = {
+        activeAvailable: booleanValue("activeAvailable"),
+        active: req.query.active === undefined ? null : booleanValue("active"),
+        bokehAvailable: booleanValue("bokehAvailable"),
+        bokeh: req.query.bokeh === undefined ? null : req.query.bokeh,
+        selectedToolAvailable: booleanValue("selectedToolAvailable"),
+        selectedTool: req.query.selectedTool === undefined ? null : req.query.selectedTool,
+        focalRangeAvailable: booleanValue("focalRangeAvailable"),
+        focalRange: req.query.focalRange === undefined ? null : req.query.focalRange
+    };
+    if (Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); }) ||
+        input.activeAvailable === null || input.bokehAvailable === null || input.selectedToolAvailable === null ||
+        input.focalRangeAvailable === null || !lensBlur.update(input)) {
+        return res.status(400).json({ ok: false, error: "Invalid Lens Blur state" });
+    }
+    res.json({ ok: true });
+});
+
+app.get("/lens-blur/apply", function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.enabled) ||
+        (req.query.enabled !== "true" && req.query.enabled !== "false")) return rejectInvalidCommand(res);
+    queueOrReject(res, { command: "lens_blur.active.set", enabled: req.query.enabled === "true" }, null, function () {
+        lensBlur.invalidateActive();
+        lensBlur.requestRefresh(Date.now(), true);
+    });
+});
+
+app.get("/lens-blur/bokeh", function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.value) ||
+        !lensBlurDefinition.bokehValues.includes(req.query.value)) return rejectInvalidCommand(res);
+    if (!lensBlur.get().bokehAvailable) return res.status(409).json({ ok: false, error: "Lens Blur Bokeh unavailable" });
+    queueOrReject(res, { command: "lens_blur.bokeh.set", value: req.query.value }, null, function () {
+        lensBlur.invalidateBokeh();
+        lensBlur.requestRefresh(Date.now(), true);
+    });
+});
+
+app.get("/lens-blur/depth-visualization/toggle", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return rejectInvalidCommand(res);
+    res.status(410).json({ ok: false, error: "Blind Visualize Depth toggles are unsupported; provide an explicit target" });
+});
+
+function validExplicitBooleanQuery(req) {
+    return Object.keys(req.query).length === 1 && !Array.isArray(req.query.enabled) &&
+        (req.query.enabled === "true" || req.query.enabled === "false");
+}
+
+function sendNativeFailure(res, error) {
+    const unavailable = !error || error.code !== "LIGHTROOM_NATIVE_REJECTED";
+    res.status(unavailable ? 503 : 400).json({
+        ok: false,
+        available: !unavailable,
+        error: error && error.message ? error.message : "Windows Lightroom native controls unavailable"
+    });
+}
+
+app.get("/lens-blur/brush/:control/set", async function (req, res) {
+    const control = req.params.control;
+    const value = parseStrictFiniteNumber(req.query.value);
+    const keys = Object.keys(req.query);
+    const interaction = req.query.interaction;
+    const hasInteraction = typeof interaction === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(interaction);
+    const hasFinal = req.query.final === "true" || req.query.final === "false";
+    if (!windowsNativeDefinition.BRUSH_CONTROLS.includes(control) || Array.isArray(req.query.value) || value === null ||
+        keys.some(function (key) { return !["value", "interaction", "final"].includes(key); }) ||
+        (!hasInteraction && (keys.length !== 1 || keys[0] !== "value")) ||
+        (hasInteraction && (!hasFinal || keys.length !== 3 || Array.isArray(req.query.interaction) || Array.isArray(req.query.final)))) {
+        return rejectInvalidCommand(res);
+    }
+    try {
+        const state = await windowsNativeBackend.setBrushValue(control, value, hasInteraction
+            ? { interaction: interaction, final: req.query.final === "true" }
+            : undefined);
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+app.get("/lens-blur/brush/:control/adjust", async function (req, res) {
+    const control = req.params.control;
+    const amount = parseStrictFiniteNumber(req.query.amount);
+    if (!windowsNativeDefinition.BRUSH_CONTROLS.includes(control) || Object.keys(req.query).length !== 1 ||
+        Array.isArray(req.query.amount) || amount === null || amount === 0) return rejectInvalidCommand(res);
+    try {
+        const state = await windowsNativeBackend.adjustBrushValue(control, amount);
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+app.get("/lens-blur/brush/:control/reset", async function (req, res) {
+    const control = req.params.control;
+    if (!windowsNativeDefinition.BRUSH_CONTROLS.includes(control) || Object.keys(req.query).length !== 0) {
+        return rejectInvalidCommand(res);
+    }
+    try {
+        const state = await windowsNativeBackend.resetBrushValue(control);
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+app.get("/lens-blur/visualize-depth", async function (req, res) {
+    if (!validExplicitBooleanQuery(req)) return rejectInvalidCommand(res);
+    try {
+        const state = await windowsNativeBackend.setCheckbox("visualizeDepth", req.query.enabled === "true");
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+app.get("/lens-blur/auto-mask", async function (req, res) {
+    if (!validExplicitBooleanQuery(req)) return rejectInvalidCommand(res);
+    try {
+        const state = await windowsNativeBackend.setCheckbox("autoMask", req.query.enabled === "true");
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+app.get("/lens-blur/refinement-mode", async function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.value) ||
+        (req.query.value !== "focus" && req.query.value !== "blur")) return rejectInvalidCommand(res);
+    try {
+        const state = await windowsNativeBackend.setRefinementMode(req.query.value);
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+app.get("/lens-blur/refinement-disclosure", async function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.open) ||
+        (req.query.open !== "true" && req.query.open !== "false")) return rejectInvalidCommand(res);
+    try {
+        const state = await windowsNativeBackend.setRefinementDisclosure(req.query.open === "true");
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+app.get("/lens-blur/refinement-reset", async function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.confirmed) || req.query.confirmed !== "true") {
+        return rejectInvalidCommand(res);
+    }
+    try {
+        const state = await windowsNativeBackend.resetRefinement();
+        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
+function currentFocalRangeMatches(expected) {
+    const current = lensBlur.get();
+    return current.focalRangeAvailable && typeof expected === "string" &&
+        focalRangeDefinition.equal(current.focalRange, expected);
+}
+
+function queueFocalRange(res, range) {
+    const value = focalRangeDefinition.format(range);
+    if (value === null) return rejectInvalidCommand(res);
+    queueOrReject(res, { command: "lens_blur.focal_range.set", value: value }, { focalRange: range }, function () {
+        lensBlur.invalidateFocalRange();
+        lensBlur.requestRefresh(Date.now(), true);
+    });
+}
+
+app.get("/lens-blur/focal-range/set", function (req, res) {
+    const expectedKeys = focalRangeDefinition.COMPONENTS.concat(["expected"]);
+    const keys = Object.keys(req.query);
+    if (keys.length !== expectedKeys.length || keys.some(function (key) {
+        return !expectedKeys.includes(key) || Array.isArray(req.query[key]);
+    })) return rejectInvalidCommand(res);
+    const range = focalRangeDefinition.create(req.query);
+    if (range === null) return rejectInvalidCommand(res);
+    if (!currentFocalRangeMatches(req.query.expected)) {
+        return res.status(409).json({ ok: false, error: "Lens Blur Focus Range is unavailable or stale" });
+    }
+    queueFocalRange(res, range);
+});
+
+app.get("/lens-blur/focal-range/adjust", function (req, res) {
+    const keys = Object.keys(req.query);
+    if (keys.length !== 3 || keys.some(function (key) {
+        return !["part", "amount", "expected"].includes(key) || Array.isArray(req.query[key]);
+    }) || !focalRangeDefinition.PARTS.includes(req.query.part)) return rejectInvalidCommand(res);
+    const amount = focalRangeDefinition.parseComponent(req.query.amount);
+    if (amount === null || amount === 0) return rejectInvalidCommand(res);
+    const current = lensBlur.get();
+    if (!current.focalRangeAvailable || !currentFocalRangeMatches(req.query.expected)) {
+        return res.status(409).json({ ok: false, error: "Lens Blur Focus Range is unavailable or stale" });
+    }
+    const translated = focalRangeDefinition.translate(current.focalRange, req.query.part, amount);
+    if (translated === null) return rejectInvalidCommand(res);
+    queueFocalRange(res, translated);
+});
+
+app.get("/lens-blur/depth-refinement/select", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return rejectInvalidCommand(res);
+    queueOrReject(res, { command: "lens_blur.depth_refinement.select" }, null, function () {
+        lensBlur.invalidateSelectedTool();
+        lensBlur.requestRefresh(Date.now(), true);
+    });
+});
+
+app.get("/lens-blur/depth-refinement/close", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return rejectInvalidCommand(res);
+    const current = lensBlur.get();
+    if (!current.selectedToolAvailable) {
+        return res.status(409).json({ ok: false, error: "Selected Lightroom tool is unavailable" });
+    }
+    if (current.selectedTool !== "depth_refinement") {
+        return res.set("Cache-Control", "no-store").json({ ok: true, changed: false, selectedTool: current.selectedTool });
+    }
+    queueOrReject(res, { command: "lens_blur.depth_refinement.close" }, null, function () {
+        lensBlur.invalidateSelectedTool();
+        lensBlur.requestRefresh(Date.now(), true);
+    });
 });
 
 app.get("/history/state", function (req, res) {
@@ -1305,7 +1575,8 @@ async function closeListeners() {
     const closingWebSocketServer = wsServer;
     await Promise.all([
         closeHttpServer(closingHttpServer),
-        closeWebSocketServer(closingWebSocketServer)
+        closeWebSocketServer(closingWebSocketServer),
+        windowsNativeBackend.stop()
     ]);
     if (httpServer === closingHttpServer) httpServer = null;
     if (wsServer === closingWebSocketServer) wsServer = null;

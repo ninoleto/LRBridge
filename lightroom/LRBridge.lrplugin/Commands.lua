@@ -8,6 +8,7 @@ local ColorGrading = require "ColorGrading"
 local Enhance = require "Enhance"
 local PointColor = require "PointColor"
 local History = require "History"
+local LensBlur = require "LensBlur"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -46,6 +47,11 @@ function Commands.execute(command)
     if command.command == "point_color.tool.select" then PointColor.selectTool(); return end
     if command.command == "lightroom.undo" then History.undo(); return end
     if command.command == "lightroom.redo" then History.redo(); return end
+    if command.command == "lens_blur.active.set" then LensBlur.setActive(command.enabled); return end
+    if command.command == "lens_blur.bokeh.set" then LensBlur.setBokeh(command.value); return end
+    if command.command == "lens_blur.depth_refinement.select" then LensBlur.selectDepthRefinement(); return end
+    if command.command == "lens_blur.depth_refinement.close" then LensBlur.closeDepthRefinement(); LensBlur.sendCurrentState(); return end
+    if command.command == "lens_blur.focal_range.set" then LensBlur.setFocalRange(command.value); LensBlur.sendCurrentState(); return end
 
     if command.command == "develop.adjust" then
 

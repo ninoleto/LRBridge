@@ -17,6 +17,7 @@ const settingsPath = path.join(portableRoot, "config", "settings.txt");
 const trayIconPath = path.join(__dirname, "tray.png");
 const controllerPath = path.join(__dirname, "controller.html");
 const controllerColorGradingPath = path.join(__dirname, "controller-color-grading.js");
+const controllerLensBlurPath = path.join(__dirname, "controller-lens-blur.js");
 const controllerDenoiseStatePath = path.join(__dirname, "controller-denoise-state.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
@@ -295,6 +296,16 @@ async function handleControllerRequest(request, response) {
     if (requestUrl.pathname === "/controller-color-grading.js") {
         try {
             const source = fs.readFileSync(controllerColorGradingPath, "utf8");
+            sendControllerResponse(response, 200, "text/javascript; charset=utf-8", source);
+        } catch (err) {
+            sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);
+        }
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-lens-blur.js") {
+        try {
+            const source = fs.readFileSync(controllerLensBlurPath, "utf8");
             sendControllerResponse(response, 200, "text/javascript; charset=utf-8", source);
         } catch (err) {
             sendControllerResponse(response, 500, "text/plain; charset=utf-8", err.message);

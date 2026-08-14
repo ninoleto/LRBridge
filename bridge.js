@@ -1,6 +1,9 @@
 const bridgeModule = require("./server/bridge");
+const windowsNative = require("./server/windows-lightroom-native");
 
-const defaultBridge = bridgeModule.createBridge();
+const defaultBridge = bridgeModule.createBridge({
+    windowsNativeBackend: windowsNative.createWindowsLightroomNativeBackend()
+});
 const startPromise = defaultBridge.start();
 
 module.exports = Object.assign({}, bridgeModule, {

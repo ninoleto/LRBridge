@@ -84,9 +84,11 @@ assert.equal(familyById.selection.types.reduce((total, type) => total + type.opt
 assert.equal(familyById.photo.types.reduce((total, type) => total + type.options.length, 0), 13);
 assert.equal(familyById.application.types.reduce((total, type) => total + type.options.length, 0), 34);
 assert.equal(
-    sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length * 3 +
+    sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale").length +
+        sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale" && slider.adjustSupported !== false).length +
+        sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale" && slider.resetSupported !== false).length +
         developTypes.action.options.length,
-    303,
+    309,
     "Develop concrete Builder combination count changed"
 );
 assert.match(builderSource, /id="builderFamily"/);
@@ -220,21 +222,25 @@ assert.ok(
 );
 
 for (const slider of sliders.getAll()) {
-    for (const type of [developTypes.adjust, developTypes.reset]) {
+    const supportedTypes = [];
+    if (slider.adjustSupported !== false) supportedTypes.push(developTypes.adjust);
+    if (slider.resetSupported !== false) supportedTypes.push(developTypes.reset);
+    for (const type of supportedTypes) {
         const pathname = buildCommandPath(type, slider.id, -3);
         assert.equal(commands.validateCommand(commandFromPath(pathname, type)), true, "Invalid slider command: " + pathname);
     }
 }
 
 for (const slider of sliders.getAll().filter((item) => item.id !== "LensProfileChromaticAberrationScale")) {
-    const rawValue = String(slider.default);
+    const validExample = Number.isFinite(slider.default) ? slider.default : slider.min;
+    const rawValue = String(validExample);
     const pathname = buildCommandPath(developTypes.set, slider.id, rawValue);
     assert.equal(pathname, "/api/set?slider=" + encodeURIComponent(slider.id) + "&value=" + encodeURIComponent(rawValue));
-    assert.equal(parseBuilderAbsoluteValue(slider, rawValue), slider.default);
+    assert.equal(parseBuilderAbsoluteValue(slider, rawValue), validExample);
     assert.equal(commands.validateCommand({
         command: "develop.set",
         slider: slider.id,
-        value: slider.default
+        value: validExample
     }), true, "Invalid absolute Builder command: " + pathname);
 }
 

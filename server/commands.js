@@ -2,6 +2,8 @@ const sliders = require("./sliders");
 const numbers = require("./numbers");
 const colorGrading = require("./color-grading");
 const pointColor = require("./point-color-state");
+const lensBlur = require("./lens-blur-state");
+const focalRange = require("./lens-blur-focal-range");
 const context = require("./context");
 
 const commandQueue = [];
@@ -147,6 +149,11 @@ function validateCommand(command) {
         ,"point_color.tool.select"
         ,"lightroom.undo"
         ,"lightroom.redo"
+        ,"lens_blur.active.set"
+        ,"lens_blur.bokeh.set"
+        ,"lens_blur.depth_refinement.select"
+        ,"lens_blur.depth_refinement.close"
+        ,"lens_blur.focal_range.set"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -178,6 +185,19 @@ function validateCommand(command) {
     if (command.command === "point_color.range_visualization.toggle") return Object.keys(command).length === 1;
     if (command.command === "point_color.tool.select") return Object.keys(command).length === 1;
     if (command.command === "lightroom.undo" || command.command === "lightroom.redo") return Object.keys(command).length === 1;
+    if (command.command === "lens_blur.active.set") {
+        return Object.keys(command).length === 2 && typeof command.enabled === "boolean";
+    }
+    if (command.command === "lens_blur.bokeh.set") {
+        return Object.keys(command).length === 2 && lensBlur.bokehValues.includes(command.value);
+    }
+    if (command.command === "lens_blur.depth_refinement.select" || command.command === "lens_blur.depth_refinement.close") {
+        return Object.keys(command).length === 1;
+    }
+    if (command.command === "lens_blur.focal_range.set") {
+        return Object.keys(command).length === 2 && typeof command.value === "string" &&
+            focalRange.format(focalRange.parse(command.value)) === command.value;
+    }
 
     if (command.command === "enhance.denoise.set") {
         return Object.keys(command).length === 3 && typeof command.enabled === "boolean" && Number.isInteger(command.amount) &&
@@ -344,6 +364,14 @@ function validateCommand(command) {
 
     if (!sliders.exists(command.slider)) {
         console.log("Unknown slider");
+        return false;
+    }
+
+    if (command.command === "develop.adjust" && sliders.getById(command.slider).adjustSupported === false) {
+        return false;
+    }
+
+    if (command.command === "develop.reset" && sliders.getById(command.slider).resetSupported === false) {
         return false;
     }
 
@@ -674,6 +702,11 @@ function getQueueDiagnostics(nowMs) {
         ,"point_color.tool.select": 0
         ,"lightroom.undo": 0
         ,"lightroom.redo": 0
+        ,"lens_blur.active.set": 0
+        ,"lens_blur.bokeh.set": 0
+        ,"lens_blur.depth_refinement.select": 0
+        ,"lens_blur.depth_refinement.close": 0
+        ,"lens_blur.focal_range.set": 0
     };
 
     for (const command of commandQueue) {
@@ -732,7 +765,12 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["point_color.range.set"] +
                     pendingByCommand["point_color.range.translate"] +
                     pendingByCommand["point_color.range_visualization.toggle"] +
-                    pendingByCommand["point_color.tool.select"],
+                    pendingByCommand["point_color.tool.select"] +
+                    pendingByCommand["lens_blur.active.set"] +
+                    pendingByCommand["lens_blur.bokeh.set"] +
+                    pendingByCommand["lens_blur.depth_refinement.select"] +
+                    pendingByCommand["lens_blur.depth_refinement.close"] +
+                    pendingByCommand["lens_blur.focal_range.set"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
                     pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"],
                 byCommand: pendingByCommand

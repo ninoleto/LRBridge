@@ -18,12 +18,12 @@ const bridge = fs.readFileSync(path.join(root, "server/bridge.js"), "utf8");
 const historyLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/History.lua"), "utf8");
 const historyStateFactory = require("../server/history-state").createHistoryState;
 
-assert.equal(metadata.length, 98, "Slider registry count changed");
+assert.equal(metadata.length, 101, "Slider registry count changed");
 assert.equal(new Set(metadata.map((item) => item.id)).size, metadata.length, "Duplicate slider ID");
 
 for (const item of metadata) {
     for (const field of [
-        "id", "label", "group", "min", "max", "default", "rangeStep",
+        "id", "label", "group", "min", "max", "rangeStep",
         "numericStep", "displayPrecision", "feedbackSupported"
     ]) {
         assert.notEqual(item[field], undefined, item.id + " lacks " + field);
@@ -35,10 +35,17 @@ for (const item of metadata) {
     assert.ok(Number.isFinite(item.rangeStep) && item.rangeStep > 0);
     assert.ok(Number.isFinite(item.numericStep) && item.numericStep > 0);
     assert.ok(Number.isInteger(item.displayPrecision) && item.displayPrecision >= 0);
+    if (item.resetSupported !== false) {
+        if (item.resetDefaultSource === "lightroom") {
+            assert.equal(item.default, undefined, item.id + " must defer its reset value to Lightroom");
+        } else {
+            assert.ok(Number.isFinite(item.default), item.id + " lacks a proven reset default");
+        }
+    }
 }
 
 const feedbackDefinitions = metadata.filter((item) => item.feedbackSupported === true);
-assert.equal(feedbackDefinitions.length, 97, "Authoritative feedback definition count changed");
+assert.equal(feedbackDefinitions.length, 100, "Authoritative feedback definition count changed");
 const toneCurveDefinitions = feedbackDefinitions.filter((item) => item.group === "Tone Curve");
 const metadataToneCurveIds = [
     "ParametricDarks", "ParametricLights", "ParametricShadows", "ParametricHighlights",
@@ -103,7 +110,7 @@ assert.match(controller, /number\.addEventListener\("blur"/);
 assert.match(controller, /number\.select\(\)/);
 assert.match(controller, /rawValue\.replace\(",", "\."\)/);
 assert.doesNotMatch(
-    controller.match(/function createDevelopSliderControl[\s\S]*?function renderActionGroup/)[0],
+    controller.match(/function createDevelopSliderControl[\s\S]*?function updateLensBlurExplicitSwitch/)[0],
     /number\.addEventListener\("input"/
 );
 assert.match(controller, /makeButton\("−", "develop-slider-step"/);
@@ -221,14 +228,14 @@ const developSectionDisplayOrder = JSON.parse(JSON.stringify(
 ));
 const expectedDevelopSectionLabels = [
     "White Balance", "Tone", "Presence", "Color Mixer", "Detail",
-    "Lens Corrections", "Transform", "Effects", "Calibration"
+    "Lens Corrections", "Lens Blur", "Transform", "Effects", "Calibration"
 ];
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), expectedDevelopSectionLabels);
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.id), [
     "white-balance", "tone", "presence", "color-mixer", "detail",
-    "lens-corrections", "transform", "effects", "calibration"
+    "lens-corrections", "lens-blur", "transform", "effects", "calibration"
 ]);
-assert.equal(new Set(developSectionDisplayOrder.map((section) => section.id)).size, 9,
+assert.equal(new Set(developSectionDisplayOrder.map((section) => section.id)).size, 10,
     "Every main Develop section must render exactly once");
 const developHeaderCss = controller.match(/\.group\[data-develop-section\] > \.group-title \{[\s\S]*?\n        \}/)[0];
 assert.match(developHeaderCss, /width: 100%/);
@@ -363,12 +370,12 @@ const expectedDevelopIds = feedbackDefinitions.filter((definition) => definition
 assert.equal(new Set(mappedDevelopIds).size, mappedDevelopIds.length, "Develop presentation duplicated a slider ID");
 assert.deepEqual(new Set(mappedDevelopIds), new Set(expectedDevelopIds),
     "Develop presentation omitted or unexpectedly selected a slider ID");
-assert.doesNotMatch(JSON.stringify(developSectionDisplayOrder), /Tone Curve|Color Grading|Lens Blur/);
+assert.doesNotMatch(JSON.stringify(developSectionDisplayOrder), /Tone Curve|Color Grading/);
 assert.match(controller, /function getSliderJumpSections\(\) \{\s*return developSectionDisplayOrder\.map/,
     "Jump menu and rendered sections must share the presentation specification");
-assert.equal(developSectionDisplayOrder.length, 9, "Jump-to must source exactly nine Develop sections");
+assert.equal(developSectionDisplayOrder.length, 10, "Jump-to must source exactly ten Develop sections");
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), [
-    "White Balance", "Tone", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Transform", "Effects", "Calibration"
+    "White Balance", "Tone", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Lens Blur", "Transform", "Effects", "Calibration"
 ], "Jump-to section ordering must remain unchanged");
 assert.equal(developSectionDisplayOrder[3].id, "color-mixer",
     "Color Mixer/B&W must remain fourth between Presence and Detail");
@@ -1052,4 +1059,4 @@ assert.match(parser, /value = string\.match\(json, \[\["value":\(\[%\-\]\?%d\+%\
 assert.match(luaCommands, /Driver\.setSlider\(\s*command\.slider,\s*command\.value\s*\)/);
 
 console.log("Generic Develop slider metadata, controller, Builder, and feedback contracts passed.");
-console.log("Validated 98 definitions and 97 authoritative-feedback definitions.");
+console.log("Validated 101 definitions and 100 authoritative-feedback definitions.");

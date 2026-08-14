@@ -213,14 +213,20 @@ for (const [groupName, items] of groups.entries()) {
         const id = slider.id;
         const label = slider.label || id;
 
-        const commands = [
-            ["-5", `/adjust?slider=${encodeURIComponent(id)}&amount=-5`],
-            ["-1", `/adjust?slider=${encodeURIComponent(id)}&amount=-1`],
-            ["Reset", `/reset?slider=${encodeURIComponent(id)}`],
-            ["+1", `/adjust?slider=${encodeURIComponent(id)}&amount=1`],
-            ["+5", `/adjust?slider=${encodeURIComponent(id)}&amount=5`]
-        ];
-
+        const commands = [];
+        if (slider.adjustSupported !== false) {
+            commands.push(["-5", `/adjust?slider=${encodeURIComponent(id)}&amount=-5`]);
+            commands.push(["-1", `/adjust?slider=${encodeURIComponent(id)}&amount=-1`]);
+        } else {
+            commands.push(["Set value", `/set?slider=${encodeURIComponent(id)}&value=VALUE`]);
+        }
+        if (slider.resetSupported !== false) {
+            commands.push(["Reset", `/reset?slider=${encodeURIComponent(id)}`]);
+        }
+        if (slider.adjustSupported !== false) {
+            commands.push(["+1", `/adjust?slider=${encodeURIComponent(id)}&amount=1`]);
+            commands.push(["+5", `/adjust?slider=${encodeURIComponent(id)}&amount=5`]);
+        }
         for (const [button, pathPart] of commands) {
             lines.push(`| ${label} | \`${id}\` | ${button} | \`${pathPart}\` | \`${fullUrl(pathPart)}\` |`);
         }

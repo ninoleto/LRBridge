@@ -103,6 +103,9 @@ local sliderMap = {
     ParametricShadowSplit = "ParametricShadowSplit",
     ParametricMidtoneSplit = "ParametricMidtoneSplit",
     ParametricHighlightSplit = "ParametricHighlightSplit",
+    LensBlurAmount = "LensBlurAmount",
+    LensBlurCatEye = "LensBlurCatEye",
+    LensBlurHighlightsBoost = "LensBlurHighlightsBoost",
 }
 
 local function prepareDevelopSlider(developSlider)
@@ -110,7 +113,11 @@ local function prepareDevelopSlider(developSlider)
     LrApplicationView.switchToModule("develop")
     LrTasks.sleep(0.2)
 
-    LrDevelopController.revealPanel(developSlider)
+    if string.sub(developSlider, 1, 8) == "LensBlur" then
+        LrDevelopController.revealPanel("lensBlurPanel")
+    else
+        LrDevelopController.revealPanel(developSlider)
+    end
     LrTasks.sleep(0.05)
 
 end

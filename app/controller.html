@@ -715,6 +715,143 @@
             color: #ff7b72;
         }
 
+        .lens-blur-subsection { margin-top: 16px; }
+        .lens-blur-subsection:first-of-type { margin-top: 8px; }
+        .lens-blur-bokeh-options {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(92px, 1fr));
+            gap: 8px;
+            margin: 8px 0;
+        }
+        .lens-blur-bokeh-options button.active {
+            background: #2a6f97;
+            border-color: #55b8ed;
+        }
+        .lens-blur-state {
+            min-height: 18px;
+            color: #d6a52b;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .lens-blur-action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        .lens-blur-apply-row { margin-top: 8px; }
+        .lens-blur-apply-row button.active {
+            border-color: #71c6f5;
+            box-shadow: 0 0 0 2px rgba(113, 198, 245, 0.24);
+        }
+        .lens-blur-native-row.unavailable { opacity: 0.58; }
+        .lens-blur-number-editor {
+            font-size: 16px;
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+        }
+        .lens-blur-number-editor.dirty { border-color: #71c6f5; }
+        .lens-blur-number-editor.pending { border-color: #d6a52b; }
+        .lens-blur-native-row.error .lens-blur-native-status { color: #ff7b72; }
+        .lens-blur-mode-row button.active {
+            border-color: #71c6f5;
+            box-shadow: 0 0 0 2px rgba(113, 198, 245, 0.24);
+        }
+        .lens-blur-mode-row { grid-template-columns: 240px 90px 90px minmax(150px, auto) 1fr; }
+        .lens-blur-focus-range {
+            margin: 10px 0 14px;
+            padding: 12px;
+            border: 1px solid #44515c;
+            border-radius: 6px;
+            background: #202830;
+        }
+        .lens-blur-focus-track {
+            position: relative;
+            height: 62px;
+            margin: 8px 2px 0;
+            border: 1px solid #48515a;
+            border-radius: 2px;
+            background: linear-gradient(180deg, #151a1e 0%, #22292e 52%, #11161a 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+        .lens-blur-focus-transition,
+        .lens-blur-focus-inner,
+        .lens-blur-focus-selection {
+            position: absolute;
+            top: 11px;
+            height: 38px;
+            box-sizing: border-box;
+        }
+        .lens-blur-focus-transition {
+            pointer-events: none;
+            background: linear-gradient(90deg, rgba(206, 218, 226, 0.08), rgba(206, 218, 226, 0.28));
+        }
+        .lens-blur-focus-transition.far {
+            background: linear-gradient(90deg, rgba(206, 218, 226, 0.28), rgba(206, 218, 226, 0.08));
+        }
+        .lens-blur-focus-inner {
+            pointer-events: none;
+            background: rgba(220, 230, 236, 0.24);
+        }
+        .lens-blur-focus-selection {
+            z-index: 2;
+            border: 2px solid #e4eaee;
+            background: transparent;
+            cursor: grab;
+        }
+        .lens-blur-focus-selection:active { cursor: grabbing; }
+        .lens-blur-focus-handle {
+            position: absolute;
+            z-index: 3;
+            top: 7px;
+            width: 30px;
+            height: 46px;
+            margin-left: -15px;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            cursor: ew-resize;
+            touch-action: none;
+        }
+        .lens-blur-focus-handle::after {
+            content: "";
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 14px;
+            width: 2px;
+            background: #ffffff;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65);
+        }
+        .lens-blur-focus-fields {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(95px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .lens-blur-focus-fields label { color: #aebbc5; font-size: 11px; }
+        .lens-blur-focus-fields input { margin-top: 4px; }
+        .lens-blur-focus-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .lens-blur-focus-advanced {
+            margin-top: 10px;
+            border-top: 1px solid #394650;
+            color: #aebbc5;
+        }
+        .lens-blur-focus-advanced summary {
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .lens-blur-focus-labels { display: flex; justify-content: space-between; color: #c2cbd1; font-size: 12px; margin: 4px 3px 0; }
+        .lens-blur-focus-status { min-height: 18px; margin-top: 8px; color: #d6a52b; font-size: 12px; }
+        .lens-blur-focus-status.error { color: #ff7b72; }
+
         button.command-primary {
             background: #2a6f97;
             border-color: #3a8cc0;
@@ -1089,6 +1226,9 @@
 
             .denoise-slider-row .slider-name { grid-column: 1; }
 
+            .lens-blur-bokeh-options { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+            .lens-blur-focus-fields { grid-template-columns: repeat(2, minmax(95px, 1fr)); }
+
             .compound-develop-range-row {
                 grid-template-columns: minmax(92px, 1fr) auto;
                 padding: 10px;
@@ -1234,6 +1374,7 @@
 
     <script src="/controller-color-grading.js"></script>
     <script src="/controller-denoise-state.js"></script>
+    <script src="/controller-lens-blur.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -1385,6 +1526,14 @@
                         "ParametricMidtoneSplit",
                         "ParametricHighlightSplit"
                 ]
+        },
+        {
+                "name": "Lens Blur",
+                "sliders": [
+                        "LensBlurAmount",
+                        "LensBlurCatEye",
+                        "LensBlurHighlightsBoost"
+                ]
         }
 ];
 
@@ -1485,7 +1634,10 @@
         "ParametricHighlights": "Curve Highlights",
         "ParametricShadowSplit": "Curve Shadow Split",
         "ParametricMidtoneSplit": "Curve Midtone Split",
-        "ParametricHighlightSplit": "Curve Highlight Split"
+        "ParametricHighlightSplit": "Curve Highlight Split",
+        "LensBlurAmount": "Blur Amount",
+        "LensBlurCatEye": "Cat Eye",
+        "LensBlurHighlightsBoost": "Boost"
 };
 
         const sliderActionGroups = [
@@ -2445,7 +2597,10 @@
             "ParametricHighlights",
             "ParametricShadowSplit",
             "ParametricMidtoneSplit",
-            "ParametricHighlightSplit"
+            "ParametricHighlightSplit",
+            "LensBlurAmount",
+            "LensBlurCatEye",
+            "LensBlurHighlightsBoost"
         ]);
 
 
@@ -2453,6 +2608,48 @@
         const sliderFeedbackElements = {};
         const developSliderControls = {};
         let developSliderDefinitions = [];
+        const lensBlurHelper = window.LRBridgeLensBlur &&
+            typeof window.LRBridgeLensBlur.createModel === "function" &&
+            typeof window.LRBridgeLensBlur.presentationFor === "function" &&
+            Array.isArray(window.LRBridgeLensBlur.bokehOptions)
+            ? window.LRBridgeLensBlur
+            : null;
+        if (!lensBlurHelper) {
+            console.warn("LRBridge Lens Blur helper unavailable; Lens Blur controls are disabled.");
+        }
+        const lensBlurUnavailableState = Object.freeze({
+            activeAvailable: false,
+            active: null,
+            bokehAvailable: false,
+            bokeh: null,
+            selectedToolAvailable: false,
+            selectedTool: null,
+            focalRangeAvailable: false,
+            focalRange: null,
+            windowsNative: null
+        });
+        const lensBlurModel = lensBlurHelper ? lensBlurHelper.createModel() : {
+            get: function () { return Object.assign({}, lensBlurUnavailableState); },
+            applyAuthoritative: function () { return this.get(); }
+        };
+        let lensBlurStateRequestInFlight = false;
+        let lensBlurApplyOffButton = null;
+        let lensBlurApplyOnButton = null;
+        let lensBlurApplyStatus = null;
+        let lensBlurBokehButtons = {};
+        let lensBlurBokehStatus = null;
+        let lensBlurRefinementButton = null;
+        let lensBlurNativeControls = {};
+        let lensBlurVisualizeButtons = null;
+        let lensBlurAutoMaskButtons = null;
+        let lensBlurModeButtons = null;
+        let lensBlurRefinementResetButton = null;
+        let lensBlurFocusRangeView = null;
+        let lensBlurNativeInteractionCounter = 0;
+        let lensBlurModeRequestInFlight = false;
+        let lensBlurDisclosureRequestInFlight = false;
+        let lensBlurDisclosurePendingOpen = null;
+        let lensBlurRefinementResetRequestInFlight = false;
 
 
         const sliderFeedbackUiRequestIds = {};
@@ -2942,6 +3139,7 @@
             if (!genericFeedbackActive || !isGenericDevelopFeedbackTab(activeTab)) return;
             if (activeTab === "sliders") requestTreatmentState();
             if (activeTab === "sliders") requestHistoryState();
+            if (activeTab === "sliders") requestLensBlurState();
             if (activeTab === "sliders" && colorMixerView === "point-color") requestPointColorState();
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
@@ -3030,6 +3228,12 @@
                 }
                 if (classification === "navigation") {
                     invalidatePointColorState();
+                    lensBlurModel.applyAuthoritative(null);
+                    updateLensBlurPresentation();
+                    ["LensBlurAmount", "LensBlurCatEye", "LensBlurHighlightsBoost"].forEach(function (slider) {
+                        const control = developSliderControls[slider];
+                        if (control) markDevelopSliderUnavailable(control, true);
+                    });
                     enhanceState = null;
                     enhanceAmountModel.reset();
                     if (enhanceAmountDebounceTimer !== null) clearTimeout(enhanceAmountDebounceTimer);
@@ -3759,11 +3963,15 @@
             if (control.number.disabled) control.number.disabled = false;
             if (control.decrement.disabled) control.decrement.disabled = false;
             if (control.increment.disabled) control.increment.disabled = false;
-            if (control.reset.disabled) control.reset.disabled = false;
+            if (control.definition.resetSupported !== false && control.reset.disabled) control.reset.disabled = false;
             notifyDevelopSliderPresentation(control);
         }
 
         function applyDevelopSliderFeedbackIfChanged(control, result) {
+            if (result.available === false && control.definition.authoritativeUnavailableImmediate === true) {
+                markDevelopSliderUnavailable(control, true);
+                return;
+            }
             if (isDevelopSliderInteracting(control)) {
                 control.deferredFeedbackResult = result;
                 if (result.available !== false && Number.isFinite(Number(result.value))) {
@@ -3806,8 +4014,15 @@
             applyDevelopSliderFeedback(control, result.value, rangeChanged);
         }
 
-        function markDevelopSliderUnavailable(control) {
-            if (isDevelopSliderInteracting(control) || control.confirmationPending) return;
+        function markDevelopSliderUnavailable(control, force) {
+            if (!force && (isDevelopSliderInteracting(control) || control.confirmationPending)) return;
+            if (force) {
+                cancelDevelopSliderThrottle(control);
+                activeSliderInteractions.delete(control.definition.id);
+                control.interactionKind = null;
+                control.dragging = false;
+                control.editing = false;
+            }
             if (control.feedbackState === "unavailable" && control.desiredValue === null) return;
             cancelDevelopSliderStep(control);
             control.authoritativeValue = null;
@@ -4140,7 +4355,9 @@
                 pendingCompletion: null,
                 lastSubmittedValue: null,
                 authoritativeValue: null,
-                hasAuthoritativeValueEver: previousControl ? previousControl.hasAuthoritativeValueEver === true : false,
+                hasAuthoritativeValueEver: previousControl && definition.retainAuthoritativeAcrossRender !== false
+                    ? previousControl.hasAuthoritativeValueEver === true
+                    : false,
                 localValue: null,
                 desiredValue: null,
                 numberCommittedValue: null,
@@ -4158,7 +4375,8 @@
             increment.disabled = true;
             reset.disabled = true;
 
-            if (previousControl && previousControl.hasAuthoritativeValueEver && previousControl.localValue !== null) {
+            if (definition.retainAuthoritativeAcrossRender !== false && previousControl &&
+                previousControl.hasAuthoritativeValueEver && previousControl.localValue !== null) {
                 control.authoritativeValue = previousControl.authoritativeValue;
                 control.numberCommittedValue = previousControl.numberCommittedValue;
                 showDevelopSliderLocal(control, previousControl.localValue);
@@ -4166,7 +4384,7 @@
                 number.disabled = false;
                 decrement.disabled = false;
                 increment.disabled = false;
-                reset.disabled = false;
+                reset.disabled = definition.resetSupported === false;
             }
 
             row.dataset.sliderId = definition.id;
@@ -4290,12 +4508,1197 @@
             row.appendChild(number);
             row.appendChild(decrement);
             row.appendChild(increment);
-            row.appendChild(reset);
+            if (definition.resetSupported !== false) row.appendChild(reset);
             row.appendChild(state);
 
             developSliderControls[definition.id] = control;
             sliderFeedbackElements[definition.id] = row;
             return row;
+        }
+
+        function updateLensBlurExplicitSwitch(control, state) {
+            if (!control) return;
+            const available = state && state.available === true && typeof state.value === "boolean";
+            control.off.disabled = !available;
+            control.on.disabled = !available;
+            control.off.classList.toggle("active", available && state.value === false);
+            control.on.classList.toggle("active", available && state.value === true);
+            control.off.setAttribute("aria-pressed", String(available && state.value === false));
+            control.on.setAttribute("aria-pressed", String(available && state.value === true));
+            control.status.textContent = available ? (state.value ? "On" : "Off") : "Unavailable";
+        }
+
+        function syncLensBlurNumberEditor(input, editorState) {
+            input.classList.toggle("dirty", editorState.dirty && !editorState.pending);
+            input.classList.toggle("pending", editorState.pending);
+            input.setAttribute("aria-invalid", String(!!editorState.error));
+            if (!editorState.editing && !editorState.pending && input.value !== editorState.text) {
+                input.value = editorState.text;
+            }
+        }
+
+        function lensBlurNativeValuesMatch(control, left, right) {
+            return Number.isFinite(left) && Number.isFinite(right) &&
+                Math.abs(left - right) <= Math.max(1e-9, Math.pow(10, -control.precision) / 4);
+        }
+
+        function normalizeLensBlurNativeValue(control, value) {
+            if (typeof value !== "number" && typeof value !== "string") return null;
+            if (typeof value === "string" && value.trim() === "") return null;
+            const numeric = typeof value === "number" ? value : Number(value);
+            if (!Number.isFinite(numeric) || !Number.isFinite(control.minimum) || !Number.isFinite(control.maximum)) return null;
+            const clamped = Math.min(control.maximum, Math.max(control.minimum, numeric));
+            return Number(clamped.toFixed(control.precision));
+        }
+
+        function showLensBlurNativeLocal(control, value) {
+            const numeric = normalizeLensBlurNativeValue(control, value);
+            if (numeric === null) return false;
+            const progress = control.maximum > control.minimum
+                ? 100 * (numeric - control.minimum) / (control.maximum - control.minimum)
+                : 0;
+            control.localValue = numeric;
+            control.range.value = String(numeric);
+            control.range.style.setProperty("--slider-progress", progress + "%");
+            const editorState = control.editor.get();
+            if (!editorState.editing && !editorState.pending) control.number.value = numeric.toFixed(control.precision);
+            control.row.classList.remove("unavailable");
+            return true;
+        }
+
+        function setLensBlurNativeSliderError(control, message) {
+            control.error = message || null;
+            control.row.classList.toggle("error", !!control.error);
+            control.status.textContent = control.error || "";
+        }
+
+        function updateLensBlurNativeSlider(control, state) {
+            if (!control) return;
+            const available = state && state.available === true && Number.isFinite(state.value) &&
+                Number.isFinite(state.min) && Number.isFinite(state.max);
+            const stepBefore = control.stepInteraction.get();
+            const stepState = control.stepInteraction.applyAuthoritative(available ? state.value : null);
+            if (stepBefore.active && !stepState.active) {
+                control.desiredValue = null;
+                control.interactionId = null;
+                control.interactionKind = null;
+            }
+            const editorState = control.editor.applyAuthoritative(
+                available ? state.value : null,
+                available,
+                available ? state.min : null,
+                available ? state.max : null
+            );
+            syncLensBlurNumberEditor(control.number, editorState);
+            const protectedPresentation = control.dragging || control.requestInFlight || control.queuedValue !== null ||
+                control.desiredValue !== null || editorState.editing || editorState.pending;
+            if (available) {
+                control.available = true;
+                control.authoritativeValue = state.value;
+                control.minimum = state.min;
+                control.maximum = state.max;
+                control.range.min = String(state.min);
+                control.range.max = String(state.max);
+                [control.range, control.number, control.decrement, control.increment].forEach(function (element) { element.disabled = false; });
+                control.reset.disabled = control.resetInFlight === true;
+                control.reset.textContent = control.resetInFlight ? "Resetting…" : "Reset";
+                control.row.classList.remove("unavailable");
+                if (control.desiredValue !== null && control.interactionKind !== "step" && !control.dragging &&
+                    !control.requestInFlight && control.queuedValue === null &&
+                    lensBlurNativeValuesMatch(control, state.value, control.desiredValue)) {
+                    control.desiredValue = null;
+                }
+                if (control.desiredValue !== null) showLensBlurNativeLocal(control, control.desiredValue);
+                else if (!control.dragging) showLensBlurNativeLocal(control, state.value);
+            } else if (!protectedPresentation) {
+                control.available = false;
+                control.authoritativeValue = null;
+                control.localValue = null;
+                control.row.classList.add("unavailable");
+                [control.range, control.number, control.decrement, control.increment, control.reset].forEach(function (element) { element.disabled = true; });
+                control.reset.textContent = "Reset";
+                control.status.textContent = "Unavailable";
+            }
+            if (editorState.error) setLensBlurNativeSliderError(control, editorState.error);
+            else if (available && !control.error) control.status.textContent = "";
+        }
+
+        function focalRangePercent(value, minimum, maximum) {
+            if (!Number.isFinite(value) || maximum <= minimum) return 0;
+            return 100 * (Math.min(maximum, Math.max(minimum, value)) - minimum) / (maximum - minimum);
+        }
+
+        function paintLensBlurFocusRange(range, view) {
+            if (!range || !view || !Number.isFinite(view.minimum) || !Number.isFinite(view.maximum)) return;
+            const nearOuter = focalRangePercent(range.nearOuter, view.minimum, view.maximum);
+            const nearInner = focalRangePercent(range.nearInner, view.minimum, view.maximum);
+            const farInner = focalRangePercent(range.farInner, view.minimum, view.maximum);
+            const farOuter = focalRangePercent(range.farOuter, view.minimum, view.maximum);
+            view.selection.style.left = nearOuter + "%";
+            view.selection.style.width = Math.max(0, farOuter - nearOuter) + "%";
+            view.nearTransition.style.left = nearOuter + "%";
+            view.nearTransition.style.width = Math.max(0, nearInner - nearOuter) + "%";
+            view.inner.style.left = nearInner + "%";
+            view.inner.style.width = Math.max(0, farInner - nearInner) + "%";
+            view.farTransition.style.left = farInner + "%";
+            view.farTransition.style.width = Math.max(0, farOuter - farInner) + "%";
+            view.nearHandle.style.left = nearOuter + "%";
+            view.farHandle.style.left = farOuter + "%";
+            view.fields.forEach(function (field) {
+                const editorState = field.editor.get();
+                if (!editorState.editing && !editorState.pending) field.input.value = String(range[field.component]);
+            });
+        }
+
+        function updateLensBlurFocusRange(state) {
+            if (!lensBlurFocusRangeView) return;
+            const available = state && state.focalRangeAvailable === true && state.focalRange;
+            const view = lensBlurFocusRangeView;
+            if (view.pendingRange && view.pendingFinalAccepted && (!view.drag || !view.drag.inFlight) && available &&
+                lensBlurFocalRangesEqual(state.focalRange, view.pendingRange)) {
+                clearLensBlurFocalPending();
+                if (view.drag) view.drag = null;
+            }
+            const hasPendingRange = !!view.pendingRange;
+            view.root.classList.toggle("unavailable", !available && !hasPendingRange);
+            view.fields.forEach(function (field) {
+                const value = available ? state.focalRange[field.component] : null;
+                const editorState = field.editor.applyAuthoritative(value, !!available, -lensBlurHelper.focalLimit, lensBlurHelper.focalLimit);
+                field.input.disabled = !available && !editorState.editing && !editorState.pending;
+                syncLensBlurNumberEditor(field.input, editorState);
+            });
+            view.handles.forEach(function (handle) { handle.disabled = !available && !hasPendingRange; });
+            view.selection.setAttribute("aria-disabled", String(!available && !hasPendingRange));
+            const fieldError = view.fields.map(function (field) { return field.editor.get().error; }).find(Boolean);
+            view.status.classList.toggle("error", !!fieldError);
+            view.status.textContent = fieldError || (available || hasPendingRange ? "" : "Unavailable");
+            view.adjustButtons.forEach(function (button) { button.disabled = !available; });
+            if (!available && !hasPendingRange) return;
+            const displayRange = view.pendingRange || state.focalRange;
+            if (!displayRange) return;
+            const span = Math.max(1, displayRange.farOuter - displayRange.nearOuter);
+            const padding = Math.max(40, Math.ceil(span * 0.25));
+            if (!Number.isFinite(view.minimum) || !Number.isFinite(view.maximum)) {
+                view.minimum = displayRange.nearOuter - padding;
+                view.maximum = displayRange.farOuter + padding;
+            } else {
+                view.minimum = Math.min(view.minimum, displayRange.nearOuter - 4);
+                view.maximum = Math.max(view.maximum, displayRange.farOuter + 4);
+            }
+            paintLensBlurFocusRange(displayRange, view);
+        }
+
+        function updateLensBlurPresentation() {
+            const presentation = lensBlurHelper
+                ? lensBlurHelper.presentationFor(lensBlurModel.get())
+                : { applyAvailable: false, applyOffSelected: false, applyOnSelected: false, bokehAvailable: false,
+                    selectedBokeh: null, refinementActive: false, brush: {}, visualizeDepth: null, autoMask: null,
+                    refinementMode: "unknown", refinementModeTargetsAvailable: false, refinementDisclosure: null,
+                    refinementReset: null,
+                    focalRangeAvailable: false, focalRange: null };
+            if (lensBlurApplyOffButton && lensBlurApplyOnButton) {
+                lensBlurApplyOffButton.disabled = false;
+                lensBlurApplyOnButton.disabled = false;
+                lensBlurApplyOffButton.classList.toggle("active", presentation.applyOffSelected);
+                lensBlurApplyOnButton.classList.toggle("active", presentation.applyOnSelected);
+                lensBlurApplyOffButton.setAttribute("aria-pressed", String(presentation.applyOffSelected));
+                lensBlurApplyOnButton.setAttribute("aria-pressed", String(presentation.applyOnSelected));
+            }
+            if (lensBlurApplyStatus) {
+                lensBlurApplyStatus.textContent = presentation.applyAvailable
+                    ? (presentation.applyOnSelected ? "On" : "Off")
+                    : "Unknown";
+            }
+            (lensBlurHelper ? lensBlurHelper.bokehOptions : []).forEach(function (option) {
+                const button = lensBlurBokehButtons[option.value];
+                if (!button) return;
+                const selected = presentation.selectedBokeh === option.value;
+                button.disabled = !presentation.bokehAvailable;
+                button.classList.toggle("active", selected);
+                button.setAttribute("aria-pressed", String(selected));
+            });
+            if (lensBlurBokehStatus) lensBlurBokehStatus.textContent = presentation.bokehAvailable ? "" : "Unavailable";
+            if (lensBlurRefinementButton) {
+                const disclosureAvailable = presentation.refinementDisclosure &&
+                    presentation.refinementDisclosure.available === true &&
+                    typeof presentation.refinementDisclosure.value === "boolean";
+                const disclosureOpen = disclosureAvailable && presentation.refinementDisclosure.value;
+                lensBlurRefinementButton.setAttribute("aria-pressed", String(disclosureOpen));
+                const closing = lensBlurDisclosureRequestInFlight && lensBlurDisclosurePendingOpen === false;
+                const danger = disclosureOpen || closing;
+                lensBlurRefinementButton.classList.toggle("command-primary", !danger);
+                lensBlurRefinementButton.classList.toggle("command-danger", danger);
+                lensBlurRefinementButton.textContent = lensBlurDisclosureRequestInFlight
+                    ? (closing ? "Closing…" : "Opening…")
+                    : (disclosureOpen ? "Close Brush Refinement" : "Open Brush Refinement");
+                lensBlurRefinementButton.disabled = !disclosureAvailable || lensBlurDisclosureRequestInFlight;
+                lensBlurRefinementButton.title = disclosureAvailable ? "" : "Brush Refinement disclosure unavailable";
+            }
+            Object.keys(lensBlurNativeControls).forEach(function (name) {
+                updateLensBlurNativeSlider(lensBlurNativeControls[name], presentation.brush[name]);
+            });
+            updateLensBlurExplicitSwitch(lensBlurVisualizeButtons, presentation.visualizeDepth);
+            updateLensBlurExplicitSwitch(lensBlurAutoMaskButtons, presentation.autoMask);
+            if (lensBlurModeButtons) {
+                const focusSelected = presentation.refinementMode === "focus";
+                const blurSelected = presentation.refinementMode === "blur";
+                const modeAvailable = presentation.refinementModeTargetsAvailable === true;
+                lensBlurModeButtons.focus.classList.toggle("active", focusSelected);
+                lensBlurModeButtons.blur.classList.toggle("active", blurSelected);
+                lensBlurModeButtons.focus.setAttribute("aria-pressed", String(focusSelected));
+                lensBlurModeButtons.blur.setAttribute("aria-pressed", String(blurSelected));
+                lensBlurModeButtons.focus.disabled = !modeAvailable || lensBlurModeRequestInFlight;
+                lensBlurModeButtons.blur.disabled = !modeAvailable || lensBlurModeRequestInFlight;
+                lensBlurModeButtons.status.textContent = lensBlurModeRequestInFlight
+                    ? "Changing…"
+                    : (modeAvailable ? (focusSelected || blurSelected ? "" : "Choose Focus or Blur") : "Unavailable");
+            }
+            if (lensBlurRefinementResetButton) {
+                const resetAvailable = presentation.refinementReset &&
+                    presentation.refinementReset.available === true &&
+                    typeof presentation.refinementReset.enabled === "boolean";
+                const resetEnabled = resetAvailable && presentation.refinementReset.enabled === true;
+                lensBlurRefinementResetButton.disabled = !resetEnabled || lensBlurRefinementResetRequestInFlight;
+                lensBlurRefinementResetButton.title = resetEnabled
+                    ? ""
+                    : "Available after Focus or Blur refinements have been painted.";
+            }
+            updateLensBlurFocusRange(presentation);
+        }
+
+        async function setLensBlurApply(enabled) {
+            if (!lensBlurHelper || typeof enabled !== "boolean") return false;
+            const accepted = await sendCommand("/api/lens-blur/apply?enabled=" + String(enabled));
+            if (accepted) {
+                const current = lensBlurModel.get();
+                lensBlurModel.applyAuthoritative(Object.assign({}, current, { activeAvailable: false, active: null }));
+                updateLensBlurPresentation();
+                requestLensBlurState();
+            }
+            return accepted;
+        }
+
+        async function requestLensBlurState() {
+            if (!lensBlurHelper || activeTab !== "sliders" || lensBlurStateRequestInFlight) return;
+            lensBlurStateRequestInFlight = true;
+            try {
+                const response = await fetch("/api/lens-blur/state", { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data || !data.state) throw new Error("Lens Blur state unavailable");
+                if (activeTab !== "sliders") return;
+                lensBlurModel.applyAuthoritative(data.state);
+            } catch (err) {
+                lensBlurModel.applyAuthoritative(null);
+            } finally {
+                lensBlurStateRequestInFlight = false;
+                updateLensBlurPresentation();
+            }
+        }
+
+        async function setLensBlurBokeh(value) {
+            if (!lensBlurHelper) return false;
+            const current = lensBlurModel.get();
+            if (!current.bokehAvailable) return false;
+            const accepted = await sendCommand("/api/lens-blur/bokeh?value=" + encodeURIComponent(value));
+            if (accepted) {
+                lensBlurModel.applyAuthoritative(Object.assign({}, current, { bokehAvailable: false, bokeh: null }));
+                updateLensBlurPresentation();
+                requestLensBlurState();
+            }
+            return accepted;
+        }
+
+        function appendLensBlurSubheading(parent, text) {
+            const heading = document.createElement("div");
+            heading.className = "section-title lens-blur-subsection";
+            heading.textContent = text;
+            parent.appendChild(heading);
+        }
+
+        async function sendLensBlurNativeRequest(path) {
+            setStatus("Sending: " + path);
+            try {
+                const response = await fetch(path, { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data || data.ok !== true || !data.windowsNative) {
+                    setStatus("ERROR " + response.status + ": " + (data && data.error ? data.error : "Native control unavailable"));
+                    requestLensBlurState();
+                    return false;
+                }
+                lensBlurModel.applyWindowsNative(data.windowsNative);
+                updateLensBlurPresentation();
+                setStatus("OK: Lightroom native state verified");
+                return true;
+            } catch (err) {
+                setStatus("ERROR: " + err.message);
+                requestLensBlurState();
+                return false;
+            }
+        }
+
+        async function setLensBlurRefinementMode(mode) {
+            if ((mode !== "focus" && mode !== "blur") || lensBlurModeRequestInFlight) return false;
+            const current = lensBlurModel.get();
+            const native = current && current.windowsNative;
+            if (!native || native.refinementModeTargetsAvailable !== true) return false;
+            if (native.refinementMode === mode) return true;
+            lensBlurModeRequestInFlight = true;
+            updateLensBlurPresentation();
+            try {
+                return await sendLensBlurNativeRequest(
+                    "/api/lens-blur/refinement-mode?value=" + encodeURIComponent(mode)
+                );
+            } finally {
+                lensBlurModeRequestInFlight = false;
+                updateLensBlurPresentation();
+            }
+        }
+
+        async function setLensBlurRefinementDisclosure(open) {
+            if (typeof open !== "boolean" || lensBlurDisclosureRequestInFlight) return false;
+            const current = lensBlurModel.get();
+            const native = current && current.windowsNative;
+            const disclosure = native && native.refinementDisclosure;
+            if (!disclosure || disclosure.available !== true || typeof disclosure.value !== "boolean") return false;
+            if (disclosure.value === open) return true;
+            lensBlurDisclosurePendingOpen = open;
+            lensBlurDisclosureRequestInFlight = true;
+            updateLensBlurPresentation();
+            try {
+                return await sendLensBlurNativeRequest(
+                    "/api/lens-blur/refinement-disclosure?open=" + String(open)
+                );
+            } finally {
+                lensBlurDisclosureRequestInFlight = false;
+                lensBlurDisclosurePendingOpen = null;
+                updateLensBlurPresentation();
+            }
+        }
+
+        async function resetLensBlurRefinement() {
+            if (lensBlurRefinementResetRequestInFlight) return false;
+            const current = lensBlurModel.get();
+            const reset = current && current.windowsNative && current.windowsNative.refinementReset;
+            if (!reset || reset.available !== true || reset.enabled !== true) return false;
+            if (!window.confirm("Remove all painted Lens Blur refinements from this photo?")) return false;
+            lensBlurRefinementResetRequestInFlight = true;
+            updateLensBlurPresentation();
+            try {
+                return await sendLensBlurNativeRequest("/api/lens-blur/refinement-reset?confirmed=true");
+            } finally {
+                lensBlurRefinementResetRequestInFlight = false;
+                updateLensBlurPresentation();
+            }
+        }
+
+        function nativeBrushPath(control, operation, field, value, interaction, final) {
+            let path = "/api/lens-blur/brush/" + encodeURIComponent(control) + "/" + operation + "?" + field + "=" +
+                encodeURIComponent(String(value));
+            if (typeof interaction === "string" && interaction !== "") {
+                path += "&interaction=" + encodeURIComponent(interaction) + "&final=" + String(final === true);
+            }
+            return path;
+        }
+
+        function resolveLensBlurNativeWaiters(waiters, accepted) {
+            (waiters || []).forEach(function (resolve) { resolve(accepted); });
+        }
+
+        async function executeLensBlurNativeValue(control, target, forceWrite, waiters) {
+            control.requestInFlight = true;
+            const interaction = control.interactionId;
+            const final = interaction !== null && forceWrite === true;
+            const accepted = await sendLensBlurNativeRequest(nativeBrushPath(
+                control.name, "set", "value", target, interaction, final
+            ));
+            control.requestInFlight = false;
+            resolveLensBlurNativeWaiters(waiters, accepted);
+
+            if (!accepted) {
+                if (control.stepTimer !== null) {
+                    clearTimeout(control.stepTimer);
+                    control.stepTimer = null;
+                }
+                resolveLensBlurNativeWaiters(control.queuedWaiters, false);
+                control.queuedValue = null;
+                control.queuedForce = false;
+                control.queuedWaiters = [];
+                control.desiredValue = null;
+                control.interactionId = null;
+                control.interactionKind = null;
+                if (control.authoritativeValue !== null) showLensBlurNativeLocal(control, control.authoritativeValue);
+                setLensBlurNativeSliderError(control, "Lightroom rejected the value");
+                updateLensBlurPresentation();
+                pumpLensBlurNativeStep(control);
+                return;
+            }
+
+            const queuedValue = control.queuedValue;
+            const queuedForce = control.queuedForce;
+            const queuedWaiters = control.queuedWaiters;
+            control.queuedValue = null;
+            control.queuedForce = false;
+            control.queuedWaiters = [];
+            if (queuedValue !== null && (queuedForce || !lensBlurNativeValuesMatch(control, queuedValue, control.authoritativeValue))) {
+                executeLensBlurNativeValue(control, queuedValue, queuedForce, queuedWaiters);
+                return;
+            }
+            resolveLensBlurNativeWaiters(queuedWaiters, true);
+            if (final && control.interactionId === interaction) {
+                control.interactionId = null;
+                control.interactionKind = null;
+            }
+            if (!control.dragging && control.interactionKind !== "step" && control.desiredValue !== null &&
+                lensBlurNativeValuesMatch(control, control.desiredValue, control.authoritativeValue)) {
+                control.desiredValue = null;
+            }
+            updateLensBlurPresentation();
+            pumpLensBlurNativeStep(control);
+        }
+
+        function submitLensBlurNativeValue(control, value, forceWrite) {
+            const target = normalizeLensBlurNativeValue(control, value);
+            if (target === null) return Promise.resolve(false);
+            setLensBlurNativeSliderError(control, null);
+            control.desiredValue = target;
+            showLensBlurNativeLocal(control, target);
+            return new Promise(function (resolve) {
+                if (control.requestInFlight) {
+                    control.queuedValue = target;
+                    control.queuedForce = control.queuedForce || forceWrite === true;
+                    control.queuedWaiters.push(resolve);
+                    return;
+                }
+                if (forceWrite !== true && lensBlurNativeValuesMatch(control, target, control.authoritativeValue)) {
+                    if (control.interactionKind !== "step") control.desiredValue = null;
+                    resolve(true);
+                    updateLensBlurPresentation();
+                    return;
+                }
+                executeLensBlurNativeValue(control, target, forceWrite === true, [resolve]);
+            });
+        }
+
+        function scheduleLensBlurNativeValue(control) {
+            if (control.throttleTimer !== null) return;
+            control.throttleTimer = setTimeout(function () {
+                control.throttleTimer = null;
+                if (control.desiredValue !== null) submitLensBlurNativeValue(control, control.desiredValue, false);
+            }, 100);
+        }
+
+        function finishLensBlurNativeRange(control, event, submitFinal) {
+            if (!control.dragging) return;
+            control.dragging = false;
+            control.pointerActive = false;
+            if (event && control.range.hasPointerCapture && control.range.hasPointerCapture(event.pointerId)) {
+                control.range.releasePointerCapture(event.pointerId);
+            }
+            if (control.throttleTimer !== null) {
+                clearTimeout(control.throttleTimer);
+                control.throttleTimer = null;
+            }
+            if (submitFinal && control.desiredValue !== null) {
+                submitLensBlurNativeValue(control, control.desiredValue, true);
+            } else if (!control.requestInFlight) {
+                control.desiredValue = null;
+                control.interactionId = null;
+                control.interactionKind = null;
+                updateLensBlurPresentation();
+            }
+        }
+
+        async function pumpLensBlurNativeStep(control) {
+            if (!control || control.requestInFlight) return;
+            const request = control.stepInteraction.takeNextRequest();
+            if (!request) {
+                const settled = control.stepInteraction.get();
+                if (!settled.active && control.interactionKind === "step") {
+                    control.desiredValue = null;
+                    control.interactionId = null;
+                    control.interactionKind = null;
+                    if (Number.isFinite(settled.authoritative)) showLensBlurNativeLocal(control, settled.authoritative);
+                    updateLensBlurPresentation();
+                }
+                return;
+            }
+            control.requestInFlight = true;
+            const accepted = await sendLensBlurNativeRequest(nativeBrushPath(
+                control.name, "set", "value", request.target, control.interactionId, request.final
+            ));
+            control.requestInFlight = false;
+            const outcome = control.stepInteraction.completeRequest(request, accepted, control.authoritativeValue);
+            if (!outcome.accepted) {
+                if (control.stepTimer !== null) {
+                    clearTimeout(control.stepTimer);
+                    control.stepTimer = null;
+                }
+                control.desiredValue = null;
+                control.interactionId = null;
+                control.interactionKind = null;
+                if (Number.isFinite(outcome.rollback)) showLensBlurNativeLocal(control, outcome.rollback);
+                setLensBlurNativeSliderError(control, "Lightroom rejected the value");
+                updateLensBlurPresentation();
+                return;
+            }
+            if (outcome.state.active) {
+                control.desiredValue = outcome.state.pendingTarget;
+                showLensBlurNativeLocal(control, outcome.state.pendingTarget);
+            } else {
+                control.desiredValue = null;
+                control.interactionId = null;
+                control.interactionKind = null;
+                if (Number.isFinite(outcome.state.authoritative)) showLensBlurNativeLocal(control, outcome.state.authoritative);
+            }
+            updateLensBlurPresentation();
+            pumpLensBlurNativeStep(control);
+        }
+
+        function stepLensBlurNativeValue(control, direction) {
+            if (!control.available) return;
+            const currentState = control.stepInteraction.get();
+            const displayed = currentState.active
+                ? currentState.pendingTarget
+                : (Number.isFinite(control.localValue) ? control.localValue : control.authoritativeValue);
+            const result = control.stepInteraction.click(direction, displayed, control.minimum, control.maximum);
+            if (!result.accepted) return;
+            if (control.interactionKind !== "step" || control.interactionId === null) {
+                control.interactionId = "step-" + Date.now().toString(36) + "-" + (++lensBlurNativeInteractionCounter).toString(36);
+                control.interactionKind = "step";
+            }
+            control.desiredValue = result.target;
+            setLensBlurNativeSliderError(control, null);
+            showLensBlurNativeLocal(control, result.target);
+            if (control.stepTimer !== null) clearTimeout(control.stepTimer);
+            control.stepTimer = setTimeout(function () {
+                control.stepTimer = null;
+                control.stepInteraction.markIdle();
+                pumpLensBlurNativeStep(control);
+            }, 120);
+            pumpLensBlurNativeStep(control);
+        }
+
+        async function resetLensBlurNativeValue(control) {
+            if (!control.available || control.resetInFlight || control.requestInFlight || control.dragging ||
+                control.stepInteraction.get().active ||
+                control.desiredValue !== null || control.queuedValue !== null) return false;
+            control.resetInFlight = true;
+            setLensBlurNativeSliderError(control, null);
+            updateLensBlurPresentation();
+            const accepted = await sendLensBlurNativeRequest(
+                "/api/lens-blur/brush/" + encodeURIComponent(control.name) + "/reset"
+            );
+            control.resetInFlight = false;
+            if (!accepted) setLensBlurNativeSliderError(control, "Lightroom rejected the reset");
+            updateLensBlurPresentation();
+            return accepted;
+        }
+
+        async function commitLensBlurNativeEditor(control) {
+            const prepared = control.editor.prepareCommit(control.number.value);
+            if (!prepared.ok) {
+                control.editor.rejectSubmission(prepared.error);
+                updateLensBlurPresentation();
+                return false;
+            }
+            if (!prepared.submit) {
+                updateLensBlurPresentation();
+                return true;
+            }
+            syncLensBlurNumberEditor(control.number, prepared.state);
+            showLensBlurNativeLocal(control, prepared.value);
+            const accepted = await submitLensBlurNativeValue(control, prepared.value, false);
+            if (accepted) control.editor.acceptSubmission();
+            else control.editor.rejectSubmission("Lightroom rejected the value");
+            updateLensBlurPresentation();
+            return accepted;
+        }
+
+        function createLensBlurNativeSlider(name, label, step, precision) {
+            const row = document.createElement("div");
+            row.className = "develop-slider-row lens-blur-native-row unavailable";
+            const title = document.createElement("div");
+            title.className = "slider-name";
+            title.textContent = label;
+            const range = document.createElement("input");
+            range.type = "range";
+            range.step = String(step);
+            range.setAttribute("aria-label", "Brush Refinement " + label);
+            const number = document.createElement("input");
+            number.type = "text";
+            number.inputMode = "decimal";
+            number.autocomplete = "off";
+            number.spellcheck = false;
+            number.className = "lens-blur-number-editor";
+            number.setAttribute("aria-label", "Brush Refinement " + label + " value");
+            const control = {
+                row: row,
+                name: name,
+                range: range,
+                number: number,
+                decrement: null,
+                increment: null,
+                reset: null,
+                status: null,
+                step: step,
+                precision: precision,
+                editor: lensBlurHelper.createNumericEditor({ precision: precision }),
+                available: false,
+                minimum: null,
+                maximum: null,
+                authoritativeValue: null,
+                localValue: null,
+                desiredValue: null,
+                dragging: false,
+                pointerActive: false,
+                ignoreNextChange: false,
+                requestInFlight: false,
+                queuedValue: null,
+                queuedForce: false,
+                queuedWaiters: [],
+                interactionId: null,
+                interactionKind: null,
+                throttleTimer: null,
+                stepTimer: null,
+                stepInteraction: lensBlurHelper.createStepInteraction({ step: step, precision: precision }),
+                resetInFlight: false,
+                error: null
+            };
+            const decrement = makeButton("−", "develop-slider-step", function () { stepLensBlurNativeValue(control, -1); });
+            const increment = makeButton("+", "develop-slider-step", function () { stepLensBlurNativeValue(control, 1); });
+            const reset = makeButton("Reset", "reset", function () { resetLensBlurNativeValue(control); });
+            decrement.setAttribute("aria-label", "Decrease Brush Refinement " + label);
+            increment.setAttribute("aria-label", "Increase Brush Refinement " + label);
+            reset.setAttribute("aria-label", "Reset Brush Refinement " + label + " in Lightroom");
+            const status = document.createElement("div");
+            status.className = "develop-slider-state lens-blur-native-status";
+            status.textContent = "Unavailable";
+            control.decrement = decrement;
+            control.increment = increment;
+            control.reset = reset;
+            control.status = status;
+            range.addEventListener("pointerdown", function (event) {
+                control.dragging = true;
+                control.pointerActive = true;
+                control.interactionId = "drag-" + Date.now().toString(36) + "-" + (++lensBlurNativeInteractionCounter).toString(36);
+                control.interactionKind = "drag";
+                setLensBlurNativeSliderError(control, null);
+                if (range.setPointerCapture) range.setPointerCapture(event.pointerId);
+            });
+            range.addEventListener("input", function () {
+                if (!control.dragging) control.dragging = true;
+                control.desiredValue = normalizeLensBlurNativeValue(control, range.value);
+                showLensBlurNativeLocal(control, control.desiredValue);
+                scheduleLensBlurNativeValue(control);
+            });
+            range.addEventListener("pointerup", function (event) {
+                control.ignoreNextChange = true;
+                finishLensBlurNativeRange(control, event, true);
+            });
+            range.addEventListener("pointercancel", function (event) {
+                control.ignoreNextChange = true;
+                finishLensBlurNativeRange(control, event, false);
+            });
+            range.addEventListener("lostpointercapture", function (event) {
+                finishLensBlurNativeRange(control, event, false);
+            });
+            range.addEventListener("change", function () {
+                if (control.ignoreNextChange) {
+                    control.ignoreNextChange = false;
+                    return;
+                }
+                if (!control.pointerActive) finishLensBlurNativeRange(control, null, true);
+            });
+            number.addEventListener("focus", function () { control.editor.begin(number.value); });
+            number.addEventListener("input", function () {
+                const editorState = control.editor.change(number.value);
+                syncLensBlurNumberEditor(number, editorState);
+            });
+            number.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitLensBlurNativeEditor(control);
+                    number.blur();
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    syncLensBlurNumberEditor(number, control.editor.cancel());
+                    number.blur();
+                    updateLensBlurPresentation();
+                }
+            });
+            number.addEventListener("blur", function () {
+                if (control.editor.get().editing) commitLensBlurNativeEditor(control);
+            });
+            [range, number, decrement, increment, reset].forEach(function (element) { element.disabled = true; });
+            row.appendChild(title);
+            row.appendChild(range);
+            row.appendChild(number);
+            row.appendChild(decrement);
+            row.appendChild(increment);
+            row.appendChild(reset);
+            row.appendChild(status);
+            return control;
+        }
+
+        function createLensBlurExplicitSwitch(label, setter) {
+            const row = document.createElement("div");
+            row.className = "switch-row lens-blur-apply-row";
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = label;
+            const off = makeButton("Off", "negative", function () { setter(false); });
+            const on = makeButton("On", "positive", function () { setter(true); });
+            const status = document.createElement("div");
+            status.className = "switch-status";
+            status.setAttribute("role", "status");
+            off.disabled = true;
+            on.disabled = true;
+            row.appendChild(name);
+            row.appendChild(off);
+            row.appendChild(on);
+            row.appendChild(status);
+            return { row: row, off: off, on: on, status: status };
+        }
+
+        async function setLensBlurFocalRange(range) {
+            const current = lensBlurModel.get();
+            const normalized = lensBlurHelper.normalizeFocalRange(range);
+            const expected = lensBlurHelper.formatFocalRange(current.focalRange);
+            if (!current.focalRangeAvailable || normalized === null || expected === null) return false;
+            const query = lensBlurHelper.focalComponents.map(function (component) {
+                return component + "=" + encodeURIComponent(String(normalized[component]));
+            });
+            query.push("expected=" + encodeURIComponent(expected));
+            const accepted = await sendCommand("/api/lens-blur/focal-range/set?" + query.join("&"));
+            if (accepted) {
+                lensBlurModel.applyAuthoritative(Object.assign({}, current, { focalRangeAvailable: false, focalRange: null }));
+                updateLensBlurPresentation();
+                requestLensBlurState();
+            }
+            return accepted;
+        }
+
+        async function adjustLensBlurFocalRange(part, amount) {
+            const current = lensBlurModel.get();
+            if (!current.focalRangeAvailable || !current.focalRange || !["whole", "near", "far"].includes(part) ||
+                !Number.isSafeInteger(amount) || amount === 0 || !lensBlurFocusRangeView || lensBlurFocusRangeView.pendingRange) return false;
+            const translated = lensBlurHelper.translateFocalRange(current.focalRange, part, amount);
+            if (!translated) return false;
+            beginLensBlurFocalPending(translated);
+            const accepted = await setLensBlurFocalRange(translated);
+            if (accepted) acceptLensBlurFocalPending();
+            else clearLensBlurFocalPending();
+            updateLensBlurPresentation();
+            return accepted;
+        }
+
+        function lensBlurFocalRangesEqual(left, right) {
+            return !!left && !!right && lensBlurHelper.focalComponents.every(function (component) {
+                return left[component] === right[component];
+            });
+        }
+
+        function clearLensBlurFocalPending() {
+            const view = lensBlurFocusRangeView;
+            if (!view) return;
+            if (view.pendingTimer !== null) clearTimeout(view.pendingTimer);
+            view.pendingTimer = null;
+            view.pendingRange = null;
+            view.pendingFinalAccepted = false;
+        }
+
+        function beginLensBlurFocalPending(range) {
+            const view = lensBlurFocusRangeView;
+            if (!view) return;
+            if (view.pendingTimer !== null) clearTimeout(view.pendingTimer);
+            view.pendingTimer = null;
+            view.pendingRange = Object.assign({}, range);
+            view.pendingFinalAccepted = false;
+            paintLensBlurFocusRange(view.pendingRange, view);
+        }
+
+        function acceptLensBlurFocalPending() {
+            const view = lensBlurFocusRangeView;
+            if (!view || !view.pendingRange) return;
+            view.pendingFinalAccepted = true;
+            if (view.pendingTimer !== null) clearTimeout(view.pendingTimer);
+            view.pendingTimer = setTimeout(function () {
+                if (!view.pendingRange) return;
+                clearLensBlurFocalPending();
+                setStatus("ERROR: Focus Range authoritative readback timed out");
+                updateLensBlurPresentation();
+                requestLensBlurState();
+            }, 10000);
+        }
+
+        async function commitLensBlurFocalField(field) {
+            const current = lensBlurModel.get();
+            const parsed = field.editor.parse(field.input.value);
+            if (!current.focalRangeAvailable || !current.focalRange || parsed === null) {
+                field.editor.rejectSubmission(parsed === null ? "Invalid integer value" : "Focus Range unavailable");
+                updateLensBlurPresentation();
+                return false;
+            }
+            const requestedRange = Object.assign({}, current.focalRange, { [field.component]: parsed });
+            if (lensBlurHelper.normalizeFocalRange(requestedRange) === null) {
+                field.editor.rejectSubmission("Invalid Focus Range ordering");
+                updateLensBlurPresentation();
+                return false;
+            }
+            const prepared = field.editor.prepareCommit(field.input.value);
+            if (!prepared.ok) {
+                field.editor.rejectSubmission(prepared.error);
+                updateLensBlurPresentation();
+                return false;
+            }
+            if (!prepared.submit) {
+                updateLensBlurPresentation();
+                return true;
+            }
+            syncLensBlurNumberEditor(field.input, prepared.state);
+            beginLensBlurFocalPending(requestedRange);
+            const accepted = await setLensBlurFocalRange(requestedRange);
+            if (accepted) {
+                field.editor.acceptSubmission();
+                acceptLensBlurFocalPending();
+            } else {
+                clearLensBlurFocalPending();
+                field.editor.rejectSubmission("Lightroom rejected the Focus Range");
+            }
+            updateLensBlurPresentation();
+            return accepted;
+        }
+
+        function scheduleLensBlurFocalDragFlush(delay) {
+            const view = lensBlurFocusRangeView;
+            if (!view || !view.drag || view.drag.timer !== null) return;
+            view.drag.timer = setTimeout(function () {
+                if (!view.drag) return;
+                view.drag.timer = null;
+                flushLensBlurFocalDrag();
+            }, delay);
+        }
+
+        async function flushLensBlurFocalDrag() {
+            const view = lensBlurFocusRangeView;
+            const drag = view && view.drag;
+            if (!drag || drag.inFlight) return;
+            const current = lensBlurModel.get();
+            if (!current.focalRangeAvailable || !current.focalRange) {
+                if (drag.released && Date.now() - drag.releasedAt > 10000) {
+                    clearLensBlurFocalPending();
+                    view.drag = null;
+                    setStatus("ERROR: Focus Range authoritative readback timed out");
+                    updateLensBlurPresentation();
+                    requestLensBlurState();
+                    return;
+                }
+                scheduleLensBlurFocalDragFlush(120);
+                return;
+            }
+            if (drag.released && drag.finalWriteAccepted && lensBlurFocalRangesEqual(current.focalRange, drag.desired)) {
+                clearLensBlurFocalPending();
+                view.drag = null;
+                updateLensBlurPresentation();
+                return;
+            }
+            if (!drag.released && lensBlurFocalRangesEqual(current.focalRange, drag.desired)) {
+                return;
+            }
+            drag.inFlight = true;
+            const sentRange = Object.assign({}, drag.desired);
+            const finalWrite = drag.released;
+            if (finalWrite) drag.finalWriteAttempted = true;
+            const accepted = await setLensBlurFocalRange(sentRange);
+            if (!view.drag || view.drag !== drag) return;
+            drag.inFlight = false;
+            if (!accepted) {
+                if (drag.timer !== null) clearTimeout(drag.timer);
+                clearLensBlurFocalPending();
+                view.drag = null;
+                updateLensBlurPresentation();
+                return;
+            }
+            if (finalWrite) {
+                drag.finalWriteAccepted = true;
+                acceptLensBlurFocalPending();
+            }
+            scheduleLensBlurFocalDragFlush(drag.released ? 0 : 120);
+        }
+
+        function beginLensBlurFocalDrag(part, event) {
+            const view = lensBlurFocusRangeView;
+            const current = lensBlurModel.get();
+            if (!view || view.drag || view.pendingRange || !current.focalRangeAvailable || !current.focalRange || event.button !== 0) return;
+            const rectangle = view.track.getBoundingClientRect();
+            if (!rectangle.width || view.maximum <= view.minimum) return;
+            const target = event.currentTarget;
+            const bounds = lensBlurHelper.focalRangeDeltaBounds(current.focalRange, part);
+            if (!bounds) return;
+            const drag = {
+                part: part,
+                pointerId: event.pointerId,
+                target: target,
+                startX: event.clientX,
+                rectangle: rectangle,
+                startRange: Object.assign({}, current.focalRange),
+                desired: Object.assign({}, current.focalRange),
+                bounds: bounds,
+                inFlight: false,
+                released: false,
+                timer: null,
+                pointerFinished: false,
+                releasedAt: null,
+                finalWriteAttempted: false,
+                finalWriteAccepted: false
+            };
+            view.drag = drag;
+            beginLensBlurFocalPending(drag.desired);
+
+            function updateDesired(pointerEvent) {
+                if (!Number.isFinite(pointerEvent.clientX)) return;
+                const rawDelta = Math.round((pointerEvent.clientX - drag.startX) * (view.maximum - view.minimum) / drag.rectangle.width);
+                const delta = Math.max(drag.bounds.min, Math.min(drag.bounds.max, rawDelta));
+                const desired = lensBlurHelper.translateFocalRange(drag.startRange, drag.part, delta);
+                if (!desired) return;
+                drag.desired = desired;
+                view.pendingRange = Object.assign({}, desired);
+                paintLensBlurFocusRange(desired, view);
+            }
+
+            function cleanupPointerListeners() {
+                target.removeEventListener("pointermove", move);
+                target.removeEventListener("pointerup", finish);
+                target.removeEventListener("pointercancel", finish);
+                target.removeEventListener("lostpointercapture", finish);
+            }
+
+            function move(moveEvent) {
+                if (!view.drag || moveEvent.pointerId !== drag.pointerId) return;
+                updateDesired(moveEvent);
+                scheduleLensBlurFocalDragFlush(140);
+                moveEvent.preventDefault();
+            }
+
+            function finish(finishEvent) {
+                if (!view.drag || finishEvent.pointerId !== drag.pointerId || drag.pointerFinished) return;
+                drag.pointerFinished = true;
+                const cancelled = finishEvent.type === "pointercancel" || finishEvent.type === "lostpointercapture";
+                if (cancelled) {
+                    cleanupPointerListeners();
+                    if (drag.timer !== null) clearTimeout(drag.timer);
+                    clearLensBlurFocalPending();
+                    view.drag = null;
+                    updateLensBlurPresentation();
+                    finishEvent.preventDefault();
+                    return;
+                }
+                updateDesired(finishEvent);
+                drag.released = true;
+                drag.releasedAt = Date.now();
+                cleanupPointerListeners();
+                if (drag.timer !== null) {
+                    clearTimeout(drag.timer);
+                    drag.timer = null;
+                }
+                scheduleLensBlurFocalDragFlush(0);
+                finishEvent.preventDefault();
+            }
+
+            target.addEventListener("pointermove", move);
+            target.addEventListener("pointerup", finish);
+            target.addEventListener("pointercancel", finish);
+            target.addEventListener("lostpointercapture", finish);
+            if (target.setPointerCapture) target.setPointerCapture(event.pointerId);
+            event.preventDefault();
+        }
+
+        function createLensBlurFocusRange() {
+            const root = document.createElement("div");
+            root.className = "lens-blur-focus-range unavailable";
+            const labels = document.createElement("div");
+            labels.className = "lens-blur-focus-labels";
+            labels.innerHTML = "<span>Near</span><span>Far</span>";
+            const track = document.createElement("div");
+            track.className = "lens-blur-focus-track";
+            const nearTransition = document.createElement("div"); nearTransition.className = "lens-blur-focus-transition";
+            const inner = document.createElement("div"); inner.className = "lens-blur-focus-inner";
+            const farTransition = document.createElement("div"); farTransition.className = "lens-blur-focus-transition far";
+            const selection = document.createElement("div"); selection.className = "lens-blur-focus-selection";
+            selection.setAttribute("role", "slider"); selection.setAttribute("aria-label", "Move the complete Focus Range");
+            selection.tabIndex = 0;
+            const nearHandle = document.createElement("button"); nearHandle.className = "lens-blur-focus-handle"; nearHandle.setAttribute("aria-label", "Move Near edge");
+            const farHandle = document.createElement("button"); farHandle.className = "lens-blur-focus-handle"; farHandle.setAttribute("aria-label", "Move Far edge");
+            selection.addEventListener("pointerdown", function (event) { beginLensBlurFocalDrag("whole", event); });
+            nearHandle.addEventListener("pointerdown", function (event) { beginLensBlurFocalDrag("near", event); });
+            farHandle.addEventListener("pointerdown", function (event) { beginLensBlurFocalDrag("far", event); });
+            track.appendChild(nearTransition); track.appendChild(inner); track.appendChild(farTransition);
+            track.appendChild(selection); track.appendChild(nearHandle); track.appendChild(farHandle);
+            const fieldsRoot = document.createElement("div");
+            fieldsRoot.className = "lens-blur-focus-fields";
+            const fields = lensBlurHelper.focalComponents.map(function (component) {
+                const label = document.createElement("label");
+                label.textContent = component.replace(/([A-Z])/g, " $1").replace(/^./, function (character) { return character.toUpperCase(); });
+                const input = document.createElement("input");
+                input.type = "text";
+                input.inputMode = "numeric";
+                input.pattern = "-?[0-9]*";
+                input.autocomplete = "off";
+                input.spellcheck = false;
+                input.className = "lens-blur-number-editor";
+                input.disabled = true;
+                const field = { component: component, input: input, editor: lensBlurHelper.createNumericEditor({
+                    integer: true, min: -lensBlurHelper.focalLimit, max: lensBlurHelper.focalLimit
+                }) };
+                input.addEventListener("focus", function () { field.editor.begin(input.value); });
+                input.addEventListener("input", function () {
+                    syncLensBlurNumberEditor(input, field.editor.change(input.value));
+                });
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        commitLensBlurFocalField(field);
+                        input.blur();
+                    } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        syncLensBlurNumberEditor(input, field.editor.cancel());
+                        input.blur();
+                        updateLensBlurPresentation();
+                    }
+                });
+                input.addEventListener("blur", function () {
+                    if (field.editor.get().editing) commitLensBlurFocalField(field);
+                });
+                label.appendChild(input); fieldsRoot.appendChild(label);
+                return field;
+            });
+            const actions = document.createElement("div"); actions.className = "lens-blur-focus-actions";
+            const adjustButtons = [];
+            [["Whole −", "whole", -1], ["Whole +", "whole", 1], ["Near −", "near", -1], ["Near +", "near", 1],
+                ["Far −", "far", -1], ["Far +", "far", 1]].forEach(function (definition) {
+                const button = makeButton(definition[0], "command-neutral", function () { adjustLensBlurFocalRange(definition[1], definition[2]); });
+                button.disabled = true; adjustButtons.push(button); actions.appendChild(button);
+            });
+            const status = document.createElement("div"); status.className = "lens-blur-focus-status"; status.textContent = "Unavailable";
+            const advanced = document.createElement("details"); advanced.className = "lens-blur-focus-advanced";
+            const advancedSummary = document.createElement("summary"); advancedSummary.textContent = "Advanced values";
+            advanced.appendChild(advancedSummary); advanced.appendChild(fieldsRoot); advanced.appendChild(actions);
+            root.appendChild(track); root.appendChild(labels); root.appendChild(advanced); root.appendChild(status);
+            return { root: root, track: track, selection: selection, nearTransition: nearTransition, inner: inner, farTransition: farTransition,
+                nearHandle: nearHandle, farHandle: farHandle, handles: [nearHandle, farHandle], fields: fields,
+                adjustButtons: adjustButtons, status: status, minimum: null, maximum: null, drag: null,
+                pendingRange: null, pendingFinalAccepted: false, pendingTimer: null };
+        }
+
+        function renderLensBlurSection(groupElement, section) {
+            if (!lensBlurHelper) {
+                const unavailable = document.createElement("div");
+                unavailable.className = "lens-blur-state";
+                unavailable.setAttribute("role", "status");
+                unavailable.textContent = "Unavailable";
+                groupElement.appendChild(unavailable);
+                return;
+            }
+            const definitions = new Map(section.items.map(function (item) {
+                return [item.definition.id, item.definition];
+            }));
+
+            const applyRow = document.createElement("div");
+            applyRow.className = "switch-row lens-blur-apply-row";
+            const applyName = document.createElement("div");
+            applyName.className = "slider-name";
+            applyName.textContent = "Apply";
+            applyRow.appendChild(applyName);
+            lensBlurApplyOffButton = makeButton("Off", "negative", function () {
+                setLensBlurApply(false);
+            });
+            lensBlurApplyOffButton.setAttribute("aria-label", "Turn Lens Blur Apply off");
+            applyRow.appendChild(lensBlurApplyOffButton);
+            lensBlurApplyOnButton = makeButton("On", "positive", function () {
+                setLensBlurApply(true);
+            });
+            lensBlurApplyOnButton.setAttribute("aria-label", "Turn Lens Blur Apply on");
+            applyRow.appendChild(lensBlurApplyOnButton);
+            lensBlurApplyStatus = document.createElement("div");
+            lensBlurApplyStatus.className = "switch-status lens-blur-apply-status";
+            lensBlurApplyStatus.setAttribute("role", "status");
+            applyRow.appendChild(lensBlurApplyStatus);
+            groupElement.appendChild(applyRow);
+
+            appendLensBlurSubheading(groupElement, "BLUR");
+            if (definitions.has("LensBlurAmount")) {
+                groupElement.appendChild(createDevelopSliderControl(definitions.get("LensBlurAmount")));
+            }
+
+            appendLensBlurSubheading(groupElement, "BOKEH");
+            lensBlurBokehButtons = {};
+            const bokehOptions = document.createElement("div");
+            bokehOptions.className = "lens-blur-bokeh-options";
+            lensBlurHelper.bokehOptions.forEach(function (option) {
+                const button = makeButton(option.label, "lens-blur-bokeh-button", function () {
+                    setLensBlurBokeh(option.value);
+                });
+                button.dataset.bokehValue = option.value;
+                lensBlurBokehButtons[option.value] = button;
+                bokehOptions.appendChild(button);
+            });
+            groupElement.appendChild(bokehOptions);
+            lensBlurBokehStatus = document.createElement("div");
+            lensBlurBokehStatus.className = "lens-blur-state";
+            lensBlurBokehStatus.setAttribute("role", "status");
+            groupElement.appendChild(lensBlurBokehStatus);
+            ["LensBlurCatEye", "LensBlurHighlightsBoost"].forEach(function (id) {
+                if (definitions.has(id)) groupElement.appendChild(createDevelopSliderControl(definitions.get(id)));
+            });
+
+            appendLensBlurSubheading(groupElement, "FOCUS RANGE");
+            lensBlurFocusRangeView = createLensBlurFocusRange();
+            groupElement.appendChild(lensBlurFocusRangeView.root);
+
+            lensBlurVisualizeButtons = createLensBlurExplicitSwitch("Visualize Depth", function (enabled) {
+                sendLensBlurNativeRequest("/api/lens-blur/visualize-depth?enabled=" + String(enabled));
+            });
+            groupElement.appendChild(lensBlurVisualizeButtons.row);
+
+            appendLensBlurSubheading(groupElement, "BRUSH REFINEMENT");
+            const toolActions = document.createElement("div");
+            toolActions.className = "lens-blur-action-row";
+            lensBlurRefinementButton = makeButton("Open Brush Refinement", "command-primary lens-blur-tool-button", function () {
+                const presentation = lensBlurHelper.presentationFor(lensBlurModel.get());
+                const disclosure = presentation.refinementDisclosure;
+                if (disclosure && disclosure.available === true && typeof disclosure.value === "boolean") {
+                    setLensBlurRefinementDisclosure(!disclosure.value);
+                }
+            });
+            toolActions.appendChild(lensBlurRefinementButton);
+            groupElement.appendChild(toolActions);
+            const modeRow = document.createElement("div");
+            modeRow.className = "switch-row lens-blur-apply-row lens-blur-mode-row";
+            const modeName = document.createElement("div"); modeName.className = "slider-name"; modeName.textContent = "Mode";
+            const modeFocus = makeButton("Focus", "command-neutral", function () { setLensBlurRefinementMode("focus"); });
+            const modeBlur = makeButton("Blur", "command-neutral", function () { setLensBlurRefinementMode("blur"); });
+            const refinementReset = makeButton("Reset Refinement", "reset", function () { resetLensBlurRefinement(); });
+            modeFocus.disabled = true; modeBlur.disabled = true; refinementReset.disabled = true;
+            refinementReset.title = "Available after Focus or Blur refinements have been painted.";
+            const modeStatus = document.createElement("div"); modeStatus.className = "switch-status"; modeStatus.textContent = "Unknown";
+            modeRow.appendChild(modeName); modeRow.appendChild(modeFocus); modeRow.appendChild(modeBlur);
+            modeRow.appendChild(refinementReset);
+            modeRow.appendChild(modeStatus);
+            lensBlurModeButtons = { focus: modeFocus, blur: modeBlur, status: modeStatus };
+            lensBlurRefinementResetButton = refinementReset;
+            groupElement.appendChild(modeRow);
+
+            lensBlurNativeControls = {};
+            [["amount", "Amount", 1, 0], ["size", "Size", 0.1, 1], ["feather", "Feather", 1, 0], ["flow", "Flow", 1, 0]].forEach(function (definition) {
+                const control = createLensBlurNativeSlider(definition[0], definition[1], definition[2], definition[3]);
+                lensBlurNativeControls[definition[0]] = control;
+                groupElement.appendChild(control.row);
+            });
+            lensBlurAutoMaskButtons = createLensBlurExplicitSwitch("Auto Mask", function (enabled) {
+                sendLensBlurNativeRequest("/api/lens-blur/auto-mask?enabled=" + String(enabled));
+            });
+            groupElement.appendChild(lensBlurAutoMaskButtons.row);
+            updateLensBlurPresentation();
         }
 
         let lensCorrectionsView = "profile";
@@ -4920,6 +6323,7 @@
             { id: "color-mixer", label: "Color Mixer", selectors: [{ group: "Color Mixer / HSL" }, { group: "B&W Mixer" }] },
             { id: "detail", label: "Detail", selectors: [{ group: "Detail" }] },
             { id: "lens-corrections", label: "Lens Corrections", embeddedSwitchGroups: ["Lens / Defringe"], selectors: [{ group: "Lens / Defringe" }] },
+            { id: "lens-blur", label: "Lens Blur", selectors: [{ group: "Lens Blur" }] },
             { id: "transform", label: "Transform", embeddedActionGroups: ["Transform Actions"], selectors: [{ group: "Transform" }] },
             { id: "effects", label: "Effects", selectors: [{ group: "Effects" }] },
             { id: "calibration", label: "Calibration", selectors: [{ group: "Calibration" }] }
@@ -5499,6 +6903,10 @@
                 renderLensCorrectionsSection(groupElement, section);
                 return groupElement;
             }
+            if (section.id === "lens-blur") {
+                renderLensBlurSection(groupElement, section);
+                return groupElement;
+            }
             const leadingControls = createSectionControls(section, "leading");
             if (leadingControls) groupElement.appendChild(leadingControls);
             if (section.id === "color-mixer" && !treatmentAuthoritativeState) {
@@ -5971,6 +7379,10 @@
 
             colorGradingController.deactivate();
             if (activeTab !== "sliders") invalidateTreatmentState();
+            if (activeTab !== "sliders") {
+                lensBlurModel.applyAuthoritative(null);
+                updateLensBlurPresentation();
+            }
             if (!isGenericDevelopFeedbackTab(activeTab)) deactivateDevelopFeedbackPolling();
             clearContent();
 

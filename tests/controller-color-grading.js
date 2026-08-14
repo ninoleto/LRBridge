@@ -315,8 +315,8 @@ assert.equal((browser.match(/createScalar\(luminanceControls\[region\], "Luminan
 assert.doesNotMatch(browser, /grid\.appendChild\([^)]*(?:luminance|resetRegion)/,
     "Region reset controls must not be external grid siblings");
 assert.match(html, /@media \(max-width: 760px\)[\s\S]*?\.cg-scalar-section \.cg-scalar-row/);
-assert.equal(require("../config/sliders.json").length, 98);
-assert.equal(require("../server/sliders").getAll().filter(definition => definition.feedbackSupported === true).length, 97);
+assert.equal(require("../config/sliders.json").length, 101);
+assert.equal(require("../server/sliders").getAll().filter(definition => definition.feedbackSupported === true).length, 100);
 const runtimeAudit = read("docs/LIGHTROOM_15_3_SDK_CAPABILITY_AUDIT.md");
 assert.match(runtimeAudit, /Tested: 88, PASS: 87, FAIL: 1, UNVERIFIED: 0/);
 assert.match(runtimeAudit, /No Color Grading command is marked PASS/);

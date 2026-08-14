@@ -72,7 +72,12 @@ function emptyDiagnostics() {
                     "point_color.range_visualization.toggle": 0,
                     "point_color.tool.select": 0,
                     "lightroom.undo": 0,
-                    "lightroom.redo": 0
+                    "lightroom.redo": 0,
+                    "lens_blur.active.set": 0,
+                    "lens_blur.bokeh.set": 0,
+                    "lens_blur.depth_refinement.select": 0,
+                    "lens_blur.depth_refinement.close": 0,
+                    "lens_blur.focal_range.set": 0
                 }
             }
         },
@@ -225,7 +230,12 @@ function testCoreMetrics() {
         "point_color.range_visualization.toggle": 0,
         "point_color.tool.select": 0,
         "lightroom.undo": 0,
-        "lightroom.redo": 0
+        "lightroom.redo": 0,
+        "lens_blur.active.set": 0,
+        "lens_blur.bokeh.set": 0,
+        "lens_blur.depth_refinement.select": 0,
+        "lens_blur.depth_refinement.close": 0,
+        "lens_blur.focal_range.set": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);
