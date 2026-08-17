@@ -195,10 +195,13 @@ function validateCommand(command) {
         return Object.keys(command).length === 1;
     }
     if (command.command === "lens_blur.focal_range.set") {
-        return Object.keys(command).length === 2 && typeof command.value === "string" &&
+        const keys = Object.keys(command);
+        const publicShape = keys.length === 2;
+        const internalShape = keys.length === 3 && typeof command.commitId === "string" &&
+            /^[A-Za-z0-9_-]{1,64}$/.test(command.commitId);
+        return (publicShape || internalShape) && typeof command.value === "string" &&
             focalRange.format(focalRange.parse(command.value)) === command.value;
     }
-
     if (command.command === "enhance.denoise.set") {
         return Object.keys(command).length === 3 && typeof command.enabled === "boolean" && Number.isInteger(command.amount) &&
             command.amount >= 1 && command.amount <= 100;
@@ -453,6 +456,15 @@ function tryEnqueueCommand(command) {
             if (pending.command === command.command && sameOperation &&
                 pending.expectedSelectedIndex === command.expectedSelectedIndex && pending.expectedContextCounter === command.expectedContextCounter) {
                 return replacePendingAt(index, command, admittedAt, "Coalesced Point Color value:");
+            }
+        }
+    }
+
+    if (command.command === "lens_blur.focal_range.set") {
+        const admittedAt = Date.now();
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            if (commandQueue[index].command === command.command) {
+                return replacePendingAt(index, command, admittedAt, "Coalesced Lens Blur Focus Range:");
             }
         }
     }

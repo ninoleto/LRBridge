@@ -758,20 +758,32 @@
             box-shadow: 0 0 0 2px rgba(113, 198, 245, 0.24);
         }
         .lens-blur-mode-row { grid-template-columns: 240px 90px 90px minmax(150px, auto) 1fr; }
-        .lens-blur-focus-range {
-            margin: 10px 0 14px;
-            padding: 12px;
-            border: 1px solid #44515c;
-            border-radius: 6px;
-            background: #202830;
+        .lens-blur-focus-heading { display: flex; align-items: center; gap: 8px; }
+        .lens-blur-focus-native-actions { display: flex; gap: 5px; margin-left: auto; }
+        .lens-blur-focus-icon-button {
+            width: 34px;
+            min-width: 34px;
+            height: 30px;
+            padding: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #c5d0d7;
+            background: #2b343c;
         }
+        .lens-blur-focus-icon-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+        .lens-blur-focus-icon-button.active { color: #ecf8ff; border-color: #71c6f5; background: #28536a; }
+        .lens-blur-focus-icon-button.busy { color: #f0c45b; }
+        .lens-blur-focus-range { margin: 7px 0 14px; }
         .lens-blur-focus-track {
             position: relative;
-            height: 62px;
-            margin: 8px 2px 0;
+            height: 44px;
+            margin: 0 2px;
             border: 1px solid #48515a;
-            border-radius: 2px;
-            background: linear-gradient(180deg, #151a1e 0%, #22292e 52%, #11161a 100%);
+            border-radius: 3px;
+            background:
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 12px),
+                linear-gradient(180deg, #252d33 0%, #171d21 52%, #20272c 100%);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
             overflow: hidden;
             touch-action: none;
@@ -781,35 +793,36 @@
         .lens-blur-focus-inner,
         .lens-blur-focus-selection {
             position: absolute;
-            top: 11px;
-            height: 38px;
+            top: 6px;
+            height: 30px;
             box-sizing: border-box;
         }
         .lens-blur-focus-transition {
             pointer-events: none;
-            background: linear-gradient(90deg, rgba(206, 218, 226, 0.08), rgba(206, 218, 226, 0.28));
+            background: linear-gradient(90deg, rgba(113, 198, 245, 0.04), rgba(113, 198, 245, 0.34));
         }
         .lens-blur-focus-transition.far {
-            background: linear-gradient(90deg, rgba(206, 218, 226, 0.28), rgba(206, 218, 226, 0.08));
+            background: linear-gradient(90deg, rgba(113, 198, 245, 0.34), rgba(113, 198, 245, 0.04));
         }
         .lens-blur-focus-inner {
             pointer-events: none;
-            background: rgba(220, 230, 236, 0.24);
+            background: rgba(113, 198, 245, 0.27);
         }
         .lens-blur-focus-selection {
             z-index: 2;
-            border: 2px solid #e4eaee;
-            background: transparent;
+            border-top: 2px solid #e7f6ff;
+            border-bottom: 2px solid #e7f6ff;
+            background: rgba(113, 198, 245, 0.08);
             cursor: grab;
         }
         .lens-blur-focus-selection:active { cursor: grabbing; }
         .lens-blur-focus-handle {
             position: absolute;
             z-index: 3;
-            top: 7px;
-            width: 30px;
-            height: 46px;
-            margin-left: -15px;
+            top: 2px;
+            width: 24px;
+            height: 38px;
+            margin-left: -12px;
             padding: 0;
             border: 0;
             border-radius: 0;
@@ -820,37 +833,19 @@
         .lens-blur-focus-handle::after {
             content: "";
             position: absolute;
-            top: 4px;
-            bottom: 4px;
-            left: 14px;
+            top: 5px;
+            bottom: 3px;
+            left: 11px;
             width: 2px;
             background: #ffffff;
             box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65);
         }
-        .lens-blur-focus-fields {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(95px, 1fr));
-            gap: 8px;
-            margin-top: 12px;
-        }
-        .lens-blur-focus-fields label { color: #aebbc5; font-size: 11px; }
-        .lens-blur-focus-fields input { margin-top: 4px; }
-        .lens-blur-focus-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-        .lens-blur-focus-advanced {
-            margin-top: 10px;
-            border-top: 1px solid #394650;
-            color: #aebbc5;
-        }
-        .lens-blur-focus-advanced summary {
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
-        }
         .lens-blur-focus-labels { display: flex; justify-content: space-between; color: #c2cbd1; font-size: 12px; margin: 4px 3px 0; }
-        .lens-blur-focus-status { min-height: 18px; margin-top: 8px; color: #d6a52b; font-size: 12px; }
+        .lens-blur-focus-status { min-height: 16px; margin-top: 3px; color: #d6a52b; font-size: 12px; }
         .lens-blur-focus-status.error { color: #ff7b72; }
+        .lens-blur-focus-source { min-height: 16px; margin-top: 3px; color: #aeb4bc; font-size: 12px; }
+        .lens-blur-focus-range.pending .lens-blur-focus-track { border-color: #7195a9; }
+        .lens-blur-focus-range.unavailable .lens-blur-focus-track { opacity: 0.52; }
 
         button.command-primary {
             background: #2a6f97;
@@ -2610,6 +2605,7 @@
         let developSliderDefinitions = [];
         const lensBlurHelper = window.LRBridgeLensBlur &&
             typeof window.LRBridgeLensBlur.createModel === "function" &&
+            typeof window.LRBridgeLensBlur.createSubjectFocusPresentation === "function" &&
             typeof window.LRBridgeLensBlur.presentationFor === "function" &&
             Array.isArray(window.LRBridgeLensBlur.bokehOptions)
             ? window.LRBridgeLensBlur
@@ -2624,12 +2620,19 @@
             bokeh: null,
             selectedToolAvailable: false,
             selectedTool: null,
+            focalRangeSourceAvailable: false,
+            focalRangeSource: null,
             focalRangeAvailable: false,
             focalRange: null,
             windowsNative: null
         });
         const lensBlurModel = lensBlurHelper ? lensBlurHelper.createModel() : {
             get: function () { return Object.assign({}, lensBlurUnavailableState); },
+            applyAuthoritative: function () { return this.get(); }
+        };
+        const lensBlurSubjectPresentation = lensBlurHelper ? lensBlurHelper.createSubjectFocusPresentation() : {
+            get: function () { return { available: false, active: false, mode: "unknown" }; },
+            reset: function () { return this.get(); },
             applyAuthoritative: function () { return this.get(); }
         };
         let lensBlurStateRequestInFlight = false;
@@ -2645,6 +2648,8 @@
         let lensBlurModeButtons = null;
         let lensBlurRefinementResetButton = null;
         let lensBlurFocusRangeView = null;
+        let lensBlurStateRevision = 0;
+        let lensBlurFocalRangeCommitId = null;
         let lensBlurNativeInteractionCounter = 0;
         let lensBlurModeRequestInFlight = false;
         let lensBlurDisclosureRequestInFlight = false;
@@ -3229,6 +3234,7 @@
                 if (classification === "navigation") {
                     invalidatePointColorState();
                     lensBlurModel.applyAuthoritative(null);
+                    lensBlurSubjectPresentation.reset();
                     updateLensBlurPresentation();
                     ["LensBlurAmount", "LensBlurCatEye", "LensBlurHighlightsBoost"].forEach(function (slider) {
                         const control = developSliderControls[slider];
@@ -4629,72 +4635,125 @@
         }
 
         function paintLensBlurFocusRange(range, view) {
-            if (!range || !view || !Number.isFinite(view.minimum) || !Number.isFinite(view.maximum)) return;
-            const nearOuter = focalRangePercent(range.nearOuter, view.minimum, view.maximum);
-            const nearInner = focalRangePercent(range.nearInner, view.minimum, view.maximum);
-            const farInner = focalRangePercent(range.farInner, view.minimum, view.maximum);
-            const farOuter = focalRangePercent(range.farOuter, view.minimum, view.maximum);
-            view.selection.style.left = nearOuter + "%";
-            view.selection.style.width = Math.max(0, farOuter - nearOuter) + "%";
+            if (!range || !view) return;
+            const minimum = lensBlurHelper.focalDepthMinimum;
+            const maximum = lensBlurHelper.focalDepthMaximum;
+            const nearOuter = focalRangePercent(range.nearOuter, minimum, maximum);
+            const nearInner = focalRangePercent(range.nearInner, minimum, maximum);
+            const farInner = focalRangePercent(range.farInner, minimum, maximum);
+            const farOuter = focalRangePercent(range.farOuter, minimum, maximum);
+            view.selection.style.left = nearInner + "%";
+            view.selection.style.width = Math.max(0, farInner - nearInner) + "%";
             view.nearTransition.style.left = nearOuter + "%";
             view.nearTransition.style.width = Math.max(0, nearInner - nearOuter) + "%";
             view.inner.style.left = nearInner + "%";
             view.inner.style.width = Math.max(0, farInner - nearInner) + "%";
             view.farTransition.style.left = farInner + "%";
             view.farTransition.style.width = Math.max(0, farOuter - farInner) + "%";
-            view.nearHandle.style.left = nearOuter + "%";
-            view.farHandle.style.left = farOuter + "%";
-            view.fields.forEach(function (field) {
-                const editorState = field.editor.get();
-                if (!editorState.editing && !editorState.pending) field.input.value = String(range[field.component]);
-            });
+            view.nearHandle.style.left = nearInner + "%";
+            view.farHandle.style.left = farInner + "%";
         }
 
         function updateLensBlurFocusRange(state) {
             if (!lensBlurFocusRangeView) return;
-            const available = state && state.focalRangeAvailable === true && state.focalRange;
             const view = lensBlurFocusRangeView;
-            if (view.pendingRange && view.pendingFinalAccepted && (!view.drag || !view.drag.inFlight) && available &&
-                lensBlurFocalRangesEqual(state.focalRange, view.pendingRange)) {
-                clearLensBlurFocalPending();
-                if (view.drag) view.drag = null;
-            }
-            const hasPendingRange = !!view.pendingRange;
-            view.root.classList.toggle("unavailable", !available && !hasPendingRange);
-            view.fields.forEach(function (field) {
-                const value = available ? state.focalRange[field.component] : null;
-                const editorState = field.editor.applyAuthoritative(value, !!available, -lensBlurHelper.focalLimit, lensBlurHelper.focalLimit);
-                field.input.disabled = !available && !editorState.editing && !editorState.pending;
-                syncLensBlurNumberEditor(field.input, editorState);
+            const available = state && state.focalRangeAvailable === true && state.focalRange;
+            lensBlurSubjectPresentation.applyAuthoritative(state, {
+                revision: lensBlurStateRevision,
+                focalRangeCommitId: lensBlurFocalRangeCommitId,
+                subjectActionPending: !!(view.actionPending && view.actionPending.action === "subject"),
+                manualTransactionBlocked: !!view.drag || view.transaction.get().pending !== null ||
+                    view.pendingCommitId !== null
             });
-            view.handles.forEach(function (handle) { handle.disabled = !available && !hasPendingRange; });
-            view.selection.setAttribute("aria-disabled", String(!available && !hasPendingRange));
-            const fieldError = view.fields.map(function (field) { return field.editor.get().error; }).find(Boolean);
-            view.status.classList.toggle("error", !!fieldError);
-            view.status.textContent = fieldError || (available || hasPendingRange ? "" : "Unavailable");
-            view.adjustButtons.forEach(function (button) { button.disabled = !available; });
-            if (!available && !hasPendingRange) return;
-            const displayRange = view.pendingRange || state.focalRange;
-            if (!displayRange) return;
-            const span = Math.max(1, displayRange.farOuter - displayRange.nearOuter);
-            const padding = Math.max(40, Math.ceil(span * 0.25));
-            if (!Number.isFinite(view.minimum) || !Number.isFinite(view.maximum)) {
-                view.minimum = displayRange.nearOuter - padding;
-                view.maximum = displayRange.farOuter + padding;
-            } else {
-                view.minimum = Math.min(view.minimum, displayRange.nearOuter - 4);
-                view.maximum = Math.max(view.maximum, displayRange.farOuter + 4);
+            if (available) view.transaction.applyAuthoritative(state.focalRange);
+            else if (!view.drag && !view.transaction.get().pending && !view.actionPending) view.transaction.clearAuthoritative();
+
+            const transactionState = view.transaction.get();
+            if (transactionState.pending && view.pendingCommitId && lensBlurFocalRangeCommitId === view.pendingCommitId) {
+                if (available && lensBlurHelper.focalRangesEqual(state.focalRange, transactionState.pending)) {
+                    view.transaction.confirm(state.focalRange);
+                    lensBlurSubjectPresentation.confirmManualEdit();
+                    clearLensBlurFocalCommitTimer(view);
+                } else {
+                    view.transaction.reject("Lightroom returned a different Focus Range", available ? state.focalRange : null);
+                    lensBlurSubjectPresentation.rollbackManualEdit();
+                    clearLensBlurFocalCommitTimer(view);
+                }
             }
-            paintLensBlurFocusRange(displayRange, view);
+
+            if (view.actionPending && lensBlurStateRevision > view.actionPending.confirmationAfterRevision) {
+                const confirmed = view.actionPending.action === "subject"
+                    ? lensBlurSubjectPresentation.canConfirmSubjectAction(state, view.actionPending, {
+                        revision: lensBlurStateRevision,
+                        focalRangeCommitId: lensBlurFocalRangeCommitId
+                    })
+                    : lensBlurHelper.pointAreaToggleConfirmed(state, view.actionPending.expectedActive);
+                if (confirmed) {
+                    const confirmedAction = view.actionPending.action;
+                    if (confirmedAction === "subject") {
+                        lensBlurSubjectPresentation.confirmSubjectAction(state, {
+                            revision: lensBlurStateRevision,
+                            focalRangeCommitId: lensBlurFocalRangeCommitId
+                        });
+                    }
+                    clearLensBlurFocusActionPending(view);
+                    if (confirmedAction === "subject") {
+                        showLensBlurFocusActionFeedback(view, "Subject Focus applied", false);
+                    }
+                }
+            }
+
+            const currentTransaction = view.transaction.get();
+            const displayRange = currentTransaction.displayed;
+            const usable = !!displayRange;
+            view.root.classList.toggle("unavailable", !usable);
+            view.root.classList.toggle("pending", !!currentTransaction.pending);
+            view.handles.forEach(function (handle) { handle.disabled = !usable || !!currentTransaction.pending || !!view.actionPending; });
+            view.selection.setAttribute("aria-disabled", String(!usable || !!currentTransaction.pending || !!view.actionPending));
+            if (displayRange) paintLensBlurFocusRange(displayRange, view);
+
+            const focusActions = state && state.focusActions ? state.focusActions : {};
+            const subjectAvailable = focusActions.subject && focusActions.subject.available === true && focusActions.subject.enabled === true;
+            const pointAvailable = focusActions.pointArea && focusActions.pointArea.available === true && focusActions.pointArea.enabled === true;
+            const actionBusy = !!view.actionPending || !!currentTransaction.pending || !!view.drag;
+            view.subjectButton.disabled = !subjectAvailable || actionBusy;
+            view.pointAreaButton.disabled = !pointAvailable || actionBusy || !state || state.selectedToolAvailable !== true;
+            const subjectPresentation = lensBlurSubjectPresentation.get();
+            const focusActiveStates = lensBlurHelper.focusActionActiveStates(state, subjectPresentation);
+            const pointActive = focusActiveStates.pointArea;
+            const subjectActive = focusActiveStates.subject;
+            const subjectBusy = !!(view.actionPending && view.actionPending.action === "subject");
+            view.subjectButton.classList.toggle("active", subjectActive);
+            view.subjectButton.setAttribute("aria-pressed", String(subjectActive));
+            view.subjectButton.classList.toggle("busy", subjectBusy);
+            view.subjectButton.setAttribute("aria-busy", String(subjectBusy));
+            view.pointAreaButton.classList.toggle("active", pointActive);
+            view.pointAreaButton.setAttribute("aria-pressed", String(pointActive));
+            view.source.textContent = lensBlurHelper.focusSourceText(subjectPresentation);
+
+            const localError = currentTransaction.error ||
+                (view.actionFeedback && view.actionFeedback.error ? view.actionFeedback.message : null);
+            view.status.classList.toggle("error", !!localError);
+            if (localError) view.status.textContent = localError;
+            else if (view.actionPending && view.actionPending.action === "subject") view.status.textContent = "Finding subject focus…";
+            else if (view.actionPending && view.actionPending.action === "point-area") {
+                view.status.textContent = view.actionPending.expectedActive
+                    ? "Arming Point / Area Focus…"
+                    : "Leaving Point / Area Focus…";
+            } else if (view.actionFeedback) view.status.textContent = view.actionFeedback.message;
+            else if (pointActive) view.status.textContent = "Click or drag on the image in Lightroom to choose the focus area.";
+            else if (currentTransaction.pending) view.status.textContent = "Updating Focus Range…";
+            else view.status.textContent = usable ? "" : "Unavailable";
         }
 
         function updateLensBlurPresentation() {
             const presentation = lensBlurHelper
                 ? lensBlurHelper.presentationFor(lensBlurModel.get())
                 : { applyAvailable: false, applyOffSelected: false, applyOnSelected: false, bokehAvailable: false,
-                    selectedBokeh: null, refinementActive: false, brush: {}, visualizeDepth: null, autoMask: null,
+                    selectedBokeh: null, refinementActive: false, selectedToolAvailable: false, selectedTool: null,
+                    focalRangeSourceAvailable: false, focalRangeSource: null, brush: {}, visualizeDepth: null, autoMask: null,
                     refinementMode: "unknown", refinementModeTargetsAvailable: false, refinementDisclosure: null,
-                    refinementReset: null,
+                    refinementReset: null, focusActions: {},
                     focalRangeAvailable: false, focalRange: null };
             if (lensBlurApplyOffButton && lensBlurApplyOnButton) {
                 lensBlurApplyOffButton.disabled = false;
@@ -4786,6 +4845,8 @@
                 const data = await response.json();
                 if (!response.ok || !data || !data.state) throw new Error("Lens Blur state unavailable");
                 if (activeTab !== "sliders") return;
+                if (Number.isSafeInteger(data.revision)) lensBlurStateRevision = data.revision;
+                lensBlurFocalRangeCommitId = typeof data.focalRangeCommitId === "string" ? data.focalRangeCommitId : null;
                 lensBlurModel.applyAuthoritative(data.state);
             } catch (err) {
                 lensBlurModel.applyAuthoritative(null);
@@ -4813,6 +4874,7 @@
             heading.className = "section-title lens-blur-subsection";
             heading.textContent = text;
             parent.appendChild(heading);
+            return heading;
         }
 
         async function sendLensBlurNativeRequest(path) {
@@ -5260,180 +5322,138 @@
             return { row: row, off: off, on: on, status: status };
         }
 
-        async function setLensBlurFocalRange(range) {
-            const current = lensBlurModel.get();
+        function clearLensBlurFocalCommitTimer(view) {
+            if (!view) return;
+            if (view.pendingTimer !== null) clearTimeout(view.pendingTimer);
+            view.pendingTimer = null;
+            view.pendingCommitId = null;
+        }
+
+        function clearLensBlurFocusActionPending(view) {
+            if (!view || !view.actionPending) return;
+            if (view.actionPending.timer !== null) clearTimeout(view.actionPending.timer);
+            view.actionPending = null;
+        }
+
+        function clearLensBlurFocusActionFeedback(view) {
+            if (!view) return;
+            if (view.actionFeedbackTimer !== null) clearTimeout(view.actionFeedbackTimer);
+            view.actionFeedbackTimer = null;
+            view.actionFeedback = null;
+        }
+
+        function showLensBlurFocusActionFeedback(view, message, error) {
+            clearLensBlurFocusActionFeedback(view);
+            view.actionFeedback = { message: message, error: error === true };
+            view.actionFeedbackTimer = setTimeout(function () {
+                view.actionFeedbackTimer = null;
+                view.actionFeedback = null;
+                updateLensBlurPresentation();
+            }, 2500);
+        }
+
+        async function submitLensBlurFocalRange(range, expected) {
+            const view = lensBlurFocusRangeView;
             const normalized = lensBlurHelper.normalizeFocalRange(range);
-            const expected = lensBlurHelper.formatFocalRange(current.focalRange);
-            if (!current.focalRangeAvailable || normalized === null || expected === null) return false;
+            const expectedValue = lensBlurHelper.formatFocalRange(expected);
+            if (!view || normalized === null || expectedValue === null) return false;
             const query = lensBlurHelper.focalComponents.map(function (component) {
                 return component + "=" + encodeURIComponent(String(normalized[component]));
             });
-            query.push("expected=" + encodeURIComponent(expected));
-            const accepted = await sendCommand("/api/lens-blur/focal-range/set?" + query.join("&"));
-            if (accepted) {
-                lensBlurModel.applyAuthoritative(Object.assign({}, current, { focalRangeAvailable: false, focalRange: null }));
-                updateLensBlurPresentation();
-                requestLensBlurState();
-            }
-            return accepted;
-        }
-
-        async function adjustLensBlurFocalRange(part, amount) {
-            const current = lensBlurModel.get();
-            if (!current.focalRangeAvailable || !current.focalRange || !["whole", "near", "far"].includes(part) ||
-                !Number.isSafeInteger(amount) || amount === 0 || !lensBlurFocusRangeView || lensBlurFocusRangeView.pendingRange) return false;
-            const translated = lensBlurHelper.translateFocalRange(current.focalRange, part, amount);
-            if (!translated) return false;
-            beginLensBlurFocalPending(translated);
-            const accepted = await setLensBlurFocalRange(translated);
-            if (accepted) acceptLensBlurFocalPending();
-            else clearLensBlurFocalPending();
-            updateLensBlurPresentation();
-            return accepted;
-        }
-
-        function lensBlurFocalRangesEqual(left, right) {
-            return !!left && !!right && lensBlurHelper.focalComponents.every(function (component) {
-                return left[component] === right[component];
-            });
-        }
-
-        function clearLensBlurFocalPending() {
-            const view = lensBlurFocusRangeView;
-            if (!view) return;
-            if (view.pendingTimer !== null) clearTimeout(view.pendingTimer);
-            view.pendingTimer = null;
-            view.pendingRange = null;
-            view.pendingFinalAccepted = false;
-        }
-
-        function beginLensBlurFocalPending(range) {
-            const view = lensBlurFocusRangeView;
-            if (!view) return;
-            if (view.pendingTimer !== null) clearTimeout(view.pendingTimer);
-            view.pendingTimer = null;
-            view.pendingRange = Object.assign({}, range);
-            view.pendingFinalAccepted = false;
-            paintLensBlurFocusRange(view.pendingRange, view);
-        }
-
-        function acceptLensBlurFocalPending() {
-            const view = lensBlurFocusRangeView;
-            if (!view || !view.pendingRange) return;
-            view.pendingFinalAccepted = true;
-            if (view.pendingTimer !== null) clearTimeout(view.pendingTimer);
-            view.pendingTimer = setTimeout(function () {
-                if (!view.pendingRange) return;
-                clearLensBlurFocalPending();
-                setStatus("ERROR: Focus Range authoritative readback timed out");
-                updateLensBlurPresentation();
-                requestLensBlurState();
-            }, 10000);
-        }
-
-        async function commitLensBlurFocalField(field) {
-            const current = lensBlurModel.get();
-            const parsed = field.editor.parse(field.input.value);
-            if (!current.focalRangeAvailable || !current.focalRange || parsed === null) {
-                field.editor.rejectSubmission(parsed === null ? "Invalid integer value" : "Focus Range unavailable");
-                updateLensBlurPresentation();
-                return false;
-            }
-            const requestedRange = Object.assign({}, current.focalRange, { [field.component]: parsed });
-            if (lensBlurHelper.normalizeFocalRange(requestedRange) === null) {
-                field.editor.rejectSubmission("Invalid Focus Range ordering");
-                updateLensBlurPresentation();
-                return false;
-            }
-            const prepared = field.editor.prepareCommit(field.input.value);
-            if (!prepared.ok) {
-                field.editor.rejectSubmission(prepared.error);
-                updateLensBlurPresentation();
-                return false;
-            }
-            if (!prepared.submit) {
-                updateLensBlurPresentation();
-                return true;
-            }
-            syncLensBlurNumberEditor(field.input, prepared.state);
-            beginLensBlurFocalPending(requestedRange);
-            const accepted = await setLensBlurFocalRange(requestedRange);
-            if (accepted) {
-                field.editor.acceptSubmission();
-                acceptLensBlurFocalPending();
-            } else {
-                clearLensBlurFocalPending();
-                field.editor.rejectSubmission("Lightroom rejected the Focus Range");
-            }
-            updateLensBlurPresentation();
-            return accepted;
-        }
-
-        function scheduleLensBlurFocalDragFlush(delay) {
-            const view = lensBlurFocusRangeView;
-            if (!view || !view.drag || view.drag.timer !== null) return;
-            view.drag.timer = setTimeout(function () {
-                if (!view.drag) return;
-                view.drag.timer = null;
-                flushLensBlurFocalDrag();
-            }, delay);
-        }
-
-        async function flushLensBlurFocalDrag() {
-            const view = lensBlurFocusRangeView;
-            const drag = view && view.drag;
-            if (!drag || drag.inFlight) return;
-            const current = lensBlurModel.get();
-            if (!current.focalRangeAvailable || !current.focalRange) {
-                if (drag.released && Date.now() - drag.releasedAt > 10000) {
-                    clearLensBlurFocalPending();
-                    view.drag = null;
-                    setStatus("ERROR: Focus Range authoritative readback timed out");
+            query.push("expected=" + encodeURIComponent(expectedValue));
+            try {
+                const response = await fetch("/api/lens-blur/focal-range/set?" + query.join("&"), { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data || data.ok !== true || typeof data.focalRangeCommitId !== "string") {
+                    throw new Error(data && data.error ? data.error : "Lightroom rejected the Focus Range");
+                }
+                view.pendingCommitId = data.focalRangeCommitId;
+                view.pendingTimer = setTimeout(function () {
+                    if (!view.transaction.get().pending) return;
+                    view.transaction.reject("Focus Range confirmation timed out", view.transaction.get().authoritative);
+                    lensBlurSubjectPresentation.rollbackManualEdit();
+                    clearLensBlurFocalCommitTimer(view);
                     updateLensBlurPresentation();
                     requestLensBlurState();
-                    return;
+                }, 10000);
+                requestLensBlurState();
+                return true;
+            } catch (error) {
+                view.transaction.reject(error.message || "Lightroom rejected the Focus Range", view.transaction.get().authoritative);
+                lensBlurSubjectPresentation.rollbackManualEdit();
+                clearLensBlurFocalCommitTimer(view);
+                updateLensBlurPresentation();
+                requestLensBlurState();
+                return false;
+            }
+        }
+
+        async function activateLensBlurFocusAction(action) {
+            const view = lensBlurFocusRangeView;
+            if (!view || view.actionPending || view.drag || view.transaction.get().pending ||
+                (action !== "subject" && action !== "point-area")) return false;
+            clearLensBlurFocusActionFeedback(view);
+            let expectedActive = null;
+            if (action === "point-area") {
+                expectedActive = lensBlurHelper.pointAreaToggleIntent(lensBlurHelper.presentationFor(lensBlurModel.get()));
+                if (expectedActive === null) {
+                    showLensBlurFocusActionFeedback(view, "Point / Area Focus state unavailable", true);
+                    updateLensBlurPresentation();
+                    return false;
                 }
-                scheduleLensBlurFocalDragFlush(120);
-                return;
             }
-            if (drag.released && drag.finalWriteAccepted && lensBlurFocalRangesEqual(current.focalRange, drag.desired)) {
-                clearLensBlurFocalPending();
-                view.drag = null;
+            view.actionPending = {
+                action: action,
+                expectedActive: expectedActive,
+                subjectCandidateRange: null,
+                subjectCandidateCount: 0,
+                subjectCandidateRevision: null,
+                confirmationAfterRevision: Number.MAX_SAFE_INTEGER,
+                timer: null
+            };
+            updateLensBlurPresentation();
+            try {
+                const actionPath = "/api/lens-blur/focus-action?value=" + encodeURIComponent(action);
+                const response = await fetch(actionPath, { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data || data.ok !== true || !data.windowsNative ||
+                    !Number.isSafeInteger(data.confirmationAfterRevision)) {
+                    throw new Error(data && data.error ? data.error : "Focus action unavailable");
+                }
+                lensBlurModel.applyWindowsNative(data.windowsNative);
+                view.actionPending.confirmationAfterRevision = data.confirmationAfterRevision;
+                view.actionPending.timer = setTimeout(function () {
+                    if (!view.actionPending || view.actionPending.action !== action) return;
+                    const timedOutExpectedActive = view.actionPending.expectedActive;
+                    clearLensBlurFocusActionPending(view);
+                    const timeoutMessage = action === "subject"
+                        ? "Lightroom did not confirm Subject Focus"
+                        : (timedOutExpectedActive
+                            ? "Lightroom did not arm Point / Area Focus"
+                            : "Lightroom did not exit Point / Area Focus");
+                    showLensBlurFocusActionFeedback(view, timeoutMessage, true);
+                    updateLensBlurPresentation();
+                }, 10000);
                 updateLensBlurPresentation();
-                return;
-            }
-            if (!drag.released && lensBlurFocalRangesEqual(current.focalRange, drag.desired)) {
-                return;
-            }
-            drag.inFlight = true;
-            const sentRange = Object.assign({}, drag.desired);
-            const finalWrite = drag.released;
-            if (finalWrite) drag.finalWriteAttempted = true;
-            const accepted = await setLensBlurFocalRange(sentRange);
-            if (!view.drag || view.drag !== drag) return;
-            drag.inFlight = false;
-            if (!accepted) {
-                if (drag.timer !== null) clearTimeout(drag.timer);
-                clearLensBlurFocalPending();
-                view.drag = null;
+                requestLensBlurState();
+                return true;
+            } catch (error) {
+                clearLensBlurFocusActionPending(view);
+                showLensBlurFocusActionFeedback(view, error.message || "Focus action unavailable", true);
                 updateLensBlurPresentation();
-                return;
+                requestLensBlurState();
+                return false;
             }
-            if (finalWrite) {
-                drag.finalWriteAccepted = true;
-                acceptLensBlurFocalPending();
-            }
-            scheduleLensBlurFocalDragFlush(drag.released ? 0 : 120);
         }
 
         function beginLensBlurFocalDrag(part, event) {
             const view = lensBlurFocusRangeView;
-            const current = lensBlurModel.get();
-            if (!view || view.drag || view.pendingRange || !current.focalRangeAvailable || !current.focalRange || event.button !== 0) return;
+            const transactionState = view && view.transaction.get();
+            if (!view || view.drag || view.actionPending || !transactionState.displayed || transactionState.pending || event.button !== 0) return;
             const rectangle = view.track.getBoundingClientRect();
-            if (!rectangle.width || view.maximum <= view.minimum) return;
+            if (!rectangle.width || !view.transaction.begin(part, transactionState.displayed)) return;
             const target = event.currentTarget;
-            const bounds = lensBlurHelper.focalRangeDeltaBounds(current.focalRange, part);
+            const bounds = lensBlurHelper.focalRangeDeltaBounds(transactionState.displayed, part);
             if (!bounds) return;
             const drag = {
                 part: part,
@@ -5441,29 +5461,19 @@
                 target: target,
                 startX: event.clientX,
                 rectangle: rectangle,
-                startRange: Object.assign({}, current.focalRange),
-                desired: Object.assign({}, current.focalRange),
                 bounds: bounds,
-                inFlight: false,
-                released: false,
-                timer: null,
-                pointerFinished: false,
-                releasedAt: null,
-                finalWriteAttempted: false,
-                finalWriteAccepted: false
+                pointerFinished: false
             };
             view.drag = drag;
-            beginLensBlurFocalPending(drag.desired);
+            updateLensBlurPresentation();
 
             function updateDesired(pointerEvent) {
                 if (!Number.isFinite(pointerEvent.clientX)) return;
-                const rawDelta = Math.round((pointerEvent.clientX - drag.startX) * (view.maximum - view.minimum) / drag.rectangle.width);
+                const rawDelta = Math.round((pointerEvent.clientX - drag.startX) *
+                    (lensBlurHelper.focalDepthMaximum - lensBlurHelper.focalDepthMinimum) / drag.rectangle.width);
                 const delta = Math.max(drag.bounds.min, Math.min(drag.bounds.max, rawDelta));
-                const desired = lensBlurHelper.translateFocalRange(drag.startRange, drag.part, delta);
-                if (!desired) return;
-                drag.desired = desired;
-                view.pendingRange = Object.assign({}, desired);
-                paintLensBlurFocusRange(desired, view);
+                const next = view.transaction.move(delta);
+                if (next.displayed) paintLensBlurFocusRange(next.displayed, view);
             }
 
             function cleanupPointerListeners() {
@@ -5471,37 +5481,42 @@
                 target.removeEventListener("pointerup", finish);
                 target.removeEventListener("pointercancel", finish);
                 target.removeEventListener("lostpointercapture", finish);
+                window.removeEventListener("keydown", keydown);
+            }
+
+            function cancelDrag(pointerEvent) {
+                if (!view.drag || view.drag !== drag || drag.pointerFinished) return;
+                drag.pointerFinished = true;
+                cleanupPointerListeners();
+                view.transaction.cancel();
+                view.drag = null;
+                if (target.hasPointerCapture && target.hasPointerCapture(drag.pointerId)) target.releasePointerCapture(drag.pointerId);
+                updateLensBlurPresentation();
+                if (pointerEvent && pointerEvent.preventDefault) pointerEvent.preventDefault();
+            }
+
+            function keydown(keyEvent) {
+                if (keyEvent.key === "Escape") cancelDrag(keyEvent);
             }
 
             function move(moveEvent) {
                 if (!view.drag || moveEvent.pointerId !== drag.pointerId) return;
                 updateDesired(moveEvent);
-                scheduleLensBlurFocalDragFlush(140);
                 moveEvent.preventDefault();
             }
 
             function finish(finishEvent) {
                 if (!view.drag || finishEvent.pointerId !== drag.pointerId || drag.pointerFinished) return;
-                drag.pointerFinished = true;
                 const cancelled = finishEvent.type === "pointercancel" || finishEvent.type === "lostpointercapture";
-                if (cancelled) {
-                    cleanupPointerListeners();
-                    if (drag.timer !== null) clearTimeout(drag.timer);
-                    clearLensBlurFocalPending();
-                    view.drag = null;
-                    updateLensBlurPresentation();
-                    finishEvent.preventDefault();
-                    return;
-                }
+                if (cancelled) return cancelDrag(finishEvent);
+                drag.pointerFinished = true;
                 updateDesired(finishEvent);
-                drag.released = true;
-                drag.releasedAt = Date.now();
                 cleanupPointerListeners();
-                if (drag.timer !== null) {
-                    clearTimeout(drag.timer);
-                    drag.timer = null;
-                }
-                scheduleLensBlurFocalDragFlush(0);
+                const commit = view.transaction.finish();
+                view.drag = null;
+                if (commit.submit) lensBlurSubjectPresentation.beginManualEdit();
+                updateLensBlurPresentation();
+                if (commit.submit) submitLensBlurFocalRange(commit.range, commit.expected);
                 finishEvent.preventDefault();
             }
 
@@ -5509,18 +5524,61 @@
             target.addEventListener("pointerup", finish);
             target.addEventListener("pointercancel", finish);
             target.addEventListener("lostpointercapture", finish);
+            window.addEventListener("keydown", keydown);
             if (target.setPointerCapture) target.setPointerCapture(event.pointerId);
             event.preventDefault();
+        }
+
+        function createLensBlurFocusActionButton(action) {
+            const subject = action === "subject";
+            const label = subject ? "Subject Focus" : "Point / Area Focus";
+            const tooltip = subject ? "Focus on the detected subject" :
+                "Click or drag on the image in Lightroom to choose the focus area.";
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "lens-blur-focus-icon-button";
+            button.setAttribute("aria-label", label);
+            button.title = tooltip;
+            button.disabled = true;
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("viewBox", "0 0 24 24");
+            svg.setAttribute("aria-hidden", "true");
+            if (subject) {
+                const frame = document.createElementNS(svg.namespaceURI, "path");
+                frame.setAttribute("d", "M8 3H3v5 M16 3h5v5 M3 16v5h5 M21 16v5h-5");
+                const head = document.createElementNS(svg.namespaceURI, "circle");
+                head.setAttribute("cx", "12"); head.setAttribute("cy", "9"); head.setAttribute("r", "3");
+                const body = document.createElementNS(svg.namespaceURI, "path");
+                body.setAttribute("d", "M6.8 19c.8-3.2 2.6-4.8 5.2-4.8s4.4 1.6 5.2 4.8");
+                svg.appendChild(frame); svg.appendChild(head); svg.appendChild(body);
+            } else {
+                const ring = document.createElementNS(svg.namespaceURI, "circle");
+                ring.setAttribute("cx", "12"); ring.setAttribute("cy", "12"); ring.setAttribute("r", "5");
+                const target = document.createElementNS(svg.namespaceURI, "path");
+                target.setAttribute("d", "M12 2v5 M12 17v5 M2 12h5 M17 12h5 M12 10v4 M10 12h4");
+                svg.appendChild(ring); svg.appendChild(target);
+            }
+            button.appendChild(svg);
+            button.addEventListener("click", function () { activateLensBlurFocusAction(action); });
+            return button;
         }
 
         function createLensBlurFocusRange() {
             const root = document.createElement("div");
             root.className = "lens-blur-focus-range unavailable";
+            const nativeActions = document.createElement("div");
+            nativeActions.className = "lens-blur-focus-native-actions";
+            const subjectButton = createLensBlurFocusActionButton("subject");
+            const pointAreaButton = createLensBlurFocusActionButton("point-area");
+            nativeActions.appendChild(subjectButton); nativeActions.appendChild(pointAreaButton);
             const labels = document.createElement("div");
             labels.className = "lens-blur-focus-labels";
-            labels.innerHTML = "<span>Near</span><span>Far</span>";
+            const nearLabel = document.createElement("span"); nearLabel.textContent = "Near";
+            const farLabel = document.createElement("span"); farLabel.textContent = "Far";
+            labels.appendChild(nearLabel); labels.appendChild(farLabel);
             const track = document.createElement("div");
             track.className = "lens-blur-focus-track";
+            track.setAttribute("aria-label", "Near to Far Focus Range depth control");
             const nearTransition = document.createElement("div"); nearTransition.className = "lens-blur-focus-transition";
             const inner = document.createElement("div"); inner.className = "lens-blur-focus-inner";
             const farTransition = document.createElement("div"); farTransition.className = "lens-blur-focus-transition far";
@@ -5534,60 +5592,15 @@
             farHandle.addEventListener("pointerdown", function (event) { beginLensBlurFocalDrag("far", event); });
             track.appendChild(nearTransition); track.appendChild(inner); track.appendChild(farTransition);
             track.appendChild(selection); track.appendChild(nearHandle); track.appendChild(farHandle);
-            const fieldsRoot = document.createElement("div");
-            fieldsRoot.className = "lens-blur-focus-fields";
-            const fields = lensBlurHelper.focalComponents.map(function (component) {
-                const label = document.createElement("label");
-                label.textContent = component.replace(/([A-Z])/g, " $1").replace(/^./, function (character) { return character.toUpperCase(); });
-                const input = document.createElement("input");
-                input.type = "text";
-                input.inputMode = "numeric";
-                input.pattern = "-?[0-9]*";
-                input.autocomplete = "off";
-                input.spellcheck = false;
-                input.className = "lens-blur-number-editor";
-                input.disabled = true;
-                const field = { component: component, input: input, editor: lensBlurHelper.createNumericEditor({
-                    integer: true, min: -lensBlurHelper.focalLimit, max: lensBlurHelper.focalLimit
-                }) };
-                input.addEventListener("focus", function () { field.editor.begin(input.value); });
-                input.addEventListener("input", function () {
-                    syncLensBlurNumberEditor(input, field.editor.change(input.value));
-                });
-                input.addEventListener("keydown", function (event) {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        commitLensBlurFocalField(field);
-                        input.blur();
-                    } else if (event.key === "Escape") {
-                        event.preventDefault();
-                        syncLensBlurNumberEditor(input, field.editor.cancel());
-                        input.blur();
-                        updateLensBlurPresentation();
-                    }
-                });
-                input.addEventListener("blur", function () {
-                    if (field.editor.get().editing) commitLensBlurFocalField(field);
-                });
-                label.appendChild(input); fieldsRoot.appendChild(label);
-                return field;
-            });
-            const actions = document.createElement("div"); actions.className = "lens-blur-focus-actions";
-            const adjustButtons = [];
-            [["Whole −", "whole", -1], ["Whole +", "whole", 1], ["Near −", "near", -1], ["Near +", "near", 1],
-                ["Far −", "far", -1], ["Far +", "far", 1]].forEach(function (definition) {
-                const button = makeButton(definition[0], "command-neutral", function () { adjustLensBlurFocalRange(definition[1], definition[2]); });
-                button.disabled = true; adjustButtons.push(button); actions.appendChild(button);
-            });
+            const source = document.createElement("div"); source.className = "lens-blur-focus-source";
+            source.setAttribute("role", "status"); source.textContent = "Focus source: Unavailable";
             const status = document.createElement("div"); status.className = "lens-blur-focus-status"; status.textContent = "Unavailable";
-            const advanced = document.createElement("details"); advanced.className = "lens-blur-focus-advanced";
-            const advancedSummary = document.createElement("summary"); advancedSummary.textContent = "Advanced values";
-            advanced.appendChild(advancedSummary); advanced.appendChild(fieldsRoot); advanced.appendChild(actions);
-            root.appendChild(track); root.appendChild(labels); root.appendChild(advanced); root.appendChild(status);
+            root.appendChild(track); root.appendChild(labels); root.appendChild(source); root.appendChild(status);
             return { root: root, track: track, selection: selection, nearTransition: nearTransition, inner: inner, farTransition: farTransition,
-                nearHandle: nearHandle, farHandle: farHandle, handles: [nearHandle, farHandle], fields: fields,
-                adjustButtons: adjustButtons, status: status, minimum: null, maximum: null, drag: null,
-                pendingRange: null, pendingFinalAccepted: false, pendingTimer: null };
+                nearHandle: nearHandle, farHandle: farHandle, handles: [nearHandle, farHandle], source: source, status: status,
+                nativeActions: nativeActions, subjectButton: subjectButton, pointAreaButton: pointAreaButton,
+                transaction: lensBlurHelper.createFocalRangeTransaction(), drag: null, pendingCommitId: null,
+                pendingTimer: null, actionPending: null, actionFeedback: null, actionFeedbackTimer: null };
         }
 
         function renderLensBlurSection(groupElement, section) {
@@ -5651,8 +5664,10 @@
                 if (definitions.has(id)) groupElement.appendChild(createDevelopSliderControl(definitions.get(id)));
             });
 
-            appendLensBlurSubheading(groupElement, "FOCUS RANGE");
+            const focusRangeHeading = appendLensBlurSubheading(groupElement, "FOCUS RANGE");
+            focusRangeHeading.classList.add("lens-blur-focus-heading");
             lensBlurFocusRangeView = createLensBlurFocusRange();
+            focusRangeHeading.appendChild(lensBlurFocusRangeView.nativeActions);
             groupElement.appendChild(lensBlurFocusRangeView.root);
 
             lensBlurVisualizeButtons = createLensBlurExplicitSwitch("Visualize Depth", function (enabled) {

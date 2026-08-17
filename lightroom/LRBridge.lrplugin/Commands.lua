@@ -51,7 +51,7 @@ function Commands.execute(command)
     if command.command == "lens_blur.bokeh.set" then LensBlur.setBokeh(command.value); return end
     if command.command == "lens_blur.depth_refinement.select" then LensBlur.selectDepthRefinement(); return end
     if command.command == "lens_blur.depth_refinement.close" then LensBlur.closeDepthRefinement(); LensBlur.sendCurrentState(); return end
-    if command.command == "lens_blur.focal_range.set" then LensBlur.setFocalRange(command.value); LensBlur.sendCurrentState(); return end
+    if command.command == "lens_blur.focal_range.set" then LensBlur.setFocalRange(command.value); LensBlur.sendCurrentState(command.commitId); return end
 
     if command.command == "develop.adjust" then
 

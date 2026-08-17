@@ -1,3 +1,4 @@
+local LrApplication = import "LrApplication"
 local LrApplicationView = import "LrApplicationView"
 local LrDevelopController = import "LrDevelopController"
 local LrHttp = import "LrHttp"
@@ -86,7 +87,7 @@ function LensBlur.closeDepthRefinement()
     return true
 end
 
-function LensBlur.sendCurrentState()
+function LensBlur.sendCurrentState(focalRangeCommitId)
     local activeOk, active = pcall(function()
         return LrDevelopController.getValue("LensBlurActive")
     end)
@@ -109,10 +110,24 @@ function LensBlur.sendCurrentState()
     end)
     local focalRangeAvailable = focalRangeOk == true and parseFocalRange(focalRange) ~= nil
 
+    local sourceOk, focalRangeSource = LrTasks.pcall(function()
+        local photo = LrApplication.activeCatalog():getTargetPhoto()
+        if photo == nil then return nil end
+        local settings = photo:getDevelopSettings()
+        if type(settings) ~= "table" or type(settings.LensBlur) ~= "table" then return nil end
+        return settings.LensBlur.FocalRangeSource
+    end)
+    local sourceNumber = tonumber(focalRangeSource)
+    local focalRangeSourceAvailable = sourceOk == true and sourceNumber ~= nil and sourceNumber == math.floor(sourceNumber) and
+        sourceNumber >= 1 and sourceNumber <= 3
+    local validCommitId = type(focalRangeCommitId) == "string" and string.match(focalRangeCommitId, "^[A-Za-z0-9_-]+$") ~= nil and
+        string.len(focalRangeCommitId) <= 64
+
     local url = "http://127.0.0.1:17891/lens-blur/result" ..
         "?activeAvailable=" .. tostring(activeAvailable) ..
         "&bokehAvailable=" .. tostring(bokehAvailable) ..
         "&selectedToolAvailable=" .. tostring(selectedToolAvailable) ..
+        "&focalRangeSourceAvailable=" .. tostring(focalRangeSourceAvailable) ..
         "&focalRangeAvailable=" .. tostring(focalRangeAvailable)
     if activeAvailable then
         url = url .. "&active=" .. tostring(active)
@@ -126,6 +141,12 @@ function LensBlur.sendCurrentState()
     if focalRangeAvailable then
         url = url .. "&focalRange=" .. urlEncode(focalRange)
     end
+    if focalRangeSourceAvailable then
+        url = url .. "&focalRangeSource=" .. tostring(sourceNumber)
+    end
+    if validCommitId then
+        url = url .. "&focalRangeCommitId=" .. urlEncode(focalRangeCommitId)
+    end
     LrHttp.get(url)
 
     return {
@@ -135,6 +156,8 @@ function LensBlur.sendCurrentState()
         bokeh = bokehAvailable and bokeh or nil,
         selectedToolAvailable = selectedToolAvailable,
         selectedTool = selectedToolAvailable and selectedTool or nil,
+        focalRangeSourceAvailable = focalRangeSourceAvailable,
+        focalRangeSource = focalRangeSourceAvailable and sourceNumber or nil,
         focalRangeAvailable = focalRangeAvailable,
         focalRange = focalRangeAvailable and focalRange or nil
     }

@@ -16,6 +16,8 @@
     const bokehValues = new Set(bokehOptions.map(function (option) { return option.value; }));
     const focalComponents = Object.freeze(["nearOuter", "nearInner", "farInner", "farOuter"]);
     const focalLimit = 1000000;
+    const focalDepthMinimum = 0;
+    const focalDepthMaximum = 100;
 
     function numericValuesEqual(left, right, precision) {
         if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
@@ -266,9 +268,18 @@
     function focalRangeDeltaBounds(input, part) {
         const range = normalizeFocalRange(input);
         if (range === null || !["whole", "near", "far"].includes(part)) return null;
-        if (part === "whole") return { min: -focalLimit - range.nearOuter, max: focalLimit - range.farOuter };
-        if (part === "near") return { min: -focalLimit - range.nearOuter, max: range.farInner - range.nearInner };
-        return { min: range.nearInner - range.farInner, max: focalLimit - range.farOuter };
+        if (part === "whole") return {
+            min: focalDepthMinimum - range.nearInner,
+            max: focalDepthMaximum - range.farInner
+        };
+        if (part === "near") return {
+            min: focalDepthMinimum - range.nearInner,
+            max: range.farInner - range.nearInner
+        };
+        return {
+            min: range.nearInner - range.farInner,
+            max: focalDepthMaximum - range.farInner
+        };
     }
 
     function translateFocalRange(input, part, delta) {
@@ -285,6 +296,293 @@
             translated.farOuter += delta;
         }
         return normalizeFocalRange(translated);
+    }
+
+    function focalRangesEqual(left, right) {
+        const normalizedLeft = normalizeFocalRange(left);
+        const normalizedRight = normalizeFocalRange(right);
+        return normalizedLeft !== null && normalizedRight !== null && focalComponents.every(function (component) {
+            return normalizedLeft[component] === normalizedRight[component];
+        });
+    }
+
+    // See docs/LENS_BLUR_FOCUS_RANGE_STATE_AND_LIMITATIONS.md for the reconciliation invariants.
+    function createSubjectFocusPresentation() {
+        let mode = "unknown";
+        let subjectSignature = null;
+        let manualEditRollback = null;
+        let manualEditPending = false;
+        let sourceAvailable = false;
+        let rawSource = null;
+        let lastRevision = null;
+        let lastCommitId = null;
+        let lastFreshRawSource = null;
+        let externalTransitionArmed = false;
+        let externalCandidateRange = null;
+        let externalCandidateCount = 0;
+        let externalCandidateRevision = null;
+
+        function copyRange(range) { return range === null ? null : Object.assign({}, range); }
+        function clearExternalCandidate() {
+            externalTransitionArmed = false;
+            externalCandidateRange = null;
+            externalCandidateCount = 0;
+            externalCandidateRevision = null;
+        }
+        function countExternalCandidate(range, revision) {
+            if (!Number.isSafeInteger(revision) || (Number.isSafeInteger(externalCandidateRevision) &&
+                revision <= externalCandidateRevision)) return false;
+            if (focalRangesEqual(range, externalCandidateRange)) {
+                externalCandidateCount += 1;
+            } else {
+                externalCandidateRange = copyRange(range);
+                externalCandidateCount = 1;
+            }
+            externalCandidateRevision = revision;
+            if (externalCandidateCount < 3) return false;
+            mode = "subject";
+            subjectSignature = copyRange(range);
+            clearExternalCandidate();
+            return true;
+        }
+        function snapshot() {
+            return {
+                available: sourceAvailable,
+                active: sourceAvailable && mode === "subject" && rawSource === 1,
+                mode: mode,
+                rawSource: rawSource,
+                subjectSignature: copyRange(subjectSignature),
+                manualEditPending: manualEditPending,
+                lastRevision: lastRevision,
+                lastCommitId: lastCommitId,
+                externalCandidateRange: copyRange(externalCandidateRange),
+                externalCandidateCount: externalCandidateCount,
+                externalCandidateRevision: externalCandidateRevision
+            };
+        }
+
+        function rememberMetadata(metadata) {
+            metadata = metadata || {};
+            const revision = Number.isSafeInteger(metadata.revision) ? metadata.revision : null;
+            const fresh = revision === null || lastRevision === null || revision > lastRevision;
+            if (revision !== null && (lastRevision === null || revision > lastRevision)) lastRevision = revision;
+            if (typeof metadata.focalRangeCommitId === "string") lastCommitId = metadata.focalRangeCommitId;
+            else if (metadata.focalRangeCommitId === null) lastCommitId = null;
+            return fresh;
+        }
+
+        function reset() {
+            mode = "unknown";
+            subjectSignature = null;
+            manualEditRollback = null;
+            manualEditPending = false;
+            sourceAvailable = false;
+            rawSource = null;
+            lastRevision = null;
+            lastCommitId = null;
+            lastFreshRawSource = null;
+            clearExternalCandidate();
+            return snapshot();
+        }
+
+        return Object.freeze({
+            get: snapshot,
+            reset: reset,
+            applyAuthoritative: function (input, metadata) {
+                const normalized = normalizeState(input);
+                const range = normalized.focalRangeAvailable ? normalized.focalRange : null;
+                const fresh = rememberMetadata(metadata);
+                const previousFreshRawSource = lastFreshRawSource;
+                sourceAvailable = normalized.focalRangeSourceAvailable;
+                rawSource = sourceAvailable ? normalized.focalRangeSource : null;
+                if (fresh && sourceAvailable) lastFreshRawSource = rawSource;
+
+                const subjectActionPending = !!(metadata && metadata.subjectActionPending === true);
+                const manualTransactionBlocked = manualEditPending ||
+                    !!(metadata && metadata.manualTransactionBlocked === true);
+                const sourceTransitionedToSubject = fresh && previousFreshRawSource === 2 && rawSource === 1;
+                if (sourceTransitionedToSubject && mode === "manual" && !subjectActionPending && !manualTransactionBlocked) {
+                    externalTransitionArmed = true;
+                }
+
+                if (sourceAvailable && rawSource !== 1) {
+                    mode = "manual";
+                    clearExternalCandidate();
+                } else if (sourceAvailable && rawSource === 1 && range !== null) {
+                    if (mode === "unknown" && !subjectActionPending) {
+                        mode = "manual";
+                    } else if (mode === "subject" && subjectSignature === null) {
+                        subjectSignature = copyRange(range);
+                    } else if (mode === "subject" && fresh && !subjectActionPending && !manualEditPending &&
+                        !focalRangesEqual(range, subjectSignature)) {
+                        mode = "manual";
+                    }
+
+                    if (mode === "manual" && fresh) {
+                        if (subjectActionPending || manualTransactionBlocked) {
+                            clearExternalCandidate();
+                        } else {
+                            const matchesSignature = subjectSignature !== null && focalRangesEqual(range, subjectSignature);
+                            if (externalTransitionArmed || matchesSignature) {
+                                countExternalCandidate(range, metadata.revision);
+                            } else {
+                                clearExternalCandidate();
+                            }
+                        }
+                    } else if (mode === "subject") {
+                        clearExternalCandidate();
+                    }
+                }
+                return snapshot();
+            },
+            beginManualEdit: function () {
+                if (!manualEditPending) {
+                    manualEditRollback = {
+                        mode: mode,
+                        subjectSignature: copyRange(subjectSignature)
+                    };
+                }
+                manualEditPending = true;
+                mode = "manual";
+                clearExternalCandidate();
+                return snapshot();
+            },
+            confirmManualEdit: function () {
+                manualEditPending = false;
+                manualEditRollback = null;
+                mode = "manual";
+                clearExternalCandidate();
+                return snapshot();
+            },
+            rollbackManualEdit: function () {
+                if (manualEditPending && manualEditRollback) {
+                    mode = manualEditRollback.mode;
+                    subjectSignature = copyRange(manualEditRollback.subjectSignature);
+                }
+                manualEditPending = false;
+                manualEditRollback = null;
+                clearExternalCandidate();
+                return snapshot();
+            },
+            canConfirmSubjectAction: function (input, actionContext, metadata) {
+                const normalized = normalizeState(input);
+                const range = normalized.focalRangeAvailable ? normalized.focalRange : null;
+                if (!actionContext || normalized.focalRangeSourceAvailable !== true ||
+                    normalized.focalRangeSource !== 1 || range === null) return false;
+                const revision = metadata && Number.isSafeInteger(metadata.revision) ? metadata.revision : null;
+                if (revision === null || (Number.isSafeInteger(actionContext.subjectCandidateRevision) &&
+                    revision <= actionContext.subjectCandidateRevision)) return false;
+                if (focalRangesEqual(range, actionContext.subjectCandidateRange)) {
+                    actionContext.subjectCandidateCount += 1;
+                } else {
+                    actionContext.subjectCandidateRange = copyRange(range);
+                    actionContext.subjectCandidateCount = 1;
+                }
+                actionContext.subjectCandidateRevision = revision;
+                return actionContext.subjectCandidateCount >= 3;
+            },
+            confirmSubjectAction: function (input, metadata) {
+                const normalized = normalizeState(input);
+                const range = normalized.focalRangeAvailable ? normalized.focalRange : null;
+                if (normalized.focalRangeSourceAvailable !== true || normalized.focalRangeSource !== 1 || range === null) {
+                    return false;
+                }
+                rememberMetadata(metadata);
+                sourceAvailable = true;
+                rawSource = 1;
+                mode = "subject";
+                subjectSignature = copyRange(range);
+                manualEditPending = false;
+                manualEditRollback = null;
+                clearExternalCandidate();
+                return true;
+            }
+        });
+    }
+
+    function createFocalRangeTransaction() {
+        let authoritative = null;
+        let draft = null;
+        let pending = null;
+        let dragBase = null;
+        let dragPart = null;
+        let error = null;
+
+        function copy(range) { return range === null ? null : Object.assign({}, range); }
+        function snapshot() {
+            return {
+                authoritative: copy(authoritative),
+                draft: copy(draft),
+                pending: copy(pending),
+                displayed: copy(draft || pending || authoritative),
+                dragging: draft !== null,
+                error: error
+            };
+        }
+
+        return Object.freeze({
+            get: snapshot,
+            applyAuthoritative: function (input) {
+                const normalized = normalizeFocalRange(input);
+                if (normalized !== null) authoritative = normalized;
+                return snapshot();
+            },
+            clearAuthoritative: function () {
+                if (draft === null && pending === null) authoritative = null;
+                return snapshot();
+            },
+            begin: function (part, input) {
+                const normalized = normalizeFocalRange(input || authoritative);
+                if (pending !== null || normalized === null || !["whole", "near", "far"].includes(part)) return false;
+                dragBase = normalized;
+                draft = copy(normalized);
+                dragPart = part;
+                error = null;
+                return true;
+            },
+            move: function (delta) {
+                if (draft === null || dragBase === null) return snapshot();
+                const translated = translateFocalRange(dragBase, dragPart, delta);
+                if (translated !== null) draft = translated;
+                return snapshot();
+            },
+            cancel: function () {
+                draft = null;
+                dragBase = null;
+                dragPart = null;
+                return snapshot();
+            },
+            finish: function () {
+                if (draft === null || dragBase === null) return { submit: false, state: snapshot() };
+                const requested = copy(draft);
+                const expected = copy(dragBase);
+                draft = null;
+                dragBase = null;
+                dragPart = null;
+                if (focalRangesEqual(requested, expected)) return { submit: false, state: snapshot() };
+                pending = requested;
+                error = null;
+                return { submit: true, range: copy(requested), expected: expected, state: snapshot() };
+            },
+            confirm: function (input) {
+                const normalized = normalizeFocalRange(input);
+                if (pending === null || normalized === null || !focalRangesEqual(pending, normalized)) return false;
+                authoritative = normalized;
+                pending = null;
+                error = null;
+                return true;
+            },
+            reject: function (message, input) {
+                const normalized = normalizeFocalRange(input);
+                if (normalized !== null) authoritative = normalized;
+                draft = null;
+                pending = null;
+                dragBase = null;
+                dragPart = null;
+                error = message || "Lightroom rejected the Focus Range";
+                return snapshot();
+            }
+        });
     }
 
     function unavailableNativeControl() {
@@ -314,7 +612,11 @@
             refinementMode: "unknown",
             refinementModeTargetsAvailable: false,
             refinementDisclosure: unavailableNativeCheckbox(),
-            refinementReset: unavailableNativeAction()
+            refinementReset: unavailableNativeAction(),
+            focusActions: {
+                subject: unavailableNativeAction(),
+                pointArea: unavailableNativeAction()
+            }
         };
     }
 
@@ -326,6 +628,8 @@
             bokeh: null,
             selectedToolAvailable: false,
             selectedTool: null,
+            focalRangeSourceAvailable: false,
+            focalRangeSource: null,
             focalRangeAvailable: false,
             focalRange: null,
             windowsNative: unavailableWindowsNative()
@@ -388,6 +692,9 @@
         nativeState.refinementModeTargetsAvailable = input.refinementModeTargetsAvailable === true;
         nativeState.refinementDisclosure = normalizeNativeCheckbox(input.refinementDisclosure);
         nativeState.refinementReset = normalizeNativeAction(input.refinementReset);
+        const focusActions = input.focusActions && typeof input.focusActions === "object" ? input.focusActions : {};
+        nativeState.focusActions.subject = normalizeNativeAction(focusActions.subject);
+        nativeState.focusActions.pointArea = normalizeNativeAction(focusActions.pointArea);
         return nativeState;
     }
 
@@ -412,6 +719,11 @@
         if (input.selectedToolAvailable === true && typeof input.selectedTool === "string" && input.selectedTool.length > 0) {
             state.selectedToolAvailable = true;
             state.selectedTool = input.selectedTool;
+        }
+        if (input.focalRangeSourceAvailable === true && Number.isSafeInteger(input.focalRangeSource) &&
+            input.focalRangeSource >= 1 && input.focalRangeSource <= 3) {
+            state.focalRangeSourceAvailable = true;
+            state.focalRangeSource = input.focalRangeSource;
         }
         const focalRange = normalizeFocalRange(input.focalRange);
         if (input.focalRangeAvailable === true && focalRange !== null) {
@@ -446,6 +758,10 @@
             bokehAvailable: normalized.bokehAvailable,
             selectedBokeh: normalized.bokehAvailable ? normalized.bokeh : null,
             refinementActive: normalized.selectedToolAvailable && normalized.selectedTool === "depth_refinement",
+            selectedToolAvailable: normalized.selectedToolAvailable,
+            selectedTool: normalized.selectedTool,
+            focalRangeSourceAvailable: normalized.focalRangeSourceAvailable,
+            focalRangeSource: normalized.focalRangeSource,
             focalRangeAvailable: normalized.focalRangeAvailable,
             focalRange: normalized.focalRange,
             windowsNativeAvailable: normalized.windowsNative.available,
@@ -455,23 +771,57 @@
             refinementMode: normalized.windowsNative.refinementMode,
             refinementModeTargetsAvailable: normalized.windowsNative.refinementModeTargetsAvailable,
             refinementDisclosure: normalized.windowsNative.refinementDisclosure,
-            refinementReset: normalized.windowsNative.refinementReset
+            refinementReset: normalized.windowsNative.refinementReset,
+            focusActions: normalized.windowsNative.focusActions
         };
+    }
+
+    function focusActionActiveStates(state, subjectPresentation) {
+        const pointActive = !!(state && state.selectedToolAvailable === true && state.selectedTool === "focal_range");
+        const subjectActive = !!(subjectPresentation && subjectPresentation.available === true &&
+            subjectPresentation.active === true);
+        return { subject: subjectActive, pointArea: pointActive };
+    }
+
+    function focusSourceText(subjectPresentation) {
+        if (!subjectPresentation || subjectPresentation.available !== true) return "Focus source: Unavailable";
+        return subjectPresentation.active === true ? "Focus source: Subject" : "Focus source: Manual";
+    }
+
+    function pointAreaToggleIntent(state) {
+        if (!state || state.selectedToolAvailable !== true || typeof state.selectedTool !== "string") return null;
+        return state.selectedTool !== "focal_range";
+    }
+
+    function pointAreaToggleConfirmed(state, expectedActive) {
+        if (typeof expectedActive !== "boolean" || !state || state.selectedToolAvailable !== true ||
+            typeof state.selectedTool !== "string") return false;
+        const actualActive = state.selectedTool === "focal_range";
+        return actualActive === expectedActive;
     }
 
     return Object.freeze({
         bokehOptions: bokehOptions,
         focalComponents: focalComponents,
         focalLimit: focalLimit,
+        focalDepthMinimum: focalDepthMinimum,
+        focalDepthMaximum: focalDepthMaximum,
         normalizeFocalRange: normalizeFocalRange,
         formatFocalRange: formatFocalRange,
+        focalRangesEqual: focalRangesEqual,
         focalRangeDeltaBounds: focalRangeDeltaBounds,
         translateFocalRange: translateFocalRange,
+        createSubjectFocusPresentation: createSubjectFocusPresentation,
+        createFocalRangeTransaction: createFocalRangeTransaction,
         createStepInteraction: createStepInteraction,
         createNumericEditor: createNumericEditor,
         normalizeWindowsNative: normalizeWindowsNative,
         normalizeState: normalizeState,
         createModel: createModel,
-        presentationFor: presentationFor
+        presentationFor: presentationFor,
+        focusActionActiveStates: focusActionActiveStates,
+        focusSourceText: focusSourceText,
+        pointAreaToggleIntent: pointAreaToggleIntent,
+        pointAreaToggleConfirmed: pointAreaToggleConfirmed
     });
 });

@@ -41,6 +41,7 @@ function Parser.parse(json)
     local field = string.match(json, [["field":"([^"]+)"]])
     local range = string.match(json, [["range":"([^"]+)"]])
     local boundary = string.match(json, [["boundary":"([^"]+)"]])
+    local commitId = string.match(json, [["commitId":"([^"]+)"]])
     local expectedSelectedIndex = string.match(json, [["expectedSelectedIndex":([%-]?%d+)]])
     local expectedContextCounter = string.match(json, [["expectedContextCounter":([%-]?%d+)]])
     local lowerNone = string.match(json, [["LowerNone":([%-]?%d+%.?%d*)]])
@@ -86,6 +87,9 @@ function Parser.parse(json)
     if lowerFull then lowerFull = tonumber(lowerFull) end
     if upperFull then upperFull = tonumber(upperFull) end
     if upperNone then upperNone = tonumber(upperNone) end
+    if commitId ~= nil and (string.len(commitId) > 64 or string.match(commitId, "^[A-Za-z0-9_-]+$") == nil) then
+        commitId = nil
+    end
 
     if command == nil then
         return nil
@@ -122,6 +126,7 @@ function Parser.parse(json)
         ,UpperNone = upperNone
         ,expectedSelectedIndex = expectedSelectedIndex
         ,expectedContextCounter = expectedContextCounter
+        ,commitId = commitId
     }
 
 end

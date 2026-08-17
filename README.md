@@ -1631,6 +1631,7 @@ v0.8.0-companion-feedback
 * Lightroom SDK calls can have timing quirks.
 * Some Lightroom controls are not mapped.
 * Some mapped Lightroom controls may be SDK-version dependent.
+* Lens Blur Focus Range synchronization has Lightroom-specific state and repaint constraints; see [Lens Blur Focus Range state and limitations](docs/LENS_BLUR_FOCUS_RANGE_STATE_AND_LIMITATIONS.md).
 * Windows is the primary packaged and tested target.
 * No macOS package is currently provided.
 

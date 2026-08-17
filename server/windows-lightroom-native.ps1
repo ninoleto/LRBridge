@@ -31,7 +31,10 @@ public static class LRBridgeNative
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hwnd, out RECT rectangle);
     [DllImport("user32.dll", EntryPoint="GetWindowLongW")] public static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern IntPtr SendMessageTimeout(
+        IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
     [DllImport("user32.dll", SetLastError=true)] public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", SetLastError=true)] public static extern bool InvalidateRect(IntPtr hwnd, IntPtr rectangle, bool erase);
     [DllImport("user32.dll")] public static extern bool RedrawWindow(IntPtr hwnd, IntPtr rectangle, IntPtr region, uint flags);
     [DllImport("oleacc.dll")] private static extern int AccessibleObjectFromWindow(
         IntPtr hwnd, uint objectId, ref Guid interfaceId, [MarshalAs(UnmanagedType.Interface)] out object accessible);
@@ -176,6 +179,10 @@ $WM_LBUTTONDOWN = 0x0201
 $WM_LBUTTONUP = 0x0202
 $WM_LBUTTONDBLCLK = 0x0203
 $WM_MOUSEMOVE = 0x0200
+$WM_MOUSELEAVE = 0x02A3
+$SMTO_BLOCK = 0x0001
+$SMTO_ABORTIFHUNG = 0x0002
+$FOCUS_ACTION_MESSAGE_TIMEOUT_MS = 250
 $MK_LBUTTON = 0x0001
 $RDW_TRACKBAR_REFRESH = 0x0001 -bor 0x0004 -bor 0x0100 -bor 0x0400
 $TRACK_TRANSACTION_IDLE_MS = 5000
@@ -278,6 +285,61 @@ function Find-LensBlurRoot([object[]]$Windows) {
     }
     if ($rootCandidates.Count -ne 1) { return $null }
     return $rootCandidates[0]
+}
+
+function Find-FocusRangeActionTargets([object[]]$Windows, [object]$LensRoot) {
+    if ($null -eq $LensRoot) { return $null }
+    $labels = @($Windows | Where-Object {
+        $_.ProcessId -eq $LensRoot.ProcessId -and $_.Class -eq "Static" -and $_.Text -eq "Focus Range" -and
+        $_.Parent -eq $LensRoot.Handle -and $_.Visible -and $_.Enabled -and $_.Left -ge $LensRoot.Left -and
+        $_.Right -le $LensRoot.Right -and $_.Top -ge $LensRoot.Top -and $_.Bottom -le $LensRoot.Bottom
+    })
+    if ($labels.Count -ne 1) { return $null }
+    $label = $labels[0]
+    $rootWidth = $LensRoot.Right - $LensRoot.Left
+    $tracks = @($Windows | Where-Object {
+        $width = $_.Right - $_.Left
+        $height = $_.Bottom - $_.Top
+        $_.ProcessId -eq $LensRoot.ProcessId -and $_.Class -match '^AfxWnd\d+u$' -and $_.Text -eq " (Bridge View)" -and
+        $_.Visible -and $_.Enabled -and (Test-IsDescendantOfSnapshot $_ $LensRoot $Windows) -and
+        $width -ge [math]::Max(240, $rootWidth * 0.72) -and $width -le ($rootWidth + 4) -and
+        $height -ge 28 -and $height -le 52 -and $_.Top -ge $label.Bottom -and $_.Top -le ($label.Bottom + 16) -and
+        $_.Left -ge ($LensRoot.Left - 2) -and $_.Right -le ($LensRoot.Right + 2)
+    })
+    if ($tracks.Count -ne 1) { return $null }
+    $track = $tracks[0]
+    $icons = @($Windows | Where-Object {
+        $width = $_.Right - $_.Left
+        $height = $_.Bottom - $_.Top
+        $_.ProcessId -eq $LensRoot.ProcessId -and $_.Class -match '^AfxWnd\d+u$' -and $_.Text -eq " (Bridge View)" -and
+        $_.Parent -eq $LensRoot.Handle -and $_.ControlId -eq 65535 -and $_.Visible -and $_.Enabled -and
+        $width -ge 16 -and $width -le 30 -and $height -ge 14 -and $height -le 26 -and
+        [math]::Abs($_.CenterY - $label.CenterY) -le 8 -and $_.Left -gt $label.Right -and
+        $_.Right -le $LensRoot.Right
+    } | Sort-Object Left)
+    if ($icons.Count -ne 2) { return $null }
+    $subject = $icons[0]
+    $pointArea = $icons[1]
+    $horizontalGap = $pointArea.Left - $subject.Right
+    if ($horizontalGap -lt 0 -or $horizontalGap -gt 14 -or
+        [math]::Abs(($subject.Right-$subject.Left)-($pointArea.Right-$pointArea.Left)) -gt 3 -or
+        [math]::Abs(($subject.Bottom-$subject.Top)-($pointArea.Bottom-$pointArea.Top)) -gt 3 -or
+        [math]::Abs($subject.CenterY-$pointArea.CenterY) -gt 3 -or
+        ($LensRoot.Right-$pointArea.Right) -lt 0 -or ($LensRoot.Right-$pointArea.Right) -gt 32 -or
+        $track.Top -lt $label.Bottom) { return $null }
+    foreach ($entry in @(
+        [PSCustomObject]@{Target=$subject;Action="subject";Pair=$pointArea},
+        [PSCustomObject]@{Target=$pointArea;Action="point-area";Pair=$subject}
+    )) {
+        $entry.Target | Add-Member -NotePropertyName FocusAction -NotePropertyValue $entry.Action
+        $entry.Target | Add-Member -NotePropertyName LabelHandle -NotePropertyValue $label.Handle
+        $entry.Target | Add-Member -NotePropertyName TrackHandle -NotePropertyValue $track.Handle
+        $entry.Target | Add-Member -NotePropertyName PairHandle -NotePropertyValue $entry.Pair.Handle
+        $entry.Target | Add-Member -NotePropertyName AnchorHandle -NotePropertyValue $LensRoot.Handle
+        $entry.Target | Add-Member -NotePropertyName AnchorClass -NotePropertyValue $LensRoot.Class
+        $entry.Target | Add-Member -NotePropertyName AnchorText -NotePropertyValue $LensRoot.Text
+    }
+    return [PSCustomObject]@{ Label=$label; Track=$track; Subject=$subject; PointArea=$pointArea }
 }
 
 function Find-RefinementRoot([object[]]$Windows, [object]$LensRoot) {
@@ -455,6 +517,7 @@ function Discover-NativeControls {
     $refinementRoot = Find-RefinementRoot $windows $lensRoot
     $refinementDisclosure = Find-RefinementDisclosure $windows $lensRoot
     $refinementReset = Find-RefinementResetTarget $windows $refinementRoot
+    $focusRangeActions = Find-FocusRangeActionTargets $windows $lensRoot
     $visualizeButton = Add-AnchorIdentity (Find-UniqueButtonInRoot $windows $lensRoot "Visualize Depth") $lensRoot
     $autoMaskButton = Add-AnchorIdentity (Find-UniqueButtonInRoot $windows $refinementRoot "Auto Mask") $refinementRoot
     $sizeTrack = Find-LabeledTrackInRoot $windows $refinementRoot "Size" 1 1000
@@ -468,6 +531,7 @@ function Discover-NativeControls {
         RefinementRoot = $refinementRoot
         RefinementDisclosure = $refinementDisclosure
         RefinementReset = $refinementReset
+        FocusRangeActions = $focusRangeActions
         VisualizeButton = $visualizeButton
         AutoMaskButton = $autoMaskButton
         SizeTrack = $sizeTrack
@@ -504,6 +568,20 @@ function Public-RefinementResetState([object]$Discovery) {
     } catch {
         return [PSCustomObject]@{ available=$false; enabled=$false }
     }
+}
+
+function Public-FocusRangeActionState([object]$Discovery, [string]$Action) {
+    if ($null -eq $Discovery -or $null -eq $Discovery.FocusRangeActions -or
+        @("subject", "point-area") -notcontains $Action) {
+        return [PSCustomObject]@{ available=$false; enabled=$false }
+    }
+    $target = if($Action -eq "subject"){$Discovery.FocusRangeActions.Subject}else{$Discovery.FocusRangeActions.PointArea}
+    if ($null -eq $target -or -not [LRBridgeNative]::IsWindow([IntPtr]$target.Handle) -or
+        -not [LRBridgeNative]::EffectivelyVisible([IntPtr]$target.Handle) -or
+        -not [LRBridgeNative]::IsWindowEnabled([IntPtr]$target.Handle)) {
+        return [PSCustomObject]@{ available=$false; enabled=$false }
+    }
+    return [PSCustomObject]@{ available=$true; enabled=$true }
 }
 
 function Read-RefinementDisclosureState([object]$Discovery) {
@@ -597,6 +675,10 @@ function Get-NativeStateFromDiscovery([object]$Discovery) {
         refinementModeTargetsAvailable = Read-RefinementModeTargetsAvailable $discovery
         refinementDisclosure = Read-RefinementDisclosureState $discovery
         refinementReset = Public-RefinementResetState $discovery
+        focusActions = [PSCustomObject]@{
+            subject = Public-FocusRangeActionState $discovery "subject"
+            pointArea = Public-FocusRangeActionState $discovery "point-area"
+        }
     }
 }
 
@@ -982,6 +1064,80 @@ function Post-VerifiedClientClick([object]$Target, [object]$Client, [scriptblock
     }
 }
 
+function Assert-FocusRangeActionIdentity([object]$Target, [string]$Action) {
+    if ($null -eq $Target -or @("subject", "point-area") -notcontains $Action -or $Target.FocusAction -ne $Action) {
+        Throw-Unavailable "Focus Range action target is unavailable"
+    }
+    $windows = Get-LightroomWindows
+    $root = Find-LensBlurRoot $windows
+    $actions = Find-FocusRangeActionTargets $windows $root
+    if ($null -eq $root -or $null -eq $actions) { Throw-Unavailable "Focus Range action discovery became ambiguous" }
+    $current = if($Action -eq "subject"){$actions.Subject}else{$actions.PointArea}
+    if ($null -eq $current -or $current.Handle -ne $Target.Handle -or $current.LabelHandle -ne $Target.LabelHandle -or
+        $current.TrackHandle -ne $Target.TrackHandle -or $current.PairHandle -ne $Target.PairHandle -or
+        $current.AnchorHandle -ne $Target.AnchorHandle) {
+        Throw-Unavailable "Focus Range action identity changed before use"
+    }
+    $handle = [IntPtr]$Target.Handle
+    $client = New-Object LRBridgeNative+RECT
+    if (-not [LRBridgeNative]::IsWindow($handle) -or [LRBridgeNative]::ProcessId($handle) -ne $Target.ProcessId -or
+        [LRBridgeNative]::ClassName($handle) -notmatch '^AfxWnd\d+u$' -or
+        [LRBridgeNative]::WindowText($handle) -ne " (Bridge View)" -or
+        [LRBridgeNative]::GetParent($handle) -ne [IntPtr]$root.Handle -or
+        [LRBridgeNative]::GetDlgCtrlID($handle) -ne 65535 -or -not [LRBridgeNative]::EffectivelyVisible($handle) -or
+        -not [LRBridgeNative]::IsWindowEnabled($handle) -or -not [LRBridgeNative]::GetClientRect($handle,[ref]$client)) {
+        Throw-Unavailable "Focus Range action target changed before use"
+    }
+    $width = $Target.Right - $Target.Left
+    $height = $Target.Bottom - $Target.Top
+    if ($client.Left -ne 0 -or $client.Top -ne 0 -or $client.Right -ne $width -or $client.Bottom -ne $height -or
+        $width -lt 16 -or $width -gt 30 -or $height -lt 14 -or $height -gt 26) {
+        Throw-Unavailable "Focus Range action geometry changed before use"
+    }
+    return $client
+}
+
+function Post-VerifiedFocusRangeActionSequence([object]$Target, [scriptblock]$Validate) {
+    $client = & $Validate
+    $x = [int][math]::Floor(($client.Right-$client.Left)/2.0)
+    $y = [int][math]::Floor(($client.Bottom-$client.Top)/2.0)
+    $coordinates = (($y -band 0xFFFF)*0x10000)+($x -band 0xFFFF)
+    $handle = [IntPtr]$Target.Handle
+    foreach ($entry in @(
+        [PSCustomObject]@{message=$WM_MOUSEMOVE;wParam=0;lParam=$coordinates},
+        [PSCustomObject]@{message=$WM_LBUTTONDOWN;wParam=$MK_LBUTTON;lParam=$coordinates},
+        [PSCustomObject]@{message=$WM_LBUTTONUP;wParam=0;lParam=$coordinates},
+        [PSCustomObject]@{message=$WM_MOUSELEAVE;wParam=0;lParam=0}
+    )) {
+        $messageResult = [IntPtr]::Zero
+        $delivered = [LRBridgeNative]::SendMessageTimeout(
+            $handle,
+            [uint32]$entry.message,
+            [IntPtr]$entry.wParam,
+            [IntPtr][Int64]$entry.lParam,
+            [uint32]($SMTO_BLOCK -bor $SMTO_ABORTIFHUNG),
+            [uint32]$FOCUS_ACTION_MESSAGE_TIMEOUT_MS,
+            [ref]$messageResult)
+        if ($delivered -eq [IntPtr]::Zero) {
+            Throw-Unavailable "Lightroom Focus Range action message timed out or failed"
+        }
+    }
+    & $Validate | Out-Null
+}
+
+function Invoke-FocusRangeAction([string]$Action) {
+    if (@("subject", "point-area") -notcontains $Action) { throw "Unknown Focus Range action" }
+    $discovery = Discover-NativeControls
+    $public = Public-FocusRangeActionState $discovery $Action
+    if ($public.available -ne $true -or $public.enabled -ne $true) {
+        Throw-Unavailable "Focus Range action target is unavailable or ambiguous"
+    }
+    $target = if($Action -eq "subject"){$discovery.FocusRangeActions.Subject}else{$discovery.FocusRangeActions.PointArea}
+    $validator = { Assert-FocusRangeActionIdentity $target $Action }
+    Post-VerifiedFocusRangeActionSequence $target $validator
+    return Get-NativeState
+}
+
 function Assert-RefinementResetIdentity([object]$Target, [object]$Root, [bool]$RequireEnabled) {
     if ($null -eq $Target -or $null -eq $Root) { Throw-Unavailable "Reset Depth Refinement target is unavailable" }
     Assert-RefinementRootIdentity $Root
@@ -1169,6 +1325,10 @@ function Invoke-Request([object]$Request) {
     }
     if ($Request.operation -eq "resetRefinement") {
         return Invoke-RefinementReset
+    }
+    if ($Request.operation -eq "activateFocusRangeAction") {
+        if ($Request.action -isnot [string]) { throw "Invalid Focus Range action request" }
+        return Invoke-FocusRangeAction $Request.action
     }
     throw "Unknown native operation"
 }

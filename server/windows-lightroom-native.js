@@ -35,7 +35,11 @@ function unavailableNativeState(reason) {
         refinementMode: "unknown",
         refinementModeTargetsAvailable: false,
         refinementDisclosure: unavailableCheckbox(),
-        refinementReset: unavailableAction()
+        refinementReset: unavailableAction(),
+        focusActions: {
+            subject: unavailableAction(),
+            pointArea: unavailableAction()
+        }
     };
 }
 
@@ -74,6 +78,9 @@ function sanitizeNativeState(input) {
     state.refinementModeTargetsAvailable = input.refinementModeTargetsAvailable === true;
     state.refinementDisclosure = sanitizeCheckbox(input.refinementDisclosure);
     state.refinementReset = sanitizeAction(input.refinementReset);
+    const focusActions = input.focusActions && typeof input.focusActions === "object" ? input.focusActions : {};
+    state.focusActions.subject = sanitizeAction(focusActions.subject);
+    state.focusActions.pointArea = sanitizeAction(focusActions.pointArea);
     return state;
 }
 
@@ -115,6 +122,7 @@ function createUnavailableWindowsBackend(reason) {
         setRefinementMode: reject,
         setRefinementDisclosure: reject,
         resetRefinement: reject,
+        activateFocusRangeAction: reject,
         stop: function () { return Promise.resolve(); }
     });
 }
@@ -308,6 +316,10 @@ function createWindowsLightroomNativeBackend(options) {
         },
         resetRefinement: async function () {
             return rememberState(await request("resetRefinement"));
+        },
+        activateFocusRangeAction: async function (action) {
+            if (action !== "subject" && action !== "point-area") throw new TypeError("Unknown Focus Range action");
+            return rememberState(await request("activateFocusRangeAction", { action: action }));
         },
         stop: function () {
             const instance = child;

@@ -18,6 +18,8 @@ function unavailableState() {
         bokeh: null,
         selectedToolAvailable: false,
         selectedTool: null,
+        focalRangeSourceAvailable: false,
+        focalRangeSource: null,
         focalRangeAvailable: false,
         focalRange: null
     };
@@ -34,6 +36,7 @@ function sanitizeState(input) {
         typeof input.activeAvailable !== "boolean" ||
         typeof input.bokehAvailable !== "boolean" ||
         typeof input.selectedToolAvailable !== "boolean" ||
+        typeof input.focalRangeSourceAvailable !== "boolean" ||
         typeof input.focalRangeAvailable !== "boolean") {
         return null;
     }
@@ -42,6 +45,7 @@ function sanitizeState(input) {
     state.activeAvailable = input.activeAvailable;
     state.bokehAvailable = input.bokehAvailable;
     state.selectedToolAvailable = input.selectedToolAvailable;
+    state.focalRangeSourceAvailable = input.focalRangeSourceAvailable;
     state.focalRangeAvailable = input.focalRangeAvailable;
 
     if (state.activeAvailable) {
@@ -65,6 +69,13 @@ function sanitizeState(input) {
         return null;
     }
 
+    if (state.focalRangeSourceAvailable) {
+        if (!Number.isSafeInteger(input.focalRangeSource) || input.focalRangeSource < 1 || input.focalRangeSource > 3) return null;
+        state.focalRangeSource = input.focalRangeSource;
+    } else if (input.focalRangeSource !== null && input.focalRangeSource !== undefined) {
+        return null;
+    }
+
     if (state.focalRangeAvailable) {
         state.focalRange = typeof input.focalRange === "string"
             ? focalRangeDefinition.parse(input.focalRange)
@@ -82,6 +93,8 @@ function createLensBlurState() {
     let requestPending = false;
     let lastRequestAt = 0;
     let contextCounter = null;
+    let revision = 0;
+    let focalRangeCommitId = null;
 
     return {
         get: function () {
@@ -91,9 +104,15 @@ function createLensBlurState() {
             const next = sanitizeState(input);
             if (next === null) return false;
             state = next;
+            revision += 1;
+            if (typeof input.focalRangeCommitId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(input.focalRangeCommitId)) {
+                focalRangeCommitId = input.focalRangeCommitId;
+            }
             requestPending = false;
             return true;
         },
+        getRevision: function () { return revision; },
+        getFocalRangeCommitId: function () { return focalRangeCommitId; },
         invalidateBokeh: function () {
             state.bokehAvailable = false;
             state.bokeh = null;
@@ -109,6 +128,10 @@ function createLensBlurState() {
         invalidateFocalRange: function () {
             state.focalRangeAvailable = false;
             state.focalRange = null;
+        },
+        invalidateFocalRangeSource: function () {
+            state.focalRangeSourceAvailable = false;
+            state.focalRangeSource = null;
         },
         requestRefresh: function (now, force) {
             now = now === undefined ? Date.now() : now;
@@ -127,6 +150,7 @@ function createLensBlurState() {
                 state = unavailableState();
                 requestPending = false;
                 lastRequestAt = 0;
+                focalRangeCommitId = null;
             }
             contextCounter = nextCounter;
         },
@@ -135,6 +159,8 @@ function createLensBlurState() {
             requestPending = false;
             lastRequestAt = 0;
             contextCounter = null;
+            revision = 0;
+            focalRangeCommitId = null;
         }
     };
 }

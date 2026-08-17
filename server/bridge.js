@@ -71,6 +71,7 @@ if (!windowsNativeBackend || typeof windowsNativeBackend.readState !== "function
     typeof windowsNativeBackend.setCheckbox !== "function" || typeof windowsNativeBackend.setRefinementMode !== "function" ||
     typeof windowsNativeBackend.setRefinementDisclosure !== "function" ||
     typeof windowsNativeBackend.resetRefinement !== "function" ||
+    typeof windowsNativeBackend.activateFocusRangeAction !== "function" ||
     typeof windowsNativeBackend.stop !== "function") {
     throw new TypeError("windowsNativeBackend must implement the LRBridge Windows native backend interface");
 }
@@ -79,6 +80,7 @@ if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
 }
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
 const app = express();
+
 commands.setPointColorAdmissionContextProvider(function () {
     const current = pointColor.get();
     return { selectedIndex: current.available ? current.selectedIndex : 0, contextCounter: context.getContextFields().contextCounter };
@@ -90,6 +92,7 @@ const feedbackSnapshots = {};
 const colorGradingSnapshots = {};
 const treatmentSnapshots = {};
 let feedbackRequestId = 0;
+let focalRangeCommitCounter = 0;
 const dedicatedFeedbackParameters = new Set(["CropAngle", "CropConstrainToWarp"]);
 
 function isFeedbackParameter(value) {
@@ -355,7 +358,9 @@ app.get("/lens-blur/state", async function (req, res) {
     catch (error) { windowsNative = windowsNativeDefinition.unavailableNativeState(error.message); }
     res.set("Cache-Control", "no-store").json({
         ok: true,
-        state: Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) })
+        state: Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) }),
+        revision: lensBlur.getRevision(),
+        focalRangeCommitId: lensBlur.getFocalRangeCommitId()
     });
 });
 
@@ -367,7 +372,7 @@ app.get("/lens-blur/next", function (req, res) {
 app.get("/lens-blur/result", function (req, res) {
     const allowed = new Set([
         "activeAvailable", "active", "bokehAvailable", "bokeh", "selectedToolAvailable", "selectedTool",
-        "focalRangeAvailable", "focalRange"
+        "focalRangeSourceAvailable", "focalRangeSource", "focalRangeAvailable", "focalRange", "focalRangeCommitId"
     ]);
     const booleanValue = function (name) {
         return req.query[name] === "true" ? true : req.query[name] === "false" ? false : null;
@@ -379,11 +384,19 @@ app.get("/lens-blur/result", function (req, res) {
         bokeh: req.query.bokeh === undefined ? null : req.query.bokeh,
         selectedToolAvailable: booleanValue("selectedToolAvailable"),
         selectedTool: req.query.selectedTool === undefined ? null : req.query.selectedTool,
+        focalRangeSourceAvailable: req.query.focalRangeSourceAvailable === undefined
+            ? false
+            : booleanValue("focalRangeSourceAvailable"),
+        focalRangeSource: req.query.focalRangeSource === undefined ? null : Number(req.query.focalRangeSource),
         focalRangeAvailable: booleanValue("focalRangeAvailable"),
-        focalRange: req.query.focalRange === undefined ? null : req.query.focalRange
+        focalRange: req.query.focalRange === undefined ? null : req.query.focalRange,
+        focalRangeCommitId: req.query.focalRangeCommitId === undefined ? null : req.query.focalRangeCommitId
     };
     if (Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); }) ||
         input.activeAvailable === null || input.bokehAvailable === null || input.selectedToolAvailable === null ||
+        input.focalRangeSourceAvailable === null ||
+        (input.focalRangeCommitId !== null && (typeof input.focalRangeCommitId !== "string" ||
+            !/^[A-Za-z0-9_-]{1,64}$/.test(input.focalRangeCommitId))) ||
         input.focalRangeAvailable === null || !lensBlur.update(input)) {
         return res.status(400).json({ ok: false, error: "Invalid Lens Blur state" });
     }
@@ -515,6 +528,28 @@ app.get("/lens-blur/refinement-reset", async function (req, res) {
     } catch (error) { sendNativeFailure(res, error); }
 });
 
+app.get("/lens-blur/focus-action", async function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.value) ||
+        (req.query.value !== "subject" && req.query.value !== "point-area")) return rejectInvalidCommand(res);
+    const baselineRevision = lensBlur.getRevision();
+    try {
+        const state = await windowsNativeBackend.activateFocusRangeAction(req.query.value);
+        if (req.query.value === "subject") {
+            lensBlur.invalidateFocalRange();
+            lensBlur.invalidateFocalRangeSource();
+        } else {
+            lensBlur.invalidateSelectedTool();
+        }
+        lensBlur.requestRefresh(Date.now(), true);
+        res.set("Cache-Control", "no-store").json({
+            ok: true,
+            action: req.query.value,
+            confirmationAfterRevision: baselineRevision,
+            windowsNative: windowsNativeDefinition.sanitizeNativeState(state)
+        });
+    } catch (error) { sendNativeFailure(res, error); }
+});
+
 function currentFocalRangeMatches(expected) {
     const current = lensBlur.get();
     return current.focalRangeAvailable && typeof expected === "string" &&
@@ -524,7 +559,12 @@ function currentFocalRangeMatches(expected) {
 function queueFocalRange(res, range) {
     const value = focalRangeDefinition.format(range);
     if (value === null) return rejectInvalidCommand(res);
-    queueOrReject(res, { command: "lens_blur.focal_range.set", value: value }, { focalRange: range }, function () {
+    focalRangeCommitCounter += 1;
+    const commitId = "focus-range-" + focalRangeCommitCounter;
+    queueOrReject(res, { command: "lens_blur.focal_range.set", value: value, commitId: commitId }, {
+        focalRange: range,
+        focalRangeCommitId: commitId
+    }, function () {
         lensBlur.invalidateFocalRange();
         lensBlur.requestRefresh(Date.now(), true);
     });
