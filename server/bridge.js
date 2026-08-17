@@ -14,6 +14,7 @@ const lensBlurDefinition = require("./lens-blur-state");
 const lensBlur = lensBlurDefinition.createLensBlurState();
 const focalRangeDefinition = require("./lens-blur-focal-range");
 const windowsNativeDefinition = require("./windows-lightroom-native");
+const developCategoricalDefinition = require("./develop-categorical-state");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -80,6 +81,7 @@ if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
 }
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
 const app = express();
+const developCategorical = developCategoricalDefinition.createDevelopCategoricalState();
 
 commands.setPointColorAdmissionContextProvider(function () {
     const current = pointColor.get();
@@ -294,6 +296,7 @@ app.get("/context/update", function (req, res) {
     enhance.syncContext(updated.contextCounter);
     pointColor.syncContext(updated.contextCounter);
     lensBlur.syncContext(updated.contextCounter);
+    developCategorical.syncContext(updated.contextCounter);
 
     if (updated.contextCounter !== previousContextCounter) {
         history.invalidate();
@@ -361,6 +364,127 @@ app.get("/lens-blur/state", async function (req, res) {
         state: Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) }),
         revision: lensBlur.getRevision(),
         focalRangeCommitId: lensBlur.getFocalRangeCommitId()
+    });
+});
+
+app.get("/develop-categorical/metadata", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        processOptions: developCategoricalDefinition.processOptions,
+        vignetteStyleOptions: developCategoricalDefinition.vignetteStyleOptions,
+        uprightModeOptions: developCategoricalDefinition.uprightModeOptions,
+        capabilities: developCategoricalDefinition.capabilities
+    });
+});
+
+app.get("/develop-categorical/state", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    developCategorical.requestRefresh();
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        state: developCategorical.get(),
+        revision: developCategorical.getRevision(),
+        capabilities: developCategoricalDefinition.capabilities
+    });
+});
+
+app.get("/develop-categorical/next", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.json({ requested: developCategorical.takeRequest() });
+});
+
+app.get("/develop-categorical/result", function (req, res) {
+    const allowed = new Set([
+        "processAvailable", "process", "vignetteStyleAvailable", "vignetteStyle",
+        "uprightModeAvailable", "uprightMode", "constrainCropAvailable", "constrainCrop",
+        "selectedToolAvailable", "selectedTool"
+    ]);
+    function booleanValue(name) {
+        return req.query[name] === "true" ? true : req.query[name] === "false" ? false : null;
+    }
+    const input = {
+        processAvailable: booleanValue("processAvailable"),
+        process: req.query.process === undefined ? null : req.query.process,
+        vignetteStyleAvailable: booleanValue("vignetteStyleAvailable"),
+        vignetteStyle: /^[1-3]$/.test(req.query.vignetteStyle || "") ? Number(req.query.vignetteStyle) : null,
+        uprightModeAvailable: booleanValue("uprightModeAvailable"),
+        uprightMode: /^[0-5]$/.test(req.query.uprightMode || "") ? Number(req.query.uprightMode) : null,
+        constrainCropAvailable: booleanValue("constrainCropAvailable"),
+        constrainCrop: /^[01]$/.test(req.query.constrainCrop || "") ? Number(req.query.constrainCrop) : null,
+        selectedToolAvailable: booleanValue("selectedToolAvailable"),
+        selectedTool: req.query.selectedTool === undefined ? null : req.query.selectedTool
+    };
+    if (Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); }) ||
+        input.processAvailable === null || input.vignetteStyleAvailable === null ||
+        input.uprightModeAvailable === null || input.constrainCropAvailable === null || input.selectedToolAvailable === null ||
+        !developCategorical.update(input)) {
+        return res.status(400).json({ ok: false, error: "Invalid Develop categorical state" });
+    }
+    res.json({ ok: true, revision: developCategorical.getRevision() });
+});
+
+function queueDevelopCategoricalSet(req, res, specification) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.value)) return rejectInvalidCommand(res);
+    const value = specification.parse(req.query.value);
+    if (!specification.values.includes(value)) return rejectInvalidCommand(res);
+    const current = developCategorical.get();
+    if (current[specification.availableField] !== true) {
+        return res.status(409).json({ ok: false, error: specification.label + " unavailable" });
+    }
+    const confirmationAfterRevision = developCategorical.getRevision();
+    queueOrReject(res, { command: specification.command, value: value }, {
+        confirmationAfterRevision: confirmationAfterRevision
+    }, function () {
+        developCategorical.invalidate(specification.control);
+        developCategorical.requestRefresh(Date.now(), true);
+    });
+}
+
+app.get("/develop-categorical/process", function (req, res) {
+    queueDevelopCategoricalSet(req, res, {
+        control: "process", command: "develop_categorical.process.set", label: "Process",
+        availableField: "processAvailable", values: developCategoricalDefinition.processValues,
+        parse: function (value) { return value; }
+    });
+});
+
+app.get("/develop-categorical/vignette-style", function (req, res) {
+    queueDevelopCategoricalSet(req, res, {
+        control: "vignetteStyle", command: "develop_categorical.vignette_style.set", label: "Post-Crop Vignetting Style",
+        availableField: "vignetteStyleAvailable", values: developCategoricalDefinition.vignetteStyleValues,
+        parse: function (value) { return /^[1-3]$/.test(value || "") ? Number(value) : null; }
+    });
+});
+
+app.get("/develop-categorical/upright-mode", function (req, res) {
+    queueDevelopCategoricalSet(req, res, {
+        control: "uprightMode", command: "develop_categorical.upright_mode.set", label: "Upright mode",
+        availableField: "uprightModeAvailable", values: developCategoricalDefinition.uprightModeValues,
+        parse: function (value) { return /^[0-5]$/.test(value || "") ? Number(value) : null; }
+    });
+});
+
+app.get("/develop-categorical/constrain-crop", function (req, res) {
+    queueDevelopCategoricalSet(req, res, {
+        control: "constrainCrop", command: "develop_categorical.constrain_crop.set", label: "Constrain Crop",
+        availableField: "constrainCropAvailable", values: developCategoricalDefinition.constrainCropValues,
+        parse: function (value) { return /^[01]$/.test(value || "") ? Number(value) : null; }
+    });
+});
+
+app.get("/develop-categorical/upright-tool", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return rejectInvalidCommand(res);
+    const current = developCategorical.get();
+    if (current.selectedToolAvailable !== true || current.uprightModeAvailable !== true) {
+        return res.status(409).json({ ok: false, error: "Guided Upright tool unavailable" });
+    }
+    const confirmationAfterRevision = developCategorical.getRevision();
+    queueOrReject(res, { command: "develop_categorical.upright_tool.select" }, {
+        confirmationAfterRevision: confirmationAfterRevision
+    }, function () {
+        developCategorical.invalidate("selectedTool");
+        developCategorical.requestRefresh(Date.now(), true);
     });
 });
 

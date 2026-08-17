@@ -9,6 +9,7 @@ local Enhance = require "Enhance"
 local PointColor = require "PointColor"
 local History = require "History"
 local LensBlur = require "LensBlur"
+local DevelopCategorical = require "DevelopCategorical"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -52,6 +53,11 @@ function Commands.execute(command)
     if command.command == "lens_blur.depth_refinement.select" then LensBlur.selectDepthRefinement(); return end
     if command.command == "lens_blur.depth_refinement.close" then LensBlur.closeDepthRefinement(); LensBlur.sendCurrentState(); return end
     if command.command == "lens_blur.focal_range.set" then LensBlur.setFocalRange(command.value); LensBlur.sendCurrentState(command.commitId); return end
+    if command.command == "develop_categorical.process.set" then DevelopCategorical.setProcess(command.value); return end
+    if command.command == "develop_categorical.vignette_style.set" then DevelopCategorical.setVignetteStyle(command.value); return end
+    if command.command == "develop_categorical.upright_mode.set" then DevelopCategorical.setUprightMode(command.value); return end
+    if command.command == "develop_categorical.constrain_crop.set" then DevelopCategorical.setConstrainCrop(command.value); return end
+    if command.command == "develop_categorical.upright_tool.select" then DevelopCategorical.selectUprightTool(); return end
 
     if command.command == "develop.adjust" then
 

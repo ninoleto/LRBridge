@@ -126,7 +126,7 @@ assert.match(productionJs, /\.develop-slider-row input\[type="text"\][\s\S]*bord
 assert.match(productionJs, /makeButton\("−", "develop-slider-step denoise-minus"/);
 assert.match(productionJs, /makeButton\("\+", "develop-slider-step denoise-plus"/);
 assert.doesNotMatch(productionJs, /makeButton\("Reset Denoise"|denoise-reset/);
-assert.match(productionJs, /const leadingControls = createSectionControls\(section, "leading"\);\s*if \(leadingControls\) groupElement\.appendChild\(leadingControls\);[\s\S]*let currentSubheading = null;\s*section\.items\.forEach/,
+assert.match(productionJs, /const leadingControls = createSectionControls\(section, "leading"\);\s*if \(leadingControls\) \{[\s\S]*?groupElement\.appendChild\(leadingControls\);\s*\}[\s\S]*let currentSubheading = null;\s*section\.items\.forEach/,
     "Denoise must precede Detail's Sharpening controls");
 assert.doesNotMatch(productionJs, /content\.appendChild\([^)]*(?:enhance|Enhance)/,
     "Denoise must not be an external content sibling");

@@ -117,6 +117,17 @@ const placementCalls = [];
 const developSectionDisplayOrder = vm.runInNewContext("(" + source.match(
     /const developSectionDisplayOrder = Object\.freeze\((\[[\s\S]*?\])\);/
 )[1] + ")");
+const developSectionIds = Array.from(developSectionDisplayOrder, (section) => section.id);
+assert.deepEqual(
+    developSectionIds.slice(-5),
+    ["lens-corrections", "transform", "lens-blur", "effects", "calibration"],
+    "Develop panels must end in Lightroom's Lens Corrections, Transform, Lens Blur, Effects, Calibration order"
+);
+assert.match(
+    source,
+    /function getSliderJumpSections\(\)\s*\{\s*return developSectionDisplayOrder\.map/,
+    "Jump To must derive its entries from the corrected Develop section order"
+);
 const sliderRenderContext = {
     developSliderDefinitions: [{ id: "Exposure", group: "Basic" }],
     developSectionDisplayOrder,
@@ -151,13 +162,15 @@ const sliderRenderContext = {
 };
 sliderRenderContext.renderBasicControlsRow = function () {};
 sliderRenderContext.renderEnhanceSection = function () {};
+sliderRenderContext.updateDevelopCategoricalControls = function () {};
+sliderRenderContext.requestDevelopCategoricalState = function () {};
 sliderRenderContext.getDevelopSectionDisplayLabel = function (section) { return section.label; };
 sliderRenderContext.createDevelopSectionElement = function () { return {}; };
 sliderRenderContext.selectDevelopSectionDefinitions = extractJavaScriptFunction(
     "selectDevelopSectionDefinitions", "updateTreatmentButton", sliderRenderContext
 );
 sliderRenderContext.validateDevelopSectionMapping = extractJavaScriptFunction(
-    "validateDevelopSectionMapping", "createDevelopSectionElement", sliderRenderContext
+    "validateDevelopSectionMapping", "createDevelopCategoricalSelector", sliderRenderContext
 );
 const renderSlidersTab = extractJavaScriptFunction("renderSlidersTab", "renderToneCurveTab", sliderRenderContext);
 renderSlidersTab();

@@ -193,8 +193,8 @@ function validateStaticContract() {
         .concat(controllerSwitchGroups.flatMap((group) => group.switches)
             .filter((item) => item.explicitZeroOne !== true)
             .map((item) => item.slider));
-    assert.deepEqual(Array.from(dedicatedControllerSwitches, (item) => item.slider), ["CropConstrainToWarp"],
-        "Dedicated explicit 0/1 controller switch contract drifted");
+    assert.deepEqual(Array.from(dedicatedControllerSwitches, (item) => item.slider), [],
+        "Legacy explicit 0/1 switch definitions must remain retired from the Web Controller");
     const controllerActionReferences = controllerActionGroups.flatMap((group) => group.actions.map((item) => item.action))
         .concat(controllerToolTabs.flatMap((tab) => tab.actions.map((item) => item.action)))
         .concat(controllerCropGroups.flatMap((group) => group.commands

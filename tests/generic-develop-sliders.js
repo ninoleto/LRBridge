@@ -228,12 +228,12 @@ const developSectionDisplayOrder = JSON.parse(JSON.stringify(
 ));
 const expectedDevelopSectionLabels = [
     "White Balance", "Tone", "Presence", "Color Mixer", "Detail",
-    "Lens Corrections", "Lens Blur", "Transform", "Effects", "Calibration"
+    "Lens Corrections", "Transform", "Lens Blur", "Effects", "Calibration"
 ];
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), expectedDevelopSectionLabels);
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.id), [
     "white-balance", "tone", "presence", "color-mixer", "detail",
-    "lens-corrections", "lens-blur", "transform", "effects", "calibration"
+    "lens-corrections", "transform", "lens-blur", "effects", "calibration"
 ]);
 assert.equal(new Set(developSectionDisplayOrder.map((section) => section.id)).size, 10,
     "Every main Develop section must render exactly once");
@@ -261,7 +261,7 @@ assert.match(leadingControlsCss, /margin-bottom: 28px/,
 const trailingControlsCss = controller.match(/\.develop-section-trailing-controls \{[\s\S]*?\n        \}/)[0];
 assert.match(trailingControlsCss, /margin-top: 16px/);
 assert.match(trailingControlsCss, /margin-bottom: 0/,
-    "Trailing Constrain Crop must preserve its existing spacing without adding a section gap");
+    "Generic trailing controls must preserve their spacing without adding a section gap");
 const ordinarySliderRowCss = controller.match(/\.develop-slider-row,\s*\.angle-control \{[\s\S]*?\n        \}/)[0];
 assert.doesNotMatch(ordinarySliderRowCss, /28px/,
     "Ordinary consecutive sliders must not receive section-level spacing");
@@ -322,13 +322,13 @@ assert.deepEqual(lensCorrectionsSection.embeddedSwitchGroups, ["Lens / Defringe"
 assert.deepEqual(transformSection.embeddedActionGroups, ["Transform Actions"],
     "Transform Actions must be associated with the Transform section");
 assert.equal(transformSection.embeddedTrailingSwitchGroups, undefined,
-    "Constrain Crop must no longer be presented under Transform");
+    "Constrain Crop must use its dedicated categorical control rather than a legacy embedded switch group");
 assert.equal((controller.match(/"label": "Remove Chromatic Aberration"/g) || []).length, 1,
     "Remove Chromatic Aberration must have one existing switch definition");
 assert.equal((controller.match(/"label": "Enable Profile Corrections"/g) || []).length, 1,
     "Enable Profile Corrections must have one existing switch definition");
-assert.equal((controller.match(/"label": "Constrain Crop"/g) || []).length, 1,
-    "Constrain Crop must have one switch definition in Lens Corrections");
+assert.equal((controller.match(/name\.textContent = "Constrain Crop"/g) || []).length, 1,
+    "Constrain Crop must have one dedicated control in Transform");
 const developSectionRenderer = controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0];
 assert.match(developSectionRenderer,
     /groupElement\.appendChild\(title\);\s*if \(section\.id === "lens-corrections"\) \{\s*renderLensCorrectionsSection\(groupElement, section\);\s*return groupElement;/,
@@ -336,6 +336,9 @@ assert.match(developSectionRenderer,
 assert.match(developSectionRenderer,
     /section\.items\.forEach[\s\S]*const trailingControls = createSectionControls\(section, "trailing"\);\s*if \(trailingControls\) groupElement\.appendChild\(trailingControls\)/,
     "Other Develop sections must retain the generic leading/slider/trailing renderer");
+assert.match(developSectionRenderer,
+    /section\.items\.forEach[\s\S]*if \(section\.id === "transform"\) appendTransformConstrainCropControl\(groupElement\);\s*const trailingControls/,
+    "Transform Constrain Crop must render after its final slider");
 assert.match(controller,
     /includesDetailControls[\s\S]*controls\.appendChild\(renderEnhanceSection\(\)\)[\s\S]*controls\.appendChild\(renderRawDetailsControl\(\)\)[\s\S]*controls\.appendChild\(renderSuperResolutionControl\(\)\)/,
     "Detail Enhance controls must use the shared leading-controls wrapper before Sharpness");
@@ -375,8 +378,8 @@ assert.match(controller, /function getSliderJumpSections\(\) \{\s*return develop
     "Jump menu and rendered sections must share the presentation specification");
 assert.equal(developSectionDisplayOrder.length, 10, "Jump-to must source exactly ten Develop sections");
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), [
-    "White Balance", "Tone", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Lens Blur", "Transform", "Effects", "Calibration"
-], "Jump-to section ordering must remain unchanged");
+    "White Balance", "Tone", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Transform", "Lens Blur", "Effects", "Calibration"
+], "Jump-to section ordering must match the rendered Lightroom panel order");
 assert.equal(developSectionDisplayOrder[3].id, "color-mixer",
     "Color Mixer/B&W must remain fourth between Presence and Detail");
 assert.match(controller, /function getSliderJumpSections[\s\S]*label: getDevelopSectionDisplayLabel\(section\)/,

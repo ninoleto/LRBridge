@@ -558,6 +558,88 @@
             font-size: 13px;
         }
 
+        .develop-categorical-row {
+            display: grid;
+            grid-template-columns: 240px minmax(220px, 420px) 1fr;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .develop-categorical-select {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid #405263;
+            border-radius: 7px;
+            padding: 8px 38px 8px 11px;
+            background: #10171d;
+            color: #f4f7fa;
+            font: inherit;
+            touch-action: manipulation;
+        }
+
+        .develop-categorical-select.pending {
+            border-color: #d6a52b;
+            box-shadow: 0 0 0 2px rgba(214, 165, 43, 0.18);
+        }
+
+        .develop-categorical-options {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(76px, 1fr));
+            gap: 8px;
+        }
+
+        .develop-categorical-upright {
+            margin-bottom: 12px;
+        }
+
+        .develop-categorical-options button {
+            min-height: 44px;
+        }
+
+        .develop-categorical-options button.active,
+        .develop-categorical-options button.active:hover,
+        .develop-categorical-action.active {
+            background: #2a6f97;
+            color: #ffffff;
+        }
+
+        .develop-categorical-options button.pending,
+        .develop-categorical-action.pending {
+            border-color: #d6a52b;
+            box-shadow: 0 0 0 2px rgba(214, 165, 43, 0.18);
+        }
+
+        .develop-categorical-status {
+            min-height: 18px;
+            color: #9fb0bf;
+            font-size: 13px;
+        }
+
+        .develop-categorical-status.pending { color: #ffb454; }
+        .develop-categorical-status.error { color: #ff9b9b; }
+
+        .develop-categorical-status.visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .develop-categorical-binary button.active {
+            box-shadow: 0 0 0 2px rgba(113, 198, 245, 0.45);
+        }
+
+        .develop-categorical-binary button.pending {
+            border-color: #d6a52b;
+            box-shadow: 0 0 0 2px rgba(214, 165, 43, 0.3);
+        }
+
         button {
             background: #273442;
             color: #ffffff;
@@ -758,20 +840,30 @@
             box-shadow: 0 0 0 2px rgba(113, 198, 245, 0.24);
         }
         .lens-blur-mode-row { grid-template-columns: 240px 90px 90px minmax(150px, auto) 1fr; }
+        .touch-group-gap { margin-bottom: 18px; }
+        .develop-categorical-subsection-gap { margin-bottom: 40px; }
+        .transform-reset-subsection-gap { margin-bottom: 40px; }
         .lens-blur-focus-heading { display: flex; align-items: center; gap: 8px; }
-        .lens-blur-focus-native-actions { display: flex; gap: 5px; margin-left: auto; }
+        .lens-blur-focus-native-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin: 4px 0 6px;
+        }
         .lens-blur-focus-icon-button {
-            width: 34px;
-            min-width: 34px;
-            height: 30px;
-            padding: 4px;
+            width: 100%;
+            min-width: 0;
+            min-height: 44px;
+            padding: 8px 12px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            gap: 8px;
             color: #c5d0d7;
             background: #2b343c;
         }
-        .lens-blur-focus-icon-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+        .lens-blur-focus-icon-button svg { width: 21px; height: 21px; flex: 0 0 21px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+        .lens-blur-focus-icon-button span { min-width: 0; }
         .lens-blur-focus-icon-button.active { color: #ecf8ff; border-color: #71c6f5; background: #28536a; }
         .lens-blur-focus-icon-button.busy { color: #f0c45b; }
         .lens-blur-focus-range { margin: 7px 0 14px; }
@@ -844,6 +936,16 @@
         .lens-blur-focus-status { min-height: 16px; margin-top: 3px; color: #d6a52b; font-size: 12px; }
         .lens-blur-focus-status.error { color: #ff7b72; }
         .lens-blur-focus-source { min-height: 16px; margin-top: 3px; color: #aeb4bc; font-size: 12px; }
+        .lens-blur-experimental-note {
+            margin: 4px 0 8px;
+            padding: 6px 8px;
+            border-left: 3px solid #d6a52b;
+            background: rgba(214, 165, 43, 0.09);
+            color: #d9bd76;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+        .lens-blur-experimental-note strong { font-weight: 700; }
         .lens-blur-focus-range.pending .lens-blur-focus-track { border-color: #7195a9; }
         .lens-blur-focus-range.unavailable .lens-blur-focus-track { opacity: 0.52; }
 
@@ -1176,13 +1278,18 @@
         @media (max-width: 760px) {
             .row,
             .switch-row,
-            .action-row {
+            .action-row,
+            .develop-categorical-row {
                 grid-template-columns: 1fr;
                 background: #18212a;
                 border: 1px solid #2b3744;
                 border-radius: 8px;
                 padding: 10px;
             }
+
+            .develop-categorical-options { grid-template-columns: repeat(3, minmax(70px, 1fr)); }
+
+            .lens-blur-focus-native-actions { grid-template-columns: 1fr; }
 
             .slider-name {
                 border: 0;
@@ -1369,6 +1476,7 @@
 
     <script src="/controller-color-grading.js"></script>
     <script src="/controller-denoise-state.js"></script>
+    <script src="/controller-develop-categorical.js"></script>
     <script src="/controller-lens-blur.js"></script>
     <script>
         const sliderGroups = [
@@ -1677,7 +1785,8 @@
                                 {
                                         "label": "Upright Tool",
                                         "action": "selectUprightTool",
-                                        "button": "Select"
+                                        "button": "Select",
+                                        "hiddenInWebController": true
                                 },
                                 {
                                         "label": "Reset Transform",
@@ -1702,11 +1811,6 @@
                                 "label": "Enable Profile Corrections",
                                 "slider": "LensProfileEnable",
                                 "authoritativeZeroOne": true
-                        },
-                        {
-                                "label": "Constrain Crop",
-                                "slider": "CropConstrainToWarp",
-                                "explicitZeroOne": true
                         }
                 ]
         }
@@ -2603,6 +2707,21 @@
         const sliderFeedbackElements = {};
         const developSliderControls = {};
         let developSliderDefinitions = [];
+        const developCategoricalHelper = window.LRBridgeDevelopCategorical &&
+            typeof window.LRBridgeDevelopCategorical.createModel === "function" &&
+            typeof window.LRBridgeDevelopCategorical.syncUprightButtons === "function" &&
+            typeof window.LRBridgeDevelopCategorical.syncBinaryButtons === "function"
+            ? window.LRBridgeDevelopCategorical
+            : null;
+        const developCategoricalModel = developCategoricalHelper ? developCategoricalHelper.createModel() : null;
+        let developCategoricalRequestInFlight = false;
+        let developCategoricalCapabilities = {
+            transformUpdate: { available: false, enabled: false, reason: "Unavailable" }
+        };
+        let developCategoricalControls = {};
+        const developCategoricalSubmitting = new Set();
+        const developCategoricalPendingTimers = {};
+        const developCategoricalErrors = {};
         const lensBlurHelper = window.LRBridgeLensBlur &&
             typeof window.LRBridgeLensBlur.createModel === "function" &&
             typeof window.LRBridgeLensBlur.createSubjectFocusPresentation === "function" &&
@@ -3145,6 +3264,7 @@
             if (activeTab === "sliders") requestTreatmentState();
             if (activeTab === "sliders") requestHistoryState();
             if (activeTab === "sliders") requestLensBlurState();
+            if (activeTab === "sliders") requestDevelopCategoricalState();
             if (activeTab === "sliders" && colorMixerView === "point-color") requestPointColorState();
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
@@ -3236,6 +3356,7 @@
                     lensBlurModel.applyAuthoritative(null);
                     lensBlurSubjectPresentation.reset();
                     updateLensBlurPresentation();
+                    resetDevelopCategoricalState();
                     ["LensBlurAmount", "LensBlurCatEye", "LensBlurHighlightsBoost"].forEach(function (slider) {
                         const control = developSliderControls[slider];
                         if (control) markDevelopSliderUnavailable(control, true);
@@ -4825,6 +4946,207 @@
             updateLensBlurFocusRange(presentation);
         }
 
+        function clearDevelopCategoricalPendingTimer(control) {
+            if (developCategoricalPendingTimers[control] !== undefined) {
+                clearTimeout(developCategoricalPendingTimers[control]);
+                delete developCategoricalPendingTimers[control];
+            }
+        }
+
+        function resetDevelopCategoricalState() {
+            Object.keys(developCategoricalPendingTimers).forEach(clearDevelopCategoricalPendingTimer);
+            Object.keys(developCategoricalErrors).forEach(function (control) { delete developCategoricalErrors[control]; });
+            developCategoricalSubmitting.clear();
+            if (developCategoricalModel) developCategoricalModel.reset();
+            updateDevelopCategoricalControls();
+        }
+
+        function developCategoricalOptionLabel(control, value) {
+            if (!developCategoricalHelper) return "Unavailable";
+            const options = control === "process" ? developCategoricalHelper.processOptions :
+                control === "vignetteStyle" ? developCategoricalHelper.vignetteStyleOptions :
+                control === "uprightMode" ? developCategoricalHelper.uprightModeOptions : [];
+            const match = options.find(function (option) { return option.value === value; });
+            return match ? match.label : "Unavailable";
+        }
+
+        function updateDevelopCategoricalControls() {
+            if (!developCategoricalModel) return;
+            ["process", "vignetteStyle"].forEach(function (controlName) {
+                const control = developCategoricalControls[controlName];
+                if (!control) return;
+                const presentation = developCategoricalModel.presentation(controlName);
+                const busy = presentation.pending || developCategoricalSubmitting.has(controlName);
+                const shownValue = presentation.pending ? presentation.desiredValue : presentation.authoritativeValue;
+                control.select.disabled = !presentation.available || busy;
+                control.select.value = shownValue === null ? "" : String(shownValue);
+                control.select.classList.toggle("pending", presentation.pending);
+                control.status.className = "develop-categorical-status";
+                if (developCategoricalErrors[controlName]) {
+                    control.status.classList.add("error");
+                    control.status.textContent = developCategoricalErrors[controlName];
+                } else if (developCategoricalSubmitting.has(controlName)) {
+                    control.status.classList.add("pending");
+                    control.status.textContent = "Sending to Lightroom…";
+                } else if (presentation.pending) {
+                    control.status.classList.add("pending");
+                    control.status.textContent = "Awaiting authoritative confirmation…";
+                } else {
+                    control.status.textContent = presentation.available
+                        ? developCategoricalOptionLabel(controlName, presentation.authoritativeValue)
+                        : "Unavailable";
+                }
+            });
+
+            const uprightControl = developCategoricalControls.uprightMode;
+            if (uprightControl) {
+                const presentation = developCategoricalModel.presentation("uprightMode");
+                const busy = presentation.pending || developCategoricalSubmitting.has("uprightMode");
+                developCategoricalHelper.syncUprightButtons(uprightControl.buttons, presentation, busy);
+                uprightControl.status.className = "develop-categorical-status";
+                if (developCategoricalErrors.uprightMode) {
+                    uprightControl.status.classList.add("error");
+                    uprightControl.status.textContent = developCategoricalErrors.uprightMode;
+                } else if (developCategoricalSubmitting.has("uprightMode")) {
+                    uprightControl.status.classList.add("pending");
+                    uprightControl.status.textContent = "Sending to Lightroom…";
+                } else if (presentation.pending) {
+                    uprightControl.status.classList.add("pending");
+                    uprightControl.status.textContent = "Awaiting authoritative confirmation…";
+                } else {
+                    if (presentation.available) {
+                        uprightControl.status.classList.add("visually-hidden");
+                        uprightControl.status.textContent = "Current Upright mode: " +
+                            developCategoricalOptionLabel("uprightMode", presentation.authoritativeValue);
+                    } else {
+                        uprightControl.status.textContent = "Unavailable";
+                    }
+                }
+            }
+
+            const constrainControl = developCategoricalControls.constrainCrop;
+            if (constrainControl) {
+                const presentation = developCategoricalModel.presentation("constrainCrop");
+                const busy = presentation.pending || developCategoricalSubmitting.has("constrainCrop");
+                developCategoricalHelper.syncBinaryButtons(constrainControl.buttons, presentation, busy);
+                constrainControl.status.className = "switch-status develop-categorical-status";
+                if (developCategoricalErrors.constrainCrop) {
+                    constrainControl.status.classList.add("error");
+                    constrainControl.status.textContent = developCategoricalErrors.constrainCrop;
+                } else if (developCategoricalSubmitting.has("constrainCrop")) {
+                    constrainControl.status.classList.add("pending");
+                    constrainControl.status.textContent = "Sending to Lightroom…";
+                } else if (presentation.pending) {
+                    constrainControl.status.classList.add("pending");
+                    constrainControl.status.textContent = "Awaiting authoritative confirmation…";
+                } else {
+                    constrainControl.status.textContent = presentation.available
+                        ? (presentation.authoritativeValue === 1 ? "On" : "Off")
+                        : "Unavailable";
+                }
+            }
+
+            const toolControl = developCategoricalControls.uprightTool;
+            if (toolControl) {
+                const presentation = developCategoricalModel.presentation("uprightTool");
+                const uprightPresentation = developCategoricalModel.presentation("uprightMode");
+                const active = presentation.available && presentation.authoritativeValue === "upright";
+                const busy = presentation.pending || developCategoricalSubmitting.has("uprightTool");
+                toolControl.button.disabled = !presentation.available || !uprightPresentation.available || busy;
+                toolControl.button.classList.toggle("active", active);
+                toolControl.button.classList.toggle("pending", presentation.pending);
+                toolControl.button.setAttribute("aria-pressed", String(active));
+                toolControl.status.className = "develop-categorical-status";
+                if (developCategoricalErrors.uprightTool) {
+                    toolControl.status.classList.add("error");
+                    toolControl.status.textContent = developCategoricalErrors.uprightTool;
+                } else if (developCategoricalSubmitting.has("uprightTool")) {
+                    toolControl.status.classList.add("pending");
+                    toolControl.status.textContent = "Sending to Lightroom…";
+                } else if (presentation.pending) {
+                    toolControl.status.classList.add("pending");
+                    toolControl.status.textContent = "Awaiting authoritative tool feedback…";
+                } else {
+                    toolControl.status.textContent = presentation.available ? (active ? "Active" : "Inactive") : "Unavailable";
+                }
+            }
+
+            const updateControl = developCategoricalControls.transformUpdate;
+            if (updateControl) {
+                const capability = developCategoricalCapabilities.transformUpdate || {};
+                updateControl.button.disabled = capability.available !== true || capability.enabled !== true;
+                updateControl.status.textContent = capability.available === true
+                    ? (capability.reason || "Available")
+                    : "Unavailable through Lightroom SDK 15.3";
+                updateControl.button.title = capability.reason || "Unavailable";
+            }
+        }
+
+        async function submitDevelopCategorical(control, value, path) {
+            if (!developCategoricalModel || developCategoricalSubmitting.has(control) || developCategoricalModel.getPending(control)) return false;
+            delete developCategoricalErrors[control];
+            developCategoricalSubmitting.add(control);
+            updateDevelopCategoricalControls();
+            setStatus("Sending: " + path);
+            try {
+                const response = await fetch(path, { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data || data.ok !== true || !Number.isSafeInteger(data.confirmationAfterRevision)) {
+                    throw new Error(data && data.error ? data.error : "Lightroom rejected the categorical change");
+                }
+                const confirmationAfterRevision = Math.max(data.confirmationAfterRevision, developCategoricalModel.getRevision());
+                if (!developCategoricalModel.begin(control, value, confirmationAfterRevision)) {
+                    throw new Error("Could not start authoritative confirmation");
+                }
+                markSliderCommandSent();
+                clearDevelopCategoricalPendingTimer(control);
+                developCategoricalPendingTimers[control] = setTimeout(function () {
+                    if (!developCategoricalModel.getPending(control)) return;
+                    developCategoricalModel.cancel(control);
+                    delete developCategoricalPendingTimers[control];
+                    developCategoricalErrors[control] = "Lightroom did not confirm the requested change.";
+                    updateDevelopCategoricalControls();
+                    requestDevelopCategoricalState();
+                }, 10000);
+                setStatus("OK: categorical change queued; awaiting authoritative confirmation");
+                requestDevelopCategoricalState();
+                return true;
+            } catch (error) {
+                developCategoricalErrors[control] = error.message || "Categorical control unavailable";
+                setStatus("ERROR: " + developCategoricalErrors[control]);
+                return false;
+            } finally {
+                developCategoricalSubmitting.delete(control);
+                updateDevelopCategoricalControls();
+            }
+        }
+
+        async function requestDevelopCategoricalState() {
+            if (!developCategoricalModel || activeTab !== "sliders" || developCategoricalRequestInFlight) return;
+            developCategoricalRequestInFlight = true;
+            try {
+                const response = await fetch("/api/develop-categorical/state", { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data || !data.state || !Number.isSafeInteger(data.revision)) {
+                    throw new Error("Develop categorical state unavailable");
+                }
+                if (activeTab !== "sliders") return;
+                if (data.capabilities && data.capabilities.transformUpdate) {
+                    developCategoricalCapabilities = data.capabilities;
+                }
+                const applied = developCategoricalModel.apply(data.state, data.revision);
+                applied.confirmed.forEach(function (control) {
+                    clearDevelopCategoricalPendingTimer(control);
+                    delete developCategoricalErrors[control];
+                });
+            } catch (error) {
+                /* Keep the last authoritative presentation; context polling will retry. */
+            } finally {
+                developCategoricalRequestInFlight = false;
+                updateDevelopCategoricalControls();
+            }
+        }
+
         async function setLensBlurApply(enabled) {
             if (!lensBlurHelper || typeof enabled !== "boolean") return false;
             const accepted = await sendCommand("/api/lens-blur/apply?enabled=" + String(enabled));
@@ -5178,7 +5500,7 @@
 
         function createLensBlurNativeSlider(name, label, step, precision) {
             const row = document.createElement("div");
-            row.className = "develop-slider-row lens-blur-native-row unavailable";
+            row.className = "develop-slider-row lens-blur-native-row unavailable touch-group-gap";
             const title = document.createElement("div");
             title.className = "slider-name";
             title.textContent = label;
@@ -5558,7 +5880,9 @@
                 target.setAttribute("d", "M12 2v5 M12 17v5 M2 12h5 M17 12h5 M12 10v4 M10 12h4");
                 svg.appendChild(ring); svg.appendChild(target);
             }
-            button.appendChild(svg);
+            const text = document.createElement("span");
+            text.textContent = label;
+            button.append(svg, text);
             button.addEventListener("click", function () { activateLensBlurFocusAction(action); });
             return button;
         }
@@ -5667,7 +5991,12 @@
             const focusRangeHeading = appendLensBlurSubheading(groupElement, "FOCUS RANGE");
             focusRangeHeading.classList.add("lens-blur-focus-heading");
             lensBlurFocusRangeView = createLensBlurFocusRange();
-            focusRangeHeading.appendChild(lensBlurFocusRangeView.nativeActions);
+            groupElement.appendChild(lensBlurFocusRangeView.nativeActions);
+            const focusRangeExperimentalNote = document.createElement("div");
+            focusRangeExperimentalNote.className = "lens-blur-experimental-note";
+            focusRangeExperimentalNote.setAttribute("role", "note");
+            focusRangeExperimentalNote.innerHTML = "<strong>Experimental:</strong> When switching focus modes from the Web Controller, Lightroom may occasionally leave the previous Subject Focus or Point / Area Focus button highlighted. Hovering over the button in Lightroom updates the highlight. This is only a visual issue and does not occur when switching focus modes directly in Lightroom. The Web Controller always shows the correct active mode.";
+            groupElement.appendChild(focusRangeExperimentalNote);
             groupElement.appendChild(lensBlurFocusRangeView.root);
 
             lensBlurVisualizeButtons = createLensBlurExplicitSwitch("Visualize Depth", function (enabled) {
@@ -5677,7 +6006,7 @@
 
             appendLensBlurSubheading(groupElement, "BRUSH REFINEMENT");
             const toolActions = document.createElement("div");
-            toolActions.className = "lens-blur-action-row";
+            toolActions.className = "lens-blur-action-row touch-group-gap";
             lensBlurRefinementButton = makeButton("Open Brush Refinement", "command-primary lens-blur-tool-button", function () {
                 const presentation = lensBlurHelper.presentationFor(lensBlurModel.get());
                 const disclosure = presentation.refinementDisclosure;
@@ -5688,7 +6017,7 @@
             toolActions.appendChild(lensBlurRefinementButton);
             groupElement.appendChild(toolActions);
             const modeRow = document.createElement("div");
-            modeRow.className = "switch-row lens-blur-apply-row lens-blur-mode-row";
+            modeRow.className = "switch-row lens-blur-apply-row lens-blur-mode-row touch-group-gap";
             const modeName = document.createElement("div"); modeName.className = "slider-name"; modeName.textContent = "Mode";
             const modeFocus = makeButton("Focus", "command-neutral", function () { setLensBlurRefinementMode("focus"); });
             const modeBlur = makeButton("Blur", "command-neutral", function () { setLensBlurRefinementMode("blur"); });
@@ -6191,7 +6520,6 @@
 
             manualPanel.appendChild(createLensSubheading("Distortion"));
             appendSlider(manualPanel, "LensManualDistortionAmount", "Amount");
-            appendSwitch(manualPanel, "CropConstrainToWarp");
 
             manualPanel.appendChild(createLensSubheading("Defringe"));
             manualPanel.appendChild(createLensColorHeading("Purple"));
@@ -6295,6 +6623,7 @@
                 });
                 if (!group) return;
                 group.actions.forEach(function (item) {
+                    if (item.hiddenInWebController === true) return;
                     addActionRow(parent, item);
                 });
             });
@@ -6338,8 +6667,8 @@
             { id: "color-mixer", label: "Color Mixer", selectors: [{ group: "Color Mixer / HSL" }, { group: "B&W Mixer" }] },
             { id: "detail", label: "Detail", selectors: [{ group: "Detail" }] },
             { id: "lens-corrections", label: "Lens Corrections", embeddedSwitchGroups: ["Lens / Defringe"], selectors: [{ group: "Lens / Defringe" }] },
-            { id: "lens-blur", label: "Lens Blur", selectors: [{ group: "Lens Blur" }] },
             { id: "transform", label: "Transform", embeddedActionGroups: ["Transform Actions"], selectors: [{ group: "Transform" }] },
+            { id: "lens-blur", label: "Lens Blur", selectors: [{ group: "Lens Blur" }] },
             { id: "effects", label: "Effects", selectors: [{ group: "Effects" }] },
             { id: "calibration", label: "Calibration", selectors: [{ group: "Calibration" }] }
         ]);
@@ -6906,6 +7235,158 @@
                 "; unexpected: " + (unexpected.join(", ") || "none") + ".";
         }
 
+        function createDevelopCategoricalSelector(controlName, label, options, path, parseValue) {
+            const row = document.createElement("div");
+            row.className = "develop-categorical-row touch-group-gap";
+            if (controlName === "process" || controlName === "vignetteStyle") {
+                row.classList.add("develop-categorical-subsection-gap");
+            }
+            row.dataset.developCategorical = controlName;
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = label;
+            const select = document.createElement("select");
+            select.className = "develop-categorical-select";
+            select.setAttribute("aria-label", label);
+            options.forEach(function (option) {
+                const element = document.createElement("option");
+                element.value = String(option.value);
+                element.textContent = option.label;
+                select.appendChild(element);
+            });
+            const status = document.createElement("div");
+            status.className = "develop-categorical-status";
+            status.setAttribute("role", "status");
+            select.disabled = true;
+            select.addEventListener("change", function () {
+                const value = parseValue(select.value);
+                submitDevelopCategorical(controlName, value, path + "?value=" + encodeURIComponent(String(value)));
+            });
+            row.append(name, select, status);
+            developCategoricalControls[controlName] = { row: row, select: select, status: status };
+            return row;
+        }
+
+        function appendTransformCategoricalControls(groupElement) {
+            if (!developCategoricalHelper) {
+                const unavailable = document.createElement("div");
+                unavailable.className = "develop-categorical-status error";
+                unavailable.textContent = "Upright controls unavailable";
+                groupElement.appendChild(unavailable);
+                return;
+            }
+
+            const toolRow = document.createElement("div");
+            toolRow.className = "develop-categorical-row touch-group-gap";
+            toolRow.dataset.developCategorical = "uprightTool";
+            const toolName = document.createElement("div");
+            toolName.className = "slider-name";
+            toolName.textContent = "Upright Tool";
+            const toolButton = makeButton("Select", "command-primary develop-categorical-action", function () {
+                submitDevelopCategorical("uprightTool", "upright", "/api/develop-categorical/upright-tool");
+            });
+            toolButton.disabled = true;
+            toolButton.setAttribute("aria-pressed", "false");
+            const toolStatus = document.createElement("div");
+            toolStatus.className = "develop-categorical-status";
+            toolStatus.setAttribute("role", "status");
+            toolRow.append(toolName, toolButton, toolStatus);
+            groupElement.appendChild(toolRow);
+            developCategoricalControls.uprightTool = { row: toolRow, button: toolButton, status: toolStatus };
+
+            const updateRow = document.createElement("div");
+            updateRow.className = "develop-categorical-row touch-group-gap";
+            updateRow.dataset.developCategorical = "transformUpdate";
+            const updateName = document.createElement("div");
+            updateName.className = "slider-name";
+            updateName.textContent = "Upright Update";
+            const updateButton = document.createElement("button");
+            updateButton.type = "button";
+            updateButton.className = "command-neutral develop-categorical-action";
+            updateButton.textContent = "Update";
+            updateButton.disabled = true;
+            const updateStatus = document.createElement("div");
+            updateStatus.className = "develop-categorical-status";
+            updateStatus.setAttribute("role", "status");
+            updateRow.append(updateName, updateButton, updateStatus);
+            groupElement.appendChild(updateRow);
+            developCategoricalControls.transformUpdate = { row: updateRow, button: updateButton, status: updateStatus };
+
+            const modeRow = document.createElement("div");
+            modeRow.className = "develop-categorical-upright touch-group-gap";
+            modeRow.dataset.developCategorical = "uprightMode";
+            const options = document.createElement("div");
+            options.className = "develop-categorical-options";
+            const buttons = {};
+            developCategoricalHelper.uprightModeOptions.forEach(function (option) {
+                const button = makeButton(option.label, "command-neutral", function () {
+                    submitDevelopCategorical(
+                        "uprightMode",
+                        option.value,
+                        "/api/develop-categorical/upright-mode?value=" + encodeURIComponent(String(option.value))
+                    );
+                });
+                button.disabled = true;
+                button.setAttribute("aria-pressed", "false");
+                buttons[String(option.value)] = button;
+                options.appendChild(button);
+            });
+            const modeStatus = document.createElement("div");
+            modeStatus.className = "develop-categorical-status";
+            modeStatus.setAttribute("role", "status");
+            modeStatus.setAttribute("aria-live", "polite");
+            modeRow.append(options, modeStatus);
+            groupElement.appendChild(modeRow);
+            developCategoricalControls.uprightMode = { row: modeRow, buttons: buttons, status: modeStatus };
+        }
+
+        function appendTransformConstrainCropControl(groupElement) {
+            if (!developCategoricalHelper) return;
+            const row = document.createElement("div");
+            row.className = "switch-row develop-categorical-binary";
+            row.dataset.developCategorical = "constrainCrop";
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = "Constrain Crop";
+            const buttons = {};
+            [[0, "Off", "negative"], [1, "On", "positive"]].forEach(function (entry) {
+                const button = makeButton(entry[1], entry[2], function () {
+                    submitDevelopCategorical(
+                        "constrainCrop",
+                        entry[0],
+                        "/api/develop-categorical/constrain-crop?value=" + encodeURIComponent(String(entry[0]))
+                    );
+                });
+                button.disabled = true;
+                button.setAttribute("aria-pressed", "false");
+                buttons[String(entry[0])] = button;
+            });
+            const status = document.createElement("div");
+            status.className = "switch-status develop-categorical-status";
+            status.setAttribute("role", "status");
+            status.setAttribute("aria-live", "polite");
+            row.append(name, buttons["0"], buttons["1"], status);
+            groupElement.appendChild(row);
+            developCategoricalControls.constrainCrop = { row: row, buttons: buttons, status: status };
+        }
+
+        function appendSectionCategoricalControls(groupElement, sectionId) {
+            if (!developCategoricalHelper) return;
+            if (sectionId === "effects") {
+                groupElement.appendChild(createDevelopCategoricalSelector(
+                    "vignetteStyle", "Style", developCategoricalHelper.vignetteStyleOptions,
+                    "/api/develop-categorical/vignette-style", function (value) { return Number(value); }
+                ));
+            } else if (sectionId === "calibration") {
+                groupElement.appendChild(createDevelopCategoricalSelector(
+                    "process", "Process", developCategoricalHelper.processOptions,
+                    "/api/develop-categorical/process", function (value) { return value; }
+                ));
+            } else if (sectionId === "transform") {
+                appendTransformCategoricalControls(groupElement);
+            }
+        }
+
         function createDevelopSectionElement(section) {
             const groupElement = document.createElement("section");
             groupElement.className = "group";
@@ -6922,14 +7403,18 @@
                 renderLensBlurSection(groupElement, section);
                 return groupElement;
             }
+            appendSectionCategoricalControls(groupElement, section.id);
             const leadingControls = createSectionControls(section, "leading");
-            if (leadingControls) groupElement.appendChild(leadingControls);
+            if (leadingControls) {
+                if (section.id === "transform") leadingControls.classList.add("transform-reset-subsection-gap");
+                groupElement.appendChild(leadingControls);
+            }
             if (section.id === "color-mixer" && !treatmentAuthoritativeState) {
                 createColorMixerPresentation(groupElement, section);
                 return groupElement;
             }
             let currentSubheading = null;
-            section.items.forEach(function (item) {
+            section.items.forEach(function (item, itemIndex) {
                 if (item.subheading && item.subheading !== currentSubheading) {
                     const subheading = document.createElement("div");
                     subheading.className = "section-title";
@@ -6937,8 +7422,13 @@
                     groupElement.appendChild(subheading);
                     currentSubheading = item.subheading;
                 }
-                groupElement.appendChild(createDevelopSliderControl(item.definition));
+                const sliderControl = createDevelopSliderControl(item.definition);
+                if (section.id === "transform" && itemIndex === section.items.length - 1) {
+                    sliderControl.classList.add("touch-group-gap");
+                }
+                groupElement.appendChild(sliderControl);
             });
+            if (section.id === "transform") appendTransformConstrainCropControl(groupElement);
             const trailingControls = createSectionControls(section, "trailing");
             if (trailingControls) groupElement.appendChild(trailingControls);
             return groupElement;
@@ -7247,6 +7737,7 @@
 
         function renderSlidersTab() {
             developRenderedSections = {};
+            developCategoricalControls = {};
             developLoadingStatus = document.createElement("div");
             developLoadingStatus.className = "develop-loading-status";
             developLoadingStatus.role = "status";
@@ -7311,6 +7802,9 @@
                 content.appendChild(groupElement);
                 developRenderedSections[section.id] = groupElement;
             }
+
+            updateDevelopCategoricalControls();
+            requestDevelopCategoricalState();
 
             setTimeout(function () {
                 requestLiveFeedbackSnapshot(true);

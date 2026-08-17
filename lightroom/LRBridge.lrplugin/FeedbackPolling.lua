@@ -11,6 +11,7 @@ local Enhance = require "Enhance"
 local PointColor = require "PointColor"
 local History = require "History"
 local LensBlur = require "LensBlur"
+local DevelopCategorical = require "DevelopCategorical"
 
 local function getPortableRoot()
 
@@ -673,6 +674,11 @@ LrTasks.startAsyncTask(function()
         local lensBlurRequest = LrHttp.get("http://127.0.0.1:17891/lens-blur/next")
         if string.find(lensBlurRequest or "", [["requested":true]], 1, true) then
             LensBlur.sendCurrentState()
+        end
+
+        local categoricalRequest = LrHttp.get("http://127.0.0.1:17891/develop-categorical/next")
+        if string.find(categoricalRequest or "", [["requested":true]], 1, true) then
+            DevelopCategorical.sendCurrentState()
         end
 
         LrTasks.sleep(0.1)

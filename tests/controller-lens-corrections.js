@@ -47,13 +47,15 @@ for (const id of ["AutoLateralCA", "LensProfileEnable", "LensProfileDistortionSc
     assert.ok(!manualBuild.includes('"' + id + '"'), id + " must not render under Manual");
 }
 for (const id of [
-    "LensManualDistortionAmount", "CropConstrainToWarp", "DefringePurpleAmount",
+    "LensManualDistortionAmount", "DefringePurpleAmount",
     "DefringePurpleHueLo", "DefringePurpleHueHi", "DefringeGreenAmount",
     "DefringeGreenHueLo", "DefringeGreenHueHi", "VignetteAmount", "VignetteMidpoint"
 ]) {
     assert.ok(manualBuild.includes('"' + id + '"'), id + " must render under Manual");
     assert.ok(!profileBuild.includes('"' + id + '"'), id + " must not render under Profile");
 }
+assert.ok(!lensBlock.includes('"CropConstrainToWarp"'),
+    "Constrain Crop must move from Lens Corrections to Transform");
 
 assert.match(lensBlock, /createCompoundDevelopRangeControl\("Purple Hue", purpleLow, purpleHigh\)/);
 assert.match(lensBlock, /createCompoundDevelopRangeControl\("Green Hue", greenLow, greenHigh\)/);

@@ -5,6 +5,7 @@ const pointColor = require("./point-color-state");
 const lensBlur = require("./lens-blur-state");
 const focalRange = require("./lens-blur-focal-range");
 const context = require("./context");
+const developCategorical = require("./develop-categorical-state");
 
 const commandQueue = [];
 let latestResult = null;
@@ -154,6 +155,11 @@ function validateCommand(command) {
         ,"lens_blur.depth_refinement.select"
         ,"lens_blur.depth_refinement.close"
         ,"lens_blur.focal_range.set"
+        ,"develop_categorical.process.set"
+        ,"develop_categorical.vignette_style.set"
+        ,"develop_categorical.upright_mode.set"
+        ,"develop_categorical.constrain_crop.set"
+        ,"develop_categorical.upright_tool.select"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -201,6 +207,21 @@ function validateCommand(command) {
             /^[A-Za-z0-9_-]{1,64}$/.test(command.commitId);
         return (publicShape || internalShape) && typeof command.value === "string" &&
             focalRange.format(focalRange.parse(command.value)) === command.value;
+    }
+    if (command.command === "develop_categorical.process.set") {
+        return Object.keys(command).length === 2 && developCategorical.processValues.includes(command.value);
+    }
+    if (command.command === "develop_categorical.vignette_style.set") {
+        return Object.keys(command).length === 2 && developCategorical.vignetteStyleValues.includes(command.value);
+    }
+    if (command.command === "develop_categorical.upright_mode.set") {
+        return Object.keys(command).length === 2 && developCategorical.uprightModeValues.includes(command.value);
+    }
+    if (command.command === "develop_categorical.constrain_crop.set") {
+        return Object.keys(command).length === 2 && developCategorical.constrainCropValues.includes(command.value);
+    }
+    if (command.command === "develop_categorical.upright_tool.select") {
+        return Object.keys(command).length === 1;
     }
     if (command.command === "enhance.denoise.set") {
         return Object.keys(command).length === 3 && typeof command.enabled === "boolean" && Number.isInteger(command.amount) &&
@@ -465,6 +486,18 @@ function tryEnqueueCommand(command) {
         for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
             if (commandQueue[index].command === command.command) {
                 return replacePendingAt(index, command, admittedAt, "Coalesced Lens Blur Focus Range:");
+            }
+        }
+    }
+
+    if (command.command === "develop_categorical.process.set" ||
+        command.command === "develop_categorical.vignette_style.set" ||
+        command.command === "develop_categorical.upright_mode.set" ||
+        command.command === "develop_categorical.constrain_crop.set") {
+        const admittedAt = Date.now();
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            if (commandQueue[index].command === command.command) {
+                return replacePendingAt(index, command, admittedAt, "Coalesced Develop categorical state:");
             }
         }
     }

@@ -611,6 +611,29 @@ assert.match(controller, /\/api\/lens-blur\/auto-mask\?enabled=/);
 assert.doesNotMatch(controller, /\/api\/lens-blur\/depth-visualization\/toggle/);
 const lensBlurUiBlock = controller.match(/function renderLensBlurSection[\s\S]*?let lensCorrectionsView/)[0];
 const lensBlurControllerBlock = controller.match(/function updateLensBlurExplicitSwitch[\s\S]*?let lensCorrectionsView/)[0];
+const experimentalWarningHtml = "<strong>Experimental:</strong> When switching focus modes from the Web Controller, Lightroom may occasionally leave the previous Subject Focus or Point / Area Focus button highlighted. Hovering over the button in Lightroom updates the highlight. This is only a visual issue and does not occur when switching focus modes directly in Lightroom. The Web Controller always shows the correct active mode.";
+assert.match(lensBlurUiBlock,
+    /groupElement\.appendChild\(lensBlurFocusRangeView\.nativeActions\);\s*const focusRangeExperimentalNote[\s\S]*?setAttribute\("role", "note"\)[\s\S]*?focusRangeExperimentalNote\.innerHTML[\s\S]*?groupElement\.appendChild\(focusRangeExperimentalNote\);\s*groupElement\.appendChild\(lensBlurFocusRangeView\.root\)/,
+    "The non-error experimental warning must remain directly between the labeled Focus Range actions and range control");
+assert.ok(lensBlurUiBlock.includes('focusRangeExperimentalNote.innerHTML = "' + experimentalWarningHtml + '";'),
+    "The complete approved Lens Blur experimental warning must remain present verbatim");
+assert.match(lensBlurUiBlock, /innerHTML = "<strong>Experimental:<\/strong>/,
+    "Experimental must use semantic strong markup");
+assert.match(controller, /\.lens-blur-experimental-note strong\s*\{\s*font-weight:\s*700;/,
+    "The semantic Experimental label must be visibly bold");
+assert.doesNotMatch(lensBlurUiBlock, /\*\*Experimental:/,
+    "The warning must not display Markdown asterisks");
+assert.match(controller, /\.lens-blur-experimental-note\s*\{[\s\S]*?border-left:\s*3px solid #d6a52b/,
+    "The Focus Range experimental note must retain compact amber warning styling");
+assert.doesNotMatch(controller, /focusRangeExperimentalNote\.className\s*=\s*[^;]*error/,
+    "The Focus Range experimental note must not be presented as an error");
+assert.match(lensBlurControllerBlock,
+    /const text = document\.createElement\("span"\);\s*text\.textContent = label;\s*button\.append\(svg, text\)/,
+    "Focus Range actions must keep each original SVG and its explanatory label in one button");
+assert.match(controller, /\.lens-blur-focus-native-actions\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/,
+    "Focus Range actions must use two columns at normal widths");
+assert.match(controller, /@media \(max-width: 760px\)[\s\S]*?\.lens-blur-focus-native-actions\s*\{\s*grid-template-columns:\s*1fr;/,
+    "Focus Range actions must stack cleanly on narrow screens");
 assert.match(lensBlurControllerBlock, /"Subject Focus"[\s\S]*"Point \/ Area Focus"/);
 assert.match(lensBlurControllerBlock,
     /view\.subjectButton\.classList\.toggle\("active", subjectActive\)[\s\S]*view\.subjectButton\.setAttribute\("aria-pressed", String\(subjectActive\)\)[\s\S]*aria-busy/,
@@ -700,8 +723,12 @@ assert.match(lensBlurControllerBlock, /pendingCommitId[\s\S]*lensBlurFocalRangeC
     "Optimistic presentation must remain until the matching complete readback arrives");
 assert.doesNotMatch(lensBlurControllerBlock, /view\.minimum\s*=|view\.maximum\s*=/,
     "Focus Range must not expand or autoscale its visible depth axis");
-assert.match(lensBlurControllerBlock, /row\.className = "develop-slider-row lens-blur-native-row unavailable"/,
+assert.match(lensBlurControllerBlock, /row\.className = "develop-slider-row lens-blur-native-row unavailable touch-group-gap"/,
     "Brush controls must use the standard LRBridge slider component");
+assert.match(lensBlurUiBlock, /toolActions\.className = "lens-blur-action-row touch-group-gap"[\s\S]*?modeRow\.className = "switch-row lens-blur-apply-row lens-blur-mode-row touch-group-gap"/,
+    "Brush Refinement action and mode groups must remain touch-safe");
+assert.match(lensBlurUiBlock, /createLensBlurNativeSlider[\s\S]*?groupElement\.appendChild\(control\.row\)[\s\S]*?createLensBlurExplicitSwitch\("Auto Mask"/,
+    "Spaced Brush slider rows must remain before Auto Mask");
 assert.match(lensBlurControllerBlock, /scheduleLensBlurNativeValue[\s\S]*}, 100\)/,
     "Brush slider movement must be locally optimistic and coalesced");
 assert.match(lensBlurControllerBlock, /pointerup[\s\S]*finishLensBlurNativeRange\(control, event, true\)/,
