@@ -575,6 +575,8 @@ assert.doesNotMatch(invokeFocusRangeAction, /Post-VerifiedClientClick|Refresh-Fo
 assert.doesNotMatch(nativeSource,
     /Post-VerifiedFocusRangePaintSequence|Invoke-FocusRangeActionPaintRefresh|refreshFocusRangeActions/,
     "Focus actions must not expose a post-confirmation native repaint operation");
+assert.doesNotMatch(nativeSource, /\bInvalidateRect\b/,
+    "Abandoned Focus Range invalidation hooks must not remain in the native backend");
 const resultRoute = bridgeSource.match(/app\.get\("\/lens-blur\/result"[\s\S]*?^}\);/m)?.[0] || "";
 assert.match(resultRoute, /app\.get\("\/lens-blur\/result", function/,
     "The authoritative Lens Blur result handler must remain synchronous");

@@ -34,7 +34,6 @@ public static class LRBridgeNative
     [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern IntPtr SendMessageTimeout(
         IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
     [DllImport("user32.dll", SetLastError=true)] public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
-    [DllImport("user32.dll", SetLastError=true)] public static extern bool InvalidateRect(IntPtr hwnd, IntPtr rectangle, bool erase);
     [DllImport("user32.dll")] public static extern bool RedrawWindow(IntPtr hwnd, IntPtr rectangle, IntPtr region, uint flags);
     [DllImport("oleacc.dll")] private static extern int AccessibleObjectFromWindow(
         IntPtr hwnd, uint objectId, ref Guid interfaceId, [MarshalAs(UnmanagedType.Interface)] out object accessible);
