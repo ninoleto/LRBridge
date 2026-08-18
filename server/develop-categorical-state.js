@@ -1,5 +1,16 @@
 "use strict";
 
+const whiteBalanceOptions = Object.freeze([
+    Object.freeze({ value: "As Shot", label: "As Shot", writable: false }),
+    Object.freeze({ value: "Auto", label: "Auto", writable: true }),
+    Object.freeze({ value: "Daylight", label: "Daylight", writable: true }),
+    Object.freeze({ value: "Cloudy", label: "Cloudy", writable: true }),
+    Object.freeze({ value: "Shade", label: "Shade", writable: true }),
+    Object.freeze({ value: "Tungsten", label: "Tungsten", writable: true }),
+    Object.freeze({ value: "Fluorescent", label: "Fluorescent", writable: true }),
+    Object.freeze({ value: "Flash", label: "Flash", writable: true }),
+    Object.freeze({ value: "Custom", label: "Custom", writable: false })
+]);
 const processOptions = Object.freeze([
     Object.freeze({ value: "Version 6", label: "Version 6 (Current)" }),
     Object.freeze({ value: "Version 5", label: "Version 5" }),
@@ -24,6 +35,10 @@ const uprightModeOptions = Object.freeze([
     Object.freeze({ value: 2, label: "Full" })
 ]);
 
+const whiteBalanceValues = Object.freeze(whiteBalanceOptions.map(function (option) { return option.value; }));
+const whiteBalanceWritableValues = Object.freeze(whiteBalanceOptions
+    .filter(function (option) { return option.writable; })
+    .map(function (option) { return option.value; }));
 const processValues = Object.freeze(processOptions.map(function (option) { return option.value; }));
 const vignetteStyleValues = Object.freeze(vignetteStyleOptions.map(function (option) { return option.value; }));
 const uprightModeValues = Object.freeze(uprightModeOptions.map(function (option) { return option.value; }));
@@ -39,6 +54,8 @@ const capabilities = Object.freeze({
 
 function unavailableState() {
     return {
+        whiteBalanceAvailable: false,
+        whiteBalance: null,
         processAvailable: false,
         process: null,
         vignetteStyleAvailable: false,
@@ -55,10 +72,15 @@ function unavailableState() {
 function sanitizeState(input) {
     if (!input || typeof input !== "object" || Array.isArray(input)) return null;
     const state = unavailableState();
-    for (const field of ["processAvailable", "vignetteStyleAvailable", "uprightModeAvailable", "constrainCropAvailable", "selectedToolAvailable"]) {
+    for (const field of ["whiteBalanceAvailable", "processAvailable", "vignetteStyleAvailable", "uprightModeAvailable", "constrainCropAvailable", "selectedToolAvailable"]) {
         if (typeof input[field] !== "boolean") return null;
         state[field] = input[field];
     }
+
+    if (state.whiteBalanceAvailable) {
+        if (!whiteBalanceValues.includes(input.whiteBalance)) return null;
+        state.whiteBalance = input.whiteBalance;
+    } else if (input.whiteBalance !== null && input.whiteBalance !== undefined) return null;
 
     if (state.processAvailable) {
         if (!processValues.includes(input.process)) return null;
@@ -107,7 +129,10 @@ function createDevelopCategoricalState() {
             return true;
         },
         invalidate: function (control) {
-            if (control === "process") {
+            if (control === "whiteBalance") {
+                state.whiteBalanceAvailable = false;
+                state.whiteBalance = null;
+            } else if (control === "process") {
                 state.processAvailable = false;
                 state.process = null;
             } else if (control === "vignetteStyle") {
@@ -155,9 +180,12 @@ function createDevelopCategoricalState() {
 }
 
 module.exports = {
+    whiteBalanceOptions,
     processOptions,
     vignetteStyleOptions,
     uprightModeOptions,
+    whiteBalanceValues,
+    whiteBalanceWritableValues,
     processValues,
     vignetteStyleValues,
     uprightModeValues,

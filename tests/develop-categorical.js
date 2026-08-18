@@ -59,6 +59,7 @@ assert.deepEqual(definition.capabilities.transformUpdate.available, false);
 assert.deepEqual(definition.capabilities.transformUpdate.enabled, false);
 
 const availableState = {
+    whiteBalanceAvailable: true, whiteBalance: "As Shot",
     processAvailable: true, process: "Version 6",
     vignetteStyleAvailable: true, vignetteStyle: 1,
     uprightModeAvailable: true, uprightMode: 0,
@@ -185,6 +186,7 @@ controller.syncBinaryButtons(binaryButtons, constrainModel.presentation("constra
 assertConstrainCropPresentation(null, true, null);
 
 for (const command of [
+    { command: "develop_categorical.white_balance.set", value: "Daylight" },
     { command: "develop_categorical.process.set", value: "Version 6" },
     { command: "develop_categorical.vignette_style.set", value: 3 },
     { command: "develop_categorical.upright_mode.set", value: 5 },
@@ -192,6 +194,8 @@ for (const command of [
     { command: "develop_categorical.upright_tool.select" }
 ]) assert.equal(commands.validateCommand(command), true, JSON.stringify(command));
 for (const command of [
+    { command: "develop_categorical.white_balance.set", value: "Custom" },
+    { command: "develop_categorical.white_balance.set", value: "Arbitrary" },
     { command: "develop_categorical.process.set", value: "Version 7" },
     { command: "develop_categorical.vignette_style.set", value: 0 },
     { command: "develop_categorical.upright_mode.set", value: 6 },
@@ -203,6 +207,10 @@ const lua = read("lightroom/LRBridge.lrplugin/DevelopCategorical.lua");
 const polling = read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua");
 const dispatch = read("lightroom/LRBridge.lrplugin/Commands.lua");
 assert.match(lua, /getProcessVersion\(\)/);
+assert.match(lua, /getDevelopSettings\(\)[\s\S]*?settings\.WhiteBalance/);
+assert.match(lua, /quickDevelopSetWhiteBalance\(value\)/);
+assert.doesNotMatch(lua, /LrDevelopController\.setValue\("WhiteBalance"/,
+    "As Shot must remain readback-only after the verified Lightroom 15.3 runtime failure");
 assert.match(lua, /setProcessVersion\(value\)/);
 for (let version = 1; version <= 6; version += 1) assert.ok(lua.includes('["Version ' + version + '"] = true'));
 assert.match(lua, /getValue\("PostCropVignetteStyle"\)/);
@@ -219,7 +227,7 @@ assert.match(lua, /selectTool\("upright"\)/);
 assert.doesNotMatch(lua, /SendInput|SetCursorPos|keybd_event|mouse_event|Update\s*\(/i);
 assert.match(polling, /require "DevelopCategorical"/);
 assert.match(polling, /develop-categorical\/next/);
-for (const name of ["develop_categorical.process.set", "develop_categorical.vignette_style.set",
+for (const name of ["develop_categorical.white_balance.set", "develop_categorical.process.set", "develop_categorical.vignette_style.set",
     "develop_categorical.upright_mode.set", "develop_categorical.constrain_crop.set",
     "develop_categorical.upright_tool.select"]) assert.ok(dispatch.includes(name));
 
@@ -227,6 +235,7 @@ const html = read("app/controller.html");
 const inlineController = html.match(/<script>\s*(const sliderGroups =[\s\S]*?)<\/script>/)[1];
 assert.doesNotThrow(function () { new Function(inlineController); }, "Web Controller inline JavaScript must parse");
 assert.match(html, /"vignetteStyle", "Style"[\s\S]*?\/api\/develop-categorical\/vignette-style/);
+assert.match(html, /"whiteBalance", "WB"[\s\S]*?\/api\/develop-categorical\/white-balance/);
 assert.match(html, /"process", "Process"[\s\S]*?\/api\/develop-categorical\/process/);
 assert.match(html, /toolName\.textContent = "Upright Tool"/);
 assert.match(html, /updateName\.textContent = "Upright Update"/);
@@ -263,9 +272,9 @@ assert.match(html, /\.touch-group-gap\s*\{\s*margin-bottom:\s*18px;\s*\}/,
 assert.match(html, /row\.className = "develop-categorical-row touch-group-gap"/,
     "Categorical rows must retain the shared touch-safe spacing");
 assert.match(html, /\.develop-categorical-subsection-gap\s*\{\s*margin-bottom:\s*40px;\s*\}/,
-    "Process and Style must have the larger subsection separation requested for touchscreens");
-assert.match(html, /controlName === "process" \|\| controlName === "vignetteStyle"\)[\s\S]*?row\.classList\.add\("develop-categorical-subsection-gap"\)/,
-    "The larger subsection gap must apply specifically to Process and Style");
+    "WB, Process, and Style must have the larger subsection separation requested for touchscreens");
+assert.match(html, /controlName === "whiteBalance" \|\| controlName === "process" \|\| controlName === "vignetteStyle"\)[\s\S]*?row\.classList\.add\("develop-categorical-subsection-gap"\)/,
+    "The larger subsection gap must apply specifically to WB, Process, and Style");
 assert.equal((html.match(/classList\.add\("develop-categorical-subsection-gap"\)/g) || []).length, 1,
     "The larger subsection gap must have only one guarded assignment path");
 assert.doesNotMatch(html, /sliderControl\.classList\.add\("develop-categorical-subsection-gap"\)|develop-slider-row[^"\n]*develop-categorical-subsection-gap/,
@@ -319,7 +328,7 @@ async function runTransportTests() {
         assert.equal(response.statusCode, 409, "Writes must fail closed before authoritative availability");
         response = await getJson(port, "/develop-categorical/constrain-crop?value=1");
         assert.equal(response.statusCode, 409, "Constrain Crop must fail closed before authoritative availability");
-        response = await getJson(port, "/develop-categorical/result?processAvailable=true&process=Version%206&vignetteStyleAvailable=true&vignetteStyle=1&uprightModeAvailable=true&uprightMode=0&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
+        response = await getJson(port, "/develop-categorical/result?whiteBalanceAvailable=true&whiteBalance=As%20Shot&processAvailable=true&process=Version%206&vignetteStyleAvailable=true&vignetteStyle=1&uprightModeAvailable=true&uprightMode=0&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
         assert.equal(response.statusCode, 200);
         const revision = response.body.revision;
 
@@ -328,22 +337,22 @@ async function runTransportTests() {
         assert.equal(response.body.confirmationAfterRevision, revision);
         assert.deepEqual(commands.getNextCommand(), { command: "develop_categorical.process.set", value: "Version 5" });
 
-        await getJson(port, "/develop-categorical/result?processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=1&uprightModeAvailable=true&uprightMode=0&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
+        await getJson(port, "/develop-categorical/result?whiteBalanceAvailable=true&whiteBalance=As%20Shot&processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=1&uprightModeAvailable=true&uprightMode=0&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
         response = await getJson(port, "/develop-categorical/vignette-style?value=3");
         assert.equal(response.statusCode, 200);
         assert.deepEqual(commands.getNextCommand(), { command: "develop_categorical.vignette_style.set", value: 3 });
 
-        await getJson(port, "/develop-categorical/result?processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=3&uprightModeAvailable=true&uprightMode=0&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
+        await getJson(port, "/develop-categorical/result?whiteBalanceAvailable=true&whiteBalance=As%20Shot&processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=3&uprightModeAvailable=true&uprightMode=0&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
         response = await getJson(port, "/develop-categorical/upright-mode?value=5");
         assert.equal(response.statusCode, 200);
         assert.deepEqual(commands.getNextCommand(), { command: "develop_categorical.upright_mode.set", value: 5 });
 
-        await getJson(port, "/develop-categorical/result?processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=3&uprightModeAvailable=true&uprightMode=5&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
+        await getJson(port, "/develop-categorical/result?whiteBalanceAvailable=true&whiteBalance=As%20Shot&processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=3&uprightModeAvailable=true&uprightMode=5&constrainCropAvailable=true&constrainCrop=0&selectedToolAvailable=true&selectedTool=loupe");
         response = await getJson(port, "/develop-categorical/constrain-crop?value=1");
         assert.equal(response.statusCode, 200);
         assert.deepEqual(commands.getNextCommand(), { command: "develop_categorical.constrain_crop.set", value: 1 });
 
-        await getJson(port, "/develop-categorical/result?processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=3&uprightModeAvailable=true&uprightMode=5&constrainCropAvailable=true&constrainCrop=1&selectedToolAvailable=true&selectedTool=loupe");
+        await getJson(port, "/develop-categorical/result?whiteBalanceAvailable=true&whiteBalance=As%20Shot&processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=3&uprightModeAvailable=true&uprightMode=5&constrainCropAvailable=true&constrainCrop=1&selectedToolAvailable=true&selectedTool=loupe");
         response = await getJson(port, "/develop-categorical/upright-tool");
         assert.equal(response.statusCode, 200);
         assert.deepEqual(commands.getNextCommand(), { command: "develop_categorical.upright_tool.select" });

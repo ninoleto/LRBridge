@@ -6,6 +6,17 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function () {
     "use strict";
 
+    const whiteBalanceOptions = Object.freeze([
+        Object.freeze({ value: "As Shot", label: "As Shot", writable: false }),
+        Object.freeze({ value: "Auto", label: "Auto", writable: true }),
+        Object.freeze({ value: "Daylight", label: "Daylight", writable: true }),
+        Object.freeze({ value: "Cloudy", label: "Cloudy", writable: true }),
+        Object.freeze({ value: "Shade", label: "Shade", writable: true }),
+        Object.freeze({ value: "Tungsten", label: "Tungsten", writable: true }),
+        Object.freeze({ value: "Fluorescent", label: "Fluorescent", writable: true }),
+        Object.freeze({ value: "Flash", label: "Flash", writable: true }),
+        Object.freeze({ value: "Custom", label: "Custom", writable: false })
+    ]);
     const processOptions = Object.freeze([
         Object.freeze({ value: "Version 6", label: "Version 6 (Current)" }),
         Object.freeze({ value: "Version 5", label: "Version 5" }),
@@ -29,6 +40,13 @@
     ]);
 
     const definitions = Object.freeze({
+        whiteBalance: Object.freeze({
+            available: "whiteBalanceAvailable",
+            value: "whiteBalance",
+            values: whiteBalanceOptions.map(function (option) { return option.value; }),
+            writableValues: whiteBalanceOptions.filter(function (option) { return option.writable; })
+                .map(function (option) { return option.value; })
+        }),
         process: Object.freeze({ available: "processAvailable", value: "process", values: processOptions.map(function (option) { return option.value; }) }),
         vignetteStyle: Object.freeze({ available: "vignetteStyleAvailable", value: "vignetteStyle", values: vignetteStyleOptions.map(function (option) { return option.value; }) }),
         uprightMode: Object.freeze({ available: "uprightModeAvailable", value: "uprightMode", values: uprightModeOptions.map(function (option) { return option.value; }) }),
@@ -38,6 +56,7 @@
 
     function unavailableState() {
         return {
+            whiteBalanceAvailable: false, whiteBalance: null,
             processAvailable: false, process: null,
             vignetteStyleAvailable: false, vignetteStyle: null,
             uprightModeAvailable: false, uprightMode: null,
@@ -48,7 +67,7 @@
 
     function validState(input) {
         if (!input || typeof input !== "object" || Array.isArray(input)) return false;
-        for (const control of ["process", "vignetteStyle", "uprightMode", "constrainCrop", "uprightTool"]) {
+        for (const control of ["whiteBalance", "process", "vignetteStyle", "uprightMode", "constrainCrop", "uprightTool"]) {
             const definition = definitions[control];
             if (typeof input[definition.available] !== "boolean") return false;
             if (input[definition.available]) {
@@ -99,7 +118,8 @@
 
         function validDesired(control, value) {
             const definition = definitions[control];
-            return !!definition && definition.values.includes(value);
+            const allowed = definition && (definition.writableValues || definition.values);
+            return !!allowed && allowed.includes(value);
         }
 
         return {
@@ -110,12 +130,15 @@
             },
             apply: function (nextState, nextRevision) {
                 if (!validState(nextState) || !Number.isSafeInteger(nextRevision) || nextRevision < 0 || nextRevision < revision) {
-                    return { accepted: false, confirmed: [] };
+                    return { accepted: false, confirmed: [], rejected: [] };
                 }
-                if (nextRevision === revision && revision !== 0) return { accepted: true, duplicate: true, confirmed: [] };
+                if (nextRevision === revision && revision !== 0) {
+                    return { accepted: true, duplicate: true, confirmed: [], rejected: [] };
+                }
                 state = Object.assign({}, nextState);
                 revision = nextRevision;
                 const confirmed = [];
+                const rejected = [];
                 Object.keys(pending).forEach(function (control) {
                     const transaction = pending[control];
                     const definition = definitions[control];
@@ -125,14 +148,23 @@
                         confirmed.push(control);
                     }
                 });
-                return { accepted: true, confirmed: confirmed };
+                return { accepted: true, confirmed: confirmed, rejected: rejected };
             },
-            begin: function (control, value, afterRevision) {
+            begin: function (control, value, afterRevision, generation) {
                 if (!validDesired(control, value) || !Number.isSafeInteger(afterRevision) || afterRevision < revision) return false;
+                if (generation !== undefined && (!Number.isSafeInteger(generation) || generation < 1)) return false;
+                if (control === "whiteBalance" && pending[control] && generation !== undefined &&
+                    pending[control].generation !== undefined && generation < pending[control].generation) return false;
                 pending[control] = { value: value, afterRevision: afterRevision };
+                if (generation !== undefined) pending[control].generation = generation;
                 return true;
             },
-            cancel: function (control) { delete pending[control]; },
+            cancel: function (control, generation) {
+                if (!pending[control]) return false;
+                if (generation !== undefined && pending[control].generation !== generation) return false;
+                delete pending[control];
+                return true;
+            },
             getPending: function (control) {
                 return pending[control] ? Object.assign({}, pending[control]) : null;
             },
@@ -153,6 +185,7 @@
     }
 
     return Object.freeze({
+        whiteBalanceOptions,
         processOptions,
         vignetteStyleOptions,
         uprightModeOptions,

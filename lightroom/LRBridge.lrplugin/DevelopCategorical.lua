@@ -2,9 +2,32 @@ local LrApplication = import "LrApplication"
 local LrApplicationView = import "LrApplicationView"
 local LrDevelopController = import "LrDevelopController"
 local LrHttp = import "LrHttp"
+local LrTasks = import "LrTasks"
 
 local DevelopCategorical = {}
 
+local whiteBalanceValues = {
+    ["As Shot"] = true,
+    ["Auto"] = true,
+    ["Daylight"] = true,
+    ["Cloudy"] = true,
+    ["Shade"] = true,
+    ["Tungsten"] = true,
+    ["Fluorescent"] = true,
+    ["Flash"] = true,
+    ["Custom"] = true
+}
+-- Lightroom Classic 15.3 verified: setValue("WhiteBalance", "As Shot") changes
+-- Temperature/Tint but authoritatively resolves to Custom, so As Shot is readback-only.
+local whiteBalanceWritableValues = {
+    ["Auto"] = true,
+    ["Daylight"] = true,
+    ["Cloudy"] = true,
+    ["Shade"] = true,
+    ["Tungsten"] = true,
+    ["Fluorescent"] = true,
+    ["Flash"] = true
+}
 local processValues = {
     ["Version 1"] = true,
     ["Version 2"] = true,
@@ -36,6 +59,21 @@ local function urlEncode(value)
     return string.gsub(tostring(value), "([^%w%-_%.~])", function(character)
         return string.format("%%%02X", string.byte(character))
     end)
+end
+
+function DevelopCategorical.setAutoWhiteBalance()
+    requireDevelop(nil)
+    LrDevelopController.setAutoWhiteBalance()
+    return true
+end
+
+function DevelopCategorical.setWhiteBalance(value)
+    if whiteBalanceWritableValues[value] ~= true then error("Invalid White Balance preset") end
+    if value == "Auto" then return DevelopCategorical.setAutoWhiteBalance() end
+    requireDevelop("adjustPanel")
+    local photo = LrApplication.activeCatalog():getTargetPhoto()
+    photo:quickDevelopSetWhiteBalance(value)
+    return true
 end
 
 function DevelopCategorical.setProcess(value)
@@ -75,6 +113,14 @@ end
 function DevelopCategorical.sendCurrentState()
     local contextAvailable = inDevelop() and hasTargetPhoto()
 
+    local whiteBalanceOk, whiteBalance = LrTasks.pcall(function()
+        local photo = LrApplication.activeCatalog():getTargetPhoto()
+        local settings = photo:getDevelopSettings()
+        return settings ~= nil and settings.WhiteBalance or nil
+    end)
+    local whiteBalanceAvailable = contextAvailable and whiteBalanceOk == true and
+        type(whiteBalance) == "string" and whiteBalanceValues[whiteBalance] == true
+
     local processOk, process = pcall(function() return LrDevelopController.getProcessVersion() end)
     local processAvailable = contextAvailable and processOk == true and processValues[process] == true
 
@@ -103,11 +149,13 @@ function DevelopCategorical.sendCurrentState()
         selectedTool ~= "" and string.len(selectedTool) <= 64
 
     local url = "http://127.0.0.1:17891/develop-categorical/result" ..
-        "?processAvailable=" .. tostring(processAvailable) ..
+        "?whiteBalanceAvailable=" .. tostring(whiteBalanceAvailable) ..
+        "&processAvailable=" .. tostring(processAvailable) ..
         "&vignetteStyleAvailable=" .. tostring(vignetteAvailable) ..
         "&uprightModeAvailable=" .. tostring(uprightAvailable) ..
         "&constrainCropAvailable=" .. tostring(constrainAvailable) ..
         "&selectedToolAvailable=" .. tostring(selectedToolAvailable)
+    if whiteBalanceAvailable then url = url .. "&whiteBalance=" .. urlEncode(whiteBalance) end
     if processAvailable then url = url .. "&process=" .. urlEncode(process) end
     if vignetteAvailable then url = url .. "&vignetteStyle=" .. tostring(vignetteNumber) end
     if uprightAvailable then url = url .. "&uprightMode=" .. tostring(uprightNumber) end
@@ -116,6 +164,8 @@ function DevelopCategorical.sendCurrentState()
     LrHttp.get(url)
 
     return {
+        whiteBalanceAvailable = whiteBalanceAvailable,
+        whiteBalance = whiteBalanceAvailable and whiteBalance or nil,
         processAvailable = processAvailable,
         process = processAvailable and process or nil,
         vignetteStyleAvailable = vignetteAvailable,

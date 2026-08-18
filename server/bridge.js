@@ -371,6 +371,7 @@ app.get("/develop-categorical/metadata", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     res.set("Cache-Control", "no-store").json({
         ok: true,
+        whiteBalanceOptions: developCategoricalDefinition.whiteBalanceOptions,
         processOptions: developCategoricalDefinition.processOptions,
         vignetteStyleOptions: developCategoricalDefinition.vignetteStyleOptions,
         uprightModeOptions: developCategoricalDefinition.uprightModeOptions,
@@ -396,6 +397,7 @@ app.get("/develop-categorical/next", function (req, res) {
 
 app.get("/develop-categorical/result", function (req, res) {
     const allowed = new Set([
+        "whiteBalanceAvailable", "whiteBalance",
         "processAvailable", "process", "vignetteStyleAvailable", "vignetteStyle",
         "uprightModeAvailable", "uprightMode", "constrainCropAvailable", "constrainCrop",
         "selectedToolAvailable", "selectedTool"
@@ -404,6 +406,8 @@ app.get("/develop-categorical/result", function (req, res) {
         return req.query[name] === "true" ? true : req.query[name] === "false" ? false : null;
     }
     const input = {
+        whiteBalanceAvailable: booleanValue("whiteBalanceAvailable"),
+        whiteBalance: req.query.whiteBalance === undefined ? null : req.query.whiteBalance,
         processAvailable: booleanValue("processAvailable"),
         process: req.query.process === undefined ? null : req.query.process,
         vignetteStyleAvailable: booleanValue("vignetteStyleAvailable"),
@@ -416,7 +420,7 @@ app.get("/develop-categorical/result", function (req, res) {
         selectedTool: req.query.selectedTool === undefined ? null : req.query.selectedTool
     };
     if (Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); }) ||
-        input.processAvailable === null || input.vignetteStyleAvailable === null ||
+        input.whiteBalanceAvailable === null || input.processAvailable === null || input.vignetteStyleAvailable === null ||
         input.uprightModeAvailable === null || input.constrainCropAvailable === null || input.selectedToolAvailable === null ||
         !developCategorical.update(input)) {
         return res.status(400).json({ ok: false, error: "Invalid Develop categorical state" });
@@ -436,10 +440,19 @@ function queueDevelopCategoricalSet(req, res, specification) {
     queueOrReject(res, { command: specification.command, value: value }, {
         confirmationAfterRevision: confirmationAfterRevision
     }, function () {
-        developCategorical.invalidate(specification.control);
+        if (specification.preserveAuthoritativeState !== true) developCategorical.invalidate(specification.control);
         developCategorical.requestRefresh(Date.now(), true);
     });
 }
+
+app.get("/develop-categorical/white-balance", function (req, res) {
+    queueDevelopCategoricalSet(req, res, {
+        control: "whiteBalance", command: "develop_categorical.white_balance.set", label: "White Balance",
+        availableField: "whiteBalanceAvailable", values: developCategoricalDefinition.whiteBalanceWritableValues,
+        preserveAuthoritativeState: true,
+        parse: function (value) { return value; }
+    });
+});
 
 app.get("/develop-categorical/process", function (req, res) {
     queueDevelopCategoricalSet(req, res, {

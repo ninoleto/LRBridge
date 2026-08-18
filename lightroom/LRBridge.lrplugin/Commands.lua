@@ -53,6 +53,7 @@ function Commands.execute(command)
     if command.command == "lens_blur.depth_refinement.select" then LensBlur.selectDepthRefinement(); return end
     if command.command == "lens_blur.depth_refinement.close" then LensBlur.closeDepthRefinement(); LensBlur.sendCurrentState(); return end
     if command.command == "lens_blur.focal_range.set" then LensBlur.setFocalRange(command.value); LensBlur.sendCurrentState(command.commitId); return end
+    if command.command == "develop_categorical.white_balance.set" then DevelopCategorical.setWhiteBalance(command.value); return end
     if command.command == "develop_categorical.process.set" then DevelopCategorical.setProcess(command.value); return end
     if command.command == "develop_categorical.vignette_style.set" then DevelopCategorical.setVignetteStyle(command.value); return end
     if command.command == "develop_categorical.upright_mode.set" then DevelopCategorical.setUprightMode(command.value); return end

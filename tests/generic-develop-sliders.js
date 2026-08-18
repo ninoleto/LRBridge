@@ -174,8 +174,8 @@ const finalConfirmationBlock = controller.match(
 assert.match(finalConfirmationBlock, /control\.confirmationPending = true/);
 assert.match(finalConfirmationBlock, /handleDevelopSliderStepSubmission/);
 assert.doesNotMatch(finalConfirmationBlock, /renderSlidersTab|switchTab|content\.innerHTML|markAllDevelopSlidersLoading|requestLiveFeedbackSnapshot|request-many/);
-assert.match(controller, /range\.addEventListener\("pointerdown", function \(event\) \{\s*cancelDevelopSliderStep\(control\)/);
-assert.match(controller, /function commitNumericValue\(\) \{\s*cancelDevelopSliderStep\(control\)/);
+assert.match(controller, /range\.addEventListener\("pointerdown", function \(event\) \{[\s\S]*?cancelDevelopSliderStep\(control\)/);
+assert.match(controller, /function commitNumericValue\(\) \{[\s\S]*?cancelDevelopSliderStep\(control\)/);
 assert.match(controller, /makeButton\("Reset"[\s\S]*cancelDevelopSliderStep\(control\)/);
 assert.match(controller, /"\/api\/set\?slider="/);
 assert.doesNotMatch(

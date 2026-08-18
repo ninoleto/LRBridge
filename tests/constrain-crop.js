@@ -62,6 +62,7 @@ function assertButtons(activeValue, disabled, pendingValue) {
 }
 
 const available = {
+    whiteBalanceAvailable: true, whiteBalance: "As Shot",
     processAvailable: true, process: "Version 6",
     vignetteStyleAvailable: true, vignetteStyle: 1,
     uprightModeAvailable: true, uprightMode: 0,

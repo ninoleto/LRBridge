@@ -60,6 +60,48 @@ const cropItems = flatten(cropGroups);
 const applicationItems = flatten(applicationGroups);
 const allItems = selectionItems.concat(cropItems, applicationItems);
 
+const visibleWebControllerActions = extractJavaScriptFunction(
+    "visibleWebControllerActions", "renderActionGroup", {}
+);
+const colorActions = sliderActionGroups.find((group) => group.name === "Color Actions");
+assert.ok(colorActions, "The underlying Color Actions registration must remain available");
+assert.deepEqual(colorActions.actions.map((item) => item.action), ["setAutoWhiteBalance"],
+    "Auto White Balance must remain registered for non-Web consumers");
+assert.deepEqual(Array.from(visibleWebControllerActions(colorActions)), [],
+    "The Web Controller must filter the duplicate Auto White Balance row");
+
+const renderedActionSections = [];
+const renderedActionRows = [];
+const actionRenderContext = {
+    visibleWebControllerActions,
+    document: {
+        createElement(tagName) {
+            return {
+                tagName,
+                className: "",
+                textContent: "",
+                children: [],
+                appendChild(child) { this.children.push(child); }
+            };
+        }
+    },
+    content: { appendChild(section) { renderedActionSections.push(section); } },
+    addActionRow(section, item) { renderedActionRows.push({ section, item }); }
+};
+const renderActionGroup = extractJavaScriptFunction(
+    "renderActionGroup", "renderSwitchGroup", actionRenderContext
+);
+assert.equal(renderActionGroup(colorActions), false);
+assert.equal(renderedActionSections.length, 0,
+    "An empty Color Actions heading must not enter the rendered DOM");
+assert.equal(renderedActionRows.length, 0,
+    "Auto White Balance must not enter the rendered Web Controller DOM");
+const developActions = sliderActionGroups.find((group) => group.name === "Develop Actions");
+assert.equal(renderActionGroup(developActions), true);
+assert.equal(renderedActionSections.length, 1,
+    "Visible action groups must continue rendering normally");
+assert.equal(renderedActionRows.length, 1);
+
 assert.match(source, /id:\s*"selection",\s*label:\s*"Selection"/, "Selection tab is missing");
 assert.match(source, /id:\s*"crop",\s*label:\s*"Crop"/, "Crop tab is missing");
 assert.match(source, /id:\s*"application",\s*label:\s*"Application"/, "Application tab is missing");

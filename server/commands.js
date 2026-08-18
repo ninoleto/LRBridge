@@ -155,6 +155,7 @@ function validateCommand(command) {
         ,"lens_blur.depth_refinement.select"
         ,"lens_blur.depth_refinement.close"
         ,"lens_blur.focal_range.set"
+        ,"develop_categorical.white_balance.set"
         ,"develop_categorical.process.set"
         ,"develop_categorical.vignette_style.set"
         ,"develop_categorical.upright_mode.set"
@@ -207,6 +208,9 @@ function validateCommand(command) {
             /^[A-Za-z0-9_-]{1,64}$/.test(command.commitId);
         return (publicShape || internalShape) && typeof command.value === "string" &&
             focalRange.format(focalRange.parse(command.value)) === command.value;
+    }
+    if (command.command === "develop_categorical.white_balance.set") {
+        return Object.keys(command).length === 2 && developCategorical.whiteBalanceWritableValues.includes(command.value);
     }
     if (command.command === "develop_categorical.process.set") {
         return Object.keys(command).length === 2 && developCategorical.processValues.includes(command.value);
@@ -490,7 +494,8 @@ function tryEnqueueCommand(command) {
         }
     }
 
-    if (command.command === "develop_categorical.process.set" ||
+    if (command.command === "develop_categorical.white_balance.set" ||
+        command.command === "develop_categorical.process.set" ||
         command.command === "develop_categorical.vignette_style.set" ||
         command.command === "develop_categorical.upright_mode.set" ||
         command.command === "develop_categorical.constrain_crop.set") {

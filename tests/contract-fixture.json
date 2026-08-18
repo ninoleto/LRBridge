@@ -25,6 +25,7 @@
     "/develop-categorical/state",
     "/develop-categorical/next",
     "/develop-categorical/result",
+    "/develop-categorical/white-balance",
     "/develop-categorical/process",
     "/develop-categorical/vignette-style",
     "/develop-categorical/upright-mode",
@@ -134,6 +135,7 @@
     ,"lens_blur.depth_refinement.select"
     ,"lens_blur.depth_refinement.close"
     ,"lens_blur.focal_range.set"
+    ,"develop_categorical.white_balance.set"
     ,"develop_categorical.process.set"
     ,"develop_categorical.vignette_style.set"
     ,"develop_categorical.upright_mode.set"

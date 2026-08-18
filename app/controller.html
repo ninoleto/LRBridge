@@ -1774,7 +1774,8 @@
                                 {
                                         "label": "Auto White Balance",
                                         "action": "setAutoWhiteBalance",
-                                        "button": "Set"
+                                        "button": "Set",
+                                        "hiddenInWebController": true
                                 }
                         ]
                 },
@@ -2234,6 +2235,7 @@
 
         const autoActionButtons = {};
         let autoActionCooldownUntil = 0;
+        let whiteBalanceCommandCooldownUntil = 0;
         let autoActionCooldownTimer = null;
 
         function isAutoActionCooldownActive() {
@@ -2264,6 +2266,7 @@
                 button.disabled = false;
                 button.textContent = button.dataset.originalText || "Set";
             });
+            if (typeof updateDevelopCategoricalControls === "function") updateDevelopCategoricalControls();
         }
 
         function startAutoActionCooldown() {
@@ -2722,6 +2725,9 @@
         const developCategoricalSubmitting = new Set();
         const developCategoricalPendingTimers = {};
         const developCategoricalErrors = {};
+        let whiteBalanceSelectionGeneration = 0;
+        let whiteBalanceQueuedSelection = null;
+        let whiteBalanceDispatchActive = false;
         const lensBlurHelper = window.LRBridgeLensBlur &&
             typeof window.LRBridgeLensBlur.createModel === "function" &&
             typeof window.LRBridgeLensBlur.createSubjectFocusPresentation === "function" &&
@@ -3829,8 +3835,20 @@
                     setStatus("Auto Tone / Auto White Balance is waiting for Lightroom to finish the last slider command.");
                     return;
                 }
+                if (item.action === "setAutoWhiteBalance" && whiteBalanceCommandInProgress()) {
+                    setStatus("White Balance is already waiting for Lightroom confirmation.");
+                    return;
+                }
 
-                sendCommand("/api/action?action=" + encodeURIComponent(item.action));
+                if (item.action === "setAutoWhiteBalance") {
+                    startAutoActionCooldown();
+                    whiteBalanceCommandCooldownUntil = autoActionCooldownUntil;
+                }
+                sendCommand("/api/action?action=" + encodeURIComponent(item.action)).then(function (accepted) {
+                    if (accepted && item.action === "setAutoWhiteBalance") {
+                        setTimeout(requestDevelopCategoricalState, 300);
+                    }
+                });
                 status.textContent = "Sent to Lightroom";
             });
             registerAutoActionButton(item.action, actionButton);
@@ -4208,6 +4226,12 @@
         }
 
         async function submitDevelopSliderValue(control, value, kind, completion) {
+            if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
+                restoreWhiteBalanceDependentSlider(control);
+                setStatus("White Balance is still waiting for Lightroom; Temperature and Tint are temporarily locked.");
+                if (completion) completion(false);
+                return;
+            }
             if (
                 value === control.lastSubmittedValue &&
                 !control.requestInFlight &&
@@ -4395,6 +4419,10 @@
 
         function stepDevelopSliderValue(control, direction) {
             if (!control) return;
+            if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
+                restoreWhiteBalanceDependentSlider(control);
+                return;
+            }
             const nextValue = nextDevelopSliderStepValue(control, direction);
             if (nextValue === null) return;
             const baseValue = control.desiredValue !== null
@@ -4448,6 +4476,10 @@
             increment.setAttribute("aria-label", "Increase " + definition.label);
 
             const reset = makeButton("Reset", "reset", function () {
+                if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
+                    restoreWhiteBalanceDependentSlider(control);
+                    return;
+                }
                 cancelDevelopSliderStep(control);
                 markSliderCommandSent();
                 sendCommand("/api/reset?slider=" + encodeURIComponent(definition.id)).then(function (accepted) {
@@ -4517,6 +4549,11 @@
             row.dataset.sliderId = definition.id;
 
             range.addEventListener("pointerdown", function (event) {
+                if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
+                    event.preventDefault();
+                    restoreWhiteBalanceDependentSlider(control);
+                    return;
+                }
                 cancelDevelopSliderStep(control);
                 beginDevelopSliderInteraction(control, "range");
                 control.pointerActive = true;
@@ -4524,6 +4561,10 @@
                 if (range.setPointerCapture) range.setPointerCapture(event.pointerId);
             });
             range.addEventListener("input", function () {
+                if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
+                    restoreWhiteBalanceDependentSlider(control);
+                    return;
+                }
                 cancelDevelopSliderStep(control);
                 if (!isDevelopSliderInteracting(control)) beginDevelopSliderInteraction(control, "range");
                 const nextValue = developSliderPositionToActual(definition, Number(range.value));
@@ -4563,6 +4604,11 @@
             });
 
             function commitNumericValue() {
+                if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
+                    restoreWhiteBalanceDependentSlider(control);
+                    endDevelopSliderInteraction(control);
+                    return;
+                }
                 cancelDevelopSliderStep(control);
                 if (control.contextInvalidated) {
                     cancelDevelopSliderThrottle(control);
@@ -4590,6 +4636,11 @@
             }
 
             number.addEventListener("focus", function () {
+                if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
+                    restoreWhiteBalanceDependentSlider(control);
+                    number.blur();
+                    return;
+                }
                 beginDevelopSliderInteraction(control, "numeric");
                 control.editing = true;
                 control.cancelNextBlur = false;
@@ -4954,6 +5005,8 @@
         }
 
         function resetDevelopCategoricalState() {
+            whiteBalanceSelectionGeneration += 1;
+            whiteBalanceQueuedSelection = null;
             Object.keys(developCategoricalPendingTimers).forEach(clearDevelopCategoricalPendingTimer);
             Object.keys(developCategoricalErrors).forEach(function (control) { delete developCategoricalErrors[control]; });
             developCategoricalSubmitting.clear();
@@ -4961,9 +5014,69 @@
             updateDevelopCategoricalControls();
         }
 
+        function whiteBalanceCommandInProgress() {
+            return !!developCategoricalModel && (
+                whiteBalanceDispatchActive ||
+                whiteBalanceQueuedSelection !== null ||
+                developCategoricalSubmitting.has("whiteBalance") ||
+                developCategoricalModel.getPending("whiteBalance") !== null ||
+                Date.now() < whiteBalanceCommandCooldownUntil
+            );
+        }
+
+        function whiteBalanceSelectionBlockedByOtherControl() {
+            const ownCooldownActive = Date.now() < whiteBalanceCommandCooldownUntil;
+            return temperatureTintInteractionInProgress() ||
+                (isAutoActionCooldownActive() && !ownCooldownActive);
+        }
+
+        function temperatureTintInteractionInProgress() {
+            return ["Temperature", "Tint"].some(function (slider) {
+                const control = developSliderControls[slider];
+                return !!control && (
+                    isDevelopSliderInteracting(control) || control.requestInFlight ||
+                    control.pendingValue !== null || control.confirmationPending || control.desiredValue !== null
+                );
+            });
+        }
+
+        function isWhiteBalanceDependentSlider(control) {
+            return !!control && (control.definition.id === "Temperature" || control.definition.id === "Tint");
+        }
+
+        function restoreWhiteBalanceDependentSlider(control) {
+            if (!isWhiteBalanceDependentSlider(control)) return;
+            cancelDevelopSliderThrottle(control);
+            cancelDevelopSliderStep(control);
+            if (control.authoritativeValue !== null) showDevelopSliderLocal(control, control.authoritativeValue);
+            requestLiveFeedbackSnapshot(true);
+        }
+
+        function updateWhiteBalanceDependentSliders() {
+            const busy = whiteBalanceCommandInProgress();
+            ["Temperature", "Tint"].forEach(function (slider) {
+                const control = developSliderControls[slider];
+                if (!control) return;
+                if (busy) {
+                    control.range.disabled = true;
+                    control.number.disabled = true;
+                    control.decrement.disabled = true;
+                    control.increment.disabled = true;
+                    control.reset.disabled = true;
+                } else if (control.feedbackState === "available" && control.authoritativeValue !== null) {
+                    control.range.disabled = false;
+                    control.number.disabled = false;
+                    control.decrement.disabled = false;
+                    control.increment.disabled = false;
+                    control.reset.disabled = control.definition.resetSupported === false;
+                }
+            });
+        }
+
         function developCategoricalOptionLabel(control, value) {
             if (!developCategoricalHelper) return "Unavailable";
-            const options = control === "process" ? developCategoricalHelper.processOptions :
+            const options = control === "whiteBalance" ? developCategoricalHelper.whiteBalanceOptions :
+                control === "process" ? developCategoricalHelper.processOptions :
                 control === "vignetteStyle" ? developCategoricalHelper.vignetteStyleOptions :
                 control === "uprightMode" ? developCategoricalHelper.uprightModeOptions : [];
             const match = options.find(function (option) { return option.value === value; });
@@ -4972,13 +5085,15 @@
 
         function updateDevelopCategoricalControls() {
             if (!developCategoricalModel) return;
-            ["process", "vignetteStyle"].forEach(function (controlName) {
+            ["whiteBalance", "process", "vignetteStyle"].forEach(function (controlName) {
                 const control = developCategoricalControls[controlName];
                 if (!control) return;
                 const presentation = developCategoricalModel.presentation(controlName);
-                const busy = presentation.pending || developCategoricalSubmitting.has(controlName);
+                const busy = presentation.pending || developCategoricalSubmitting.has(controlName) ||
+                    (controlName === "whiteBalance" && isAutoActionCooldownActive());
                 const shownValue = presentation.pending ? presentation.desiredValue : presentation.authoritativeValue;
-                control.select.disabled = !presentation.available || busy;
+                control.select.disabled = !presentation.available ||
+                    (controlName === "whiteBalance" ? whiteBalanceSelectionBlockedByOtherControl() : busy);
                 control.select.value = shownValue === null ? "" : String(shownValue);
                 control.select.classList.toggle("pending", presentation.pending);
                 control.status.className = "develop-categorical-status";
@@ -5080,9 +5195,88 @@
                     : "Unavailable through Lightroom SDK 15.3";
                 updateControl.button.title = capability.reason || "Unavailable";
             }
+            updateWhiteBalanceDependentSliders();
+        }
+
+        function startDevelopCategoricalConfirmationTimer(control, generation) {
+            clearDevelopCategoricalPendingTimer(control);
+            developCategoricalPendingTimers[control] = setTimeout(function () {
+                if (!developCategoricalModel.cancel(control, generation)) return;
+                delete developCategoricalPendingTimers[control];
+                developCategoricalErrors[control] = control === "whiteBalance"
+                    ? "Lightroom did not confirm the latest White Balance selection before the timeout."
+                    : "Lightroom did not confirm the requested change.";
+                updateDevelopCategoricalControls();
+                requestDevelopCategoricalState();
+            }, 10000);
+        }
+
+        function queueWhiteBalanceSelection(value, path) {
+            if (!developCategoricalModel || whiteBalanceSelectionBlockedByOtherControl()) {
+                developCategoricalErrors.whiteBalance = "Wait for the current Temperature, Tint, or Auto WB change to finish.";
+                updateDevelopCategoricalControls();
+                return false;
+            }
+            const generation = whiteBalanceSelectionGeneration + 1;
+            whiteBalanceSelectionGeneration = generation;
+            delete developCategoricalErrors.whiteBalance;
+            if (!developCategoricalModel.begin("whiteBalance", value, developCategoricalModel.getRevision(), generation)) {
+                developCategoricalErrors.whiteBalance = "Could not start authoritative confirmation.";
+                updateDevelopCategoricalControls();
+                return false;
+            }
+            clearDevelopCategoricalPendingTimer("whiteBalance");
+            whiteBalanceQueuedSelection = { value: value, path: path, generation: generation };
+            updateDevelopCategoricalControls();
+            dispatchWhiteBalanceSelections();
+            return true;
+        }
+
+        async function dispatchWhiteBalanceSelections() {
+            if (whiteBalanceDispatchActive) return;
+            whiteBalanceDispatchActive = true;
+            try {
+                while (whiteBalanceQueuedSelection !== null) {
+                    const request = whiteBalanceQueuedSelection;
+                    whiteBalanceQueuedSelection = null;
+                    setStatus("Sending: " + request.path);
+                    try {
+                        const response = await fetch(request.path, { cache: "no-store" });
+                        const data = await response.json();
+                        if (!response.ok || !data || data.ok !== true || !Number.isSafeInteger(data.confirmationAfterRevision)) {
+                            throw new Error(data && data.error ? data.error : "Lightroom rejected the White Balance change");
+                        }
+                        markSliderCommandSent();
+                        whiteBalanceCommandCooldownUntil = autoActionCooldownUntil;
+                        if (request.generation === whiteBalanceSelectionGeneration) {
+                            const confirmationAfterRevision = Math.max(
+                                data.confirmationAfterRevision, developCategoricalModel.getRevision()
+                            );
+                            if (!developCategoricalModel.begin(
+                                "whiteBalance", request.value, confirmationAfterRevision, request.generation
+                            )) throw new Error("Could not start authoritative confirmation");
+                            startDevelopCategoricalConfirmationTimer("whiteBalance", request.generation);
+                            setStatus("OK: latest White Balance selection queued; awaiting authoritative confirmation");
+                        }
+                        requestDevelopCategoricalState();
+                    } catch (error) {
+                        if (request.generation === whiteBalanceSelectionGeneration &&
+                            developCategoricalModel.cancel("whiteBalance", request.generation)) {
+                            clearDevelopCategoricalPendingTimer("whiteBalance");
+                            developCategoricalErrors.whiteBalance = error.message || "White Balance unavailable";
+                            setStatus("ERROR: " + developCategoricalErrors.whiteBalance);
+                        }
+                    }
+                    updateDevelopCategoricalControls();
+                }
+            } finally {
+                whiteBalanceDispatchActive = false;
+                updateDevelopCategoricalControls();
+            }
         }
 
         async function submitDevelopCategorical(control, value, path) {
+            if (control === "whiteBalance") return queueWhiteBalanceSelection(value, path);
             if (!developCategoricalModel || developCategoricalSubmitting.has(control) || developCategoricalModel.getPending(control)) return false;
             delete developCategoricalErrors[control];
             developCategoricalSubmitting.add(control);
@@ -5099,15 +5293,7 @@
                     throw new Error("Could not start authoritative confirmation");
                 }
                 markSliderCommandSent();
-                clearDevelopCategoricalPendingTimer(control);
-                developCategoricalPendingTimers[control] = setTimeout(function () {
-                    if (!developCategoricalModel.getPending(control)) return;
-                    developCategoricalModel.cancel(control);
-                    delete developCategoricalPendingTimers[control];
-                    developCategoricalErrors[control] = "Lightroom did not confirm the requested change.";
-                    updateDevelopCategoricalControls();
-                    requestDevelopCategoricalState();
-                }, 10000);
+                startDevelopCategoricalConfirmationTimer(control);
                 setStatus("OK: categorical change queued; awaiting authoritative confirmation");
                 requestDevelopCategoricalState();
                 return true;
@@ -5138,6 +5324,12 @@
                 applied.confirmed.forEach(function (control) {
                     clearDevelopCategoricalPendingTimer(control);
                     delete developCategoricalErrors[control];
+                });
+                (applied.rejected || []).forEach(function (control) {
+                    clearDevelopCategoricalPendingTimer(control);
+                    developCategoricalErrors[control] = "Lightroom reported " +
+                        developCategoricalOptionLabel(control, developCategoricalModel.presentation(control).authoritativeValue) +
+                        " instead.";
                 });
             } catch (error) {
                 /* Keep the last authoritative presentation; context polling will retry. */
@@ -6554,7 +6746,15 @@
             });
         });
 
+        function visibleWebControllerActions(group) {
+            return (group && Array.isArray(group.actions) ? group.actions : []).filter(function (item) {
+                return item.hiddenInWebController !== true;
+            });
+        }
+
         function renderActionGroup(group) {
+            const visibleActions = visibleWebControllerActions(group);
+            if (visibleActions.length === 0) return false;
             const groupElement = document.createElement("section");
             groupElement.className = "group";
 
@@ -6564,11 +6764,12 @@
 
             groupElement.appendChild(title);
 
-            for (const item of group.actions) {
+            for (const item of visibleActions) {
                 addActionRow(groupElement, item);
             }
 
             content.appendChild(groupElement);
+            return true;
         }
 
         function renderSwitchGroup(group) {
@@ -6622,8 +6823,7 @@
                     return candidate.name === groupName;
                 });
                 if (!group) return;
-                group.actions.forEach(function (item) {
-                    if (item.hiddenInWebController === true) return;
+                visibleWebControllerActions(group).forEach(function (item) {
                     addActionRow(parent, item);
                 });
             });
@@ -7238,7 +7438,7 @@
         function createDevelopCategoricalSelector(controlName, label, options, path, parseValue) {
             const row = document.createElement("div");
             row.className = "develop-categorical-row touch-group-gap";
-            if (controlName === "process" || controlName === "vignetteStyle") {
+            if (controlName === "whiteBalance" || controlName === "process" || controlName === "vignetteStyle") {
                 row.classList.add("develop-categorical-subsection-gap");
             }
             row.dataset.developCategorical = controlName;
@@ -7252,6 +7452,8 @@
                 const element = document.createElement("option");
                 element.value = String(option.value);
                 element.textContent = option.label;
+                element.disabled = option.writable === false;
+                if (option.writable === false) element.title = "Available as authoritative readback only";
                 select.appendChild(element);
             });
             const status = document.createElement("div");
@@ -7259,6 +7461,14 @@
             status.setAttribute("role", "status");
             select.disabled = true;
             select.addEventListener("change", function () {
+                const selectedOption = options.find(function (option) {
+                    return String(option.value) === select.value;
+                });
+                if (!selectedOption || selectedOption.writable === false) {
+                    developCategoricalErrors[controlName] = "That value is available as readback only.";
+                    updateDevelopCategoricalControls();
+                    return;
+                }
                 const value = parseValue(select.value);
                 submitDevelopCategorical(controlName, value, path + "?value=" + encodeURIComponent(String(value)));
             });
@@ -7372,7 +7582,12 @@
 
         function appendSectionCategoricalControls(groupElement, sectionId) {
             if (!developCategoricalHelper) return;
-            if (sectionId === "effects") {
+            if (sectionId === "white-balance") {
+                groupElement.appendChild(createDevelopCategoricalSelector(
+                    "whiteBalance", "WB", developCategoricalHelper.whiteBalanceOptions,
+                    "/api/develop-categorical/white-balance", function (value) { return value; }
+                ));
+            } else if (sectionId === "effects") {
                 groupElement.appendChild(createDevelopCategoricalSelector(
                     "vignetteStyle", "Style", developCategoricalHelper.vignetteStyleOptions,
                     "/api/develop-categorical/vignette-style", function (value) { return Number(value); }

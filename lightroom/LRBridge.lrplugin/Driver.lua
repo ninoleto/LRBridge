@@ -1,6 +1,7 @@
 local LrApplicationView = import "LrApplicationView"
 local LrDevelopController = import "LrDevelopController"
 local LrTasks = import "LrTasks"
+local DevelopCategorical = require "DevelopCategorical"
 
 local Driver = {}
 
@@ -201,7 +202,7 @@ local actionMap = {
     end,
 
     setAutoWhiteBalance = function()
-        LrDevelopController.setAutoWhiteBalance()
+        DevelopCategorical.setAutoWhiteBalance()
     end,
 
     resetSpotRemoval = function()

@@ -208,6 +208,21 @@ async function testCoreQueue() {
             { command: "develop.set", slider: "Exposure", value: -1 }
         ]);
 
+        commands.enqueueCommand({ command: "develop_categorical.white_balance.set", value: "Auto" });
+        let whiteBalanceAdmission = commands.tryEnqueueCommand({
+            command: "develop_categorical.white_balance.set", value: "Daylight"
+        });
+        assert.equal(whiteBalanceAdmission.status, commands.ADMISSION_COALESCED);
+        whiteBalanceAdmission = commands.tryEnqueueCommand({
+            command: "develop_categorical.white_balance.set", value: "Cloudy"
+        });
+        assert.equal(whiteBalanceAdmission.status, commands.ADMISSION_COALESCED);
+        assert.equal(commands.getStatus().queueLength, 1,
+            "Rapid WB interaction must keep the command queue bounded");
+        assert.deepEqual(drain(), [
+            { command: "develop_categorical.white_balance.set", value: "Cloudy" }
+        ], "The latest unsent WB selection must replace older queued selections");
+
         commands.enqueueCommand({ command: "photo.crop_angle.set", value: -2.5 });
         commands.enqueueCommand({ command: "selection.navigate", direction: "next" });
         let angleAdmission = commands.tryEnqueueCommand({ command: "photo.crop_angle.set", value: 12.25 });
