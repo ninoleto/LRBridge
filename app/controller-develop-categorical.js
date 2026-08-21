@@ -38,6 +38,12 @@
         Object.freeze({ value: 4, label: "Vertical" }),
         Object.freeze({ value: 2, label: "Full" })
     ]);
+    const profileTokenPattern = /^profile_[a-f0-9]{24}$/;
+    const PROFILE_CONFIRMATION_TIMEOUT_MS = 8000;
+
+    function profileConfirmationTimeoutMs() {
+        return PROFILE_CONFIRMATION_TIMEOUT_MS;
+    }
 
     const definitions = Object.freeze({
         whiteBalance: Object.freeze({
@@ -184,6 +190,230 @@
         };
     }
 
+    function unavailableProfileState() {
+        return {
+            available: false,
+            reason: "Unavailable",
+            revision: 0,
+            optionSnapshotRevision: 0,
+            contextCounter: 0,
+            processId: null,
+            browsePosition: null,
+            browseLabel: null,
+            selectedToken: null,
+            selectedLabel: null,
+            validationGeneration: 0,
+            validationFailedGeneration: 0,
+            options: []
+        };
+    }
+
+    function validProfileState(input) {
+        if (!input || typeof input !== "object" || Array.isArray(input) || typeof input.available !== "boolean" ||
+            !Number.isSafeInteger(input.revision) || input.revision < 0 ||
+            !Number.isSafeInteger(input.optionSnapshotRevision) || input.optionSnapshotRevision < 0 ||
+            !Number.isSafeInteger(input.contextCounter) || input.contextCounter < 0 ||
+            !Number.isSafeInteger(input.validationGeneration) || input.validationGeneration < 0 ||
+            !Number.isSafeInteger(input.validationFailedGeneration) || input.validationFailedGeneration < 0 ||
+            !Array.isArray(input.options)) return false;
+        if (!input.available) {
+            return typeof input.reason === "string" && input.reason.length > 0 && input.reason.length <= 240 &&
+                input.processId === null && input.browsePosition === null && input.browseLabel === null &&
+                input.selectedToken === null && input.selectedLabel === null && input.options.length === 0;
+        }
+        if (input.reason !== null || !Number.isSafeInteger(input.processId) || input.processId < 1 ||
+            !Number.isSafeInteger(input.browsePosition) || input.browsePosition < 1 || input.browsePosition > 255 ||
+            typeof input.browseLabel !== "string" || !/^Browse(?:\.{3}|\u2026)$/i.test(input.browseLabel) ||
+            typeof input.selectedToken !== "string" ||
+            !profileTokenPattern.test(input.selectedToken) || typeof input.selectedLabel !== "string" ||
+            input.selectedLabel.length < 1 || input.selectedLabel.length > 160 ||
+            input.options.length < 1 || input.options.length > 64) return false;
+        const tokens = new Set();
+        const positions = new Set();
+        const labels = new Set();
+        let selectedMatches = 0;
+        for (const option of input.options) {
+            if (!option || typeof option !== "object" || Array.isArray(option) ||
+                typeof option.token !== "string" || !profileTokenPattern.test(option.token) || tokens.has(option.token) ||
+                typeof option.label !== "string" || option.label.trim() !== option.label || option.label.length < 1 ||
+                option.label.length > 160 || /^Browse(?:\.{3}|\u2026)$/i.test(option.label) ||
+                !Number.isSafeInteger(option.position) || option.position < 0 || option.position >= input.browsePosition ||
+                positions.has(option.position) ||
+                typeof option.enabled !== "boolean" || typeof option.writable !== "boolean") return false;
+            const foldedLabel = option.label.toLocaleLowerCase("en-US");
+            if (labels.has(foldedLabel)) return false;
+            tokens.add(option.token);
+            positions.add(option.position);
+            labels.add(foldedLabel);
+            if (option.token === input.selectedToken && option.label === input.selectedLabel) selectedMatches += 1;
+        }
+        return selectedMatches === 1;
+    }
+
+    function cloneProfileState(input) {
+        return {
+            available: input.available,
+            reason: input.reason,
+            revision: input.revision,
+            optionSnapshotRevision: input.optionSnapshotRevision,
+            contextCounter: input.contextCounter,
+            processId: input.processId,
+            browsePosition: input.browsePosition,
+            browseLabel: input.browseLabel,
+            selectedToken: input.selectedToken,
+            selectedLabel: input.selectedLabel,
+            validationGeneration: input.validationGeneration,
+            validationFailedGeneration: input.validationFailedGeneration,
+            options: input.options.map(function (option) { return Object.assign({}, option); })
+        };
+    }
+
+    function createProfileModel() {
+        let state = unavailableProfileState();
+        let lastAvailableState = null;
+        let pending = null;
+        let timedOut = null;
+
+        function matchesTarget(target) {
+            return state.available && state.contextCounter === target.contextCounter &&
+                state.processId === target.processId && state.revision > target.afterRevision &&
+                state.selectedLabel === target.label && target.serverGeneration !== null &&
+                state.validationGeneration === target.serverGeneration;
+        }
+
+        return {
+            reset: function () {
+                state = unavailableProfileState();
+                lastAvailableState = null;
+                pending = null;
+                timedOut = null;
+            },
+            apply: function (nextState) {
+                if (!validProfileState(nextState) || nextState.revision < state.revision) {
+                    return { accepted: false, confirmed: false, lateConfirmed: false, rejected: false };
+                }
+                if (nextState.revision === state.revision && state.revision !== 0) {
+                    return { accepted: true, duplicate: true, confirmed: false, lateConfirmed: false, rejected: false };
+                }
+                state = cloneProfileState(nextState);
+                if (state.available) lastAvailableState = cloneProfileState(state);
+                let confirmed = false;
+                let lateConfirmed = false;
+                let rejected = false;
+                let rejectionReason = null;
+                if (pending) {
+                    if (state.contextCounter !== pending.contextCounter ||
+                        (state.available && state.processId !== pending.processId)) {
+                        pending = null;
+                        rejected = true;
+                        rejectionReason = "context-changed";
+                    } else if (pending.serverGeneration !== null &&
+                        state.validationFailedGeneration === pending.serverGeneration) {
+                        pending = null;
+                        rejected = true;
+                        rejectionReason = "sdk-validation-failed";
+                    } else if (matchesTarget(pending)) {
+                        pending = null;
+                        timedOut = null;
+                        confirmed = true;
+                    } else if (state.available) {
+                        const target = state.options.find(function (option) {
+                            return option.label === pending.label && option.enabled && option.writable;
+                        });
+                        if (!target) {
+                            pending = null;
+                            rejected = true;
+                            rejectionReason = "option-unavailable";
+                        } else {
+                            pending.token = target.token;
+                        }
+                    }
+                }
+                if (!pending && timedOut) {
+                    if (state.contextCounter !== timedOut.contextCounter ||
+                        (state.available && state.processId !== timedOut.processId)) {
+                        timedOut = null;
+                    } else if (timedOut.serverGeneration !== null &&
+                        state.validationFailedGeneration === timedOut.serverGeneration) {
+                        timedOut = null;
+                    } else if (matchesTarget(timedOut)) {
+                        timedOut = null;
+                        lateConfirmed = true;
+                    }
+                }
+                return {
+                    accepted: true,
+                    confirmed: confirmed,
+                    lateConfirmed: lateConfirmed,
+                    rejected: rejected,
+                    rejectionReason: rejectionReason
+                };
+            },
+            begin: function (token, generation) {
+                if (typeof token !== "string" || !profileTokenPattern.test(token) ||
+                    !Number.isSafeInteger(generation) || generation < 1 || !state.available || pending !== null) return false;
+                const option = state.options.find(function (entry) {
+                    return entry.token === token && entry.enabled && entry.writable;
+                });
+                if (!option) return false;
+                pending = {
+                    token: token,
+                    label: option.label,
+                    position: option.position,
+                    generation: generation,
+                    contextCounter: state.contextCounter,
+                    processId: state.processId,
+                    afterRevision: state.revision,
+                    serverGeneration: null
+                };
+                timedOut = null;
+                return true;
+            },
+            setConfirmationAfterRevision: function (generation, afterRevision, serverGeneration) {
+                if (!pending || pending.generation !== generation || !Number.isSafeInteger(afterRevision) ||
+                    afterRevision < pending.afterRevision || !Number.isSafeInteger(serverGeneration) ||
+                    serverGeneration < 1) return false;
+                pending.afterRevision = afterRevision;
+                pending.serverGeneration = serverGeneration;
+                return true;
+            },
+            cancel: function (generation) {
+                if (!pending || (generation !== undefined && pending.generation !== generation)) return false;
+                pending = null;
+                return true;
+            },
+            timeout: function (generation) {
+                if (!pending || pending.generation !== generation) return false;
+                timedOut = Object.assign({}, pending);
+                pending = null;
+                return true;
+            },
+            getPending: function () { return pending ? Object.assign({}, pending) : null; },
+            getTimedOut: function () { return timedOut ? Object.assign({}, timedOut) : null; },
+            getState: function () { return cloneProfileState(state); },
+            getRevision: function () { return state.revision; },
+            presentation: function () {
+                const displayState = pending && !state.available && lastAvailableState ? lastAvailableState : state;
+                const draftOption = pending && displayState.available ? displayState.options.find(function (option) {
+                    return option.label === pending.label && option.enabled && option.writable;
+                }) : null;
+                return {
+                    available: displayState.available,
+                    reason: state.reason,
+                    revision: state.revision,
+                    optionSnapshotRevision: displayState.optionSnapshotRevision,
+                    authoritativeToken: displayState.available ? displayState.selectedToken : null,
+                    authoritativeLabel: displayState.available ? displayState.selectedLabel : null,
+                    options: displayState.options.map(function (option) { return Object.assign({}, option); }),
+                    pending: pending !== null,
+                    desiredToken: pending ? pending.token : null,
+                    draftToken: draftOption ? draftOption.token : null,
+                    desiredLabel: pending ? pending.label : null
+                };
+            }
+        };
+    }
+
     return Object.freeze({
         whiteBalanceOptions,
         processOptions,
@@ -193,6 +423,12 @@
         validState,
         syncUprightButtons,
         syncBinaryButtons,
-        createModel
+        createModel,
+        profileTokenPattern,
+        unavailableProfileState,
+        validProfileState,
+        profileConfirmationTimeoutMs,
+        PROFILE_CONFIRMATION_TIMEOUT_MS,
+        createProfileModel
     });
 }));

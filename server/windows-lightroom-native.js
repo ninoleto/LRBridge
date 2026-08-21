@@ -123,6 +123,10 @@ function createUnavailableWindowsBackend(reason) {
         setRefinementDisclosure: reject,
         resetRefinement: reject,
         activateFocusRangeAction: reject,
+        readProfileSnapshot: reject,
+        getTransportDiagnostics: function () {
+            return { active: false, queueDepth: 0, pendingCount: 0 };
+        },
         stop: function () { return Promise.resolve(); }
     });
 }
@@ -143,6 +147,17 @@ function createWindowsLightroomNativeBackend(options) {
     let reader = null;
     let requestId = 0;
     const pending = new Map();
+    const requestQueue = [];
+    let activeRequest = null;
+    let drainScheduled = false;
+    const transportDiagnostics = {
+        enqueued: 0,
+        dispatched: 0,
+        completed: 0,
+        timedOut: 0,
+        helperRestarts: 0,
+        maxQueueDepth: 0
+    };
     let latestState = unavailableNativeState("Windows native state has not been read yet");
 
     function rememberState(input) {
@@ -157,12 +172,19 @@ function createWindowsLightroomNativeBackend(options) {
         }, 0);
     }
 
-    function rejectPending(error) {
-        for (const entry of pending.values()) {
+    function rejectPendingForInstance(instance, error) {
+        for (const [id, entry] of pending.entries()) {
+            if (entry.instance !== instance) continue;
             clearTimeout(entry.timer);
             entry.reject(error);
+            pending.delete(id);
+            if (activeRequest === entry.job) activeRequest = null;
         }
-        pending.clear();
+    }
+
+    function rejectQueued(error) {
+        const queued = requestQueue.splice(0, requestQueue.length);
+        queued.forEach(function (job) { job.reject(error); });
     }
 
     function disposeChild(instance) {
@@ -170,6 +192,25 @@ function createWindowsLightroomNativeBackend(options) {
         if (reader) reader.close();
         reader = null;
         child = null;
+    }
+
+    function scheduleRequestDrain() {
+        if (drainScheduled) return;
+        drainScheduled = true;
+        setTimeout(function () {
+            drainScheduled = false;
+            drainRequestQueue();
+        }, 0);
+    }
+
+    function failHelperInstance(instance, error, terminate) {
+        rejectPendingForInstance(instance, error);
+        disposeChild(instance);
+        if (terminate) {
+            transportDiagnostics.helperRestarts += 1;
+            try { instance.kill(); } catch (err) {}
+        }
+        scheduleRequestDrain();
     }
 
     function startChild() {
@@ -188,15 +229,21 @@ function createWindowsLightroomNativeBackend(options) {
         reader = readline.createInterface({ input: instance.stdout, crlfDelay: Infinity });
         reader.on("line", function (line) {
             if (line.length > 1024 * 1024) {
-                rejectPending(new NativeBackendUnavailableError("Windows native helper response was too large"));
+                failHelperInstance(
+                    instance,
+                    new NativeBackendUnavailableError("Windows native helper response was too large"),
+                    true
+                );
                 return;
             }
             let response;
             try { response = JSON.parse(line); } catch (err) { return; }
             const entry = pending.get(response.id);
-            if (!entry) return;
+            if (!entry || entry.instance !== instance) return;
             pending.delete(response.id);
             clearTimeout(entry.timer);
+            if (activeRequest === entry.job) activeRequest = null;
+            transportDiagnostics.completed += 1;
             if (response.ok === true) {
                 entry.resolve(response.result);
             } else {
@@ -205,16 +252,15 @@ function createWindowsLightroomNativeBackend(options) {
                     ? new NativeBackendUnavailableError(message)
                     : new NativeBackendOperationError(message));
             }
+            scheduleRequestDrain();
         });
         instance.once("error", function (error) {
-            rejectPending(new NativeBackendUnavailableError(error.message));
-            disposeChild(instance);
+            failHelperInstance(instance, new NativeBackendUnavailableError(error.message), false);
         });
         instance.once("exit", function (code) {
             const detail = stderrTail.trim().replace(/\s+/g, " ");
-            rejectPending(new NativeBackendUnavailableError("Windows native helper exited" +
-                (code === null ? "" : " with code " + code) + (detail === "" ? "" : ": " + detail)));
-            disposeChild(instance);
+            failHelperInstance(instance, new NativeBackendUnavailableError("Windows native helper exited" +
+                (code === null ? "" : " with code " + code) + (detail === "" ? "" : ": " + detail)), false);
         });
         if (instance.stderr) instance.stderr.on("data", function (chunk) {
             stderrTail = (stderrTail + chunk.toString("utf8")).slice(-8192);
@@ -222,26 +268,69 @@ function createWindowsLightroomNativeBackend(options) {
         return instance;
     }
 
-    function request(operation, parameters) {
+    function drainRequestQueue() {
+        if (activeRequest !== null || requestQueue.length === 0) return;
+        const job = requestQueue.shift();
         let instance;
-        try { instance = startChild(); } catch (error) { return Promise.reject(error); }
+        try { instance = startChild(); }
+        catch (error) {
+            job.reject(error);
+            scheduleRequestDrain();
+            return;
+        }
+        activeRequest = job;
+        transportDiagnostics.dispatched += 1;
+        const message = Object.assign({ id: job.id, operation: job.operation }, job.parameters);
+        const timer = setTimeout(function () {
+            const entry = pending.get(job.id);
+            if (!entry || entry.instance !== instance) return;
+            pending.delete(job.id);
+            if (activeRequest === job) activeRequest = null;
+            transportDiagnostics.timedOut += 1;
+            entry.reject(new NativeBackendUnavailableError("Windows native helper timed out"));
+            failHelperInstance(instance, new NativeBackendUnavailableError("Windows native helper timed out"), true);
+        }, requestTimeoutMs);
+        pending.set(job.id, {
+            resolve: job.resolve,
+            reject: job.reject,
+            timer: timer,
+            instance: instance,
+            job: job
+        });
+        instance.stdin.write(JSON.stringify(message) + "\n", "utf8", function (error) {
+            if (!error) return;
+            const entry = pending.get(job.id);
+            if (!entry || entry.instance !== instance) return;
+            pending.delete(job.id);
+            clearTimeout(entry.timer);
+            if (activeRequest === job) activeRequest = null;
+            entry.reject(new NativeBackendUnavailableError(error.message));
+            failHelperInstance(instance, new NativeBackendUnavailableError(error.message), true);
+        });
+    }
+
+    function request(operation, parameters) {
         const id = ++requestId;
-        const message = Object.assign({ id: id, operation: operation }, parameters || {});
+        const background = operation === "readState" || operation === "readProfileSnapshot";
         return new Promise(function (resolve, reject) {
-            const timer = setTimeout(function () {
-                pending.delete(id);
-                reject(new NativeBackendUnavailableError("Windows native helper timed out"));
-                try { instance.kill(); } catch (err) {}
-            }, requestTimeoutMs);
-            pending.set(id, { resolve: resolve, reject: reject, timer: timer });
-            instance.stdin.write(JSON.stringify(message) + "\n", "utf8", function (error) {
-                if (!error) return;
-                const entry = pending.get(id);
-                if (!entry) return;
-                pending.delete(id);
-                clearTimeout(entry.timer);
-                reject(new NativeBackendUnavailableError(error.message));
-            });
+            const job = {
+                id: id,
+                operation: operation,
+                parameters: parameters || {},
+                background: background,
+                resolve: resolve,
+                reject: reject
+            };
+            if (background) {
+                requestQueue.push(job);
+            } else {
+                const firstBackground = requestQueue.findIndex(function (queued) { return queued.background; });
+                if (firstBackground === -1) requestQueue.push(job);
+                else requestQueue.splice(firstBackground, 0, job);
+            }
+            transportDiagnostics.enqueued += 1;
+            transportDiagnostics.maxQueueDepth = Math.max(transportDiagnostics.maxQueueDepth, requestQueue.length);
+            drainRequestQueue();
         });
     }
 
@@ -321,12 +410,27 @@ function createWindowsLightroomNativeBackend(options) {
             if (action !== "subject" && action !== "point-area") throw new TypeError("Unknown Focus Range action");
             return rememberState(await request("activateFocusRangeAction", { action: action }));
         },
+        readProfileSnapshot: function () {
+            return request("readProfileSnapshot");
+        },
+        getTransportDiagnostics: function () {
+            return Object.assign({
+                active: activeRequest !== null,
+                activeOperation: activeRequest ? activeRequest.operation : null,
+                queueDepth: requestQueue.length,
+                pendingCount: pending.size
+            }, transportDiagnostics);
+        },
         stop: function () {
             const instance = child;
-            if (!instance) return Promise.resolve();
-            rejectPending(new NativeBackendUnavailableError("Windows native backend stopped"));
-            disposeChild(instance);
-            try { instance.kill(); } catch (err) {}
+            const error = new NativeBackendUnavailableError("Windows native backend stopped");
+            if (instance) rejectPendingForInstance(instance, error);
+            rejectQueued(error);
+            activeRequest = null;
+            if (instance) {
+                disposeChild(instance);
+                try { instance.kill(); } catch (err) {}
+            }
             return Promise.resolve();
         }
     });

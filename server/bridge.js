@@ -15,6 +15,7 @@ const lensBlur = lensBlurDefinition.createLensBlurState();
 const focalRangeDefinition = require("./lens-blur-focal-range");
 const windowsNativeDefinition = require("./windows-lightroom-native");
 const developCategoricalDefinition = require("./develop-categorical-state");
+const profileNativeDefinition = require("./profile-native-state");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -82,6 +83,10 @@ if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
 const app = express();
 const developCategorical = developCategoricalDefinition.createDevelopCategoricalState();
+const profileBackend = typeof windowsNativeBackend.readProfileSnapshot === "function"
+    ? windowsNativeBackend
+    : windowsNativeDefinition.createUnavailableWindowsBackend("Profile native backend was not configured");
+const profileNative = profileNativeDefinition.createProfileNativeState(profileBackend, options.profileStateOptions);
 
 commands.setPointColorAdmissionContextProvider(function () {
     const current = pointColor.get();
@@ -297,6 +302,7 @@ app.get("/context/update", function (req, res) {
     pointColor.syncContext(updated.contextCounter);
     lensBlur.syncContext(updated.contextCounter);
     developCategorical.syncContext(updated.contextCounter);
+    profileNative.syncContext(updated.contextCounter);
 
     if (updated.contextCounter !== previousContextCounter) {
         history.invalidate();
@@ -379,13 +385,16 @@ app.get("/develop-categorical/metadata", function (req, res) {
     });
 });
 
-app.get("/develop-categorical/state", function (req, res) {
+app.get("/develop-categorical/state", async function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     developCategorical.requestRefresh();
+    profileNative.syncContext(context.getContextFields().contextCounter);
+    await profileNative.refresh();
     res.set("Cache-Control", "no-store").json({
         ok: true,
         state: developCategorical.get(),
         revision: developCategorical.getRevision(),
+        profile: profileNative.get(),
         capabilities: developCategoricalDefinition.capabilities
     });
 });
@@ -452,6 +461,64 @@ app.get("/develop-categorical/white-balance", function (req, res) {
         preserveAuthoritativeState: true,
         parse: function (value) { return value; }
     });
+});
+
+app.get("/develop-categorical/profile", function (req, res) {
+    if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.token) ||
+        !profileNativeDefinition.TOKEN_PATTERN.test(req.query.token || "")) return rejectInvalidCommand(res);
+    const contextFields = context.getContextFields();
+    profileNative.syncContext(contextFields.contextCounter);
+    if (contextFields.activeModule !== "develop" || typeof contextFields.selectedPhotoKey !== "string" ||
+        contextFields.selectedPhotoKey.length < 1) {
+        return res.status(409).json({ ok: false, error: "Lightroom Develop photo context unavailable" });
+    }
+    let admission = null;
+    try {
+        admission = profileNative.admitSdkSelection(req.query.token);
+        const command = {
+            command: "develop_categorical.profile.set",
+            profile: admission.label,
+            expectedContextCounter: admission.contextCounter,
+            profileGeneration: admission.generation
+        };
+        const queueAdmission = queueCommand(command);
+        if (queueAdmission.status === commands.ADMISSION_QUEUE_FULL) {
+            profileNative.cancelSdkSelection(admission.generation);
+            return rejectQueueFull(res, queueAdmission.queueLength);
+        }
+        if (!queueAdmission.accepted) {
+            profileNative.cancelSdkSelection(admission.generation);
+            return rejectInvalidCommand(res);
+        }
+        res.set("Cache-Control", "no-store").json({
+            ok: true,
+            queued: command,
+            confirmationAfterRevision: admission.confirmationAfterRevision,
+            generation: admission.generation
+        });
+    } catch (error) {
+        if (admission) profileNative.cancelSdkSelection(admission.generation);
+        if (error && error.code === "LIGHTROOM_PROFILE_REJECTED") {
+            return res.status(409).json({ ok: false, error: error.message });
+        }
+        res.status(503).json({ ok: false, error: error && error.message ? error.message : "Profile unavailable" });
+    }
+});
+
+app.get("/develop-categorical/profile-validation", function (req, res) {
+    if (Object.keys(req.query).length !== 3 || Array.isArray(req.query.generation) ||
+        Array.isArray(req.query.profile) || Array.isArray(req.query.status) ||
+        !/^\d+$/.test(req.query.generation || "") ||
+        (req.query.status !== "confirmed" && req.query.status !== "failed") ||
+        typeof req.query.profile !== "string" || req.query.profile.length < 1 || req.query.profile.length > 160) {
+        return rejectInvalidCommand(res);
+    }
+    const generation = Number(req.query.generation);
+    if (!Number.isSafeInteger(generation) || generation < 1 ||
+        !profileNative.recordSdkValidation(generation, req.query.profile, req.query.status)) {
+        return res.status(409).json({ ok: false, error: "Stale or mismatched Profile validation" });
+    }
+    res.set("Cache-Control", "no-store").json({ ok: true });
 });
 
 app.get("/develop-categorical/process", function (req, res) {

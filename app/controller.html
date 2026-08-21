@@ -619,6 +619,13 @@
         .develop-categorical-status.pending { color: #ffb454; }
         .develop-categorical-status.error { color: #ff9b9b; }
 
+        .develop-profile-help {
+            grid-column: 2 / 4;
+            color: #8fa2b3;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
         .develop-categorical-status.visually-hidden {
             position: absolute;
             width: 1px;
@@ -842,6 +849,7 @@
         .lens-blur-mode-row { grid-template-columns: 240px 90px 90px minmax(150px, auto) 1fr; }
         .touch-group-gap { margin-bottom: 18px; }
         .develop-categorical-subsection-gap { margin-bottom: 40px; }
+        .develop-profile-section-gap { margin-bottom: 40px; }
         .transform-reset-subsection-gap { margin-bottom: 40px; }
         .lens-blur-focus-heading { display: flex; align-items: center; gap: 8px; }
         .lens-blur-focus-native-actions {
@@ -2717,6 +2725,9 @@
             ? window.LRBridgeDevelopCategorical
             : null;
         const developCategoricalModel = developCategoricalHelper ? developCategoricalHelper.createModel() : null;
+        const profileModel = developCategoricalHelper && typeof developCategoricalHelper.createProfileModel === "function"
+            ? developCategoricalHelper.createProfileModel()
+            : null;
         let developCategoricalRequestInFlight = false;
         let developCategoricalCapabilities = {
             transformUpdate: { available: false, enabled: false, reason: "Unavailable" }
@@ -2728,6 +2739,7 @@
         let whiteBalanceSelectionGeneration = 0;
         let whiteBalanceQueuedSelection = null;
         let whiteBalanceDispatchActive = false;
+        let profileSelectionGeneration = 0;
         const lensBlurHelper = window.LRBridgeLensBlur &&
             typeof window.LRBridgeLensBlur.createModel === "function" &&
             typeof window.LRBridgeLensBlur.createSubjectFocusPresentation === "function" &&
@@ -5007,10 +5019,12 @@
         function resetDevelopCategoricalState() {
             whiteBalanceSelectionGeneration += 1;
             whiteBalanceQueuedSelection = null;
+            profileSelectionGeneration += 1;
             Object.keys(developCategoricalPendingTimers).forEach(clearDevelopCategoricalPendingTimer);
             Object.keys(developCategoricalErrors).forEach(function (control) { delete developCategoricalErrors[control]; });
             developCategoricalSubmitting.clear();
             if (developCategoricalModel) developCategoricalModel.reset();
+            if (profileModel) profileModel.reset();
             updateDevelopCategoricalControls();
         }
 
@@ -5083,8 +5097,49 @@
             return match ? match.label : "Unavailable";
         }
 
+        function syncProfileOptions(control, presentation) {
+            if (control.optionSnapshotRevision === presentation.optionSnapshotRevision) return;
+            control.select.replaceChildren();
+            if (!presentation.available) {
+                const unavailable = document.createElement("option");
+                unavailable.value = "";
+                unavailable.textContent = "Unavailable";
+                control.select.appendChild(unavailable);
+            } else {
+                presentation.options.forEach(function (option) {
+                    const element = document.createElement("option");
+                    element.value = option.token;
+                    element.textContent = option.label;
+                    element.disabled = option.enabled !== true || option.writable !== true;
+                    if (option.writable !== true) element.title = "Readback only; unavailable for Web Controller writing";
+                    control.select.appendChild(element);
+                });
+            }
+            control.optionSnapshotRevision = presentation.optionSnapshotRevision;
+        }
+
+        function updateProfileControl() {
+            const control = developCategoricalControls.profile;
+            if (!control || !profileModel) return;
+            const presentation = profileModel.presentation();
+            syncProfileOptions(control, presentation);
+            control.select.disabled = !presentation.available || presentation.pending;
+            control.select.value = (presentation.pending ? presentation.draftToken : presentation.authoritativeToken) || "";
+            control.select.classList.toggle("pending", presentation.pending);
+            control.status.className = "develop-categorical-status";
+            if (developCategoricalErrors.profile) {
+                control.status.classList.add("error");
+                control.status.textContent = developCategoricalErrors.profile;
+            } else if (presentation.pending) {
+                control.status.textContent = "Updating Profile…";
+            } else {
+                control.status.textContent = presentation.available ? presentation.authoritativeLabel : "Unavailable";
+            }
+        }
+
         function updateDevelopCategoricalControls() {
             if (!developCategoricalModel) return;
+            updateProfileControl();
             ["whiteBalance", "process", "vignetteStyle"].forEach(function (controlName) {
                 const control = developCategoricalControls[controlName];
                 if (!control) return;
@@ -5275,6 +5330,83 @@
             }
         }
 
+        function startProfileConfirmationTimer(generation, label) {
+            clearDevelopCategoricalPendingTimer("profile");
+            const timeoutMs = developCategoricalHelper.profileConfirmationTimeoutMs(label);
+            developCategoricalPendingTimers.profile = setTimeout(function () {
+                delete developCategoricalPendingTimers.profile;
+                if (!profileModel || !profileModel.timeout(generation)) return;
+                developCategoricalErrors.profile = "Lightroom did not confirm the requested Profile within " +
+                    String(timeoutMs / 1000) + " seconds.";
+                updateDevelopCategoricalControls();
+                requestDevelopCategoricalState();
+            }, timeoutMs);
+            return true;
+        }
+
+        function queueProfileSelection(token) {
+            if (!profileModel || profileModel.getPending()) return false;
+            const generation = profileSelectionGeneration + 1;
+            profileSelectionGeneration = generation;
+            delete developCategoricalErrors.profile;
+            if (!profileModel.begin(token, generation)) {
+                developCategoricalErrors.profile = "That Lightroom quick Profile option is no longer available.";
+                updateDevelopCategoricalControls();
+                return false;
+            }
+            if (!startProfileConfirmationTimer(generation, profileModel.getPending().label)) {
+                profileModel.cancel(generation);
+                developCategoricalErrors.profile = "The Profile control could not start authoritative confirmation.";
+                updateDevelopCategoricalControls();
+                return false;
+            }
+            updateDevelopCategoricalControls();
+            dispatchProfileSelection({ token: token, generation: generation });
+            return true;
+        }
+
+        async function dispatchProfileSelection(request) {
+            let responseReceived = false;
+            try {
+                const path = "/api/develop-categorical/profile?token=" + encodeURIComponent(request.token);
+                setStatus("Sending: " + path);
+                const response = await fetch(path, { cache: "no-store" });
+                responseReceived = true;
+                let data = null;
+                try { data = await response.json(); } catch (error) {}
+                if (!response.ok || !data || data.ok !== true ||
+                    !Number.isSafeInteger(data.confirmationAfterRevision) ||
+                    !Number.isSafeInteger(data.generation)) {
+                    throw new Error(data && data.error ? data.error : "Lightroom rejected the Profile change");
+                }
+                if (request.generation === profileSelectionGeneration) {
+                    profileModel.setConfirmationAfterRevision(
+                        request.generation,
+                        Math.max(data.confirmationAfterRevision, profileModel.getRevision()),
+                        data.generation
+                    );
+                    markSliderCommandSent();
+                    setStatus("Profile command queued; awaiting authoritative Lightroom confirmation");
+                    requestDevelopCategoricalState();
+                }
+                return true;
+            } catch (error) {
+                if (request.generation === profileSelectionGeneration) {
+                    if (responseReceived && profileModel.cancel(request.generation)) {
+                        clearDevelopCategoricalPendingTimer("profile");
+                        developCategoricalErrors.profile = error.message || "Profile unavailable";
+                        setStatus("ERROR: " + developCategoricalErrors.profile);
+                    } else if (!responseReceived && profileModel.getPending()) {
+                        setStatus("Profile transport outcome uncertain; awaiting authoritative Lightroom state");
+                        requestDevelopCategoricalState();
+                    }
+                }
+                return false;
+            } finally {
+                updateDevelopCategoricalControls();
+            }
+        }
+
         async function submitDevelopCategorical(control, value, path) {
             if (control === "whiteBalance") return queueWhiteBalanceSelection(value, path);
             if (!developCategoricalModel || developCategoricalSubmitting.has(control) || developCategoricalModel.getPending(control)) return false;
@@ -5331,6 +5463,24 @@
                         developCategoricalOptionLabel(control, developCategoricalModel.presentation(control).authoritativeValue) +
                         " instead.";
                 });
+                if (profileModel && data.profile) {
+                    const profileApplied = profileModel.apply(data.profile);
+                    if (profileApplied.confirmed || profileApplied.lateConfirmed) {
+                        clearDevelopCategoricalPendingTimer("profile");
+                        delete developCategoricalErrors.profile;
+                        setStatus("Lightroom confirmed Profile: " + profileModel.presentation().authoritativeLabel);
+                    }
+                    if (profileApplied.rejected) {
+                        clearDevelopCategoricalPendingTimer("profile");
+                        const profileRejectionMessages = {
+                            "context-changed": "The Lightroom photo context changed during the Profile update.",
+                            "option-unavailable": "The requested Lightroom Profile is no longer available.",
+                            "sdk-validation-failed": "Lightroom did not produce a safe validated Profile state."
+                        };
+                        developCategoricalErrors.profile = profileRejectionMessages[profileApplied.rejectionReason] ||
+                            "Lightroom rejected the Profile change.";
+                    }
+                }
             } catch (error) {
                 /* Keep the last authoritative presentation; context polling will retry. */
             } finally {
@@ -7477,6 +7627,45 @@
             return row;
         }
 
+        function createProfileSelector() {
+            const row = document.createElement("div");
+            row.className = "develop-categorical-row touch-group-gap develop-profile-section-gap";
+            row.dataset.developCategorical = "profile";
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = "Profile";
+            const select = document.createElement("select");
+            select.className = "develop-categorical-select";
+            select.setAttribute("aria-label", "Profile");
+            select.disabled = true;
+            const status = document.createElement("div");
+            status.className = "develop-categorical-status";
+            status.setAttribute("role", "status");
+            status.setAttribute("aria-live", "polite");
+            const help = document.createElement("div");
+            help.className = "develop-profile-help";
+            help.textContent = "Lightroom quick/favorite profiles. Manage additional profiles through Browse in Lightroom.";
+            select.addEventListener("change", function () {
+                const presentation = profileModel ? profileModel.presentation() : null;
+                if (select.disabled || !presentation || presentation.pending) {
+                    updateProfileControl();
+                    return;
+                }
+                const option = presentation && presentation.options.find(function (entry) {
+                    return entry.token === select.value && entry.enabled && entry.writable;
+                });
+                if (!option || !queueProfileSelection(option.token)) updateProfileControl();
+            });
+            row.append(name, select, status, help);
+            developCategoricalControls.profile = {
+                row: row,
+                select: select,
+                status: status,
+                optionSnapshotRevision: -1
+            };
+            return row;
+        }
+
         function appendTransformCategoricalControls(groupElement) {
             if (!developCategoricalHelper) {
                 const unavailable = document.createElement("div");
@@ -7583,6 +7772,11 @@
         function appendSectionCategoricalControls(groupElement, sectionId) {
             if (!developCategoricalHelper) return;
             if (sectionId === "white-balance") {
+                groupElement.appendChild(createProfileSelector());
+                const whiteBalanceTitle = document.createElement("div");
+                whiteBalanceTitle.className = "group-title develop-white-balance-title";
+                whiteBalanceTitle.textContent = "WHITE BALANCE";
+                groupElement.appendChild(whiteBalanceTitle);
                 groupElement.appendChild(createDevelopCategoricalSelector(
                     "whiteBalance", "WB", developCategoricalHelper.whiteBalanceOptions,
                     "/api/develop-categorical/white-balance", function (value) { return value; }
@@ -7606,9 +7800,13 @@
             const groupElement = document.createElement("section");
             groupElement.className = "group";
             groupElement.dataset.developSection = section.id;
-            const title = document.createElement("div");
-            title.className = "group-title";
-            title.textContent = section.id === "color-mixer" && !treatmentAuthoritativeState ? "COLOR MIXER" : section.label;
+            const title = section.id === "white-balance"
+                ? document.createDocumentFragment()
+                : document.createElement("div");
+            if (section.id !== "white-balance") {
+                title.className = "group-title";
+                title.textContent = section.id === "color-mixer" && !treatmentAuthoritativeState ? "COLOR MIXER" : section.label;
+            }
             groupElement.appendChild(title);
             if (section.id === "lens-corrections") {
                 renderLensCorrectionsSection(groupElement, section);

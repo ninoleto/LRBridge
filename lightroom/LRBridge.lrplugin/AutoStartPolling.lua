@@ -101,6 +101,7 @@ local function commandParameter(command)
     if command.command == "color_grading.view.set" then return command.view end
     if command.command == "enhance.denoise.set" then return "enabled=" .. tostring(command.enabled) .. " amount=" .. tostring(command.amount) end
     if command.command == "enhance.denoise.amount.set" then return "amount=" .. tostring(command.amount) end
+    if command.command == "develop_categorical.profile.set" then return command.profile end
     return command.slider
 
 end

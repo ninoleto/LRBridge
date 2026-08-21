@@ -16,6 +16,17 @@ public static class LRBridgeNative
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct COMBOBOXINFO {
+        public int cbSize;
+        public RECT rcItem;
+        public RECT rcButton;
+        public int stateButton;
+        public IntPtr hwndCombo;
+        public IntPtr hwndItem;
+        public IntPtr hwndList;
+    }
+
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
     [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr parent, EnumWindowsProc callback, IntPtr lParam);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hwnd);
@@ -30,6 +41,7 @@ public static class LRBridgeNative
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rectangle);
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hwnd, out RECT rectangle);
     [DllImport("user32.dll", EntryPoint="GetWindowLongW")] public static extern int GetWindowLong(IntPtr hwnd, int index);
+    [DllImport("user32.dll")] private static extern bool GetComboBoxInfo(IntPtr hwndCombo, ref COMBOBOXINFO info);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern IntPtr SendMessageTimeout(
         IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
@@ -121,6 +133,13 @@ public static class LRBridgeNative
         return false;
     }
 
+    public static IntPtr ComboListHandle(IntPtr hwnd)
+    {
+        COMBOBOXINFO info = new COMBOBOXINFO();
+        info.cbSize = Marshal.SizeOf(typeof(COMBOBOXINFO));
+        return GetComboBoxInfo(hwnd, ref info) ? info.hwndList : IntPtr.Zero;
+    }
+
     private static object AccessibleProperty(IntPtr hwnd, string property)
     {
         object accessible = null;
@@ -157,6 +176,8 @@ public static class LRBridgeNative
 '@
 
 $null = Add-Type -TypeDefinition $nativeSource -Language CSharp
+$null = Add-Type -AssemblyName UIAutomationClient
+$null = Add-Type -AssemblyName UIAutomationTypes
 
 $TBM_GETPOS = 0x0400
 $TBM_GETRANGEMIN = 0x0401
@@ -1289,6 +1310,159 @@ function Set-RefinementMode([string]$Mode) {
     return $state
 }
 
+function Get-UiaPattern([object]$Element, [object]$PatternIdentifier) {
+    if ($null -eq $Element -or $null -eq $PatternIdentifier) { return $null }
+    try {
+        $pattern = $null
+        if ($Element.TryGetCurrentPattern($PatternIdentifier, [ref]$pattern)) { return $pattern }
+    } catch {}
+    return $null
+}
+
+function Get-UiaRuntimeId([object]$Element) {
+    if ($null -eq $Element) { return $null }
+    try { return @($Element.GetRuntimeId()) } catch { return $null }
+}
+
+function Test-ProfileBrowseLabel([string]$Label) {
+    if ($null -eq $Label) { return $false }
+    return $Label.Trim() -match '^(?i:Browse(?:\.{3}|…))$'
+}
+
+function Test-ProfileSeparatorLabel([string]$Label) {
+    if ([string]::IsNullOrWhiteSpace($Label)) { return $true }
+    foreach ($character in $Label.ToCharArray()) {
+        if ([char]::IsLetterOrDigit($character)) { return $false }
+    }
+    return $true
+}
+
+function Get-ProfileDiscovery {
+    $processes = @([System.Diagnostics.Process]::GetProcessesByName("Lightroom") | Where-Object {
+        $_.MainWindowHandle -ne [IntPtr]::Zero
+    })
+    if ($processes.Count -eq 0) { Throw-Unavailable "Lightroom is not running with a main window" }
+
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $discoveries = New-Object System.Collections.Generic.List[object]
+    foreach ($process in $processes) {
+        $condition = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::ProcessIdProperty, [int]$process.Id)
+        $collection = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        $elements = New-Object System.Collections.Generic.List[object]
+        for ($index = 0; $index -lt $collection.Count; $index += 1) { $elements.Add($collection.Item($index)) }
+
+        $combos = @($elements.ToArray() | Where-Object {
+            try {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ComboBox -and
+                    $_.Current.NativeWindowHandle -gt 0 -and $_.Current.IsEnabled -and -not $_.Current.IsOffscreen
+            } catch { $false }
+        })
+        foreach ($combo in $combos) {
+            $comboHandle = [Int64]$combo.Current.NativeWindowHandle
+            if (-not [LRBridgeNative]::IsWindow([IntPtr]$comboHandle) -or
+                [LRBridgeNative]::ProcessId([IntPtr]$comboHandle) -ne $process.Id -or
+                [LRBridgeNative]::ClassName([IntPtr]$comboHandle) -ne "ComboBox") { continue }
+            $selectionPattern = Get-UiaPattern $combo ([System.Windows.Automation.SelectionPattern]::Pattern)
+            $expandPattern = Get-UiaPattern $combo ([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+            if ($null -eq $selectionPattern -or $null -eq $expandPattern) { continue }
+            $listHandle = [Int64][LRBridgeNative]::ComboListHandle([IntPtr]$comboHandle)
+            if ($listHandle -le 0 -or -not [LRBridgeNative]::IsWindow([IntPtr]$listHandle) -or
+                [LRBridgeNative]::ProcessId([IntPtr]$listHandle) -ne $process.Id -or
+                [LRBridgeNative]::ClassName([IntPtr]$listHandle) -ne "ComboLBox") { continue }
+
+            $linkedItems = New-Object System.Collections.Generic.List[object]
+            foreach ($element in $elements) {
+                try {
+                    if ($element.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { continue }
+                    $runtimeId = Get-UiaRuntimeId $element
+                    if ($null -eq $runtimeId -or $runtimeId.Count -ne 4 -or [Int64]$runtimeId[0] -ne 42 -or
+                        [Int64]$runtimeId[1] -ne $comboHandle -or [Int64]$runtimeId[2] -ne 4) { continue }
+                    $position = [int]$runtimeId[3]
+                    if ($position -lt 0 -or $position -gt 255) { continue }
+                    $label = ([string]$element.Current.Name).Trim()
+                    if (Test-ProfileSeparatorLabel $label) { continue }
+                    $itemPattern = Get-UiaPattern $element ([System.Windows.Automation.SelectionItemPattern]::Pattern)
+                    if ($null -eq $itemPattern) { continue }
+                    $linkedItems.Add([PSCustomObject]@{
+                        Element = $element
+                        Pattern = $itemPattern
+                        Position = $position
+                        Label = $label
+                        Enabled = [bool]$element.Current.IsEnabled
+                        Selected = [bool]$itemPattern.Current.IsSelected
+                    })
+                } catch { continue }
+            }
+            $linked = @($linkedItems.ToArray() | Sort-Object Position)
+            $browseItems = @($linked | Where-Object { Test-ProfileBrowseLabel $_.Label })
+            if ($browseItems.Count -ne 1) { continue }
+            $browse = $browseItems[0]
+            $profileItems = @($linked | Where-Object {
+                $_.Position -lt $browse.Position -and -not (Test-ProfileBrowseLabel $_.Label)
+            })
+            if ($profileItems.Count -lt 1 -or $profileItems.Count -gt 64) { continue }
+            $selectedItems = @($profileItems | Where-Object { $_.Selected })
+            $comboSelection = @($selectionPattern.Current.GetSelection())
+            if ($selectedItems.Count -ne 1 -or $comboSelection.Count -ne 1 -or
+                ([string]$comboSelection[0].Current.Name).Trim() -ne $selectedItems[0].Label) { continue }
+
+            $expandState = $expandPattern.Current.ExpandCollapseState
+            if ($expandState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
+                $expandState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded) { continue }
+            $discoveries.Add([PSCustomObject]@{
+                ProcessId = [int]$process.Id
+                MainHwnd = [Int64]$process.MainWindowHandle
+                ComboHwnd = $comboHandle
+                ListHwnd = $listHandle
+                Expanded = $expandState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded
+                BrowsePosition = [int]$browse.Position
+                BrowseLabel = [string]$browse.Label
+                Selected = $selectedItems[0]
+                Items = $profileItems
+            })
+        }
+    }
+    if ($discoveries.Count -ne 1) {
+        Throw-Unavailable "A unique visible Lightroom quick Profile ComboBox was not exposed through UI Automation"
+    }
+    return $discoveries[0]
+}
+
+function ConvertTo-ProfileSnapshot([object]$Discovery) {
+    if ($null -eq $Discovery) { Throw-Unavailable "Lightroom Profile discovery is unavailable" }
+    $options = @($Discovery.Items | ForEach-Object {
+        [PSCustomObject]@{
+            position = [int]$_.Position
+            label = [string]$_.Label
+            enabled = [bool]$_.Enabled
+            selectionItem = $true
+        }
+    })
+    return [PSCustomObject]@{
+        available = $true
+        reason = $null
+        processId = [int]$Discovery.ProcessId
+        mainHwnd = [Int64]$Discovery.MainHwnd
+        comboHwnd = [Int64]$Discovery.ComboHwnd
+        listHwnd = [Int64]$Discovery.ListHwnd
+        expanded = [bool]$Discovery.Expanded
+        browsePosition = [int]$Discovery.BrowsePosition
+        browseLabel = [string]$Discovery.BrowseLabel
+        selectedCount = 1
+        selected = [PSCustomObject]@{
+            position = [int]$Discovery.Selected.Position
+            label = [string]$Discovery.Selected.Label
+        }
+        options = $options
+        patterns = [PSCustomObject]@{
+            selection = $true
+            expandCollapse = $true
+            selectionItem = $true
+        }
+    }
+}
+
 function Invoke-Request([object]$Request) {
     if ($null -eq $Request -or $Request.id -isnot [int64] -and $Request.id -isnot [int32]) { throw "Invalid request id" }
     if ($Request.operation -eq "readState") { return Get-NativeState }
@@ -1328,6 +1502,9 @@ function Invoke-Request([object]$Request) {
     if ($Request.operation -eq "activateFocusRangeAction") {
         if ($Request.action -isnot [string]) { throw "Invalid Focus Range action request" }
         return Invoke-FocusRangeAction $Request.action
+    }
+    if ($Request.operation -eq "readProfileSnapshot") {
+        return ConvertTo-ProfileSnapshot (Get-ProfileDiscovery)
     }
     throw "Unknown native operation"
 }

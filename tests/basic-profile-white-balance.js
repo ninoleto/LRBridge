@@ -32,11 +32,10 @@ const categoricalLua = read("lightroom/LRBridge.lrplugin/DevelopCategorical.lua"
 const driverLua = read("lightroom/LRBridge.lrplugin/Driver.lua");
 const categoricalServer = read("server/develop-categorical-state.js") + read("server/bridge.js") + read("server/commands.js");
 
-// Profile selection remains deliberately fail-closed until Lightroom exposes a reliable current-photo list.
-assert.doesNotMatch(controller + categoricalServer, /develop-categorical\/(?:profile)(?:[/?"']|$)/i,
-    "The Web Controller must not expose Profile selection without an authoritative current-photo option-list API");
+assert.match(controller + categoricalServer, /develop-categorical\/profile/,
+    "The Web Controller must expose the verified native quick/favorite Profile selector");
 assert.doesNotMatch(categoricalLua, /CameraProfile/,
-    "Production Lua must not contain speculative Profile writes");
+    "Profile writes must not reconstruct CameraProfile/Look payloads through Lua");
 assert.doesNotMatch(controller, /Adobe Color|Camera Matching|Artistic|Vintage/,
     "Profile choices must never be hard-coded as a universal list");
 
@@ -247,7 +246,7 @@ async function runTransportTests() {
 }
 
 runTransportTests().then(function () {
-    console.log("Profile fail-closed and White Balance production tests passed.");
+    console.log("Native Profile boundary and White Balance production tests passed.");
 }).catch(function (error) {
     console.error(error);
     process.exitCode = 1;

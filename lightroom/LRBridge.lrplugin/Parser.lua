@@ -41,9 +41,11 @@ function Parser.parse(json)
     local field = string.match(json, [["field":"([^"]+)"]])
     local range = string.match(json, [["range":"([^"]+)"]])
     local boundary = string.match(json, [["boundary":"([^"]+)"]])
+    local profile = string.match(json, [["profile":"([^"]+)"]])
     local commitId = string.match(json, [["commitId":"([^"]+)"]])
     local expectedSelectedIndex = string.match(json, [["expectedSelectedIndex":([%-]?%d+)]])
     local expectedContextCounter = string.match(json, [["expectedContextCounter":([%-]?%d+)]])
+    local profileGeneration = string.match(json, [["profileGeneration":([%-]?%d+)]])
     local lowerNone = string.match(json, [["LowerNone":([%-]?%d+%.?%d*)]])
     local lowerFull = string.match(json, [["LowerFull":([%-]?%d+%.?%d*)]])
     local upperFull = string.match(json, [["UpperFull":([%-]?%d+%.?%d*)]])
@@ -83,6 +85,7 @@ function Parser.parse(json)
     end
     if expectedSelectedIndex then expectedSelectedIndex = tonumber(expectedSelectedIndex) end
     if expectedContextCounter then expectedContextCounter = tonumber(expectedContextCounter) end
+    if profileGeneration then profileGeneration = tonumber(profileGeneration) end
     if lowerNone then lowerNone = tonumber(lowerNone) end
     if lowerFull then lowerFull = tonumber(lowerFull) end
     if upperFull then upperFull = tonumber(upperFull) end
@@ -120,12 +123,14 @@ function Parser.parse(json)
         ,field = field
         ,range = range
         ,boundary = boundary
+        ,profile = profile
         ,LowerNone = lowerNone
         ,LowerFull = lowerFull
         ,UpperFull = upperFull
         ,UpperNone = upperNone
         ,expectedSelectedIndex = expectedSelectedIndex
         ,expectedContextCounter = expectedContextCounter
+        ,profileGeneration = profileGeneration
         ,commitId = commitId
     }
 

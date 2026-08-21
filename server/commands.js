@@ -6,6 +6,7 @@ const lensBlur = require("./lens-blur-state");
 const focalRange = require("./lens-blur-focal-range");
 const context = require("./context");
 const developCategorical = require("./develop-categorical-state");
+const profileSdkRegistry = require("./profile-sdk-registry");
 
 const commandQueue = [];
 let latestResult = null;
@@ -156,6 +157,7 @@ function validateCommand(command) {
         ,"lens_blur.depth_refinement.close"
         ,"lens_blur.focal_range.set"
         ,"develop_categorical.white_balance.set"
+        ,"develop_categorical.profile.set"
         ,"develop_categorical.process.set"
         ,"develop_categorical.vignette_style.set"
         ,"develop_categorical.upright_mode.set"
@@ -211,6 +213,11 @@ function validateCommand(command) {
     }
     if (command.command === "develop_categorical.white_balance.set") {
         return Object.keys(command).length === 2 && developCategorical.whiteBalanceWritableValues.includes(command.value);
+    }
+    if (command.command === "develop_categorical.profile.set") {
+        return Object.keys(command).length === 4 && profileSdkRegistry.isSupportedProfile(command.profile) &&
+            Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
+            Number.isSafeInteger(command.profileGeneration) && command.profileGeneration >= 1;
     }
     if (command.command === "develop_categorical.process.set") {
         return Object.keys(command).length === 2 && developCategorical.processValues.includes(command.value);
@@ -708,7 +715,8 @@ function getNextCommand() {
         queueEntryMetadata.shift();
         dequeuedEntries += 1;
         lastDequeuedAt = Date.now();
-        if ((command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate") && command.expectedContextCounter !== context.getContextFields().contextCounter) continue;
+        if ((command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate" ||
+            command.command === "develop_categorical.profile.set") && command.expectedContextCounter !== context.getContextFields().contextCounter) continue;
         return command;
     }
     return null;

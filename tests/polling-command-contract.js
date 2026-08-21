@@ -42,6 +42,7 @@ const acceptedCommands = [
     { command: "photo.crop_angle.reset" },
     { command: "develop.set", slider: "Tint", value: -25 },
     { command: "develop_categorical.white_balance.set", value: "Daylight" },
+    { command: "develop_categorical.profile.set", profile: "Artistic 01", expectedContextCounter: 0, profileGeneration: 1 },
     { command: "lightroom.undo" },
     { command: "lightroom.redo" },
     { command: "photo.reveal", scope: "active" },
@@ -79,7 +80,7 @@ assert.deepEqual(executeLuaCommitIdParserContract(focalRangePollingJson), focalR
 assert.equal(executeLuaCommitIdParserContract(focalRangePollingJson.replace("focus-range-37", "bad value")).commitId, null);
 assert.equal(executeLuaCommitIdParserContract(focalRangePollingJson.replace("focus-range-37", "a".repeat(65))).commitId, null);
 
-const stringFields = ["action", "direction", "mode", "scope"];
+const stringFields = ["action", "direction", "mode", "scope", "profile"];
 for (const field of stringFields) {
     assert.match(
         parser,
