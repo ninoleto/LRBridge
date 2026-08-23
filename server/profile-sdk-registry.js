@@ -4,6 +4,7 @@ const supportedProfiles = Object.freeze([
     "Adobe Color",
     "Adobe Landscape",
     "Adobe Portrait",
+    "Adobe Standard",
     "Adobe Vivid",
     "Adobe Monochrome",
     "Artistic 01"
@@ -11,7 +12,6 @@ const supportedProfiles = Object.freeze([
 
 // Lightroom continues to report these targets authoritatively, but the Web Controller must not write them.
 const authoritativeReadOnlyProfiles = Object.freeze([
-    "Adobe Standard",
     "Adaptive Color",
     "Adaptive B&W"
 ]);

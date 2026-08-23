@@ -61,12 +61,14 @@ async function stateRegistryAndAdmissionTests() {
 
     let state = await profile.refresh();
     assert.deepEqual(profileRegistry.supportedProfiles,
-        ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Vivid", "Adobe Monochrome", "Artistic 01"]);
+        ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Standard", "Adobe Vivid",
+            "Adobe Monochrome", "Artistic 01"]);
     assert.deepEqual(profileRegistry.authoritativeReadOnlyProfiles,
-        ["Adobe Standard", "Adaptive Color", "Adaptive B&W"]);
+        ["Adaptive Color", "Adaptive B&W"]);
     assert.deepEqual(state.options.filter(function (option) { return option.writable; }).map(function (option) {
         return option.label;
-    }), ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Vivid", "Artistic 01", "Adobe Monochrome"],
+    }), ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Standard", "Adobe Vivid",
+        "Artistic 01", "Adobe Monochrome"],
     "only proven SDK Profiles may be writable");
     assert.deepEqual(state.options.map(function (option) { return option.label; }), labels,
         "native Profile readback must retain every quick-option label");
@@ -81,7 +83,7 @@ async function stateRegistryAndAdmissionTests() {
     const tokenFor = function (label) {
         return state.options.find(function (option) { return option.label === label; }).token;
     };
-    for (const unsupported of ["Adobe Standard", "Adaptive Color", "Adaptive B&W", "B&W 01", "Camera Standard"]) {
+    for (const unsupported of ["Adaptive Color", "Adaptive B&W", "B&W 01", "Camera Standard"]) {
         assert.throws(function () { profile.admitSdkSelection(tokenFor(unsupported)); },
             /readback-only|stale/, unsupported + " must fail closed");
     }
@@ -125,7 +127,7 @@ function controllerConfirmationTests() {
             position: position, enabled: true, writable: writable };
     }
     const options = [option("Adobe Color", 0, true), option("Artistic 01", 1, true),
-        option("Adobe Landscape", 2, true), option("Adobe Portrait", 3, true), option("Adobe Standard", 4, false),
+        option("Adobe Landscape", 2, true), option("Adobe Portrait", 3, true), option("Adobe Standard", 4, true),
         option("Adobe Vivid", 5, true), option("Adaptive Color", 6, false),
         option("Adaptive B&W", 7, false), option("B&W 01", 8, false)];
     function state(revision, selectedLabel, validationGeneration, validationFailedGeneration) {
@@ -241,13 +243,13 @@ async function serverQueueAndReadbackTests() {
         }), false, "Artistic 01 must not be injected when absent from native quick options");
         assert.deepEqual(response.body.profile.options.filter(function (entry) { return entry.writable; })
             .map(function (entry) { return entry.label; }),
-        ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Vivid", "Adobe Monochrome"],
+        ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Standard", "Adobe Vivid", "Adobe Monochrome"],
         "every supported Profile present in the native list must be writable");
         const token = function (label) {
             return response.body.profile.options.find(function (entry) { return entry.label === label; }).token;
         };
 
-        for (const unsupported of ["Adobe Standard", "Adaptive Color", "Adaptive B&W", "B&W 01", "Camera Standard"]) {
+        for (const unsupported of ["Adaptive Color", "Adaptive B&W", "B&W 01", "Camera Standard"]) {
             const rejected = await requestJson(port, "/develop-categorical/profile?token=" + token(unsupported));
             assert.equal(rejected.statusCode, 409, unsupported + " must submit nothing");
             assert.equal(commands.getNextCommand(), null);
@@ -309,6 +311,22 @@ async function serverQueueAndReadbackTests() {
         validation = await requestJson(port,
             "/develop-categorical/profile-validation?generation=3&profile=Adobe%20Monochrome&status=confirmed");
         assert.equal(validation.statusCode, 200);
+
+        queued = await requestJson(port, "/develop-categorical/profile?token=" + token("Adobe Standard"));
+        assert.equal(queued.statusCode, 200);
+        assert.deepEqual(commands.getNextCommand(), {
+            command: "develop_categorical.profile.set",
+            profile: "Adobe Standard",
+            expectedContextCounter: 1,
+            profileGeneration: 4
+        });
+        selected = "Adobe Standard";
+        clock.advance(1);
+        response = await requestJson(port, "/develop-categorical/state");
+        assert.equal(response.body.profile.selectedLabel, "Adobe Standard");
+        validation = await requestJson(port,
+            "/develop-categorical/profile-validation?generation=4&profile=Adobe%20Standard&status=confirmed");
+        assert.equal(validation.statusCode, 200);
         assert.equal(nativeWrites.count, 0, "supported SDK Profiles must never call the Windows-native writer");
 
         await requestJson(port, "/context/update?activeModule=library&selectedPhotoKey=photo-sdk-profile");
@@ -336,7 +354,10 @@ function capturedLookAndProductionBoundaryTests() {
     const vivid = lua.match(/local function adobeVividLook\(\)([\s\S]*?)\nend/)[1];
     const monochrome = lua.match(/local function adobeMonochromeLook\(\)([\s\S]*?)\nend/)[1];
     const artistic = lua.match(/local function artistic01Look\(\)([\s\S]*?)\nend/)[1];
+    const standardTombstone = lua.match(/local function adobeStandardLookTombstone\(\)([\s\S]*?)\nend/)[1];
     const supported = lua.match(/local supportedProfiles = \{([\s\S]*?)\n\}/)[1];
+    const unchanged = lua.match(/local function unchangedOutsideProfile[\s\S]*?\nend/)[0];
+    const desired = lua.match(/local function desiredState[\s\S]*?\nend/)[0];
 
     for (const [block, expected] of [[adobe, [
         'Amount = 1', 'Copyright = "© 2018 Adobe Systems, Inc."', 'Group = { ["x-default"] = "Profiles" }',
@@ -407,7 +428,12 @@ function capturedLookAndProductionBoundaryTests() {
         '["Adobe Monochrome"] = { look = adobeMonochromeLook, grayscale = true, includeTreatment = true }',
         '["Artistic 01"] = { look = artistic01Look, grayscale = false }'
     ]) assert.ok(supported.includes(mapping), "missing exact SDK Profile registry mapping: " + mapping);
-    assert.doesNotMatch(supported, /Adobe Standard|Adaptive Color|Adaptive B&W|B&W 01/,
+    assert.equal(standardTombstone.trim(), "return {}",
+        "Adobe Standard must use the proven empty Look tombstone and no reconstructed profile data");
+    assert.match(supported,
+        /\["Adobe Standard"\] = \{[\s\S]*?look = adobeStandardLookTombstone,[\s\S]*?lookAbsent = true,[\s\S]*?cameraProfile = "Adobe Standard",[\s\S]*?grayscale = false[\s\S]*?\}/,
+        "Adobe Standard must bind the tombstone to color treatment and strict SDK confirmation metadata");
+    assert.doesNotMatch(supported, /Adaptive Color|Adaptive B&W|B&W 01/,
         "unproven Profiles must remain outside the SDK write registry");
 
     assert.equal((lua.match(/applyDevelopSettings\(/g) || []).length, 1, "Profile SDK write must occur exactly once");
@@ -423,11 +449,24 @@ function capturedLookAndProductionBoundaryTests() {
         "end"
     ].join("\n"), "the production payload builder must have no additional Profile keys or fallback payloads");
     assert.match(payloadBuilder, /local payload = \{ Look = definition\.look\(\) \}/,
-        "every supported Profile payload must start with its complete captured Look only");
+        "every supported Profile payload must start with its complete captured Look or proven empty tombstone only");
     assert.match(payloadBuilder, /payload\.ConvertToGrayscale = definition\.grayscale/,
         "treatment transitions must explicitly set only ConvertToGrayscale alongside Look");
     assert.doesNotMatch(payloadBuilder, /AILook|CameraProfile|getDevelopSettings|before\s*[,}]/,
         "payload construction must never include AI data, CameraProfile, or the complete settings graph");
+    assert.match(desired, /definition\.cameraProfile ~= nil and settings\.CameraProfile ~= definition\.cameraProfile/,
+        "Adobe Standard confirmation must require the authoritative CameraProfile value");
+    assert.match(desired, /definition\.lookAbsent[\s\S]*settings\.Look ~= nil/,
+        "Adobe Standard confirmation must require complete Look absence");
+    assert.match(desired, /settings\.AILook == nil[\s\S]*type\(settings\.AILook\) == "table"[\s\S]*settings\.AILook\.Active ~= true/,
+        "Profile confirmation must require AILook to be absent or explicitly inactive");
+    assert.match(unchanged, /key == "Look" or key == "AILook"/);
+    assert.match(unchanged, /treatmentChanges and treatmentKey\(key\)/,
+        "only Profile state and an actual color\/B&W treatment transition may differ");
+    assert.match(lua, /if not unchangedOutsideProfile\(before, current, definition\) then[\s\S]*An unrelated Develop setting changed/,
+        "every validation poll must reject unrelated Develop-setting changes");
+    assert.doesNotMatch(lua, /LrDevelopController|setValue\s*\(\s*"CameraProfile"/,
+        "Adobe Standard must never use the failed CameraProfile setter path");
     assert.doesNotMatch(lua + dispatch + read("server/commands.js"),
         /Profile\.capture|profile\.capture|__TEMP_ProfileCapture/,
         "temporary Profile capture instrumentation must be absent from production");
@@ -439,12 +478,13 @@ function capturedLookAndProductionBoundaryTests() {
     assert.match(parser, /local profileGeneration = string\.match/);
 
     for (const target of [
-        "Adobe Standard", "Adaptive Color", "Adaptive B&W", "B&W 01", "Unknown", "Adobe Color "
+        "Adaptive Color", "Adaptive B&W", "B&W 01", "Unknown", "Adobe Color "
     ]) {
         assert.equal(commands.validateCommand({ command: "develop_categorical.profile.set", profile: target,
             expectedContextCounter: 1, profileGeneration: 1 }), false, target + " must never enter the command queue");
     }
-    for (const target of ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Vivid", "Adobe Monochrome", "Artistic 01"]) {
+    for (const target of ["Adobe Color", "Adobe Landscape", "Adobe Portrait", "Adobe Standard", "Adobe Vivid",
+        "Adobe Monochrome", "Artistic 01"]) {
         assert.equal(commands.validateCommand({ command: "develop_categorical.profile.set", profile: target,
             expectedContextCounter: 1, profileGeneration: 1 }), true);
     }

@@ -168,10 +168,20 @@ local function artistic01Look()
     }
 end
 
+local function adobeStandardLookTombstone()
+    return {}
+end
+
 local supportedProfiles = {
     ["Adobe Color"] = { look = adobeColorLook, grayscale = false },
     ["Adobe Landscape"] = { look = adobeLandscapeLook, grayscale = false },
     ["Adobe Portrait"] = { look = adobePortraitLook, grayscale = false },
+    ["Adobe Standard"] = {
+        look = adobeStandardLookTombstone,
+        lookAbsent = true,
+        cameraProfile = "Adobe Standard",
+        grayscale = false
+    },
     ["Adobe Vivid"] = { look = adobeVividLook, grayscale = false },
     ["Adobe Monochrome"] = { look = adobeMonochromeLook, grayscale = true, includeTreatment = true },
     ["Artistic 01"] = { look = artistic01Look, grayscale = false }
@@ -244,10 +254,16 @@ end
 
 local function desiredState(settings, definition)
     if not schemaMatches(settings, definition.grayscale) then return false end
-    if not graphEqual(settings.Look, definition.look()) then
+    if definition.cameraProfile ~= nil and settings.CameraProfile ~= definition.cameraProfile then
         return false
     end
-    return settings.AILook == nil or settings.AILook.Active ~= true
+    if definition.lookAbsent then
+        if settings.Look ~= nil then return false end
+    elseif not graphEqual(settings.Look, definition.look()) then
+        return false
+    end
+    return settings.AILook == nil or
+        (type(settings.AILook) == "table" and settings.AILook.Active ~= true)
 end
 
 local function percentEncode(value)
