@@ -677,8 +677,10 @@ assert.match(feedback, /if treatmentWorkerActive == true then return end/,
     "Only one treatment worker may run at a time");
 assert.match(feedback, /LrTasks\.startAsyncTask\(function\(\)[\s\S]*LrApplication\.activeCatalog\(\)[\s\S]*catalog:getTargetPhoto\(\)[\s\S]*photo:getDevelopSettings\(\)/,
     "Catalog, photo, and Develop settings must be resolved inside the dedicated task");
-assert.equal((feedback.match(/photo:getDevelopSettings\(\)/g) || []).length, 1,
-    "Treatment settings must be read only by the dedicated worker");
+assert.equal((feedback.match(/(?:photo|identity\.photo):getDevelopSettings\(\)/g) || []).length, 2,
+    "Only the dedicated treatment worker and UUID-bound Profile heartbeat may read Develop settings");
+assert.match(feedback, /local function readProfileFeedback[\s\S]*LrTasks\.pcall\(function\(\) return identity\.photo:getDevelopSettings\(\) end\)/,
+    "Profile feedback must use a separate yield-safe read bound to the heartbeat photo identity");
 assert.match(feedback, /local treatmentOk = LrTasks\.pcall\(function\(\)[\s\S]*photo:getDevelopSettings\(\)/,
     "Treatment runtime errors must not terminate the feedback task");
 assert.match(feedback, /local postOk = LrTasks\.pcall\(function\(\) LrHttp\.get\(url \.\. "&status=unavailable"\) end\)/,

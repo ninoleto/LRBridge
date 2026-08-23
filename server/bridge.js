@@ -88,6 +88,18 @@ const profileBackend = typeof windowsNativeBackend.readProfileSnapshot === "func
     : windowsNativeDefinition.createUnavailableWindowsBackend("Profile native backend was not configured");
 const profileNative = profileNativeDefinition.createProfileNativeState(profileBackend, options.profileStateOptions);
 
+function profileContextBinding(fields, previousDevelopCounter) {
+    return {
+        contextCounter: fields.contextCounter,
+        selectedPhotoKey: fields.selectedPhotoKey,
+        selectedPhotoUuid: fields.selectedPhotoUuid,
+        contextChangedAt: fields.contextChangedAt,
+        previousDevelopCounter: previousDevelopCounter,
+        developCounter: fields.developCounter,
+        developChangedAt: fields.developChangedAt
+    };
+}
+
 commands.setPointColorAdmissionContextProvider(function () {
     const current = pointColor.get();
     return { selectedIndex: current.available ? current.selectedIndex : 0, contextCounter: context.getContextFields().contextCounter };
@@ -292,19 +304,24 @@ app.get("/context", function (req, res) {
 });
 
 app.get("/context/update", function (req, res) {
-    const previousContextCounter = context.getContextFields().contextCounter;
+    const previousContext = context.getContextFields();
     const updated = context.updateContext({
         activeModule: req.query.activeModule,
         selectedPhotoKey: req.query.selectedPhotoKey,
+        selectedPhotoUuid: req.query.selectedPhotoUuid,
+        selectedPhotoPath: req.query.selectedPhotoPath,
         developFingerprint: req.query.developFingerprint
     });
     enhance.syncContext(updated.contextCounter);
     pointColor.syncContext(updated.contextCounter);
     lensBlur.syncContext(updated.contextCounter);
     developCategorical.syncContext(updated.contextCounter);
-    profileNative.syncContext(updated.contextCounter);
+    const profileContextChanged = profileNative.syncContext(
+        profileContextBinding(updated, previousContext.developCounter)
+    );
+    if (profileContextChanged) profileNative.requestContextRefresh();
 
-    if (updated.contextCounter !== previousContextCounter) {
+    if (updated.contextCounter !== previousContext.contextCounter) {
         history.invalidate();
         Object.keys(feedbackValues).forEach(function (slider) {
             delete feedbackValues[slider];
@@ -388,8 +405,17 @@ app.get("/develop-categorical/metadata", function (req, res) {
 app.get("/develop-categorical/state", async function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     developCategorical.requestRefresh();
-    profileNative.syncContext(context.getContextFields().contextCounter);
-    await profileNative.refresh();
+    const contextFields = context.getContextFields();
+    profileNative.syncContext(profileContextBinding(contextFields, contextFields.developCounter));
+    const currentProfile = profileNative.get();
+    if (currentProfile.updating) {
+        await profileNative.refreshContextLabel();
+        profileNative.refresh();
+    } else if (!currentProfile.available && currentProfile.selectedLabel !== null) {
+        profileNative.refresh();
+    } else {
+        await profileNative.refresh();
+    }
     res.set("Cache-Control", "no-store").json({
         ok: true,
         state: developCategorical.get(),
@@ -397,6 +423,37 @@ app.get("/develop-categorical/state", async function (req, res) {
         profile: profileNative.get(),
         capabilities: developCategoricalDefinition.capabilities
     });
+});
+
+app.get("/develop-categorical/profile-feedback", function (req, res) {
+    const allowed = new Set([
+        "contextCounter", "developCounter", "selectedPhotoKey", "selectedPhotoUuid", "label", "source"
+    ]);
+    const feedbackContextCounter = Number(req.query.contextCounter);
+    const feedbackDevelopCounter = Number(req.query.developCounter);
+    if (Object.keys(req.query).length !== allowed.size ||
+        Object.keys(req.query).some(function (key) { return !allowed.has(key) || Array.isArray(req.query[key]); }) ||
+        !/^\d+$/.test(req.query.contextCounter || "") || !/^\d+$/.test(req.query.developCounter || "") ||
+        !Number.isSafeInteger(feedbackContextCounter) || !Number.isSafeInteger(feedbackDevelopCounter) ||
+        typeof req.query.selectedPhotoKey !== "string" || req.query.selectedPhotoKey.length < 1 ||
+        req.query.selectedPhotoKey.length > 1024 || typeof req.query.selectedPhotoUuid !== "string" ||
+        req.query.selectedPhotoUuid.length > 160 || typeof req.query.label !== "string" ||
+        req.query.label.trim() !== req.query.label || req.query.label.length < 1 || req.query.label.length > 160 ||
+        !["AILook", "Look.Name", "CameraProfile"].includes(req.query.source)) {
+        return res.status(400).json({ ok: false, error: "Invalid Profile feedback" });
+    }
+    const previousProfile = profileNative.get();
+    const accepted = profileNative.observeSdkProfile({
+        contextCounter: feedbackContextCounter,
+        developCounter: feedbackDevelopCounter,
+        selectedPhotoKey: req.query.selectedPhotoKey,
+        selectedPhotoUuid: req.query.selectedPhotoUuid || null,
+        label: req.query.label,
+        source: req.query.source
+    });
+    if (!accepted) return res.status(409).json({ ok: false, error: "Stale or unresolved Profile feedback" });
+    if (previousProfile.selectedLabel !== req.query.label) profileNative.requestContextRefresh();
+    res.set("Cache-Control", "no-store").json({ ok: true, profile: profileNative.get() });
 });
 
 app.get("/develop-categorical/next", function (req, res) {
@@ -467,7 +524,7 @@ app.get("/develop-categorical/profile", function (req, res) {
     if (Object.keys(req.query).length !== 1 || Array.isArray(req.query.token) ||
         !profileNativeDefinition.TOKEN_PATTERN.test(req.query.token || "")) return rejectInvalidCommand(res);
     const contextFields = context.getContextFields();
-    profileNative.syncContext(contextFields.contextCounter);
+    profileNative.syncContext(profileContextBinding(contextFields, contextFields.developCounter));
     if (contextFields.activeModule !== "develop" || typeof contextFields.selectedPhotoKey !== "string" ||
         contextFields.selectedPhotoKey.length < 1) {
         return res.status(409).json({ ok: false, error: "Lightroom Develop photo context unavailable" });

@@ -2729,6 +2729,7 @@
             ? developCategoricalHelper.createProfileModel()
             : null;
         let developCategoricalRequestInFlight = false;
+        let developCategoricalRefreshQueued = false;
         let developCategoricalCapabilities = {
             transformUpdate: { available: false, enabled: false, reason: "Unavailable" }
         };
@@ -3094,6 +3095,7 @@
         let lastControllerDevelopCounter = null;
         let lastControllerActiveModule = null;
         let lastControllerSelectedPhotoKey = null;
+        let lastControllerSelectedPhotoUuid = null;
         let lastControllerHeartbeatAt = null;
         let heartbeatWasStale = false;
         const DEBUG_DEVELOP_REFRESH = true;
@@ -3363,9 +3365,15 @@
                     developCounter: lastControllerDevelopCounter,
                     activeModule: lastControllerActiveModule,
                     selectedPhotoKey: lastControllerSelectedPhotoKey,
+                    selectedPhotoUuid: lastControllerSelectedPhotoUuid,
                     lastHeartbeatAt: lastControllerHeartbeatAt
                 };
                 const classification = classifyControllerContextChange(previous, data);
+                const profileContextChanged = Number.isSafeInteger(data.contextCounter) && (
+                    lastControllerContextCounter === null || data.contextCounter !== lastControllerContextCounter ||
+                    data.selectedPhotoKey !== lastControllerSelectedPhotoKey ||
+                    data.selectedPhotoUuid !== lastControllerSelectedPhotoUuid
+                );
                 if (classification === "navigation" || classification === "develop-revision") {
                     invalidateTreatmentState();
                 }
@@ -3391,6 +3399,17 @@
                 lastControllerDevelopCounter = data.developCounter;
                 lastControllerActiveModule = data.activeModule;
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
+                lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;
+                if (profileContextChanged && profileModel) {
+                    if (classification !== "navigation") {
+                        profileSelectionGeneration += 1;
+                        clearDevelopCategoricalPendingTimer("profile");
+                        delete developCategoricalErrors.profile;
+                    }
+                    profileModel.beginContext(data.contextCounter, data.selectedPhotoKey, data.selectedPhotoUuid);
+                    updateProfileControl();
+                    requestDevelopCategoricalState(true);
+                }
 
                 const heartbeatChanged = lastControllerHeartbeatAt !== null &&
                     data.lastHeartbeatAt !== lastControllerHeartbeatAt;
@@ -5098,12 +5117,16 @@
         }
 
         function syncProfileOptions(control, presentation) {
-            if (control.optionSnapshotRevision === presentation.optionSnapshotRevision) return;
+            const renderKey = String(presentation.optionSnapshotRevision) + ":" +
+                String(presentation.inventoryStable) + ":" +
+                (presentation.inventoryStable ? "" : String(presentation.authoritativeLabel || presentation.updating));
+            if (control.optionRenderKey === renderKey) return;
             control.select.replaceChildren();
-            if (!presentation.available) {
+            if (!presentation.inventoryStable) {
                 const unavailable = document.createElement("option");
                 unavailable.value = "";
-                unavailable.textContent = "Unavailable";
+                unavailable.textContent = presentation.authoritativeLabel ||
+                    (presentation.updating ? "Updating Profile…" : "Unavailable");
                 control.select.appendChild(unavailable);
             } else {
                 presentation.options.forEach(function (option) {
@@ -5116,6 +5139,7 @@
                 });
             }
             control.optionSnapshotRevision = presentation.optionSnapshotRevision;
+            control.optionRenderKey = renderKey;
         }
 
         function updateProfileControl() {
@@ -5123,7 +5147,7 @@
             if (!control || !profileModel) return;
             const presentation = profileModel.presentation();
             syncProfileOptions(control, presentation);
-            control.select.disabled = !presentation.available || presentation.pending;
+            control.select.disabled = !presentation.inventoryStable || presentation.pending;
             control.select.value = (presentation.pending ? presentation.draftToken : presentation.authoritativeToken) || "";
             control.select.classList.toggle("pending", presentation.pending);
             control.status.className = "develop-categorical-status";
@@ -5132,8 +5156,10 @@
                 control.status.textContent = developCategoricalErrors.profile;
             } else if (presentation.pending) {
                 control.status.textContent = "Updating Profile…";
+            } else if (presentation.updating) {
+                control.status.textContent = "Updating Profile…";
             } else {
-                control.status.textContent = presentation.available ? presentation.authoritativeLabel : "Unavailable";
+                control.status.textContent = presentation.authoritativeLabel || "Unavailable";
             }
         }
 
@@ -5439,8 +5465,12 @@
             }
         }
 
-        async function requestDevelopCategoricalState() {
-            if (!developCategoricalModel || activeTab !== "sliders" || developCategoricalRequestInFlight) return;
+        async function requestDevelopCategoricalState(forceProfileRefresh) {
+            if (!developCategoricalModel || activeTab !== "sliders") return;
+            if (developCategoricalRequestInFlight) {
+                if (forceProfileRefresh === true) developCategoricalRefreshQueued = true;
+                return;
+            }
             developCategoricalRequestInFlight = true;
             try {
                 const response = await fetch("/api/develop-categorical/state", { cache: "no-store" });
@@ -5463,7 +5493,10 @@
                         developCategoricalOptionLabel(control, developCategoricalModel.presentation(control).authoritativeValue) +
                         " instead.";
                 });
-                if (profileModel && data.profile) {
+                if (profileModel && data.profile &&
+                    data.profile.contextCounter === lastControllerContextCounter &&
+                    data.profile.photoKey === lastControllerSelectedPhotoKey &&
+                    data.profile.photoUuid === lastControllerSelectedPhotoUuid) {
                     const profileApplied = profileModel.apply(data.profile);
                     if (profileApplied.confirmed || profileApplied.lateConfirmed) {
                         clearDevelopCategoricalPendingTimer("profile");
@@ -5486,6 +5519,10 @@
             } finally {
                 developCategoricalRequestInFlight = false;
                 updateDevelopCategoricalControls();
+                if (developCategoricalRefreshQueued) {
+                    developCategoricalRefreshQueued = false;
+                    requestDevelopCategoricalState(true);
+                }
             }
         }
 

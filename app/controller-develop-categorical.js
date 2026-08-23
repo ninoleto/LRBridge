@@ -190,13 +190,16 @@
         };
     }
 
-    function unavailableProfileState() {
+    function unavailableProfileState(contextCounter, updating, photoKey, photoUuid) {
         return {
             available: false,
-            reason: "Unavailable",
+            updating: updating === true,
+            reason: updating === true ? "Waiting for the current Lightroom photograph Profile" : "Unavailable",
             revision: 0,
             optionSnapshotRevision: 0,
-            contextCounter: 0,
+            contextCounter: Number.isSafeInteger(contextCounter) && contextCounter >= 0 ? contextCounter : 0,
+            photoKey: typeof photoKey === "string" && photoKey.length > 0 ? photoKey : null,
+            photoUuid: typeof photoUuid === "string" && photoUuid.length > 0 ? photoUuid : null,
             processId: null,
             browsePosition: null,
             browseLabel: null,
@@ -210,18 +213,28 @@
 
     function validProfileState(input) {
         if (!input || typeof input !== "object" || Array.isArray(input) || typeof input.available !== "boolean" ||
+            typeof input.updating !== "boolean" ||
             !Number.isSafeInteger(input.revision) || input.revision < 0 ||
             !Number.isSafeInteger(input.optionSnapshotRevision) || input.optionSnapshotRevision < 0 ||
             !Number.isSafeInteger(input.contextCounter) || input.contextCounter < 0 ||
+            (input.photoKey !== null && (typeof input.photoKey !== "string" || input.photoKey.length < 1 ||
+                input.photoKey.length > 1024)) ||
+            (input.photoUuid !== null && (typeof input.photoUuid !== "string" || input.photoUuid.length < 1 ||
+                input.photoUuid.length > 160)) ||
             !Number.isSafeInteger(input.validationGeneration) || input.validationGeneration < 0 ||
             !Number.isSafeInteger(input.validationFailedGeneration) || input.validationFailedGeneration < 0 ||
             !Array.isArray(input.options)) return false;
         if (!input.available) {
-            return typeof input.reason === "string" && input.reason.length > 0 && input.reason.length <= 240 &&
-                input.processId === null && input.browsePosition === null && input.browseLabel === null &&
-                input.selectedToken === null && input.selectedLabel === null && input.options.length === 0;
+            if (typeof input.reason !== "string" || input.reason.length < 1 || input.reason.length > 240 ||
+                input.browsePosition !== null || input.browseLabel !== null || input.selectedToken !== null ||
+                input.options.length !== 0) return false;
+            if (input.selectedLabel === null) return input.processId === null;
+            return input.updating === false && (input.processId === null ||
+                (Number.isSafeInteger(input.processId) && input.processId > 0)) &&
+                typeof input.selectedLabel === "string" && input.selectedLabel.trim() === input.selectedLabel &&
+                input.selectedLabel.length > 0 && input.selectedLabel.length <= 160;
         }
-        if (input.reason !== null || !Number.isSafeInteger(input.processId) || input.processId < 1 ||
+        if (input.updating || input.reason !== null || !Number.isSafeInteger(input.processId) || input.processId < 1 ||
             !Number.isSafeInteger(input.browsePosition) || input.browsePosition < 1 || input.browsePosition > 255 ||
             typeof input.browseLabel !== "string" || !/^Browse(?:\.{3}|\u2026)$/i.test(input.browseLabel) ||
             typeof input.selectedToken !== "string" ||
@@ -253,10 +266,13 @@
     function cloneProfileState(input) {
         return {
             available: input.available,
+            updating: input.updating,
             reason: input.reason,
             revision: input.revision,
             optionSnapshotRevision: input.optionSnapshotRevision,
             contextCounter: input.contextCounter,
+            photoKey: input.photoKey,
+            photoUuid: input.photoUuid,
             processId: input.processId,
             browsePosition: input.browsePosition,
             browseLabel: input.browseLabel,
@@ -273,9 +289,13 @@
         let lastAvailableState = null;
         let pending = null;
         let timedOut = null;
+        let expectedContextCounter = null;
+        let expectedPhotoKey = null;
+        let expectedPhotoUuid = null;
 
         function matchesTarget(target) {
             return state.available && state.contextCounter === target.contextCounter &&
+                state.photoKey === target.photoKey && state.photoUuid === target.photoUuid &&
                 state.processId === target.processId && state.revision > target.afterRevision &&
                 state.selectedLabel === target.label && target.serverGeneration !== null &&
                 state.validationGeneration === target.serverGeneration;
@@ -287,15 +307,39 @@
                 lastAvailableState = null;
                 pending = null;
                 timedOut = null;
+                expectedContextCounter = null;
+                expectedPhotoKey = null;
+                expectedPhotoUuid = null;
+            },
+            beginContext: function (contextCounter, photoKey, photoUuid) {
+                if (!Number.isSafeInteger(contextCounter) || contextCounter < 0 ||
+                    (photoKey !== null && (typeof photoKey !== "string" || photoKey.length < 1)) ||
+                    (photoUuid !== null && (typeof photoUuid !== "string" || photoUuid.length < 1))) return false;
+                state = unavailableProfileState(contextCounter, true, photoKey, photoUuid);
+                lastAvailableState = null;
+                pending = null;
+                timedOut = null;
+                expectedContextCounter = contextCounter;
+                expectedPhotoKey = photoKey;
+                expectedPhotoUuid = photoUuid;
+                return true;
             },
             apply: function (nextState) {
-                if (!validProfileState(nextState) || nextState.revision < state.revision) {
+                if (!validProfileState(nextState) ||
+                    (expectedContextCounter !== null && (nextState.contextCounter !== expectedContextCounter ||
+                        nextState.photoKey !== expectedPhotoKey || nextState.photoUuid !== expectedPhotoUuid)) ||
+                    nextState.revision < state.revision) {
                     return { accepted: false, confirmed: false, lateConfirmed: false, rejected: false };
                 }
                 if (nextState.revision === state.revision && state.revision !== 0) {
                     return { accepted: true, duplicate: true, confirmed: false, lateConfirmed: false, rejected: false };
                 }
+                const contextChanged = state.contextCounter !== nextState.contextCounter;
                 state = cloneProfileState(nextState);
+                expectedContextCounter = state.contextCounter;
+                expectedPhotoKey = state.photoKey;
+                expectedPhotoUuid = state.photoUuid;
+                if (contextChanged) lastAvailableState = null;
                 if (state.available) lastAvailableState = cloneProfileState(state);
                 let confirmed = false;
                 let lateConfirmed = false;
@@ -303,6 +347,7 @@
                 let rejectionReason = null;
                 if (pending) {
                     if (state.contextCounter !== pending.contextCounter ||
+                        state.photoKey !== pending.photoKey || state.photoUuid !== pending.photoUuid ||
                         (state.available && state.processId !== pending.processId)) {
                         pending = null;
                         rejected = true;
@@ -331,6 +376,7 @@
                 }
                 if (!pending && timedOut) {
                     if (state.contextCounter !== timedOut.contextCounter ||
+                        state.photoKey !== timedOut.photoKey || state.photoUuid !== timedOut.photoUuid ||
                         (state.available && state.processId !== timedOut.processId)) {
                         timedOut = null;
                     } else if (timedOut.serverGeneration !== null &&
@@ -362,6 +408,8 @@
                     position: option.position,
                     generation: generation,
                     contextCounter: state.contextCounter,
+                    photoKey: state.photoKey,
+                    photoUuid: state.photoUuid,
                     processId: state.processId,
                     afterRevision: state.revision,
                     serverGeneration: null
@@ -399,11 +447,13 @@
                 }) : null;
                 return {
                     available: displayState.available,
+                    inventoryStable: displayState.available,
+                    updating: state.updating,
                     reason: state.reason,
                     revision: state.revision,
                     optionSnapshotRevision: displayState.optionSnapshotRevision,
                     authoritativeToken: displayState.available ? displayState.selectedToken : null,
-                    authoritativeLabel: displayState.available ? displayState.selectedLabel : null,
+                    authoritativeLabel: typeof displayState.selectedLabel === "string" ? displayState.selectedLabel : null,
                     options: displayState.options.map(function (option) { return Object.assign({}, option); }),
                     pending: pending !== null,
                     desiredToken: pending ? pending.token : null,

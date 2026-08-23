@@ -186,60 +186,41 @@ local function getActiveModule()
 
 end
 
-local function getPhotoKey(photo)
+local function getPhotoIdentity(photo)
 
-    if photo == nil then
-        return ""
+    if photo == nil then return { key = "", uuid = "", path = "", photo = nil } end
+
+    local uuid = ""
+    local okUuid, rawUuid = pcall(function() return photo:getRawMetadata("uuid") end)
+    if okUuid == true and rawUuid ~= nil then uuid = tostring(rawUuid) end
+
+    local photoPath = ""
+    local okPath, rawPath = pcall(function() return photo:getRawMetadata("path") end)
+    if okPath == true and rawPath ~= nil then photoPath = tostring(rawPath) end
+    if photoPath == "" then
+        local okDirectPath, directPath = pcall(function() return photo.path end)
+        if okDirectPath == true and directPath ~= nil then photoPath = tostring(directPath) end
     end
 
-    local okUuid, uuid = pcall(function()
-        return photo:getRawMetadata("uuid")
-    end)
-
-    if okUuid == true and uuid ~= nil and tostring(uuid) ~= "" then
-        return tostring(uuid)
-    end
-
-    local okPath, path = pcall(function()
-        return photo:getRawMetadata("path")
-    end)
-
-    if okPath == true and path ~= nil and tostring(path) ~= "" then
-        return tostring(path)
-    end
-
-    local okDirectPath, directPath = pcall(function()
-        return photo.path
-    end)
-
-    if okDirectPath == true and directPath ~= nil and tostring(directPath) ~= "" then
-        return tostring(directPath)
-    end
-
-    return tostring(photo)
+    local key = uuid ~= "" and uuid or photoPath
+    return { key = key, uuid = uuid, path = photoPath, photo = photo }
 
 end
 
-local function getSelectedPhotoKey()
+local function getSelectedPhotoIdentity()
 
     local catalog = LrApplication.activeCatalog()
 
     if catalog == nil then
-        return ""
+        return getPhotoIdentity(nil)
     end
 
     local okTargetPhoto, targetPhoto = pcall(function()
         return catalog:getTargetPhoto()
     end)
 
-    local targetKey = ""
-
     if okTargetPhoto == true and targetPhoto ~= nil then
-        targetKey = getPhotoKey(targetPhoto)
-    end
-
-    if targetKey ~= nil and targetKey ~= "" then
-        return targetKey
+        return getPhotoIdentity(targetPhoto)
     end
 
     local okTargetPhotos, targetPhotos = pcall(function()
@@ -247,14 +228,78 @@ local function getSelectedPhotoKey()
     end)
 
     if okTargetPhotos == true and targetPhotos ~= nil and #targetPhotos > 0 then
-        return getPhotoKey(targetPhotos[1])
+        return getPhotoIdentity(targetPhotos[1])
     end
 
-    return ""
+    return getPhotoIdentity(nil)
 
 end
 
-local function getDevelopFingerprint(activeModule)
+local function profileScalar(value)
+    local valueType = type(value)
+    if valueType == "string" or valueType == "number" or valueType == "boolean" then
+        return tostring(value)
+    end
+    return ""
+end
+
+local function readProfileFeedback(identity)
+    local unavailable = { available = false, label = "", source = "", fingerprint = "" }
+    if identity.photo == nil or identity.key == "" then return unavailable end
+
+    local settingsOk, settings = LrTasks.pcall(function() return identity.photo:getDevelopSettings() end)
+    if settingsOk ~= true or type(settings) ~= "table" then return unavailable end
+
+    local currentIdentity = getSelectedPhotoIdentity()
+    if currentIdentity.photo ~= identity.photo then return unavailable end
+    if currentIdentity.key ~= identity.key or currentIdentity.uuid ~= identity.uuid then return unavailable end
+
+    local lookName = type(settings.Look) == "table" and profileScalar(settings.Look.Name) or ""
+    local aiLookActive = type(settings.AILook) == "table" and settings.AILook.Active == true
+    local label = ""
+    local source = ""
+    if type(settings.AILook) == "string" and settings.AILook ~= "" then
+        label = settings.AILook
+        source = "AILook"
+    elseif aiLookActive then
+        if lookName == "" then return unavailable end
+        label = lookName
+        source = "AILook"
+    elseif lookName ~= "" then
+        label = lookName
+        source = "Look.Name"
+    elseif type(settings.CameraProfile) == "string" and settings.CameraProfile ~= "" then
+        label = settings.CameraProfile
+        source = "CameraProfile"
+    end
+    if label == "" or string.len(label) > 160 then return unavailable end
+
+    local parts = {
+        "source=" .. source,
+        "label=" .. label,
+        "camera=" .. profileScalar(settings.CameraProfile),
+        "grayscale=" .. profileScalar(settings.ConvertToGrayscale)
+    }
+    if type(settings.Look) == "table" then
+        table.insert(parts, "lookName=" .. profileScalar(settings.Look.Name))
+        table.insert(parts, "lookUuid=" .. profileScalar(settings.Look.UUID))
+        table.insert(parts, "lookAmount=" .. profileScalar(settings.Look.Amount))
+        table.insert(parts, "lookAdaptive=" .. profileScalar(settings.Look.isAdobeAdaptive))
+    end
+    if type(settings.AILook) == "table" then
+        table.insert(parts, "aiActive=" .. profileScalar(settings.AILook.Active))
+        table.insert(parts, "aiInputDigest=" .. profileScalar(settings.AILook.InputDigest))
+        table.insert(parts, "aiData=" .. profileScalar(settings.AILook.AILookData))
+        table.insert(parts, "aiModel=" .. profileScalar(settings.AILook.ModelVersion))
+        table.insert(parts, "aiVersion=" .. profileScalar(settings.AILook.Version))
+    elseif type(settings.AILook) == "string" then
+        table.insert(parts, "aiValue=" .. settings.AILook)
+    end
+
+    return { available = true, label = label, source = source, fingerprint = hashString(table.concat(parts, "|")) }
+end
+
+local function getDevelopFingerprint(activeModule, profileFingerprint)
 
     if activeModule ~= "develop" then
         return ""
@@ -272,12 +317,23 @@ local function getDevelopFingerprint(activeModule)
 
     end
 
+    if profileFingerprint ~= nil and profileFingerprint ~= "" then
+        table.insert(parts, "ProfileState=" .. tostring(profileFingerprint))
+    end
+
     if #parts == 0 then
         return ""
     end
 
     return hashString(table.concat(parts, "|"))
 
+end
+
+local function parseJsonInteger(json, field)
+    if json == nil then return nil end
+    local value = string.match(json, [["]] .. tostring(field) .. [["%s*:%s*(%d+)]])
+    if value == nil then return nil end
+    return tonumber(value)
 end
 
 local function sendContextHeartbeat()
@@ -287,16 +343,32 @@ local function sendContextHeartbeat()
     end
 
     local activeModule = getActiveModule()
-    local selectedPhotoKey = getSelectedPhotoKey()
-    local developFingerprint = getDevelopFingerprint(activeModule)
+    local identity = getSelectedPhotoIdentity()
+    local profile = activeModule == "develop" and readProfileFeedback(identity) or
+        { available = false, label = "", source = "", fingerprint = "" }
+    local developFingerprint = getDevelopFingerprint(activeModule, profile.fingerprint)
 
     local url =
         "http://127.0.0.1:17891/context/update" ..
         "?activeModule=" .. urlEncode(activeModule) ..
-        "&selectedPhotoKey=" .. urlEncode(selectedPhotoKey) ..
+        "&selectedPhotoKey=" .. urlEncode(identity.key) ..
+        "&selectedPhotoUuid=" .. urlEncode(identity.uuid) ..
+        "&selectedPhotoPath=" .. urlEncode(identity.path) ..
         "&developFingerprint=" .. urlEncode(developFingerprint)
 
-    LrHttp.get(url)
+    local result = LrHttp.get(url)
+    local contextCounter = parseJsonInteger(result, "contextCounter")
+    local developCounter = parseJsonInteger(result, "developCounter")
+    if profile.available and contextCounter ~= nil and developCounter ~= nil then
+        local feedbackUrl = "http://127.0.0.1:17891/develop-categorical/profile-feedback" ..
+            "?contextCounter=" .. tostring(contextCounter) ..
+            "&developCounter=" .. tostring(developCounter) ..
+            "&selectedPhotoKey=" .. urlEncode(identity.key) ..
+            "&selectedPhotoUuid=" .. urlEncode(identity.uuid) ..
+            "&label=" .. urlEncode(profile.label) ..
+            "&source=" .. urlEncode(profile.source)
+        LrHttp.get(feedbackUrl)
+    end
 
 end
 

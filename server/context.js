@@ -1,6 +1,8 @@
 const state = {
   activeModule: "unknown",
   selectedPhotoKey: null,
+  selectedPhotoUuid: null,
+  selectedPhotoPath: null,
   contextCounter: 0,
   contextChangedAt: null,
   developCounter: 0,
@@ -23,17 +25,28 @@ function normalizeModule(value) {
 function updateContext(input) {
   const now = Date.now();
   const nextActiveModule = normalizeModule(input.activeModule);
-  const nextSelectedPhotoKey = normalizeNullable(input.selectedPhotoKey);
+  const nextSelectedPhotoUuid = normalizeNullable(input.selectedPhotoUuid);
+  const suppliedPhotoPath = normalizeNullable(input.selectedPhotoPath);
+  const legacyPhotoKey = normalizeNullable(input.selectedPhotoKey);
+  const nextSelectedPhotoPath = suppliedPhotoPath || (nextSelectedPhotoUuid === null ? legacyPhotoKey : null);
+  const nextSelectedPhotoKey = nextSelectedPhotoUuid || legacyPhotoKey || nextSelectedPhotoPath;
   const nextDevelopFingerprint = normalizeNullable(input.developFingerprint);
 
   if (state.activeModule !== nextActiveModule || state.selectedPhotoKey !== nextSelectedPhotoKey) {
     state.activeModule = nextActiveModule;
     state.selectedPhotoKey = nextSelectedPhotoKey;
+    state.selectedPhotoUuid = nextSelectedPhotoUuid;
+    state.selectedPhotoPath = nextSelectedPhotoPath;
     state.contextCounter += 1;
     state.contextChangedAt = now;
+  } else {
+    state.selectedPhotoUuid = nextSelectedPhotoUuid;
+    state.selectedPhotoPath = nextSelectedPhotoPath;
   }
 
-  if (nextDevelopFingerprint !== null && state.developFingerprint !== nextDevelopFingerprint) {
+  if (nextActiveModule !== "develop") {
+    state.developFingerprint = null;
+  } else if (nextDevelopFingerprint !== null && state.developFingerprint !== nextDevelopFingerprint) {
     state.developFingerprint = nextDevelopFingerprint;
     state.developCounter += 1;
     state.developChangedAt = now;
@@ -47,6 +60,8 @@ function getContextFields() {
   return {
     activeModule: state.activeModule,
     selectedPhotoKey: state.selectedPhotoKey,
+    selectedPhotoUuid: state.selectedPhotoUuid,
+    selectedPhotoPath: state.selectedPhotoPath,
     contextCounter: state.contextCounter,
     contextChangedAt: state.contextChangedAt,
     developCounter: state.developCounter,

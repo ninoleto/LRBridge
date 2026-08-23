@@ -123,6 +123,7 @@ function createUnavailableWindowsBackend(reason) {
         setRefinementDisclosure: reject,
         resetRefinement: reject,
         activateFocusRangeAction: reject,
+        readProfileLabel: reject,
         readProfileSnapshot: reject,
         getTransportDiagnostics: function () {
             return { active: false, queueDepth: 0, pendingCount: 0 };
@@ -412,6 +413,9 @@ function createWindowsLightroomNativeBackend(options) {
         },
         readProfileSnapshot: function () {
             return request("readProfileSnapshot");
+        },
+        readProfileLabel: function () {
+            return request("readProfileLabel");
         },
         getTransportDiagnostics: function () {
             return Object.assign({

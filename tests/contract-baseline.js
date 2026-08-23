@@ -393,7 +393,7 @@ async function validateHttpAndWebSocketContract() {
     assert.deepEqual(keys(result.body), ["experimentalEndpoints", "mode", "name", "notes", "reliableEndpoints", "sourceOfTruth"]);
 
     result = await request(captured, "/status");
-    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "hasLatestResult", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "supportedSliders"]);
+    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "hasLatestResult", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid", "supportedSliders"]);
     assert.deepEqual(result.body.supportedSliders, sliders.map((slider) => slider.id));
 
     result = await request(captured, "/diagnostics/queue");
@@ -401,7 +401,7 @@ async function validateHttpAndWebSocketContract() {
     assert.deepEqual(keys(result.body), ["counters", "ok", "queue", "scope", "timestamps"]);
 
     result = await request(captured, "/context");
-    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey"]);
+    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid"]);
 
     result = await request(captured, "/sliders");
     assert.deepEqual(keys(result.body), ["sliders"]);
@@ -479,7 +479,7 @@ async function validateHttpAndWebSocketContract() {
     await request(captured, "/next");
 
     result = await request(captured, "/context/update", { activeModule: "develop", selectedPhotoKey: "photo-1", developFingerprint: "abc" });
-    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey"]);
+    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid"]);
     assert.deepEqual(await drainCommands(captured, 0), [], "context heartbeat must not enqueue a module command");
 
     result = await request(captured, "/result", { command: "develop.get.result", slider: "Exposure", value: "1.25" });

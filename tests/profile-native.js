@@ -41,12 +41,61 @@ function rawSnapshot(selectedLabel, snapshotLabels) {
     };
 }
 
+function rawLabel(selectedLabel) {
+    return {
+        available: true,
+        processId: 15300,
+        mainHwnd: 71001,
+        comboHwnd: 71002,
+        listHwnd: 71003,
+        selectedLabel: selectedLabel,
+        patterns: { selection: true, expandCollapse: true }
+    };
+}
+
+function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise(function (resolvePromise, rejectPromise) {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise: promise, resolve: resolve, reject: reject };
+}
+
 function createClock(initial) {
     let value = initial;
     return {
         now: function () { return value; },
         advance: function (amount) { value += amount; }
     };
+}
+
+function contextUuidIdentityTests() {
+    const contextPath = require.resolve("../server/context");
+    delete require.cache[contextPath];
+    const isolatedContext = require("../server/context");
+    let state = isolatedContext.updateContext({
+        activeModule: "develop", selectedPhotoKey: "shared-path.dng", selectedPhotoUuid: "uuid-copy-a",
+        selectedPhotoPath: "shared-path.dng", developFingerprint: "profile-a"
+    });
+    assert.equal(state.selectedPhotoKey, "uuid-copy-a", "UUID must be the Lightroom photo-context identity");
+    assert.equal(state.selectedPhotoUuid, "uuid-copy-a");
+    assert.equal(state.selectedPhotoPath, "shared-path.dng", "the source path must remain separately available");
+    const firstCounter = state.contextCounter;
+    state = isolatedContext.updateContext({
+        activeModule: "develop", selectedPhotoKey: "shared-path.dng", selectedPhotoUuid: "uuid-copy-b",
+        selectedPhotoPath: "shared-path.dng", developFingerprint: "profile-b"
+    });
+    assert.equal(state.contextCounter, firstCounter + 1,
+        "virtual copies sharing a path must advance context when their UUID changes");
+    assert.equal(state.selectedPhotoKey, "uuid-copy-b");
+    state = isolatedContext.updateContext({
+        activeModule: "develop", selectedPhotoKey: "fallback-path.dng", selectedPhotoUuid: "",
+        selectedPhotoPath: "fallback-path.dng", developFingerprint: "profile-c"
+    });
+    assert.equal(state.selectedPhotoKey, "fallback-path.dng", "path must remain the identity fallback without UUID");
+    assert.equal(state.selectedPhotoUuid, null);
 }
 
 async function stateRegistryAndAdmissionTests() {
@@ -133,8 +182,9 @@ function controllerConfirmationTests() {
     function state(revision, selectedLabel, validationGeneration, validationFailedGeneration) {
         const selected = options.find(function (entry) { return entry.label === selectedLabel; });
         return {
-            available: true, reason: null, revision: revision, optionSnapshotRevision: 1,
+            available: true, updating: false, reason: null, revision: revision, optionSnapshotRevision: 1,
             contextCounter: 4, processId: 15300, browsePosition: 12, browseLabel: "Browse...",
+            photoKey: "photo-uuid-4", photoUuid: "photo-uuid-4",
             selectedToken: selected.token, selectedLabel: selected.label,
             validationGeneration: validationGeneration || 0,
             validationFailedGeneration: validationFailedGeneration || 0,
@@ -177,6 +227,168 @@ function controllerConfirmationTests() {
     assert.equal(failed.rejectionReason, "sdk-validation-failed");
 }
 
+async function profileContextLatencyTests() {
+    const clock = createClock(5000);
+    const latePhotoALabel = deferred();
+    const latePhotoA = deferred();
+    const firstPhotoBInventory = deferred();
+    const secondPhotoBInventory = deferred();
+    let snapshotRead = 0;
+    let labelRead = 0;
+    let nativeLabel = "Adobe Color";
+    const backend = {
+        readProfileLabel: function () {
+            labelRead += 1;
+            if (labelRead === 1) return latePhotoALabel.promise;
+            return Promise.resolve(rawLabel(nativeLabel));
+        },
+        readProfileSnapshot: function () {
+            snapshotRead += 1;
+            if (snapshotRead === 1) return latePhotoA.promise;
+            if (snapshotRead === 2) return firstPhotoBInventory.promise;
+            if (snapshotRead === 3) return secondPhotoBInventory.promise;
+            return Promise.resolve(rawSnapshot("Adobe Portrait"));
+        }
+    };
+    const profile = profileDefinition.createProfileNativeState(backend, {
+        secret: Buffer.alloc(32, 13), refreshIntervalMs: 1, failureThreshold: 3,
+        staleAfterMs: 20, writeTimeoutMs: 8000, now: clock.now
+    });
+
+    function binding(contextCounter, uuid, previousDevelopCounter, developCounter, contextChangedAt, developChangedAt) {
+        return {
+            contextCounter: contextCounter,
+            selectedPhotoKey: uuid,
+            selectedPhotoUuid: uuid,
+            contextChangedAt: contextChangedAt,
+            previousDevelopCounter: previousDevelopCounter,
+            developCounter: developCounter,
+            developChangedAt: developChangedAt
+        };
+    }
+    function feedback(contextCounter, uuid, developCounter, label, source) {
+        return {
+            contextCounter: contextCounter,
+            selectedPhotoKey: uuid,
+            selectedPhotoUuid: uuid,
+            developCounter: developCounter,
+            label: label,
+            source: source
+        };
+    }
+
+    assert.equal(profile.syncContext(binding(6, "uuid-photo-a", 0, 1, 100, 100)), true);
+    assert.equal(profile.observeSdkProfile(feedback(6, "uuid-photo-a", 1, "Adobe Color", "Look.Name")), true);
+    let state = profile.get();
+    assert.equal(state.selectedLabel, "Adobe Color");
+    assert.equal(state.available, false, "SDK label publication must not manufacture UIA inventory tokens");
+    const staleLabelRead = profile.refreshContextLabel();
+    const staleRead = profile.refresh(true);
+
+    assert.equal(profile.syncContext(binding(7, "uuid-photo-b", 1, 1, 200, 100)), true,
+        "a virtual-copy UUID change must create a new Profile context even when the source path is shared");
+    state = profile.get();
+    assert.equal(state.contextCounter, 7);
+    assert.equal(state.photoUuid, "uuid-photo-b");
+    assert.equal(state.updating, true);
+    assert.equal(state.selectedLabel, null,
+        "photo A's displayed Profile must disappear synchronously with the context change");
+    assert.equal(state.available, false);
+
+    latePhotoALabel.resolve(rawLabel("Adobe Color"));
+    latePhotoA.resolve(rawSnapshot("Adobe Color"));
+    await Promise.all([staleLabelRead, staleRead]);
+    assert.notEqual(profile.get().selectedLabel, "Adobe Color",
+        "late UIA label/inventory responses captured for photo A must not repopulate photo A's Profile in photo B's context");
+    assert.equal(profile.observeSdkProfile(feedback(6, "uuid-photo-a", 1, "Adobe Color", "Look.Name")), false,
+        "a late SDK response from photo A must fail its UUID/context binding");
+    assert.equal(profile.observeSdkProfile(feedback(7, "uuid-photo-b", 1, "Adobe Color", "Look.Name")), false,
+        "the first stale SDK Profile must not publish before Develop advances for photo B");
+    await profile.refreshContextLabel();
+    assert.equal(profile.get().selectedLabel, null,
+        "an initially stale UIA label must not bypass the unresolved Develop gate");
+
+    assert.equal(profile.syncContext(binding(7, "uuid-photo-b", 1, 2, 200, 220)), false);
+    assert.equal(profile.observeSdkProfile(feedback(7, "uuid-photo-b", 2, "Adobe Portrait", "Look.Name")), true,
+        "the correct SDK Profile must publish as soon as the new UUID's Develop state advances");
+    state = profile.get();
+    assert.equal(state.contextCounter, 7);
+    assert.equal(state.selectedLabel, "Adobe Portrait",
+        "photo B's SDK label must publish before its option inventory completes");
+    assert.equal(state.updating, false);
+    assert.equal(state.available, false,
+        "the Profile inventory must remain unavailable while its first photo B snapshot is pending");
+    assert.deepEqual(state.options, []);
+
+    const firstInventoryRead = profile.refresh(true);
+    firstPhotoBInventory.resolve(rawSnapshot("Adobe Color"));
+    await firstInventoryRead;
+    state = profile.get();
+    assert.equal(state.selectedLabel, "Adobe Portrait");
+    assert.equal(state.available, false,
+        "a stale UIA inventory must not override the UUID-bound SDK label or unlock the dropdown");
+    assert.deepEqual(state.options, []);
+
+    const secondInventoryRead = profile.refresh(true);
+    secondPhotoBInventory.resolve(rawSnapshot("Adobe Portrait"));
+    state = await secondInventoryRead;
+    assert.equal(state.available, false,
+        "one matching photo B inventory sample must not unlock the Profile dropdown");
+    state = await profile.refresh(true);
+    assert.equal(state.available, true,
+        "two matching photo B inventory samples must unlock the Profile dropdown");
+    assert.ok(state.options.length > 0);
+    assert.equal(profile.syncContext(binding(7, "uuid-photo-b", 1, 3, 200, 230)), false);
+    assert.equal(profile.observeSdkProfile(feedback(7, "uuid-photo-b", 3, "Adobe Standard", "CameraProfile")), true,
+        "CameraProfile fallback feedback must use the same UUID/Develop gate");
+    assert.equal(profile.syncContext(binding(7, "uuid-photo-b", 1, 4, 200, 240)), false);
+    assert.equal(profile.observeSdkProfile(feedback(7, "uuid-photo-b", 4, "Adaptive Color", "AILook")), true,
+        "active AILook feedback must use the same UUID/Develop gate");
+    assert.equal(profile.get().selectedLabel, "Adaptive Color");
+    assert.equal(profile.get().available, false,
+        "each SDK label change must independently restabilize UIA inventory");
+
+    function controllerOption(label, position) {
+        return { token: "profile_" + String(position + 1).padStart(24, "0"), label: label,
+            position: position, enabled: true, writable: true };
+    }
+    function controllerState(contextCounter, revision, selectedLabel, available) {
+        const options = [controllerOption("Adobe Color", 0), controllerOption("Adobe Portrait", 1)];
+        const selected = options.find(function (option) { return option.label === selectedLabel; });
+        if (available === false) {
+            return {
+                available: false, updating: false, reason: "Profile options are updating", revision: revision,
+                optionSnapshotRevision: 1, contextCounter: contextCounter,
+                photoKey: "photo-uuid-" + contextCounter, photoUuid: "photo-uuid-" + contextCounter,
+                processId: null, browsePosition: null, browseLabel: null, selectedToken: null,
+                selectedLabel: selectedLabel, validationGeneration: 0, validationFailedGeneration: 0, options: []
+            };
+        }
+        return {
+            available: true, updating: false, reason: null, revision: revision, optionSnapshotRevision: 1,
+            contextCounter: contextCounter, processId: 15300, browsePosition: 12, browseLabel: "Browse...",
+            photoKey: "photo-uuid-" + contextCounter, photoUuid: "photo-uuid-" + contextCounter,
+            selectedToken: selected.token, selectedLabel: selected.label,
+            validationGeneration: 0, validationFailedGeneration: 0, options: options
+        };
+    }
+    const model = controllerDefinition.createProfileModel();
+    assert.equal(model.apply(controllerState(6, 20, "Adobe Color")).accepted, true);
+    assert.equal(model.beginContext(7, "photo-uuid-7", "photo-uuid-7"), true);
+    let presentation = model.presentation();
+    assert.equal(presentation.updating, true);
+    assert.equal(presentation.authoritativeLabel, null,
+        "browser context invalidation must synchronously remove photo A's label");
+    assert.equal(model.apply(controllerState(6, 21, "Adobe Color")).accepted, false,
+        "the browser model must reject a late response from photo A");
+    assert.equal(model.apply(controllerState(7, 22, "Adobe Portrait", false)).accepted, true);
+    presentation = model.presentation();
+    assert.equal(presentation.authoritativeLabel, "Adobe Portrait");
+    assert.equal(presentation.inventoryStable, false,
+        "photo B's label must not make its incomplete option inventory writable");
+    assert.deepEqual(presentation.options, []);
+}
+
 function requestJson(port, requestPath) {
     return new Promise(function (resolve, reject) {
         const request = http.get({ host: "127.0.0.1", port: port, path: requestPath }, function (response) {
@@ -193,9 +405,9 @@ function requestJson(port, requestPath) {
     });
 }
 
-function nativeBackend(readProfileSnapshot, writerCounter) {
+function nativeBackend(readProfileSnapshot, writerCounter, readProfileLabel) {
     function unused() { return Promise.reject(new Error("unused native method")); }
-    return {
+    const backend = {
         readState: unused,
         setBrushValue: unused,
         resetBrushValue: unused,
@@ -209,6 +421,8 @@ function nativeBackend(readProfileSnapshot, writerCounter) {
         selectProfileOption: function () { writerCounter.count += 1; return Promise.resolve(); },
         stop: function () { return Promise.resolve(); }
     };
+    if (typeof readProfileLabel === "function") backend.readProfileLabel = readProfileLabel;
+    return backend;
 }
 
 async function serverQueueAndReadbackTests() {
@@ -217,10 +431,15 @@ async function serverQueueAndReadbackTests() {
     let selected = "Adobe Color";
     let runtimeLabels = labels.filter(function (label) { return label !== "Artistic 01"; });
     const nativeWrites = { count: 0 };
+    let profileLabelReads = 0;
     const bridge = createBridge({
         httpPort: 0,
         wsPort: 0,
-        windowsNativeBackend: nativeBackend(async function () { return rawSnapshot(selected, runtimeLabels); }, nativeWrites),
+        windowsNativeBackend: nativeBackend(
+            async function () { return rawSnapshot(selected, runtimeLabels); },
+            nativeWrites,
+            async function () { profileLabelReads += 1; return rawLabel(selected); }
+        ),
         profileStateOptions: {
             secret: Buffer.alloc(32, 11), refreshIntervalMs: 1, failureThreshold: 3,
             staleAfterMs: 20, writeTimeoutMs: 8000, now: clock.now
@@ -229,9 +448,15 @@ async function serverQueueAndReadbackTests() {
     await bridge.start();
     const port = bridge.getHttpServer().address().port;
     try {
-        await requestJson(port, "/context/update?activeModule=develop&selectedPhotoKey=photo-sdk-profile");
+        const initialContext = await requestJson(port,
+            "/context/update?activeModule=develop&selectedPhotoKey=uuid-sdk-profile" +
+            "&selectedPhotoUuid=uuid-sdk-profile&selectedPhotoPath=shared-profile.dng" +
+            "&developFingerprint=profile-adobe-color");
+        const profileContextCounter = initialContext.body.contextCounter;
         let response = await requestJson(port, "/develop-categorical/state");
         assert.equal(response.statusCode, 200);
+        assert.ok(profileLabelReads >= 1,
+            "a Lightroom photo-context change must immediately request a fresh Profile label");
         runtimeLabels.forEach(function (label) {
             assert.ok(response.body.profile.options.some(function (entry) { return entry.label === label; }),
                 "native readback label was removed: " + label);
@@ -265,7 +490,7 @@ async function serverQueueAndReadbackTests() {
         assert.deepEqual(commands.getNextCommand(), {
             command: "develop_categorical.profile.set",
             profile: "Adobe Vivid",
-            expectedContextCounter: 1,
+            expectedContextCounter: profileContextCounter,
             profileGeneration: 1
         });
         const rapid = await requestJson(port, "/develop-categorical/profile?token=" + token("Adobe Color"));
@@ -285,7 +510,7 @@ async function serverQueueAndReadbackTests() {
         assert.deepEqual(commands.getNextCommand(), {
             command: "develop_categorical.profile.set",
             profile: "Adobe Color",
-            expectedContextCounter: 1,
+            expectedContextCounter: profileContextCounter,
             profileGeneration: 2
         });
         selected = "Adobe Color";
@@ -301,7 +526,7 @@ async function serverQueueAndReadbackTests() {
         assert.deepEqual(commands.getNextCommand(), {
             command: "develop_categorical.profile.set",
             profile: "Adobe Monochrome",
-            expectedContextCounter: 1,
+            expectedContextCounter: profileContextCounter,
             profileGeneration: 3
         });
         selected = "Adobe Monochrome";
@@ -317,7 +542,7 @@ async function serverQueueAndReadbackTests() {
         assert.deepEqual(commands.getNextCommand(), {
             command: "develop_categorical.profile.set",
             profile: "Adobe Standard",
-            expectedContextCounter: 1,
+            expectedContextCounter: profileContextCounter,
             profileGeneration: 4
         });
         selected = "Adobe Standard";
@@ -329,10 +554,128 @@ async function serverQueueAndReadbackTests() {
         assert.equal(validation.statusCode, 200);
         assert.equal(nativeWrites.count, 0, "supported SDK Profiles must never call the Windows-native writer");
 
-        await requestJson(port, "/context/update?activeModule=library&selectedPhotoKey=photo-sdk-profile");
+        await requestJson(port,
+            "/context/update?activeModule=library&selectedPhotoKey=uuid-sdk-profile" +
+            "&selectedPhotoUuid=uuid-sdk-profile&selectedPhotoPath=shared-profile.dng&developFingerprint=");
         const invalidContext = await requestJson(port, "/develop-categorical/profile?token=" + token("Adobe Landscape"));
         assert.equal(invalidContext.statusCode, 409);
         assert.equal(commands.getNextCommand(), null);
+    } finally {
+        await bridge.stop();
+        commands.resetQueueForTests();
+    }
+}
+
+async function serverEarlyLabelPublicationTests() {
+    commands.resetQueueForTests();
+    const inventory = deferred();
+    const nativeWrites = { count: 0 };
+    const bridge = createBridge({
+        httpPort: 0,
+        wsPort: 0,
+        windowsNativeBackend: nativeBackend(
+            function () { return inventory.promise; },
+            nativeWrites,
+            async function () { return rawLabel("Adobe Portrait"); }
+        ),
+        profileStateOptions: {
+            secret: Buffer.alloc(32, 17), refreshIntervalMs: 750, failureThreshold: 3,
+            staleAfterMs: 15000, writeTimeoutMs: 8000
+        }
+    });
+    await bridge.start();
+    const port = bridge.getHttpServer().address().port;
+    try {
+        const contextResponse = await requestJson(port,
+            "/context/update?activeModule=develop&selectedPhotoKey=uuid-profile-latency" +
+            "&selectedPhotoUuid=uuid-profile-latency&selectedPhotoPath=shared-latency.dng" +
+            "&developFingerprint=settled-profile-portrait");
+        const feedback = await requestJson(port,
+            "/develop-categorical/profile-feedback?contextCounter=" + contextResponse.body.contextCounter +
+            "&developCounter=" + contextResponse.body.developCounter +
+            "&selectedPhotoKey=uuid-profile-latency&selectedPhotoUuid=uuid-profile-latency" +
+            "&label=Adobe%20Portrait&source=Look.Name");
+        assert.equal(feedback.statusCode, 200);
+        const response = await requestJson(port, "/develop-categorical/state");
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.profile.selectedLabel, "Adobe Portrait",
+            "the Profile state endpoint must publish valid SDK feedback without awaiting inventory");
+        assert.equal(response.body.profile.updating, false);
+        assert.equal(response.body.profile.available, false,
+            "the Profile state endpoint must keep an incomplete inventory locked");
+        assert.deepEqual(response.body.profile.options, []);
+        assert.equal(response.body.profile.photoUuid, "uuid-profile-latency");
+        inventory.resolve(rawSnapshot("Adobe Portrait"));
+        await new Promise(function (resolve) { setImmediate(resolve); });
+    } finally {
+        inventory.resolve(rawSnapshot("Adobe Portrait"));
+        await bridge.stop();
+        commands.resetQueueForTests();
+    }
+}
+
+async function serverSdkFeedbackBindingTests() {
+    commands.resetQueueForTests();
+    let selected = "Adobe Color";
+    const nativeWrites = { count: 0 };
+    const bridge = createBridge({
+        httpPort: 0,
+        wsPort: 0,
+        windowsNativeBackend: nativeBackend(
+            async function () { return rawSnapshot(selected); },
+            nativeWrites,
+            async function () { return rawLabel(selected); }
+        ),
+        profileStateOptions: {
+            secret: Buffer.alloc(32, 19), refreshIntervalMs: 1, failureThreshold: 3,
+            staleAfterMs: 20, writeTimeoutMs: 8000
+        }
+    });
+    await bridge.start();
+    const port = bridge.getHttpServer().address().port;
+    function feedbackPath(contextState, uuid, label, source) {
+        return "/develop-categorical/profile-feedback?contextCounter=" + contextState.contextCounter +
+            "&developCounter=" + contextState.developCounter + "&selectedPhotoKey=" + uuid +
+            "&selectedPhotoUuid=" + uuid + "&label=" + encodeURIComponent(label) + "&source=" + source;
+    }
+    try {
+        const photoA = (await requestJson(port,
+            "/context/update?activeModule=develop&selectedPhotoKey=uuid-copy-a" +
+            "&selectedPhotoUuid=uuid-copy-a&selectedPhotoPath=shared-virtual-copy.dng" +
+            "&developFingerprint=settled-adobe-color")).body;
+        assert.equal((await requestJson(port, feedbackPath(photoA, "uuid-copy-a", "Adobe Color", "Look.Name")))
+            .statusCode, 200);
+
+        const photoBStale = (await requestJson(port,
+            "/context/update?activeModule=develop&selectedPhotoKey=uuid-copy-b" +
+            "&selectedPhotoUuid=uuid-copy-b&selectedPhotoPath=shared-virtual-copy.dng" +
+            "&developFingerprint=settled-adobe-color")).body;
+        assert.equal(photoBStale.contextCounter, photoA.contextCounter + 1,
+            "a UUID change on the same source path must advance the server context");
+        let response = await requestJson(port, feedbackPath(photoA, "uuid-copy-a", "Adobe Color", "Look.Name"));
+        assert.equal(response.statusCode, 409, "late feedback from the previous UUID/context must be rejected");
+        response = await requestJson(port, feedbackPath(photoBStale, "uuid-copy-b", "Adobe Color", "Look.Name"));
+        assert.equal(response.statusCode, 409,
+            "an initially stale SDK Profile must remain unresolved without a new Develop revision");
+        response = await requestJson(port, "/develop-categorical/state");
+        assert.equal(response.body.profile.updating, true);
+        assert.equal(response.body.profile.selectedLabel, null);
+
+        selected = "Adobe Portrait";
+        const photoBSettled = (await requestJson(port,
+            "/context/update?activeModule=develop&selectedPhotoKey=uuid-copy-b" +
+            "&selectedPhotoUuid=uuid-copy-b&selectedPhotoPath=shared-virtual-copy.dng" +
+            "&developFingerprint=settled-adobe-portrait")).body;
+        assert.equal(photoBSettled.contextCounter, photoBStale.contextCounter);
+        assert.equal(photoBSettled.developCounter, photoBStale.developCounter + 1);
+        response = await requestJson(port,
+            feedbackPath(photoBSettled, "uuid-copy-b", "Adobe Portrait", "Look.Name"));
+        assert.equal(response.statusCode, 200,
+            "valid SDK feedback must publish immediately after Develop advances for the bound UUID");
+        assert.equal(response.body.profile.selectedLabel, "Adobe Portrait");
+        assert.equal(response.body.profile.available, false,
+            "SDK feedback must leave UIA inventory and dropdown tokens independently locked");
+        assert.deepEqual(response.body.profile.options, []);
     } finally {
         await bridge.stop();
         commands.resetQueueForTests();
@@ -348,6 +691,7 @@ function capturedLookAndProductionBoundaryTests() {
     const nativePs = read("server/windows-lightroom-native.ps1");
     const controller = read("app/controller.html");
     const helper = read("app/controller-develop-categorical.js");
+    const feedbackPolling = read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua");
     const adobe = lua.match(/local function adobeColorLook\(\)([\s\S]*?)\nend/)[1];
     const landscape = lua.match(/local function adobeLandscapeLook\(\)([\s\S]*?)\nend/)[1];
     const portrait = lua.match(/local function adobePortraitLook\(\)([\s\S]*?)\nend/)[1];
@@ -495,16 +839,46 @@ function capturedLookAndProductionBoundaryTests() {
     assert.match(helper, /const PROFILE_CONFIRMATION_TIMEOUT_MS = 8000/);
     assert.doesNotMatch(helper + read("server/profile-sdk-registry.js"), /20000|ADAPTIVE_PROFILE_CONFIRMATION_TIMEOUT_MS/,
         "disabled Adaptive Profiles must not advertise a writable confirmation transaction");
-    assert.match(controller, /control\.select\.disabled = !presentation\.available \|\| presentation\.pending/);
+    assert.match(controller, /control\.select\.disabled = !presentation\.inventoryStable \|\| presentation\.pending/);
+    assert.match(controller, /presentation\.updating[\s\S]*Updating Profile…/,
+        "the Web Controller must show an explicit context-refresh state");
+    assert.match(controller, /data\.profile\.contextCounter === lastControllerContextCounter/,
+        "the Web Controller must reject stale Profile responses from an earlier photo context");
+    assert.match(controller, /data\.profile\.photoUuid === lastControllerSelectedPhotoUuid/,
+        "the Web Controller must bind Profile responses to the Lightroom photo UUID");
+    assert.match(feedbackPolling, /getRawMetadata\("uuid"\)[\s\S]*getRawMetadata\("path"\)/,
+        "the Lightroom heartbeat must use UUID identity while preserving the source path");
+    assert.match(feedbackPolling, /local key = uuid ~= "" and uuid or photoPath/,
+        "the source path must be the only selected-photo identity fallback when UUID is unavailable");
+    assert.doesNotMatch(feedbackPolling, /key\s*=\s*tostring\(photo\)/,
+        "a Lightroom object string must not replace the UUID/path photo identity contract");
+    assert.match(feedbackPolling, /local contextIntervalSeconds = 0\.75/,
+        "Profile feedback must retain the existing global context polling frequency");
+    assert.match(feedbackPolling, /settings\.AILook\.Active == true[\s\S]*source = "AILook"[\s\S]*source = "Look\.Name"[\s\S]*source = "CameraProfile"/,
+        "SDK Profile derivation must prefer active AILook, then Look.Name, then CameraProfile");
+    assert.match(feedbackPolling, /ProfileState=[\s\S]*developFingerprint/,
+        "the existing Develop fingerprint must include the SDK Profile graph signal");
+    assert.match(feedbackPolling, /develop-categorical\/profile-feedback[\s\S]*contextCounter[\s\S]*developCounter[\s\S]*selectedPhotoUuid/,
+        "SDK Profile feedback must carry UUID, context, and Develop revision bindings");
+    assert.match(server, /contextDevelopReady[\s\S]*input\.developCounter <= contextDevelopBaseline/,
+        "the server must reject SDK Profile feedback until Develop advances for the new context");
+    assert.doesNotMatch(server, /PROFILE.*DELAY|setTimeout\([^)]*profile|sdkProfileStableReads/i,
+        "SDK Profile admission must not use a fixed delay or repeated-identical-sample heuristic");
+    assert.match(nativeJs, /readProfileLabel/);
+    assert.match(nativePs, /readProfileLabel/);
     assert.match(controller, /option\.writable !== true/);
     assert.match(controller, /profileApplied\.confirmed \|\| profileApplied\.lateConfirmed[\s\S]*delete developCategoricalErrors\.profile/);
     assert.doesNotMatch(controller + helper, /profileCooldown|PROFILE_COOLDOWN_MS|finishCooldown/);
 }
 
 Promise.resolve()
+    .then(function () { contextUuidIdentityTests(); })
     .then(stateRegistryAndAdmissionTests)
     .then(function () { controllerConfirmationTests(); })
+    .then(profileContextLatencyTests)
     .then(serverQueueAndReadbackTests)
+    .then(serverEarlyLabelPublicationTests)
+    .then(serverSdkFeedbackBindingTests)
     .then(function () {
         capturedLookAndProductionBoundaryTests();
         console.log("Profile SDK registry, Look-only writes, authoritative confirmation, and readback contracts passed.");

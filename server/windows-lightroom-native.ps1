@@ -1337,7 +1337,7 @@ function Test-ProfileSeparatorLabel([string]$Label) {
     return $true
 }
 
-function Get-ProfileDiscovery {
+function Get-ProfileDiscovery([bool]$LabelOnly = $false) {
     $processes = @([System.Diagnostics.Process]::GetProcessesByName("Lightroom") | Where-Object {
         $_.MainWindowHandle -ne [IntPtr]::Zero
     })
@@ -1398,18 +1398,30 @@ function Get-ProfileDiscovery {
             $browseItems = @($linked | Where-Object { Test-ProfileBrowseLabel $_.Label })
             if ($browseItems.Count -ne 1) { continue }
             $browse = $browseItems[0]
+            $comboSelection = @($selectionPattern.Current.GetSelection())
+            $expandState = $expandPattern.Current.ExpandCollapseState
+            if ($comboSelection.Count -ne 1 -or
+                ($expandState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
+                    $expandState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded)) { continue }
+            $selectedLabel = ([string]$comboSelection[0].Current.Name).Trim()
+            if ((Test-ProfileBrowseLabel $selectedLabel) -or (Test-ProfileSeparatorLabel $selectedLabel)) { continue }
+            if ($LabelOnly) {
+                $discoveries.Add([PSCustomObject]@{
+                    ProcessId = [int]$process.Id
+                    MainHwnd = [Int64]$process.MainWindowHandle
+                    ComboHwnd = $comboHandle
+                    ListHwnd = $listHandle
+                    SelectedLabel = $selectedLabel
+                })
+                continue
+            }
             $profileItems = @($linked | Where-Object {
                 $_.Position -lt $browse.Position -and -not (Test-ProfileBrowseLabel $_.Label)
             })
             if ($profileItems.Count -lt 1 -or $profileItems.Count -gt 64) { continue }
             $selectedItems = @($profileItems | Where-Object { $_.Selected })
-            $comboSelection = @($selectionPattern.Current.GetSelection())
             if ($selectedItems.Count -ne 1 -or $comboSelection.Count -ne 1 -or
-                ([string]$comboSelection[0].Current.Name).Trim() -ne $selectedItems[0].Label) { continue }
-
-            $expandState = $expandPattern.Current.ExpandCollapseState
-            if ($expandState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
-                $expandState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded) { continue }
+                $selectedLabel -ne $selectedItems[0].Label) { continue }
             $discoveries.Add([PSCustomObject]@{
                 ProcessId = [int]$process.Id
                 MainHwnd = [Int64]$process.MainWindowHandle
@@ -1424,9 +1436,27 @@ function Get-ProfileDiscovery {
         }
     }
     if ($discoveries.Count -ne 1) {
-        Throw-Unavailable "A unique visible Lightroom quick Profile ComboBox was not exposed through UI Automation"
+        $detail = if ($LabelOnly) { "label" } else { "options" }
+        Throw-Unavailable "A unique visible Lightroom quick Profile ComboBox $detail snapshot was not exposed through UI Automation"
     }
     return $discoveries[0]
+}
+
+function ConvertTo-ProfileLabelSnapshot([object]$Discovery) {
+    if ($null -eq $Discovery) { Throw-Unavailable "Lightroom Profile label discovery is unavailable" }
+    return [PSCustomObject]@{
+        available = $true
+        reason = $null
+        processId = [int]$Discovery.ProcessId
+        mainHwnd = [Int64]$Discovery.MainHwnd
+        comboHwnd = [Int64]$Discovery.ComboHwnd
+        listHwnd = [Int64]$Discovery.ListHwnd
+        selectedLabel = [string]$Discovery.SelectedLabel
+        patterns = [PSCustomObject]@{
+            selection = $true
+            expandCollapse = $true
+        }
+    }
 }
 
 function ConvertTo-ProfileSnapshot([object]$Discovery) {
@@ -1505,6 +1535,9 @@ function Invoke-Request([object]$Request) {
     }
     if ($Request.operation -eq "readProfileSnapshot") {
         return ConvertTo-ProfileSnapshot (Get-ProfileDiscovery)
+    }
+    if ($Request.operation -eq "readProfileLabel") {
+        return ConvertTo-ProfileLabelSnapshot (Get-ProfileDiscovery $true)
     }
     throw "Unknown native operation"
 }
