@@ -3956,7 +3956,7 @@
             return String(Number(numericValue.toFixed(definition.displayPrecision)));
         }
 
-        function parseDevelopSliderValue(definition, rawValue) {
+        function parseDevelopSliderValue(definition, rawValue, bounds) {
             if (typeof rawValue !== "string") return null;
             const normalizedValue = rawValue.replace(",", ".");
             if (
@@ -3965,24 +3965,42 @@
                 !/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalizedValue)
             ) return null;
             const numericValue = Number(normalizedValue);
-            if (!Number.isFinite(numericValue) || numericValue < definition.min || numericValue > definition.max) {
+            const minimum = bounds && Number.isFinite(Number(bounds.minimum))
+                ? Number(bounds.minimum)
+                : definition.min;
+            const maximum = bounds && Number.isFinite(Number(bounds.maximum))
+                ? Number(bounds.maximum)
+                : definition.max;
+            if (!Number.isFinite(numericValue) || numericValue < minimum || numericValue > maximum) {
                 return null;
             }
-            const scaled = (numericValue - definition.min) / definition.numericStep;
+            const scaled = (numericValue - minimum) / definition.numericStep;
             return Math.abs(scaled - Math.round(scaled)) < 1e-9 ? numericValue : null;
         }
 
-        function clampDevelopSliderValue(definition, value) {
-            return Math.min(definition.max, Math.max(definition.min, value));
+        function clampDevelopSliderValue(definition, value, bounds) {
+            const minimum = bounds && Number.isFinite(Number(bounds.minimum))
+                ? Number(bounds.minimum)
+                : definition.min;
+            const maximum = bounds && Number.isFinite(Number(bounds.maximum))
+                ? Number(bounds.maximum)
+                : definition.max;
+            return Math.min(maximum, Math.max(minimum, value));
         }
 
-        function roundDevelopSliderValue(definition, value, step) {
-            const clamped = clampDevelopSliderValue(definition, value);
-            const snapped = definition.min + Math.round((clamped - definition.min) / step) * step;
+        function roundDevelopSliderValue(definition, value, step, bounds) {
+            const minimum = bounds && Number.isFinite(Number(bounds.minimum))
+                ? Number(bounds.minimum)
+                : definition.min;
+            const maximum = bounds && Number.isFinite(Number(bounds.maximum))
+                ? Number(bounds.maximum)
+                : definition.max;
+            const clamped = clampDevelopSliderValue(definition, value, { minimum: minimum, maximum: maximum });
+            const snapped = minimum + Math.round((clamped - minimum) / step) * step;
             const rounded = Number(snapped.toFixed(definition.displayPrecision));
-            if (Math.abs(clamped - definition.min) < 1e-9) return definition.min;
-            if (Math.abs(clamped - definition.max) < 1e-9) return definition.max;
-            return clampDevelopSliderValue(definition, rounded);
+            if (Math.abs(clamped - minimum) < 1e-9) return minimum;
+            if (Math.abs(clamped - maximum) < 1e-9) return maximum;
+            return clampDevelopSliderValue(definition, rounded, { minimum: minimum, maximum: maximum });
         }
 
         function usesTemperatureVisualScale(definition) {
@@ -4019,14 +4037,36 @@
                 ? control.desiredValue
                 : (control.localValue !== null ? control.localValue : control.authoritativeValue);
             if (baseValue === null) return null;
-            return roundDevelopSliderValue(
+            const outerBounds = parametricCurveSplitOuterBounds(control);
+            const rounded = roundDevelopSliderValue(
                 control.definition,
                 baseValue + direction * control.definition.rangeStep,
-                control.definition.rangeStep
+                control.definition.rangeStep,
+                outerBounds
+            );
+            return constrainParametricCurveSplitValue(control, rounded);
+        }
+
+        function developSliderControlPositionToActual(control, position) {
+            const outerBounds = parametricCurveSplitOuterBounds(control);
+            if (outerBounds === null) {
+                return developSliderPositionToActual(control.definition, position);
+            }
+            return roundDevelopSliderValue(
+                control.definition,
+                Number(position),
+                control.definition.rangeStep,
+                outerBounds
             );
         }
 
         function configureDevelopSliderRange(control) {
+            if (isParametricCurveSplitControl(control)) {
+                control.range.min = "0";
+                control.range.max = "100";
+                control.range.step = "1";
+                return;
+            }
             if (usesTemperatureVisualScale(control.definition)) {
                 control.range.min = "0";
                 control.range.max = "1000";
@@ -4055,6 +4095,7 @@
 
         function notifyDevelopSliderPresentation(control) {
             if (control.compoundRange) updateCompoundDevelopRange(control.compoundRange);
+            if (isParametricCurveSplitControl(control)) updateParametricCurveSplitConstraints();
             if (control.onPresentationChange) control.onPresentationChange(control);
         }
 
@@ -4317,6 +4358,11 @@
             }, 100);
         }
 
+        function stageDevelopSliderRangeValue(control, value) {
+            showDevelopSliderLocal(control, value);
+            if (!isParametricCurveSplitControl(control)) scheduleDevelopSliderValue(control, value);
+        }
+
         function flushDevelopSliderValue(control, value, kind) {
             if (control.throttleTimer !== null) {
                 clearTimeout(control.throttleTimer);
@@ -4325,6 +4371,18 @@
             control.pendingValue = null;
             control.pendingKind = null;
             control.pendingCompletion = null;
+            const preparedValue = prepareParametricCurveSplitCommit(control, value);
+            if (preparedValue === null) {
+                cancelDevelopSliderStep(control);
+                if (control.authoritativeValue !== null) showDevelopSliderLocal(control, control.authoritativeValue);
+                setStatus("ERROR: Tone Curve split constraints are waiting for authoritative Lightroom values.");
+                return;
+            }
+            value = preparedValue;
+            if (isParametricCurveSplitControl(control)) {
+                showDevelopSliderLocal(control, value);
+                control.numberCommittedValue = value;
+            }
             control.desiredValue = value;
             control.confirmationPending = true;
             control.stepConfirmationExpired = false;
@@ -4441,6 +4499,18 @@
             control.stepDebounceTimer = setTimeout(function () {
                 control.stepDebounceTimer = null;
                 if (control.desiredValue === null) return;
+                const preparedValue = prepareParametricCurveSplitCommit(control, control.desiredValue);
+                if (preparedValue === null) {
+                    cancelDevelopSliderStep(control);
+                    if (control.authoritativeValue !== null) showDevelopSliderLocal(control, control.authoritativeValue);
+                    setStatus("ERROR: Tone Curve split constraints are waiting for authoritative Lightroom values.");
+                    return;
+                }
+                control.desiredValue = preparedValue;
+                if (isParametricCurveSplitControl(control)) {
+                    showDevelopSliderLocal(control, preparedValue);
+                    control.numberCommittedValue = preparedValue;
+                }
                 const desiredAtSubmission = control.desiredValue;
                 submitDevelopSliderValue(control, desiredAtSubmission, "step", function (accepted) {
                     handleDevelopSliderStepSubmission(control, desiredAtSubmission, accepted);
@@ -4598,9 +4668,11 @@
                 }
                 cancelDevelopSliderStep(control);
                 if (!isDevelopSliderInteracting(control)) beginDevelopSliderInteraction(control, "range");
-                const nextValue = developSliderPositionToActual(definition, Number(range.value));
-                showDevelopSliderLocal(control, nextValue);
-                scheduleDevelopSliderValue(control, nextValue);
+                const nextValue = constrainParametricCurveSplitValue(
+                    control,
+                    developSliderControlPositionToActual(control, Number(range.value))
+                );
+                stageDevelopSliderRangeValue(control, nextValue);
             });
             function finishRangeInteraction(event, submitFinal) {
                 if (!isDevelopSliderInteracting(control)) return;
@@ -4609,7 +4681,11 @@
                 control.dragging = false;
                 if (event && range.hasPointerCapture && range.hasPointerCapture(event.pointerId)) range.releasePointerCapture(event.pointerId);
                 if (submitFinal && !invalidated) {
-                    flushDevelopSliderValue(control, developSliderPositionToActual(definition, Number(range.value)), "range");
+                    const nextValue = constrainParametricCurveSplitValue(
+                        control,
+                        developSliderControlPositionToActual(control, Number(range.value))
+                    );
+                    flushDevelopSliderValue(control, nextValue, "range");
                 } else {
                     cancelDevelopSliderThrottle(control);
                 }
@@ -4646,8 +4722,12 @@
                     endDevelopSliderInteraction(control);
                     return;
                 }
-                const nextValue = parseDevelopSliderValue(definition, number.value);
-                if (nextValue === null) {
+                const parsedValue = parseDevelopSliderValue(
+                    definition,
+                    number.value,
+                    parametricCurveSplitOuterBounds(control)
+                );
+                if (parsedValue === null) {
                     setStatus("ERROR: Invalid " + definition.label + " value.");
                     if (control.authoritativeValue !== null) {
                         showDevelopSliderLocal(control, control.authoritativeValue);
@@ -4658,8 +4738,9 @@
                     endDevelopSliderInteraction(control);
                     return;
                 }
+                const nextValue = constrainParametricCurveSplitValue(control, parsedValue);
+                showDevelopSliderLocal(control, nextValue);
                 if (nextValue !== control.numberCommittedValue) {
-                    showDevelopSliderLocal(control, nextValue);
                     control.numberCommittedValue = nextValue;
                     flushDevelopSliderValue(control, nextValue, "numeric");
                 }
@@ -6431,10 +6512,140 @@
             }
         } catch (err) {}
 
-        function compoundDevelopRangeValue(control) {
+        const parametricCurveSplitConstraintDefinitions = Object.freeze({
+            "ParametricShadowSplit": Object.freeze({
+                outerMinimum: 10,
+                outerMaximum: 70,
+                lowerNeighbor: null,
+                upperNeighbor: "ParametricMidtoneSplit",
+                minimumGap: 10
+            }),
+            "ParametricMidtoneSplit": Object.freeze({
+                outerMinimum: 20,
+                outerMaximum: 80,
+                lowerNeighbor: "ParametricShadowSplit",
+                upperNeighbor: "ParametricHighlightSplit",
+                minimumGap: 10
+            }),
+            "ParametricHighlightSplit": Object.freeze({
+                outerMinimum: 30,
+                outerMaximum: 90,
+                lowerNeighbor: "ParametricMidtoneSplit",
+                upperNeighbor: null,
+                minimumGap: 10
+            })
+        });
+
+        function coupledDevelopSliderValue(control) {
+            if (!control) return NaN;
             if (control.localValue !== null) return Number(control.localValue);
             if (control.authoritativeValue !== null) return Number(control.authoritativeValue);
             return NaN;
+        }
+
+        function coupledDevelopSliderBounds(
+            outerMinimum,
+            outerMaximum,
+            lowerNeighborValue,
+            upperNeighborValue,
+            minimumGap
+        ) {
+            let minimum = Number(outerMinimum);
+            let maximum = Number(outerMaximum);
+            const gap = Number(minimumGap);
+            if (Number.isFinite(lowerNeighborValue) && Number.isFinite(gap)) {
+                minimum = Math.min(Number(outerMaximum), Math.max(minimum, Number(lowerNeighborValue) + gap));
+            }
+            if (Number.isFinite(upperNeighborValue) && Number.isFinite(gap)) {
+                maximum = Math.max(Number(outerMinimum), Math.min(maximum, Number(upperNeighborValue) - gap));
+            }
+            return { minimum: minimum, maximum: maximum };
+        }
+
+        function parametricCurveSplitConstraint(control) {
+            if (!control || !control.definition) return null;
+            return parametricCurveSplitConstraintDefinitions[control.definition.id] || null;
+        }
+
+        function isParametricCurveSplitControl(control) {
+            return parametricCurveSplitConstraint(control) !== null;
+        }
+
+        function parametricCurveSplitOuterBounds(control) {
+            const constraint = parametricCurveSplitConstraint(control);
+            if (constraint === null) return null;
+            return { minimum: constraint.outerMinimum, maximum: constraint.outerMaximum };
+        }
+
+        function parametricCurveSplitEffectiveBounds(control) {
+            const constraint = parametricCurveSplitConstraint(control);
+            if (constraint === null) return null;
+            const lowerControl = constraint.lowerNeighbor
+                ? developSliderControls[constraint.lowerNeighbor]
+                : null;
+            const upperControl = constraint.upperNeighbor
+                ? developSliderControls[constraint.upperNeighbor]
+                : null;
+            return coupledDevelopSliderBounds(
+                constraint.outerMinimum,
+                constraint.outerMaximum,
+                coupledDevelopSliderValue(lowerControl),
+                coupledDevelopSliderValue(upperControl),
+                constraint.minimumGap
+            );
+        }
+
+        function parametricCurveSplitConstraintsReady() {
+            return Object.keys(parametricCurveSplitConstraintDefinitions).every(function (sliderId) {
+                const control = developSliderControls[sliderId];
+                return control && control.authoritativeValue !== null &&
+                    Number.isFinite(Number(control.authoritativeValue)) && control.feedbackState === "available";
+            });
+        }
+
+        function constrainParametricCurveSplitValue(control, requestedValue) {
+            const requested = Number(requestedValue);
+            if (!Number.isFinite(requested)) return requested;
+            const bounds = parametricCurveSplitEffectiveBounds(control);
+            if (bounds === null) return requested;
+            return Math.min(bounds.maximum, Math.max(bounds.minimum, requested));
+        }
+
+        function prepareParametricCurveSplitCommit(control, requestedValue) {
+            if (!isParametricCurveSplitControl(control)) return requestedValue;
+            if (!parametricCurveSplitConstraintsReady()) return null;
+            return constrainParametricCurveSplitValue(control, requestedValue);
+        }
+
+        function updateParametricCurveSplitConstraints() {
+            const constraintsReady = parametricCurveSplitConstraintsReady();
+            Object.keys(parametricCurveSplitConstraintDefinitions).forEach(function (sliderId) {
+                const control = developSliderControls[sliderId];
+                if (!control) return;
+                const value = coupledDevelopSliderValue(control);
+                const bounds = parametricCurveSplitEffectiveBounds(control);
+                const minimum = bounds === null ? NaN : Number(bounds.minimum);
+                const maximum = bounds === null ? NaN : Number(bounds.maximum);
+                const available = constraintsReady && Number.isFinite(value) && control.authoritativeValue !== null &&
+                    control.feedbackState === "available";
+                const locked = !Number.isFinite(minimum) || !Number.isFinite(maximum) || maximum <= minimum;
+                if (Number.isFinite(value)) {
+                    control.range.value = String(value);
+                    const progress = Math.min(100, Math.max(0, value));
+                    const progressText = progress + "%";
+                    if (control.visualProgress !== progressText) {
+                        control.range.style.setProperty("--slider-progress", progressText);
+                        control.visualProgress = progressText;
+                    }
+                }
+                control.range.disabled = !available || locked;
+                control.decrement.disabled = !available || locked || value <= minimum;
+                control.increment.disabled = !available || locked || value >= maximum;
+            });
+        }
+
+        function compoundDevelopRangeValue(control) {
+            return coupledDevelopSliderValue(control);
         }
 
         function compoundDevelopRangeVisualProgress(value, visualMinimum, visualMaximum) {
@@ -6486,19 +6697,13 @@
             const visualMaximum = Number(compound.visualMaximum);
             const otherValue = compoundDevelopRangeValue(compoundDevelopRangeOtherControl(compound, role));
             const minimumGap = Number(compound.minimumGap);
-            if (!Number.isFinite(otherValue) || !Number.isFinite(minimumGap)) {
-                return { minimum: visualMinimum, maximum: visualMaximum };
-            }
-            if (role === "low") {
-                return {
-                    minimum: visualMinimum,
-                    maximum: Math.max(visualMinimum, Math.min(visualMaximum, otherValue - minimumGap))
-                };
-            }
-            return {
-                minimum: Math.min(visualMaximum, Math.max(visualMinimum, otherValue + minimumGap)),
-                maximum: visualMaximum
-            };
+            return coupledDevelopSliderBounds(
+                visualMinimum,
+                visualMaximum,
+                role === "high" ? otherValue : NaN,
+                role === "low" ? otherValue : NaN,
+                minimumGap
+            );
         }
 
         function clampCompoundDevelopRangeValue(compound, role, requestedValue) {
@@ -8290,6 +8495,7 @@
                 if (!definition) return;
                 groupElement.appendChild(createDevelopSliderControl(definition));
             });
+            updateParametricCurveSplitConstraints();
             content.appendChild(groupElement);
 
             setTimeout(function () {

@@ -145,6 +145,7 @@ function testDefinition(id, range) {
 const scheduledSubmissions = [];
 const flushedSubmissions = [];
 let throttleCancellations = 0;
+const coupledSource = extractFunctionBlock("coupledDevelopSliderValue", "compoundDevelopRangeValue");
 const updateSource = extractFunctionBlock("compoundDevelopRangeValue", "createCompoundDevelopRangeControl");
 assert.doesNotMatch(updateSource, /100\s*-\s*(?:progress|compoundDevelopRangeProgress)/,
     "Compound value progress must never be reversed with a 100-progress transform");
@@ -172,7 +173,7 @@ const updateContext = {
     Number
 };
 vm.runInNewContext(
-    updateSource + "\nthis.update = updateCompoundDevelopRange;" +
+    coupledSource + updateSource + "\nthis.update = updateCompoundDevelopRange;" +
         "\nthis.pointerValue = compoundDevelopRangePointerValue;" +
         "\nthis.visualProgress = compoundDevelopRangeVisualProgress;" +
         "\nthis.effectiveBounds = compoundDevelopRangeEffectiveBounds;" +

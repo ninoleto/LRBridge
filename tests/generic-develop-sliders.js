@@ -909,7 +909,10 @@ function extractFunctions(firstName, nextName) {
     return controller.slice(start, end);
 }
 
-const scaleContext = {};
+const scaleContext = {
+    parametricCurveSplitOuterBounds() { return null; },
+    constrainParametricCurveSplitValue(_control, value) { return value; }
+};
 require("node:vm").runInNewContext(
     extractFunctions("formatDevelopSliderValue", "configureDevelopSliderRange") +
     "\nthis.api = { parseDevelopSliderValue, roundDevelopSliderValue, " +
@@ -1008,6 +1011,8 @@ const debounceContext = {
         submittedStepValues.push({ value, kind });
         completion(true);
     },
+    prepareParametricCurveSplitCommit(_control, value) { return value; },
+    isParametricCurveSplitControl() { return false; },
     handleDevelopSliderStepSubmission() {
         handledSubmissions += 1;
     }
