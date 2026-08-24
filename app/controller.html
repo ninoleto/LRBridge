@@ -5148,7 +5148,7 @@
             const presentation = profileModel.presentation();
             syncProfileOptions(control, presentation);
             control.select.disabled = !presentation.inventoryStable || presentation.pending;
-            control.select.value = (presentation.pending ? presentation.draftToken : presentation.authoritativeToken) || "";
+            control.select.value = presentation.authoritativeToken || "";
             control.select.classList.toggle("pending", presentation.pending);
             control.status.className = "develop-categorical-status";
             if (developCategoricalErrors.profile) {

@@ -312,7 +312,9 @@ function createWindowsLightroomNativeBackend(options) {
 
     function request(operation, parameters) {
         const id = ++requestId;
-        const background = operation === "readState" || operation === "readProfileSnapshot";
+        // Full Profile snapshots unblock UUID-context inventory stabilization, so they must not sit behind
+        // generic native-state polling. Profile state already coalesces concurrent snapshot refreshes.
+        const background = operation === "readState";
         return new Promise(function (resolve, reject) {
             const job = {
                 id: id,

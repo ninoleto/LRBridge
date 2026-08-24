@@ -27,7 +27,6 @@ local function getPortableRoot()
 end
 
 local logPath = getPortableRoot() .. "\\lrplugin-log.txt"
-
 local function log(message)
 
     local file = io.open(logPath, "a")
@@ -191,14 +190,22 @@ local function getPhotoIdentity(photo)
     if photo == nil then return { key = "", uuid = "", path = "", photo = nil } end
 
     local uuid = ""
-    local okUuid, rawUuid = pcall(function() return photo:getRawMetadata("uuid") end)
+    local okUuid, rawUuid = LrTasks.pcall(function() return photo:getRawMetadata("uuid") end)
     if okUuid == true and rawUuid ~= nil then uuid = tostring(rawUuid) end
+    local allMetadata = nil
+    if uuid == "" then
+        local okAllMetadata, rawMetadata = LrTasks.pcall(function() return photo:getRawMetadata() end)
+        if okAllMetadata == true and type(rawMetadata) == "table" then
+            allMetadata = rawMetadata
+            if rawMetadata.uuid ~= nil then uuid = tostring(rawMetadata.uuid) end
+        end
+    end
 
     local photoPath = ""
-    local okPath, rawPath = pcall(function() return photo:getRawMetadata("path") end)
+    local okPath, rawPath = LrTasks.pcall(function() return photo:getRawMetadata("path") end)
     if okPath == true and rawPath ~= nil then photoPath = tostring(rawPath) end
     if photoPath == "" then
-        local okDirectPath, directPath = pcall(function() return photo.path end)
+        local okDirectPath, directPath = LrTasks.pcall(function() return photo.path end)
         if okDirectPath == true and directPath ~= nil then photoPath = tostring(directPath) end
     end
 
@@ -215,7 +222,7 @@ local function getSelectedPhotoIdentity()
         return getPhotoIdentity(nil)
     end
 
-    local okTargetPhoto, targetPhoto = pcall(function()
+    local okTargetPhoto, targetPhoto = LrTasks.pcall(function()
         return catalog:getTargetPhoto()
     end)
 
@@ -223,7 +230,7 @@ local function getSelectedPhotoIdentity()
         return getPhotoIdentity(targetPhoto)
     end
 
-    local okTargetPhotos, targetPhotos = pcall(function()
+    local okTargetPhotos, targetPhotos = LrTasks.pcall(function()
         return catalog:getTargetPhotos()
     end)
 

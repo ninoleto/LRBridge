@@ -692,6 +692,8 @@ function capturedLookAndProductionBoundaryTests() {
     const controller = read("app/controller.html");
     const helper = read("app/controller-develop-categorical.js");
     const feedbackPolling = read("lightroom/LRBridge.lrplugin/FeedbackPolling.lua");
+    const nativeDiscovery = nativePs.match(
+        /function Get-ProfileDiscovery[\s\S]*?(?=\nfunction ConvertTo-ProfileLabelSnapshot)/)[0];
     const adobe = lua.match(/local function adobeColorLook\(\)([\s\S]*?)\nend/)[1];
     const landscape = lua.match(/local function adobeLandscapeLook\(\)([\s\S]*?)\nend/)[1];
     const portrait = lua.match(/local function adobePortraitLook\(\)([\s\S]*?)\nend/)[1];
@@ -834,12 +836,22 @@ function capturedLookAndProductionBoundaryTests() {
     }
     assert.doesNotMatch(nativeJs + nativePs + server, /selectProfileOption|Select-ProfileOption|\.Pattern\.Select\(\)/,
         "production Profile writing must not retain the Windows-native selection path");
+    assert.match(nativeDiscovery, /ControlViewWalker[\s\S]*Browse…?[\s\S]*FindFirst/,
+        "Profile discovery must start from the bound Browse item and walk only its list siblings");
+    assert.doesNotMatch(nativeDiscovery, /\.FindAll\(/,
+        "Profile discovery must not restore the slow desktop-wide full snapshot traversal");
+    assert.match(nativeDiscovery, /browseRuntimeId[\s\S]*comboHandle[\s\S]*listRuntimeId/,
+        "Browse-first discovery must retain exact ComboBox and list runtime-ID binding");
+    assert.match(nativeJs, /const background = operation === "readState";/,
+        "full Profile inventory reads must outrank generic native-state polling after a photo-context change");
     assert.doesNotMatch(lua, /WM_COMMAND|SendInput|SendKeys|mouse|keyboard|ComboBox/i);
     assert.match(nativePs, /SelectionItemPattern/, "native Profile discovery/readback must remain intact");
     assert.match(helper, /const PROFILE_CONFIRMATION_TIMEOUT_MS = 8000/);
     assert.doesNotMatch(helper + read("server/profile-sdk-registry.js"), /20000|ADAPTIVE_PROFILE_CONFIRMATION_TIMEOUT_MS/,
         "disabled Adaptive Profiles must not advertise a writable confirmation transaction");
     assert.match(controller, /control\.select\.disabled = !presentation\.inventoryStable \|\| presentation\.pending/);
+    assert.match(controller, /control\.select\.value = presentation\.authoritativeToken \|\| ""/,
+        "pending Profile writes must keep the latest authoritative label instead of showing an optimistic target");
     assert.match(controller, /presentation\.updating[\s\S]*Updating Profile…/,
         "the Web Controller must show an explicit context-refresh state");
     assert.match(controller, /data\.profile\.contextCounter === lastControllerContextCounter/,

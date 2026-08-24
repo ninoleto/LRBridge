@@ -1344,96 +1344,130 @@ function Get-ProfileDiscovery([bool]$LabelOnly = $false) {
     if ($processes.Count -eq 0) { Throw-Unavailable "Lightroom is not running with a main window" }
 
     $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
     $discoveries = New-Object System.Collections.Generic.List[object]
     foreach ($process in $processes) {
-        $condition = [System.Windows.Automation.PropertyCondition]::new(
-            [System.Windows.Automation.AutomationElement]::ProcessIdProperty, [int]$process.Id)
-        $collection = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
-        $elements = New-Object System.Collections.Generic.List[object]
-        for ($index = 0; $index -lt $collection.Count; $index += 1) { $elements.Add($collection.Item($index)) }
+        $browseCondition = [System.Windows.Automation.AndCondition]::new(@(
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::ProcessIdProperty, [int]$process.Id),
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::ListItem),
+            [System.Windows.Automation.OrCondition]::new(@(
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::NameProperty, "Browse..."),
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::NameProperty, "Browse…")
+            ))
+        ))
+        $browseElement = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $browseCondition)
+        if ($null -eq $browseElement) { continue }
+        $browseRuntimeId = Get-UiaRuntimeId $browseElement
+        if ($null -eq $browseRuntimeId -or $browseRuntimeId.Count -ne 4 -or
+            [Int64]$browseRuntimeId[0] -ne 42 -or [Int64]$browseRuntimeId[2] -ne 4) { continue }
+        $comboHandle = [Int64]$browseRuntimeId[1]
+        if ($comboHandle -le 0 -or -not [LRBridgeNative]::IsWindow([IntPtr]$comboHandle) -or
+            [LRBridgeNative]::ProcessId([IntPtr]$comboHandle) -ne $process.Id -or
+            [LRBridgeNative]::ClassName([IntPtr]$comboHandle) -ne "ComboBox") { continue }
 
-        $combos = @($elements.ToArray() | Where-Object {
+        $comboCondition = [System.Windows.Automation.AndCondition]::new(@(
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::ProcessIdProperty, [int]$process.Id),
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::ComboBox),
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NativeWindowHandleProperty, [int]$comboHandle)
+        ))
+        $combo = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $comboCondition)
+        if ($null -eq $combo -or -not $combo.Current.IsEnabled -or $combo.Current.IsOffscreen) { continue }
+        $comboRuntimeId = Get-UiaRuntimeId $combo
+        if ($null -eq $comboRuntimeId -or $comboRuntimeId.Count -ne 2 -or
+            [Int64]$comboRuntimeId[0] -ne 42 -or [Int64]$comboRuntimeId[1] -ne $comboHandle) { continue }
+        $selectionPattern = Get-UiaPattern $combo ([System.Windows.Automation.SelectionPattern]::Pattern)
+        $expandPattern = Get-UiaPattern $combo ([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+        if ($null -eq $selectionPattern -or $null -eq $expandPattern) { continue }
+
+        $listHandle = [Int64][LRBridgeNative]::ComboListHandle([IntPtr]$comboHandle)
+        if ($listHandle -le 0 -or -not [LRBridgeNative]::IsWindow([IntPtr]$listHandle) -or
+            [LRBridgeNative]::ProcessId([IntPtr]$listHandle) -ne $process.Id -or
+            [LRBridgeNative]::ClassName([IntPtr]$listHandle) -ne "ComboLBox") { continue }
+        $listElement = $walker.GetParent($browseElement)
+        if ($null -eq $listElement -or
+            $listElement.Current.ControlType -ne [System.Windows.Automation.ControlType]::List -or
+            [int]$listElement.Current.ProcessId -ne [int]$process.Id -or
+            [Int64]$listElement.Current.NativeWindowHandle -ne $listHandle) { continue }
+        $listRuntimeId = Get-UiaRuntimeId $listElement
+        if ($null -eq $listRuntimeId -or $listRuntimeId.Count -ne 2 -or
+            [Int64]$listRuntimeId[0] -ne 42 -or [Int64]$listRuntimeId[1] -ne $listHandle) { continue }
+
+        $linkedItems = New-Object System.Collections.Generic.List[object]
+        $element = $walker.GetFirstChild($listElement)
+        while ($null -ne $element) {
             try {
-                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ComboBox -and
-                    $_.Current.NativeWindowHandle -gt 0 -and $_.Current.IsEnabled -and -not $_.Current.IsOffscreen
-            } catch { $false }
-        })
-        foreach ($combo in $combos) {
-            $comboHandle = [Int64]$combo.Current.NativeWindowHandle
-            if (-not [LRBridgeNative]::IsWindow([IntPtr]$comboHandle) -or
-                [LRBridgeNative]::ProcessId([IntPtr]$comboHandle) -ne $process.Id -or
-                [LRBridgeNative]::ClassName([IntPtr]$comboHandle) -ne "ComboBox") { continue }
-            $selectionPattern = Get-UiaPattern $combo ([System.Windows.Automation.SelectionPattern]::Pattern)
-            $expandPattern = Get-UiaPattern $combo ([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
-            if ($null -eq $selectionPattern -or $null -eq $expandPattern) { continue }
-            $listHandle = [Int64][LRBridgeNative]::ComboListHandle([IntPtr]$comboHandle)
-            if ($listHandle -le 0 -or -not [LRBridgeNative]::IsWindow([IntPtr]$listHandle) -or
-                [LRBridgeNative]::ProcessId([IntPtr]$listHandle) -ne $process.Id -or
-                [LRBridgeNative]::ClassName([IntPtr]$listHandle) -ne "ComboLBox") { continue }
-
-            $linkedItems = New-Object System.Collections.Generic.List[object]
-            foreach ($element in $elements) {
-                try {
-                    if ($element.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { continue }
+                if ($element.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem) {
                     $runtimeId = Get-UiaRuntimeId $element
-                    if ($null -eq $runtimeId -or $runtimeId.Count -ne 4 -or [Int64]$runtimeId[0] -ne 42 -or
-                        [Int64]$runtimeId[1] -ne $comboHandle -or [Int64]$runtimeId[2] -ne 4) { continue }
-                    $position = [int]$runtimeId[3]
-                    if ($position -lt 0 -or $position -gt 255) { continue }
-                    $label = ([string]$element.Current.Name).Trim()
-                    if (Test-ProfileSeparatorLabel $label) { continue }
-                    $itemPattern = Get-UiaPattern $element ([System.Windows.Automation.SelectionItemPattern]::Pattern)
-                    if ($null -eq $itemPattern) { continue }
-                    $linkedItems.Add([PSCustomObject]@{
-                        Element = $element
-                        Pattern = $itemPattern
-                        Position = $position
-                        Label = $label
-                        Enabled = [bool]$element.Current.IsEnabled
-                        Selected = [bool]$itemPattern.Current.IsSelected
-                    })
-                } catch { continue }
-            }
-            $linked = @($linkedItems.ToArray() | Sort-Object Position)
-            $browseItems = @($linked | Where-Object { Test-ProfileBrowseLabel $_.Label })
-            if ($browseItems.Count -ne 1) { continue }
-            $browse = $browseItems[0]
-            $comboSelection = @($selectionPattern.Current.GetSelection())
-            $expandState = $expandPattern.Current.ExpandCollapseState
-            if ($comboSelection.Count -ne 1 -or
-                ($expandState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
-                    $expandState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded)) { continue }
-            $selectedLabel = ([string]$comboSelection[0].Current.Name).Trim()
-            if ((Test-ProfileBrowseLabel $selectedLabel) -or (Test-ProfileSeparatorLabel $selectedLabel)) { continue }
-            if ($LabelOnly) {
-                $discoveries.Add([PSCustomObject]@{
-                    ProcessId = [int]$process.Id
-                    MainHwnd = [Int64]$process.MainWindowHandle
-                    ComboHwnd = $comboHandle
-                    ListHwnd = $listHandle
-                    SelectedLabel = $selectedLabel
-                })
-                continue
-            }
-            $profileItems = @($linked | Where-Object {
-                $_.Position -lt $browse.Position -and -not (Test-ProfileBrowseLabel $_.Label)
-            })
-            if ($profileItems.Count -lt 1 -or $profileItems.Count -gt 64) { continue }
-            $selectedItems = @($profileItems | Where-Object { $_.Selected })
-            if ($selectedItems.Count -ne 1 -or $comboSelection.Count -ne 1 -or
-                $selectedLabel -ne $selectedItems[0].Label) { continue }
+                    if ($null -ne $runtimeId -and $runtimeId.Count -eq 4 -and
+                        [Int64]$runtimeId[0] -eq 42 -and [Int64]$runtimeId[1] -eq $comboHandle -and
+                        [Int64]$runtimeId[2] -eq 4) {
+                        $position = [int]$runtimeId[3]
+                        $label = ([string]$element.Current.Name).Trim()
+                        if ($position -ge 0 -and $position -le 255 -and -not (Test-ProfileSeparatorLabel $label)) {
+                            $itemPattern = Get-UiaPattern $element ([System.Windows.Automation.SelectionItemPattern]::Pattern)
+                            if ($null -ne $itemPattern) {
+                                $linkedItems.Add([PSCustomObject]@{
+                                    Element = $element
+                                    Pattern = $itemPattern
+                                    Position = $position
+                                    Label = $label
+                                    Enabled = [bool]$element.Current.IsEnabled
+                                    Selected = [bool]$itemPattern.Current.IsSelected
+                                })
+                            }
+                        }
+                    }
+                }
+            } catch {}
+            $element = $walker.GetNextSibling($element)
+        }
+        $linked = @($linkedItems.ToArray() | Sort-Object Position)
+        $browseItems = @($linked | Where-Object { Test-ProfileBrowseLabel $_.Label })
+        if ($browseItems.Count -ne 1) { continue }
+        $browse = $browseItems[0]
+        $comboSelection = @($selectionPattern.Current.GetSelection())
+        $expandState = $expandPattern.Current.ExpandCollapseState
+        if ($comboSelection.Count -ne 1 -or
+            ($expandState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
+                $expandState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded)) { continue }
+        $selectedLabel = ([string]$comboSelection[0].Current.Name).Trim()
+        if ((Test-ProfileBrowseLabel $selectedLabel) -or (Test-ProfileSeparatorLabel $selectedLabel)) { continue }
+        if ($LabelOnly) {
             $discoveries.Add([PSCustomObject]@{
                 ProcessId = [int]$process.Id
                 MainHwnd = [Int64]$process.MainWindowHandle
                 ComboHwnd = $comboHandle
                 ListHwnd = $listHandle
-                Expanded = $expandState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded
-                BrowsePosition = [int]$browse.Position
-                BrowseLabel = [string]$browse.Label
-                Selected = $selectedItems[0]
-                Items = $profileItems
+                SelectedLabel = $selectedLabel
             })
+            continue
         }
+        $profileItems = @($linked | Where-Object {
+            $_.Position -lt $browse.Position -and -not (Test-ProfileBrowseLabel $_.Label)
+        })
+        if ($profileItems.Count -lt 1 -or $profileItems.Count -gt 64) { continue }
+        $selectedItems = @($profileItems | Where-Object { $_.Selected })
+        if ($selectedItems.Count -ne 1 -or $selectedLabel -ne $selectedItems[0].Label) { continue }
+        $discoveries.Add([PSCustomObject]@{
+            ProcessId = [int]$process.Id
+            MainHwnd = [Int64]$process.MainWindowHandle
+            ComboHwnd = $comboHandle
+            ListHwnd = $listHandle
+            Expanded = $expandState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded
+            BrowsePosition = [int]$browse.Position
+            BrowseLabel = [string]$browse.Label
+            Selected = $selectedItems[0]
+            Items = $profileItems
+        })
     }
     if ($discoveries.Count -ne 1) {
         $detail = if ($LabelOnly) { "label" } else { "options" }
