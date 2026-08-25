@@ -4,6 +4,8 @@ const controllerUrl = document.getElementById("controllerUrl");
 const controllerLanUrls = document.getElementById("controllerLanUrls");
 const pollingInput = document.getElementById("pollingInput");
 const settingsMessage = document.getElementById("settingsMessage");
+const minimizeBehaviorInputs = Array.from(document.querySelectorAll('input[name="minimizeBehavior"]'));
+const minimizeMessage = document.getElementById("minimizeMessage");
 
 const startLightroomButton = document.getElementById("startLightroom");
 const openWebControllerButton = document.getElementById("openWebController");
@@ -15,9 +17,11 @@ const quitAppButton = document.getElementById("quitApp");
 const openKoFiButton = document.getElementById("openKoFi");
 const shareLocalControllerButton = document.getElementById("shareLocalController");
 const shareLocalStatus = document.getElementById("shareLocalStatus");
+const minimizeLrbridgeButton = document.getElementById("minimizeLrbridge");
 
 let defaultPollingMs = 100;
 let currentControllerUrl = "http://127.0.0.1:17892/";
+let currentMinimizeBehavior = "normal";
 
 function appendLog(line) {
     const div = document.createElement("div");
@@ -29,6 +33,30 @@ function appendLog(line) {
 function setPollingDisplay(value) {
     polling.textContent = value + " ms";
     pollingInput.value = value;
+}
+
+function normalizeMinimizeBehavior(value) {
+    return value === "system-tray" ? "system-tray" : "normal";
+}
+
+function setMinimizeBehaviorDisplay(value) {
+    currentMinimizeBehavior = normalizeMinimizeBehavior(value);
+
+    for (const input of minimizeBehaviorInputs) {
+        const selected = input.value === currentMinimizeBehavior;
+        input.checked = selected;
+        input.parentElement.classList.toggle("selected", selected);
+    }
+}
+
+function setMinimizeBehaviorDisabled(disabled) {
+    for (const input of minimizeBehaviorInputs) {
+        input.disabled = disabled;
+    }
+}
+
+function minimizeBehaviorLabel(value) {
+    return value === "system-tray" ? "System tray" : "Normal";
 }
 
 async function shareLink(url, statusElement) {
@@ -99,6 +127,7 @@ async function init() {
     currentControllerUrl = state.controllerUrl || currentControllerUrl;
 
     setPollingDisplay(state.pollingMs);
+    setMinimizeBehaviorDisplay(state.minimizeBehavior);
     pollingInput.min = state.minPollingMs;
     pollingInput.max = state.maxPollingMs;
 
@@ -153,6 +182,44 @@ openKoFiButton.addEventListener("click", async function () {
 
 shareLocalControllerButton.addEventListener("click", function () {
     shareLink(currentControllerUrl, shareLocalStatus);
+});
+
+for (const input of minimizeBehaviorInputs) {
+    input.addEventListener("change", async function () {
+        if (!input.checked) {
+            return;
+        }
+
+        const previousBehavior = currentMinimizeBehavior;
+        setMinimizeBehaviorDisabled(true);
+        minimizeMessage.textContent = "";
+
+        const result = await window.lrbridge.setMinimizeBehavior(input.value);
+
+        setMinimizeBehaviorDisabled(false);
+
+        if (!result.ok) {
+            setMinimizeBehaviorDisplay(previousBehavior);
+            minimizeMessage.textContent = "Error: " + result.error;
+            appendLog("UI ERROR: " + result.error);
+            return;
+        }
+
+        setMinimizeBehaviorDisplay(result.behavior);
+        minimizeMessage.textContent = "";
+        appendLog("UI: Minimize behavior changed to " + minimizeBehaviorLabel(result.behavior) + ".");
+    });
+}
+
+minimizeLrbridgeButton.addEventListener("click", async function () {
+    appendLog("UI: Minimize LRBridge clicked.");
+
+    const result = await window.lrbridge.minimizeWindow();
+
+    if (!result.ok) {
+        minimizeMessage.textContent = "Unable to minimize LRBridge.";
+        appendLog("UI ERROR: Unable to minimize LRBridge.");
+    }
 });
 
 saveSettingsButton.addEventListener("click", async function () {

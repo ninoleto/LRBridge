@@ -128,7 +128,7 @@
             margin-top: 10px;
         }
 
-        input {
+        input[type="number"] {
             background: #050708;
             color: #d7e1ea;
             border: 1px solid #2b3744;
@@ -136,6 +136,78 @@
             padding: 9px 10px;
             font-size: 14px;
             width: 110px;
+        }
+
+        .minimize-description {
+            color: #778895;
+            font-size: 12px;
+            line-height: 1.35;
+            margin-top: 3px;
+        }
+
+        .minimize-footer {
+            margin: 20px 22px 22px 22px;
+            padding: 12px 14px;
+            background: #090d11;
+            border: 1px solid #222b34;
+            border-top-color: #34404b;
+            border-radius: 8px;
+        }
+
+        .minimize-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 9px;
+        }
+
+        .minimize-options {
+            display: inline-flex;
+            gap: 8px;
+            padding: 0;
+            margin: 0;
+            border: 0;
+        }
+
+        .minimize-choice {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+            padding: 0 14px;
+            background: #273442;
+            border: 1px solid #3b4b5c;
+            border-radius: 7px;
+            color: #d7e1ea;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        .minimize-choice:hover {
+            background: #314151;
+        }
+
+        .minimize-choice.selected {
+            background: #1f766f;
+            border-color: #46c4b5;
+            box-shadow: 0 0 0 1px #46c4b5 inset;
+            color: #ffffff;
+        }
+
+        .minimize-choice input {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: #46c4b5;
+        }
+
+        #minimizeLrbridge {
+            min-height: 44px;
+        }
+
+        #minimizeMessage:empty {
+            display: none;
         }
 
         .polling-guide {
@@ -257,10 +329,29 @@
             line-height: 1.5;
         }
 
-        .footer-divider {
-            border: 0;
-            border-top: 1px solid #28323d;
-            margin: 12px 0 12px 0;
+        .keep-running-info {
+            margin: 0 22px 18px 22px;
+            padding: 14px 16px;
+            background: #261316;
+            border: 1px solid #5c3037;
+            border-left: 4px solid #b54f5d;
+            border-radius: 8px;
+            color: #d8bcc1;
+        }
+
+        .keep-running-info p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .keep-running-info p + p {
+            margin-top: 7px;
+        }
+
+        .keep-running-primary {
+            font-weight: 600;
+            color: #f3e2e5;
         }
 
         .support-row {
@@ -378,16 +469,40 @@
         <div id="terminal"></div>
     </main>
 
-    <div class="footer">
-        <hr class="footer-divider">
-        <div>Keep LRBridge running while controlling Lightroom Classic.</div>
-        <div>You can control it from Bitfocus Companion or any device/app that can send HTTP requests.</div>
-        <hr class="footer-divider">
+    <section class="minimize-footer" id="minimizeBehaviorPanel" aria-labelledby="minimizeBehaviorTitle">
+        <div class="label" id="minimizeBehaviorTitle">Minimize behavior</div>
+        <div class="minimize-description">
+            Choose whether minimizing LRBridge uses the Windows taskbar or notification area.
+        </div>
+
+        <div class="minimize-controls">
+            <fieldset class="minimize-options" aria-label="Minimize behavior">
+                <label class="minimize-choice selected" for="minimizeBehaviorNormal">
+                    <input id="minimizeBehaviorNormal" type="radio" name="minimizeBehavior" value="normal" checked>
+                    <span>Normal</span>
+                </label>
+                <label class="minimize-choice" for="minimizeBehaviorTray">
+                    <input id="minimizeBehaviorTray" type="radio" name="minimizeBehavior" value="system-tray">
+                    <span>System tray</span>
+                </label>
+            </fieldset>
+            <button id="minimizeLrbridge" class="secondary">Minimize LRBridge</button>
+        </div>
+
+        <div class="settings-message" id="minimizeMessage" aria-live="polite"></div>
+    </section>
+
+    <section class="keep-running-info" id="keepRunningInfo" aria-label="Keep LRBridge running">
+        <p class="keep-running-primary">Keep LRBridge running while controlling Lightroom Classic.</p>
+        <p>You can control it from Bitfocus Companion or any device/app that can send HTTP requests.</p>
+    </section>
+
+    <footer class="footer" id="openSourceFooter">
         <div class="support-row">
             <span class="support-text">LRBridge is open source. Support development:</span>
             <button id="openKoFi">ko-fi.com/ninoleto</button>
         </div>
-    </div>
+    </footer>
 
     <script src="renderer.js"></script>
 </body>

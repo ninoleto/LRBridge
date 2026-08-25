@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld("lrbridge", {
     resetSettings: function () {
         return ipcRenderer.invoke("reset-settings");
     },
+    setMinimizeBehavior: function (behavior) {
+        return ipcRenderer.invoke("set-minimize-behavior", behavior);
+    },
+    minimizeWindow: function () {
+        return ipcRenderer.invoke("minimize-window");
+    },
     openHelp: function () {
         return ipcRenderer.invoke("open-help");
     },

@@ -391,7 +391,11 @@ function testSourceIntegrationAndProductionCompatibility() {
     assert.match(mainSource, /const controllerListenHost = "0\.0\.0\.0";/);
     assert.match(mainSource, /const bridgeHttpPort = 17891;/);
     assert.match(mainSource, /proxyControllerRequest\(/);
-    assert.match(mainSource, /controllerServer\.close\(\);/);
+    assert.match(mainSource, /const \{ stopControllerServer \} = require\("\.\/controller-server-lifecycle"\);/);
+    assert.match(mainSource, /stopControllerServer: stopControllerServer/);
+    assert.match(mainSource, /stopBridge: function \(bridge\) \{ return bridge\.stop\(\); \}/);
+    assert.doesNotMatch(mainSource, /controllerServer\.close\(\);/,
+        "Desktop shutdown must retain the bounded Web Controller lifecycle helper");
     assert.match(bridgeSource, /const HTTP_PORT = 17891;/);
     assert.match(bridgeSource, /const WS_PORT = 17890;/);
 

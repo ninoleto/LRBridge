@@ -1,14 +1,21 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, shell, clipboard } = require("electron");
+const { app, BrowserWindow, Tray, Menu, dialog, ipcMain, shell, clipboard } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const os = require("os");
 const { proxyControllerRequest } = require("./controller-proxy");
 const { applyControllerHttpSettings } = require("./controller-http-settings");
+const { stopControllerServer } = require("./controller-server-lifecycle");
 const {
-    createControllerQuitCoordinator,
-    stopControllerServer
-} = require("./controller-server-lifecycle");
+    MINIMIZE_BEHAVIOR_SETTING,
+    NORMAL_MINIMIZE_BEHAVIOR,
+    isValidMinimizeBehavior,
+    readMinimizeBehaviorFromText,
+    updateSettingText
+} = require("./desktop-settings");
+const { createDesktopMinimizeController } = require("./desktop-minimize");
+const { createDesktopQuitController } = require("./desktop-quit");
+const { createDesktopShutdownCoordinator } = require("./desktop-shutdown");
 
 const projectRoot = path.join(__dirname, "..");
 const portableRoot = app.isPackaged ? path.dirname(process.execPath) : projectRoot;
@@ -80,18 +87,25 @@ const defaultLightroomPath = path.join(
 );
 
 let mainWindow = null;
-let tray = null;
+let desktopMinimizeController = null;
+let desktopQuitController = null;
 let isQuitting = false;
 let bridgeStarted = false;
+let bridgeRuntime = null;
 let controllerServerStarted = false;
 let controllerServer = null;
 
-const controllerQuitCoordinator = createControllerQuitCoordinator({
+const desktopShutdownCoordinator = createDesktopShutdownCoordinator({
+    getBridge: function () { return bridgeRuntime; },
+    clearBridge: function () { bridgeRuntime = null; },
+    stopBridge: function (bridge) { return bridge.stop(); },
     getControllerServer: function () { return controllerServer; },
     clearControllerServer: function () { controllerServer = null; },
     stopControllerServer: stopControllerServer,
     resumeQuit: function () { app.quit(); },
-    logShutdownError: function () { console.error("Web controller shutdown failed."); }
+    logShutdownError: function (label, err) {
+        console.error(label + " shutdown failed:", err && err.message ? err.message : err);
+    }
 });
 
 const logLines = [];
@@ -178,11 +192,24 @@ function ensureSettingsFile() {
     }
 }
 
-function readPollingMs() {
+function readSettingsText() {
     ensureSettingsFile();
 
     try {
-        const content = fs.readFileSync(settingsPath, "utf8");
+        return fs.readFileSync(settingsPath, "utf8");
+    } catch (err) {
+        return "";
+    }
+}
+
+function writeSettingValue(key, value) {
+    const content = updateSettingText(readSettingsText(), key, value);
+    fs.writeFileSync(settingsPath, content, "utf8");
+}
+
+function readPollingMs() {
+    try {
+        const content = readSettingsText();
         const match = content.match(/poll_interval_ms\s*=\s*(\d+)/);
 
         if (match) {
@@ -198,16 +225,26 @@ function readPollingMs() {
 
 function writePollingMs(value) {
     const pollingMs = clampPollingMs(value);
-
-    const content =
-        "poll_interval_ms=" + pollingMs + "\n";
-
-    fs.writeFileSync(settingsPath, content, "utf8");
+    writeSettingValue("poll_interval_ms", pollingMs);
 
     console.log("Saved polling interval:", pollingMs + " ms");
     console.log("Lightroom polling will apply this change automatically within about 1 second.");
 
     return pollingMs;
+}
+
+function readMinimizeBehavior() {
+    return readMinimizeBehaviorFromText(readSettingsText());
+}
+
+function writeMinimizeBehavior(value) {
+    if (!isValidMinimizeBehavior(value)) {
+        throw new Error("Invalid minimize behavior.");
+    }
+
+    writeSettingValue(MINIMIZE_BEHAVIOR_SETTING, value);
+    console.log("Saved minimize behavior:", value);
+    return value;
 }
 
 function resetSettings() {
@@ -237,6 +274,7 @@ async function startBridge() {
 
     try {
         const bridge = require(bridgePath);
+        bridgeRuntime = bridge.defaultBridge;
         await bridge.startPromise;
         console.log("LRBridge is active.");
         console.log("You can use Lightroom Classic through the LRBridge HTTP API.");
@@ -575,6 +613,21 @@ async function openHttpBuilder() {
     };
 }
 
+function beginConfirmedApplicationShutdown() {
+    if (isQuitting) {
+        return false;
+    }
+
+    isQuitting = true;
+
+    if (desktopMinimizeController) {
+        desktopMinimizeController.destroy();
+    }
+
+    app.quit();
+    return true;
+}
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 940,
@@ -598,71 +651,26 @@ function createWindow() {
     });
 
     mainWindow.on("minimize", function (event) {
-        event.preventDefault();
-        mainWindow.hide();
+        if (desktopMinimizeController) {
+            desktopMinimizeController.handleNativeMinimize(event);
+        }
     });
 
     mainWindow.on("close", function (event) {
         if (!isQuitting) {
             event.preventDefault();
-            mainWindow.hide();
-        }
-    });
-}
-
-function createTray() {
-    tray = new Tray(trayIconPath);
-    tray.setToolTip("LRBridge");
-
-    const menu = Menu.buildFromTemplate([
-        {
-            label: "Show LRBridge",
-            click: function () {
-                showWindow();
-            }
-        },
-        {
-            label: "Start Lightroom Classic",
-            click: function () {
-                startLightroom();
-            }
-        },
-        {
-            label: "Open Web Controller",
-            click: function () {
-                openWebController();
-            }
-        },
-        {
-            label: "Open Help",
-            click: function () {
-                openHelp();
-            }
-        },
-        {
-            label: "Open HTTP Builder",
-            click: function () {
-                openHttpBuilder();
-            }
-        },
-        { type: "separator" },
-        {
-            label: "Quit",
-            click: function () {
-                isQuitting = true;
-                app.quit();
+            if (desktopQuitController) {
+                desktopQuitController.requestConfirmation("close");
             }
         }
-    ]);
-
-    tray.setContextMenu(menu);
-
-    tray.on("click", function () {
-        showWindow();
     });
 }
 
 function showWindow() {
+    if (desktopMinimizeController && desktopMinimizeController.restoreWindow()) {
+        return;
+    }
+
     if (!mainWindow || mainWindow.isDestroyed()) {
         createWindow();
     }
@@ -684,8 +692,29 @@ if (!gotLock) {
 
     app.whenReady().then(async function () {
         Menu.setApplicationMenu(null);
+        desktopMinimizeController = createDesktopMinimizeController({
+            initialBehavior: readMinimizeBehavior(),
+            getWindow: function () { return mainWindow; },
+            createTray: function () { return new Tray(trayIconPath); },
+            buildMenu: function (template) { return Menu.buildFromTemplate(template); },
+            persistBehavior: writeMinimizeBehavior,
+            requestQuit: function () {
+                return desktopQuitController.requestConfirmation("tray");
+            }
+        });
+        desktopQuitController = createDesktopQuitController({
+            getWindow: function () { return mainWindow; },
+            restoreWindow: function () { return desktopMinimizeController.restoreWindow(); },
+            showMessageBox: function (window, options) {
+                return dialog.showMessageBox(window, options);
+            },
+            beginShutdown: beginConfirmedApplicationShutdown,
+            logError: function (err) {
+                console.error("Quit confirmation failed:", err && err.message ? err.message : err);
+            }
+        });
         createWindow();
-        createTray();
+        desktopMinimizeController.initialize();
         await startBridge();
         startControllerServer();
     }).catch(function (err) {
@@ -694,13 +723,16 @@ if (!gotLock) {
     });
 
     app.on("window-all-closed", function () {
-        // Keep running in tray.
+        // Preserve the existing process lifecycle; Close/X behavior is handled by the window.
     });
 
     app.on("before-quit", function (event) {
         isQuitting = true;
-        // Direct controllerServer.close(); is delegated to the bounded lifecycle helper.
-        controllerQuitCoordinator.beforeQuit(event);
+        if (desktopMinimizeController) {
+            desktopMinimizeController.destroy();
+        }
+        // HTTP, WebSocket, native-backend, and Web Controller shutdown use their bounded lifecycle helpers.
+        desktopShutdownCoordinator.beforeQuit(event);
     });
 }
 
@@ -711,6 +743,9 @@ ipcMain.handle("get-initial-state", function () {
         defaultPollingMs: defaultPollingMs,
         minPollingMs: minPollingMs,
         maxPollingMs: maxPollingMs,
+        minimizeBehavior: desktopMinimizeController
+            ? desktopMinimizeController.getBehavior()
+            : NORMAL_MINIMIZE_BEHAVIOR,
         settingsPath: settingsPath,
         lightroomPath: defaultLightroomPath,
         controllerUrl: controllerLocalUrl,
@@ -735,6 +770,37 @@ ipcMain.handle("save-settings", function (_event, settings) {
 
 ipcMain.handle("reset-settings", function () {
     return resetSettings();
+});
+
+ipcMain.handle("set-minimize-behavior", function (_event, behavior) {
+    if (!desktopMinimizeController || !isValidMinimizeBehavior(behavior)) {
+        return {
+            ok: false,
+            behavior: desktopMinimizeController
+                ? desktopMinimizeController.getBehavior()
+                : NORMAL_MINIMIZE_BEHAVIOR,
+            error: "Invalid minimize behavior."
+        };
+    }
+
+    try {
+        return desktopMinimizeController.setBehavior(behavior);
+    } catch (err) {
+        return {
+            ok: false,
+            behavior: desktopMinimizeController.getBehavior(),
+            error: err.message
+        };
+    }
+});
+
+ipcMain.handle("minimize-window", function () {
+    return {
+        ok: Boolean(desktopMinimizeController && desktopMinimizeController.minimizeWindow()),
+        behavior: desktopMinimizeController
+            ? desktopMinimizeController.getBehavior()
+            : NORMAL_MINIMIZE_BEHAVIOR
+    };
 });
 
 ipcMain.handle("open-help", function () {
@@ -762,10 +828,13 @@ ipcMain.handle("copy-text", function (_event, text) {
 });
 
 ipcMain.handle("quit-app", function () {
-    isQuitting = true;
-    app.quit();
+    if (!desktopQuitController) {
+        return {
+            ok: false,
+            confirmed: false,
+            error: "Quit confirmation is unavailable."
+        };
+    }
 
-    return {
-        ok: true
-    };
+    return desktopQuitController.requestConfirmation("button");
 });
