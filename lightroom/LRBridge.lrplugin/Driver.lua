@@ -6,6 +6,7 @@ local DevelopCategorical = require "DevelopCategorical"
 local Driver = {}
 
 local sliderMap = {
+    ProfileAmount = "ProfileAmount",
     Exposure = "Exposure",
     Contrast = "Contrast",
     Highlights = "Highlights",
@@ -169,6 +170,10 @@ function Driver.setSlider(slider, value)
 end
 
 function Driver.resetSlider(slider)
+
+    if slider == "ProfileAmount" then
+        return Driver.setSlider(slider, 100)
+    end
 
     local developSlider = sliderMap[slider]
 

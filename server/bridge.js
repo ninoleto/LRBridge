@@ -108,6 +108,7 @@ commands.setPointColorAdmissionContextProvider(function () {
 const feedbackRequests = [];
 const feedbackValues = {};
 const feedbackSnapshots = {};
+const feedbackSnapshotContexts = {};
 const colorGradingSnapshots = {};
 const treatmentSnapshots = {};
 let feedbackRequestId = 0;
@@ -119,6 +120,7 @@ function isFeedbackParameter(value) {
 }
 
 function createFeedbackSnapshot(id, requestedSliders) {
+    const contextFields = context.getContextFields();
     feedbackSnapshots[id] = {
         id: id,
         requestedSliders: requestedSliders.slice(),
@@ -127,11 +129,17 @@ function createFeedbackSnapshot(id, requestedSliders) {
         requestedAt: Date.now(),
         completedAt: null
     };
+    feedbackSnapshotContexts[id] = {
+        contextCounter: contextFields.contextCounter,
+        selectedPhotoKey: contextFields.selectedPhotoKey,
+        selectedPhotoUuid: contextFields.selectedPhotoUuid
+    };
 
     const ids = Object.keys(feedbackSnapshots).map(Number).sort(function (a, b) { return a - b; });
     while (ids.length > 32) {
         const expiredId = ids.shift();
         delete feedbackSnapshots[expiredId];
+        delete feedbackSnapshotContexts[expiredId];
         for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
             if (feedbackRequests[i].id === expiredId) {
                 feedbackRequests.splice(i, 1);
@@ -427,7 +435,8 @@ app.get("/develop-categorical/state", async function (req, res) {
 
 app.get("/develop-categorical/profile-feedback", function (req, res) {
     const allowed = new Set([
-        "contextCounter", "developCounter", "selectedPhotoKey", "selectedPhotoUuid", "label", "source"
+        "contextCounter", "developCounter", "selectedPhotoKey", "selectedPhotoUuid", "label", "source",
+        "supportsAmount"
     ]);
     const feedbackContextCounter = Number(req.query.contextCounter);
     const feedbackDevelopCounter = Number(req.query.developCounter);
@@ -439,7 +448,8 @@ app.get("/develop-categorical/profile-feedback", function (req, res) {
         req.query.selectedPhotoKey.length > 1024 || typeof req.query.selectedPhotoUuid !== "string" ||
         req.query.selectedPhotoUuid.length > 160 || typeof req.query.label !== "string" ||
         req.query.label.trim() !== req.query.label || req.query.label.length < 1 || req.query.label.length > 160 ||
-        !["AILook", "Look.Name", "CameraProfile"].includes(req.query.source)) {
+        !["AILook", "Look.Name", "CameraProfile"].includes(req.query.source) ||
+        !["true", "false", "unavailable"].includes(req.query.supportsAmount)) {
         return res.status(400).json({ ok: false, error: "Invalid Profile feedback" });
     }
     const previousProfile = profileNative.get();
@@ -449,7 +459,10 @@ app.get("/develop-categorical/profile-feedback", function (req, res) {
         selectedPhotoKey: req.query.selectedPhotoKey,
         selectedPhotoUuid: req.query.selectedPhotoUuid || null,
         label: req.query.label,
-        source: req.query.source
+        source: req.query.source,
+        supportsAmount: req.query.supportsAmount === "true"
+            ? true
+            : req.query.supportsAmount === "false" ? false : null
     });
     if (!accepted) return res.status(409).json({ ok: false, error: "Stale or unresolved Profile feedback" });
     if (previousProfile.selectedLabel !== req.query.label) profileNative.requestContextRefresh();
@@ -1586,9 +1599,13 @@ app.get("/feedback/result", function (req, res) {
     const slider = req.query.slider;
     const rawValue = req.query.value;
     const unavailable = req.query.available === "0" && rawValue === undefined;
-    const allowedFields = unavailable
-        ? new Set(["id", "slider", "available"])
-        : new Set(["id", "slider", "value", "min", "max"]);
+    const profileAmountFields = slider === "ProfileAmount"
+        ? ["selectedPhotoKey", "selectedPhotoUuid"]
+        : [];
+    const allowedFields = new Set(unavailable
+        ? ["id", "slider", "available"]
+        : ["id", "slider", "value", "min", "max"]);
+    profileAmountFields.forEach(function (field) { allowedFields.add(field); });
     const hasExtraField = Object.keys(req.query).some(function (field) {
         return !allowedFields.has(field);
     });
@@ -1615,13 +1632,46 @@ app.get("/feedback/result", function (req, res) {
         return;
     }
 
+    if (slider === "ProfileAmount") {
+        const snapshotContext = feedbackSnapshotContexts[requestId];
+        const currentContext = context.getContextFields();
+        const selectedPhotoKey = typeof req.query.selectedPhotoKey === "string" &&
+            !Array.isArray(req.query.selectedPhotoKey) ? req.query.selectedPhotoKey : null;
+        const selectedPhotoUuid = typeof req.query.selectedPhotoUuid === "string" &&
+            !Array.isArray(req.query.selectedPhotoUuid) ? (req.query.selectedPhotoUuid || null) : undefined;
+        if (selectedPhotoKey === null || selectedPhotoKey.length < 1 || selectedPhotoKey.length > 1024 ||
+            selectedPhotoUuid === undefined || (selectedPhotoUuid !== null && selectedPhotoUuid.length > 160)) {
+            return res.status(400).json({
+                ok: false,
+                error: "Invalid Profile Amount feedback",
+                slider: slider
+            });
+        }
+        if (!snapshotContext ||
+            snapshotContext.contextCounter !== currentContext.contextCounter ||
+            snapshotContext.selectedPhotoKey !== selectedPhotoKey ||
+            snapshotContext.selectedPhotoUuid !== selectedPhotoUuid ||
+            currentContext.selectedPhotoKey !== selectedPhotoKey ||
+            currentContext.selectedPhotoUuid !== selectedPhotoUuid) {
+            return res.status(409).json({
+                ok: false,
+                error: "Stale Profile Amount feedback",
+                slider: slider
+            });
+        }
+    }
+
     if (
         hasExtraField ||
         (!unavailable && (
             numericValue === null ||
             rangeMin === null ||
             rangeMax === null ||
-            rangeMin >= rangeMax
+            rangeMin >= rangeMax ||
+            (slider === "ProfileAmount" && (
+                rangeMin !== 0 || rangeMax !== 200 || !Number.isInteger(numericValue) ||
+                numericValue < 0 || numericValue > 200
+            ))
         ))
     ) {
         res.status(400).json({

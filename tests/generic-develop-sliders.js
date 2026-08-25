@@ -18,7 +18,7 @@ const bridge = fs.readFileSync(path.join(root, "server/bridge.js"), "utf8");
 const historyLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/History.lua"), "utf8");
 const historyStateFactory = require("../server/history-state").createHistoryState;
 
-assert.equal(metadata.length, 101, "Slider registry count changed");
+assert.equal(metadata.length, 102, "Slider registry count changed");
 assert.equal(new Set(metadata.map((item) => item.id)).size, metadata.length, "Duplicate slider ID");
 
 for (const item of metadata) {
@@ -45,7 +45,7 @@ for (const item of metadata) {
 }
 
 const feedbackDefinitions = metadata.filter((item) => item.feedbackSupported === true);
-assert.equal(feedbackDefinitions.length, 100, "Authoritative feedback definition count changed");
+assert.equal(feedbackDefinitions.length, 101, "Authoritative feedback definition count changed");
 const toneCurveDefinitions = feedbackDefinitions.filter((item) => item.group === "Tone Curve");
 const metadataToneCurveIds = [
     "ParametricDarks", "ParametricLights", "ParametricShadows", "ParametricHighlights",
@@ -176,7 +176,9 @@ assert.match(finalConfirmationBlock, /handleDevelopSliderStepSubmission/);
 assert.doesNotMatch(finalConfirmationBlock, /renderSlidersTab|switchTab|content\.innerHTML|markAllDevelopSlidersLoading|requestLiveFeedbackSnapshot|request-many/);
 assert.match(controller, /range\.addEventListener\("pointerdown", function \(event\) \{[\s\S]*?cancelDevelopSliderStep\(control\)/);
 assert.match(controller, /function commitNumericValue\(\) \{[\s\S]*?cancelDevelopSliderStep\(control\)/);
-assert.match(controller, /makeButton\("Reset"[\s\S]*cancelDevelopSliderStep\(control\)/);
+assert.match(controller,
+    /function beginDevelopSliderReset\(control\) \{[\s\S]*cancelDevelopSliderStep\(control\)[\s\S]*if \(control\.definition\.id !== "ProfileAmount"\) return null/,
+    "Reusable slider Reset must retain pending-step cancellation before its shared reset command");
 assert.match(controller, /"\/api\/set\?slider="/);
 assert.doesNotMatch(
     controller.match(/function stepDevelopSliderValue[\s\S]*?function createDevelopSliderControl/)[0],
@@ -368,7 +370,8 @@ assert.match(controller,
     /const id = "slider-jump-section-" \+ section\.id;\s*heading\.id = id;\s*heading\.classList\.add\("slider-jump-target"\)/,
     "The Lens Corrections jump target must remain the shared main section heading");
 const mappedDevelopIds = mappedSections.flatMap((section) => section.ids);
-const expectedDevelopIds = feedbackDefinitions.filter((definition) => definition.group !== "Tone Curve")
+const expectedDevelopIds = feedbackDefinitions.filter((definition) =>
+    definition.group !== "Tone Curve" && definition.group !== "Profile")
     .map((definition) => definition.id);
 assert.equal(new Set(mappedDevelopIds).size, mappedDevelopIds.length, "Develop presentation duplicated a slider ID");
 assert.deepEqual(new Set(mappedDevelopIds), new Set(expectedDevelopIds),
@@ -609,10 +612,19 @@ assert.match(photo, /quickDevelopSetTreatment\("grayscale"\)/);
 assert.match(photo, /quickDevelopSetTreatment\("color"\)/);
 assert.match(bridge, /grayscale: status === "available" \? req\.query\.grayscale === "true" : null/);
 assert.match(mainProcess, /"\/api\/treatment\/request"[\s\S]*"\/treatment\/request"/);
-assert.match(controller, /treatmentButton\.setAttribute\("role", "switch"\)/);
-assert.match(controller, /treatmentButton\.setAttribute\("aria-checked", String\(treatmentHasAuthoritativeState && treatmentAuthoritativeState\)\)/);
+assert.match(controller, /const authoritativeBlackAndWhite = treatmentHasAuthoritativeState &&\s*treatmentAuthoritativeState === true/);
+assert.match(controller, /treatmentButton\.setAttribute\("aria-pressed", String\(authoritativeBlackAndWhite\)\)/);
+assert.match(controller, /treatmentButton\.classList\.toggle\("bw-treatment-active", authoritativeBlackAndWhite\)/);
 assert.match(controller, /treatmentButton\.disabled = treatmentPending \|\| !treatmentHasAuthoritativeState/);
-assert.match(controller, /treatmentButton\.title = treatmentAuthoritativeState \? "Black & White mode" : "Color mode"/);
+assert.match(controller, /treatmentButton\.title = authoritativeBlackAndWhite \? "Black & White mode" : "Color mode"/);
+assert.match(controller,
+    /treatmentStateFresh \? \(authoritativeBlackAndWhite \? "Black & White" : "Color"\)/,
+    "B&W button and adjacent status must use the same authoritative treatment boolean");
+assert.match(controller,
+    /\.basic-controls-row button\.bw-treatment-active,[\s\S]*background:\s*#178447;[\s\S]*border-color:\s*#65e08c;/,
+    "Authoritative B&W treatment must use a dedicated strong-green background and border");
+assert.doesNotMatch(controller, /treatmentButton\.classList\.toggle\("active"/,
+    "B&W treatment must not reuse another control's generic active style");
 assert.match(controller, /const mode = treatmentAuthoritativeState \? "color" : "grayscale"/);
 assert.match(controller, /treatmentPending && treatmentDesiredState !== snapshot\.grayscale/,
     "Treatment must remain pending until matching authoritative readback");
@@ -1069,4 +1081,4 @@ assert.match(parser, /value = string\.match\(json, \[\["value":\(\[%\-\]\?%d\+%\
 assert.match(luaCommands, /Driver\.setSlider\(\s*command\.slider,\s*command\.value\s*\)/);
 
 console.log("Generic Develop slider metadata, controller, Builder, and feedback contracts passed.");
-console.log("Validated 101 definitions and 100 authoritative-feedback definitions.");
+console.log("Validated 102 definitions and 101 authoritative-feedback definitions.");

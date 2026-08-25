@@ -205,6 +205,8 @@
             browseLabel: null,
             selectedToken: null,
             selectedLabel: null,
+            source: null,
+            supportsAmount: null,
             validationGeneration: 0,
             validationFailedGeneration: 0,
             options: []
@@ -221,6 +223,8 @@
                 input.photoKey.length > 1024)) ||
             (input.photoUuid !== null && (typeof input.photoUuid !== "string" || input.photoUuid.length < 1 ||
                 input.photoUuid.length > 160)) ||
+            (input.source !== null && !["AILook", "Look.Name", "CameraProfile"].includes(input.source)) ||
+            (input.supportsAmount !== null && typeof input.supportsAmount !== "boolean") ||
             !Number.isSafeInteger(input.validationGeneration) || input.validationGeneration < 0 ||
             !Number.isSafeInteger(input.validationFailedGeneration) || input.validationFailedGeneration < 0 ||
             !Array.isArray(input.options)) return false;
@@ -278,6 +282,8 @@
             browseLabel: input.browseLabel,
             selectedToken: input.selectedToken,
             selectedLabel: input.selectedLabel,
+            source: input.source,
+            supportsAmount: input.supportsAmount,
             validationGeneration: input.validationGeneration,
             validationFailedGeneration: input.validationFailedGeneration,
             options: input.options.map(function (option) { return Object.assign({}, option); })
@@ -454,6 +460,8 @@
                     optionSnapshotRevision: displayState.optionSnapshotRevision,
                     authoritativeToken: displayState.available ? displayState.selectedToken : null,
                     authoritativeLabel: typeof displayState.selectedLabel === "string" ? displayState.selectedLabel : null,
+                    authoritativeSource: displayState.source,
+                    supportsAmount: displayState.supportsAmount,
                     options: displayState.options.map(function (option) { return Object.assign({}, option); }),
                     pending: pending !== null,
                     desiredToken: pending ? pending.token : null,

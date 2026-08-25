@@ -40,6 +40,7 @@ end
 
 local watchedSliders = {
     "CropAngle",
+    "ProfileAmount",
     "Exposure",
     "Contrast",
     "Highlights",
@@ -250,8 +251,14 @@ local function profileScalar(value)
     return ""
 end
 
+local function normalizeProfileSupportsAmount(value)
+    if value == true or value == "true" then return true end
+    if value == false or value == "false" then return false end
+    return nil
+end
+
 local function readProfileFeedback(identity)
-    local unavailable = { available = false, label = "", source = "", fingerprint = "" }
+    local unavailable = { available = false, label = "", source = "", fingerprint = "", supportsAmount = nil }
     if identity.photo == nil or identity.key == "" then return unavailable end
 
     local settingsOk, settings = LrTasks.pcall(function() return identity.photo:getDevelopSettings() end)
@@ -281,11 +288,25 @@ local function readProfileFeedback(identity)
     end
     if label == "" or string.len(label) > 160 then return unavailable end
 
+    local supportsAmount = nil
+    local supportsAmountSource = ""
+    if source == "AILook" then
+        supportsAmountSource = "AILook.SupportsAmount"
+        if type(settings.AILook) == "table" then
+            supportsAmount = normalizeProfileSupportsAmount(settings.AILook.SupportsAmount)
+        end
+    elseif source == "Look.Name" and type(settings.Look) == "table" then
+        supportsAmountSource = "Look.SupportsAmount"
+        supportsAmount = normalizeProfileSupportsAmount(settings.Look.SupportsAmount)
+    end
+
     local parts = {
         "source=" .. source,
         "label=" .. label,
         "camera=" .. profileScalar(settings.CameraProfile),
-        "grayscale=" .. profileScalar(settings.ConvertToGrayscale)
+        "grayscale=" .. profileScalar(settings.ConvertToGrayscale),
+        "supportsAmountSource=" .. supportsAmountSource,
+        "supportsAmountValue=" .. profileScalar(supportsAmount)
     }
     if type(settings.Look) == "table" then
         table.insert(parts, "lookName=" .. profileScalar(settings.Look.Name))
@@ -303,7 +324,13 @@ local function readProfileFeedback(identity)
         table.insert(parts, "aiValue=" .. settings.AILook)
     end
 
-    return { available = true, label = label, source = source, fingerprint = hashString(table.concat(parts, "|")) }
+    return {
+        available = true,
+        label = label,
+        source = source,
+        fingerprint = hashString(table.concat(parts, "|")),
+        supportsAmount = supportsAmount
+    }
 end
 
 local function getDevelopFingerprint(activeModule, profileFingerprint)
@@ -352,7 +379,7 @@ local function sendContextHeartbeat()
     local activeModule = getActiveModule()
     local identity = getSelectedPhotoIdentity()
     local profile = activeModule == "develop" and readProfileFeedback(identity) or
-        { available = false, label = "", source = "", fingerprint = "" }
+        { available = false, label = "", source = "", fingerprint = "", supportsAmount = nil }
     local developFingerprint = getDevelopFingerprint(activeModule, profile.fingerprint)
 
     local url =
@@ -373,7 +400,8 @@ local function sendContextHeartbeat()
             "&selectedPhotoKey=" .. urlEncode(identity.key) ..
             "&selectedPhotoUuid=" .. urlEncode(identity.uuid) ..
             "&label=" .. urlEncode(profile.label) ..
-            "&source=" .. urlEncode(profile.source)
+            "&source=" .. urlEncode(profile.source) ..
+            "&supportsAmount=" .. urlEncode(profile.supportsAmount == nil and "unavailable" or tostring(profile.supportsAmount))
         LrHttp.get(feedbackUrl)
     end
 
@@ -432,7 +460,7 @@ local function waitForNormalCommandToFinish()
 
 end
 
-local function sendValue(id, slider, value, minValue, maxValue)
+local function sendValue(id, slider, value, minValue, maxValue, identity)
 
     local url =
         "http://127.0.0.1:17891/feedback/result" ..
@@ -448,11 +476,30 @@ local function sendValue(id, slider, value, minValue, maxValue)
             "&max=" .. tostring(maxValue)
     end
 
+    if slider == "ProfileAmount" and identity ~= nil then
+        url = url ..
+            "&selectedPhotoKey=" .. urlEncode(identity.key) ..
+            "&selectedPhotoUuid=" .. urlEncode(identity.uuid)
+    end
+
     LrHttp.get(url)
 
 end
 
 local function readFeedbackValue(slider)
+    if slider == "ProfileAmount" then
+        local before = getSelectedPhotoIdentity()
+        if before.photo == nil or before.key == "" then return nil, nil, nil, nil end
+        local value = Query.getDevelopValue(slider)
+        local after = getSelectedPhotoIdentity()
+        if after.photo ~= before.photo or after.key ~= before.key or after.uuid ~= before.uuid then
+            return nil, nil, nil, nil
+        end
+        if type(value) ~= "number" or value < 0 or value > 200 then
+            value = nil
+        end
+        return value, 0, 200, before
+    end
     if slider == "CropConstrainToWarp" then
         local ok, value = LrTasks.pcall(function()
             return LrDevelopController.getValue("CropConstrainToWarp")
@@ -471,7 +518,7 @@ local function sendRequestedValue(id, slider)
 
     waitForNormalCommandToFinish()
 
-    local value, minValue, maxValue = readFeedbackValue(slider)
+    local value, minValue, maxValue, identity = readFeedbackValue(slider)
 
     if value ~= nil and minValue ~= nil and maxValue ~= nil then
         lastSentValues[slider] = tostring(value)
@@ -479,7 +526,7 @@ local function sendRequestedValue(id, slider)
         value = nil
     end
 
-    sendValue(id, slider, value, minValue, maxValue)
+    sendValue(id, slider, value, minValue, maxValue, identity)
 
     log("feedback result sent: " .. tostring(slider) .. "=" .. tostring(value))
 
@@ -514,7 +561,7 @@ local function sendManyRequestedValues(id, requestedSliders)
 
     for i, slider in ipairs(requestedSliders) do
 
-        local value, minValue, maxValue = readFeedbackValue(slider)
+        local value, minValue, maxValue, identity = readFeedbackValue(slider)
 
         if minValue == nil or maxValue == nil then
             value = nil
@@ -525,7 +572,7 @@ local function sendManyRequestedValues(id, requestedSliders)
         end
 
         lastSentValues[slider] = value == nil and "__unavailable__" or tostring(value)
-        sendValue(id, slider, value, minValue, maxValue)
+        sendValue(id, slider, value, minValue, maxValue, identity)
         sentCount = sentCount + 1
 
         if firstSent == nil then
@@ -548,7 +595,7 @@ local function sendAllRequestedValues(id)
 
     for i, slider in ipairs(watchedSliders) do
 
-        local value, minValue, maxValue = readFeedbackValue(slider)
+        local value, minValue, maxValue, identity = readFeedbackValue(slider)
 
         if minValue == nil or maxValue == nil then
             value = nil
@@ -559,7 +606,7 @@ local function sendAllRequestedValues(id)
         end
 
         lastSentValues[slider] = value == nil and "__unavailable__" or tostring(value)
-        sendValue(id, slider, value, minValue, maxValue)
+        sendValue(id, slider, value, minValue, maxValue, identity)
         sentCount = sentCount + 1
 
         if firstSent == nil then

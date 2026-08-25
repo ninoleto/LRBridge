@@ -4,6 +4,7 @@ local Query = {}
 
 local developControllerMap = {
     CropAngle = "straightenAngle",
+    ProfileAmount = "ProfileAmount",
     Exposure = "Exposure",
     Contrast = "Contrast",
     Highlights = "Highlights",
@@ -132,6 +133,10 @@ function Query.getDevelopRange(slider)
 
     if param == nil then
         return nil, nil
+    end
+
+    if slider == "ProfileAmount" then
+        return 0, 200
     end
 
     local ok, minValue, maxValue = pcall(function()

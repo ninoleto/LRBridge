@@ -223,6 +223,76 @@ assert.match(source, /basicActions\.actions\.find\(function \(item\) \{ return i
     "Compact Auto must reuse the existing Auto Tone action definition");
 assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*row\.appendChild\(treatmentButton\)/,
     "Compact Basic controls must render Auto before B&W");
+{
+    function treatmentClassList() {
+        const values = new Set();
+        return {
+            toggle(value, enabled) { if (enabled) values.add(value); else values.delete(value); },
+            has(value) { return values.has(value); }
+        };
+    }
+    const attributes = {};
+    const button = {
+        disabled: false,
+        classList: treatmentClassList(),
+        title: "",
+        setAttribute(name, value) { attributes[name] = value; }
+    };
+    const status = { textContent: "" };
+    const treatmentPresentationContext = {
+        treatmentButton: button,
+        treatmentStatus: status,
+        treatmentPending: false,
+        treatmentHasAuthoritativeState: true,
+        treatmentAuthoritativeState: false,
+        treatmentStateFresh: true,
+        selectedProfileLabel: "Adaptive Color"
+    };
+    const updateTreatmentButton = extractJavaScriptFunction(
+        "updateTreatmentButton",
+        "invalidateTreatmentState",
+        treatmentPresentationContext
+    );
+    function assertTreatmentPresentation(grayscale, expectedText) {
+        treatmentPresentationContext.treatmentAuthoritativeState = grayscale;
+        updateTreatmentButton();
+        assert.equal(button.classList.has("bw-treatment-active"), grayscale,
+            expectedText + " treatment button color drifted");
+        assert.equal(attributes["aria-pressed"], String(grayscale),
+            expectedText + " treatment aria-pressed drifted");
+        assert.equal(status.textContent, expectedText,
+            "Button and adjacent status must share the authoritative treatment boolean");
+    }
+    assertTreatmentPresentation(false, "Color");
+    assertTreatmentPresentation(true, "Black & White");
+    treatmentPresentationContext.selectedProfileLabel = "Adobe Color";
+    assertTreatmentPresentation(true, "Black & White");
+    treatmentPresentationContext.selectedProfileLabel = "Adaptive Color";
+    assertTreatmentPresentation(true, "Black & White");
+    treatmentPresentationContext.selectedProfileLabel = "Adobe Monochrome";
+    assertTreatmentPresentation(true, "Black & White");
+    assertTreatmentPresentation(false, "Color");
+    treatmentPresentationContext.selectedProfileLabel = "Adaptive B&W";
+    assertTreatmentPresentation(false, "Color");
+    assertTreatmentPresentation(true, "Black & White");
+    assertTreatmentPresentation(false, "Color");
+    treatmentPresentationContext.treatmentPending = true;
+    treatmentPresentationContext.treatmentDesiredState = true;
+    updateTreatmentButton();
+    assert.equal(button.classList.has("bw-treatment-active"), false,
+        "A Web Controller click must not optimistically activate B&W presentation");
+    assert.equal(attributes["aria-pressed"], "false");
+    assert.equal(status.textContent, "Applying…");
+}
+const treatmentPresentationSource = source.slice(
+    source.indexOf("function updateTreatmentButton("),
+    source.indexOf("function invalidateTreatmentState(")
+);
+assert.doesNotMatch(treatmentPresentationSource, /profile/i,
+    "B&W button presentation must not inspect Profile labels or families");
+assert.match(source,
+    /treatmentAuthoritativeState = snapshot\.grayscale;[\s\S]*treatmentHasAuthoritativeState = true;[\s\S]*updateTreatmentButton\(\)/,
+    "Direct authoritative Lightroom treatment feedback must update the B&W button");
 assert.equal(new Set(placementCalls.map((entry) => entry.join(":"))).size, placementCalls.length,
     "Develop action or switch placements must not be duplicated by multi-source sections");
 

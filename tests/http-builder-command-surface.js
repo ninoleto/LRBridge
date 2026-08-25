@@ -88,7 +88,7 @@ assert.equal(
         sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale" && slider.adjustSupported !== false).length +
         sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale" && slider.resetSupported !== false).length +
         developTypes.action.options.length,
-    309,
+    311,
     "Develop concrete Builder combination count changed"
 );
 assert.match(builderSource, /id="builderFamily"/);

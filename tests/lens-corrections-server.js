@@ -13,6 +13,7 @@ const hueCases = [
     { id: "DefringeGreenHueHi", runtime: { min: 44, max: 100 }, acceptedValue: 20 }
 ];
 const hueIds = hueCases.map(function (testCase) { return testCase.id; });
+const staticDomainIds = ["ProfileAmount"].concat(hueIds);
 
 function getJson(port, requestPath) {
     return new Promise(function (resolve, reject) {
@@ -41,8 +42,8 @@ async function main() {
     assert.deepEqual(
         metadata.filter(function (item) { return item.useRuntimeRangeForAdmission === false; })
             .map(function (item) { return item.id; }),
-        hueIds,
-        "Static-domain admission must remain limited to the four Defringe Hue endpoints"
+        staticDomainIds,
+        "Static-domain admission must remain limited to Profile Amount and the four Defringe Hue endpoints"
     );
     for (const testCase of hueCases) {
         const definition = metadata.find(function (item) { return item.id === testCase.id; });

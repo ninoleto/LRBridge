@@ -51,6 +51,8 @@ function unavailableProfileState(reason, revision, optionSnapshotRevision, conte
         browseLabel: null,
         selectedToken: null,
         selectedLabel: null,
+        source: null,
+        supportsAmount: null,
         validationGeneration: 0,
         validationFailedGeneration: 0,
         options: []
@@ -179,6 +181,8 @@ function publicClone(state) {
         browseLabel: state.browseLabel,
         selectedToken: state.selectedToken,
         selectedLabel: state.selectedLabel,
+        source: state.source,
+        supportsAmount: state.supportsAmount,
         validationGeneration: state.validationGeneration,
         validationFailedGeneration: state.validationFailedGeneration,
         options: state.options.map(function (option) { return Object.assign({}, option); })
@@ -215,6 +219,8 @@ function createProfileNativeState(backend, options) {
     let currentDevelopChangedAt = null;
     let contextDevelopReady = false;
     let sdkLabelAccepted = null;
+    let sdkSourceAccepted = null;
+    let sdkSupportsAmountAccepted = null;
     let uiaFallbackLabel = null;
     let privateSnapshot = null;
     let state = unavailableProfileState(
@@ -344,6 +350,9 @@ function createProfileNativeState(backend, options) {
         const selectedOption = publicOptions.find(function (option) {
             return option.position === normalized.selected.position && option.label === normalized.selected.label;
         });
+        const sdkFeedbackMatches = sdkLabelAccepted === selectedOption.label;
+        const source = sdkFeedbackMatches ? sdkSourceAccepted : null;
+        const supportsAmount = sdkFeedbackMatches ? sdkSupportsAmountAccepted : null;
         privateSnapshot = normalized;
         state = {
             available: true,
@@ -359,11 +368,17 @@ function createProfileNativeState(backend, options) {
             browseLabel: normalized.browseLabel,
             selectedToken: selectedOption.token,
             selectedLabel: selectedOption.label,
+            source: source,
+            supportsAmount: supportsAmount,
             validationGeneration: sdkValidationGeneration,
             validationFailedGeneration: sdkValidationFailedGeneration,
             options: publicOptions
         };
-        if (sdkLabelAccepted !== selectedOption.label) sdkLabelAccepted = null;
+        if (sdkLabelAccepted !== selectedOption.label) {
+            sdkLabelAccepted = null;
+            sdkSourceAccepted = null;
+            sdkSupportsAmountAccepted = null;
+        }
         uiaFallbackLabel = selectedOption.label;
 
         expireSdkWritePending(now());
@@ -501,6 +516,8 @@ function createProfileNativeState(backend, options) {
         contextDevelopReady = developAdvancedForContext(binding);
         if (contextDevelopReady) diagnostics.developContextReady += 1;
         sdkLabelAccepted = null;
+        sdkSourceAccepted = null;
+        sdkSupportsAmountAccepted = null;
         uiaFallbackLabel = null;
         if (sdkWritePending) diagnostics.sdkWritesCanceled += 1;
         sdkWritePending = null;
@@ -527,6 +544,7 @@ function createProfileNativeState(backend, options) {
                 (typeof input.selectedPhotoUuid !== "string" || input.selectedPhotoUuid.length < 1)) ||
             typeof input.label !== "string" || input.label.trim() !== input.label || input.label.length < 1 ||
             input.label.length > MAX_LABEL_LENGTH || isBrowseLabel(input.label) ||
+            (input.supportsAmount !== null && typeof input.supportsAmount !== "boolean") ||
             input.contextCounter !== contextCounter || input.developCounter !== currentDevelopCounter ||
             input.selectedPhotoKey !== photoKey || (input.selectedPhotoUuid || null) !== photoUuid ||
             !contextDevelopReady || input.developCounter <= contextDevelopBaseline || sdkWritePending) {
@@ -534,9 +552,12 @@ function createProfileNativeState(backend, options) {
             return false;
         }
         diagnostics.sdkFeedbackAccepted += 1;
-        if (sdkLabelAccepted === input.label && state.selectedLabel === input.label) return true;
+        if (sdkLabelAccepted === input.label && state.selectedLabel === input.label && state.source === input.source &&
+            state.supportsAmount === input.supportsAmount) return true;
 
         sdkLabelAccepted = input.label;
+        sdkSourceAccepted = input.source;
+        sdkSupportsAmountAccepted = input.supportsAmount;
         uiaFallbackLabel = null;
         revision += 1;
         if (optionSignature !== null || privateSnapshot !== null || state.available) optionSnapshotRevision += 1;
@@ -559,6 +580,8 @@ function createProfileNativeState(backend, options) {
             browseLabel: null,
             selectedToken: null,
             selectedLabel: input.label,
+            source: input.source,
+            supportsAmount: input.supportsAmount,
             validationGeneration: sdkValidationGeneration,
             validationFailedGeneration: sdkValidationFailedGeneration,
             options: []
@@ -688,6 +711,8 @@ function createProfileNativeState(backend, options) {
         }
         sdkWriteGeneration += 1;
         sdkLabelAccepted = null;
+        sdkSourceAccepted = null;
+        sdkSupportsAmountAccepted = null;
         sdkWritePending = {
             generation: sdkWriteGeneration,
             token: token,
@@ -798,6 +823,8 @@ function createProfileNativeState(backend, options) {
             currentDevelopChangedAt = null;
             contextDevelopReady = false;
             sdkLabelAccepted = null;
+            sdkSourceAccepted = null;
+            sdkSupportsAmountAccepted = null;
             uiaFallbackLabel = null;
             privateSnapshot = null;
             state = unavailableProfileState("Lightroom Profile state has not been read yet", 0, 0, 0);

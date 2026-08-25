@@ -81,12 +81,15 @@ function loadControllerServer(backendPort) {
 }
 
 async function supplyResult(backendPort, id, slider, definition, unavailable) {
-    const resultPath = unavailable
+    const photoIdentity = slider === "ProfileAmount"
+        ? "&selectedPhotoKey=feedback-proxy-photo&selectedPhotoUuid=feedback-proxy-photo"
+        : "";
+    const resultPath = (unavailable
         ? "/feedback/result?id=" + id + "&slider=" + encodeURIComponent(slider) + "&available=0"
         : "/feedback/result?id=" + id + "&slider=" + encodeURIComponent(slider) +
             "&value=" + encodeURIComponent(String(definition.min)) +
             "&min=" + encodeURIComponent(String(definition.min)) +
-            "&max=" + encodeURIComponent(String(definition.max));
+            "&max=" + encodeURIComponent(String(definition.max))) + photoIdentity;
     assert.equal((await request(backendPort, resultPath)).statusCode, 200);
 }
 
@@ -181,6 +184,11 @@ async function main() {
         const definitions = sliders.getAll().filter(function (definition) {
             return definition.feedbackSupported === true;
         });
+        response = await request(backendPort,
+            "/context/update?activeModule=develop&selectedPhotoKey=feedback-proxy-photo" +
+            "&selectedPhotoUuid=feedback-proxy-photo&selectedPhotoPath=feedback-proxy-photo.dng" +
+            "&developFingerprint=feedback-proxy-revision");
+        assert.equal(response.statusCode, 200);
         const startedAt = Date.now();
         response = await request(
             controllerPort,

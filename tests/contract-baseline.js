@@ -211,8 +211,15 @@ function validateStaticContract() {
     assert.deepEqual(sorted(controllerSliderReferences), sorted(expectedControllerSliders), "Web Controller slider definitions drifted");
     assert.equal(new Set(controllerActionReferences).size, controllerActionReferences.length, "Web Controller action definitions must be unique");
     assert.deepEqual(sorted(controllerActionReferences), sorted(fixture.actions), "Web Controller action definitions drifted");
-    for (const id of expectedControllerSliders) {
+    const protectedCheatsheetExcludedSliders = fixture.protectedCheatsheetExcludedSliders || [];
+    for (const id of expectedControllerSliders.filter(function (id) {
+        return !protectedCheatsheetExcludedSliders.includes(id);
+    })) {
         assert.ok(generatedDoc.includes("slider=" + id), "Generated Companion document is missing slider " + id);
+    }
+    for (const id of protectedCheatsheetExcludedSliders) {
+        assert.ok(expectedControllerSliders.includes(id), "Protected cheat-sheet exclusion is not a Web Controller slider: " + id);
+        assert.ok(!generatedDoc.includes("slider=" + id), "Protected Companion document changed for " + id);
     }
     for (const id of fixture.webControllerExcludedSliders) {
         assert.ok(!controllerSliderReferences.includes(id), "Web Controller exclusion changed for " + id);

@@ -781,6 +781,16 @@
             visibility: visible;
         }
 
+        .develop-profile-amount-row input:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
+        .develop-profile-amount-row .develop-slider-state {
+            min-height: 16px;
+            height: 16px;
+        }
+
         .develop-loading-status {
             min-height: 20px;
             height: 20px;
@@ -976,6 +986,14 @@
         button.command-neutral:hover,
         button.label-none:hover {
             background: #56626e;
+        }
+
+        .basic-controls-row button.bw-treatment-active,
+        .basic-controls-row button.bw-treatment-active:hover {
+            background: #178447;
+            border-color: #65e08c;
+            color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(101, 224, 140, 0.28);
         }
 
         button.command-success,
@@ -1489,6 +1507,12 @@
     <script>
         const sliderGroups = [
         {
+                "name": "Profile",
+                "sliders": [
+                        "ProfileAmount"
+                ]
+        },
+        {
                 "name": "Basic",
                 "sliders": [
                         "Exposure",
@@ -1649,6 +1673,7 @@
 ];
 
         const labels = {
+        "ProfileAmount": "Profile Amount",
         "Exposure": "Exposure",
         "Contrast": "Contrast",
         "Highlights": "Highlights",
@@ -2611,6 +2636,7 @@
 
         const feedbackSupportedSliders = new Set([
             "CropAngle",
+            "ProfileAmount",
             "Exposure",
             "Contrast",
             "Highlights",
@@ -4093,6 +4119,20 @@
             return true;
         }
 
+        function isProfileAmountControl(control) {
+            return !!control && control.definition.id === "ProfileAmount";
+        }
+
+        function profileAmountSubmissionBlocked(control) {
+            if (!isProfileAmountControl(control)) return false;
+            return control.profileAmountEnabled !== true ||
+                control.feedbackState !== "available" ||
+                !Number.isFinite(Number(control.authoritativeValue)) ||
+                control.range.disabled || control.number.disabled ||
+                control.decrement.disabled || control.increment.disabled || control.reset.disabled ||
+                control.confirmationPending;
+        }
+
         function notifyDevelopSliderPresentation(control) {
             if (control.compoundRange) updateCompoundDevelopRange(control.compoundRange);
             if (isParametricCurveSplitControl(control)) updateParametricCurveSplitConstraints();
@@ -4131,6 +4171,7 @@
         }
 
         function applyDevelopSliderFeedback(control, value, rangeChanged) {
+            if (isProfileAmountControl(control) && control.profileAmountEnabled !== true) return;
             const numericValue = Number(value);
             if (
                 !Number.isFinite(numericValue) ||
@@ -4185,6 +4226,7 @@
         }
 
         function applyDevelopSliderFeedbackIfChanged(control, result) {
+            if (isProfileAmountControl(control) && control.profileAmountEnabled !== true) return;
             if (result.available === false && control.definition.authoritativeUnavailableImmediate === true) {
                 markDevelopSliderUnavailable(control, true);
                 return;
@@ -4205,8 +4247,16 @@
                     control.hasAuthoritativeValueEver = true;
                     hasReceivedAnyAuthoritativeDevelopValue = true;
                     if (valuesMatchDevelopSlider(control.definition, result.value, control.desiredValue)) {
+                        const confirmedValue = control.desiredValue;
                         control.numberCommittedValue = Number(result.value);
                         cancelDevelopSliderStep(control);
+                        if (control.localValue === null || !valuesMatchDevelopSlider(
+                            control.definition,
+                            control.localValue,
+                            confirmedValue
+                        )) {
+                            showDevelopSliderLocal(control, confirmedValue);
+                        }
                     }
                 }
                 return;
@@ -4298,6 +4348,10 @@
         }
 
         async function submitDevelopSliderValue(control, value, kind, completion) {
+            if (profileAmountSubmissionBlocked(control)) {
+                if (completion) completion(false);
+                return;
+            }
             if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                 restoreWhiteBalanceDependentSlider(control);
                 setStatus("White Balance is still waiting for Lightroom; Temperature and Tint are temporarily locked.");
@@ -4520,6 +4574,7 @@
 
         function stepDevelopSliderValue(control, direction) {
             if (!control) return;
+            if (profileAmountSubmissionBlocked(control)) return;
             if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                 restoreWhiteBalanceDependentSlider(control);
                 return;
@@ -4536,6 +4591,16 @@
             showDevelopSliderLocal(control, nextValue);
             control.numberCommittedValue = nextValue;
             scheduleDevelopSliderStepSubmission(control);
+        }
+
+        function beginDevelopSliderReset(control) {
+            if (!control) return null;
+            cancelDevelopSliderStep(control);
+            if (control.definition.id !== "ProfileAmount") return null;
+            control.desiredValue = 100;
+            control.confirmationPending = true;
+            control.stepConfirmationExpired = false;
+            return 100;
         }
 
         function createDevelopSliderControl(definition) {
@@ -4577,14 +4642,17 @@
             increment.setAttribute("aria-label", "Increase " + definition.label);
 
             const reset = makeButton("Reset", "reset", function () {
+                if (profileAmountSubmissionBlocked(control)) return;
                 if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                     restoreWhiteBalanceDependentSlider(control);
                     return;
                 }
-                cancelDevelopSliderStep(control);
+                const authoritativeResetValue = beginDevelopSliderReset(control);
                 markSliderCommandSent();
                 sendCommand("/api/reset?slider=" + encodeURIComponent(definition.id)).then(function (accepted) {
-                    if (accepted) {
+                    if (authoritativeResetValue !== null) {
+                        handleDevelopSliderStepSubmission(control, authoritativeResetValue, accepted);
+                    } else if (accepted) {
                         setTimeout(function () {
                             requestLiveFeedbackSnapshot(true);
                         }, 300);
@@ -5223,6 +5291,86 @@
             control.optionRenderKey = renderKey;
         }
 
+        function profileAmountSupported(presentation) {
+            if (!presentation) return false;
+            if (typeof presentation.supportsAmount === "boolean") return presentation.supportsAmount;
+            return presentation.authoritativeSource === "AILook" ||
+                presentation.authoritativeSource === "Look.Name";
+        }
+
+        function setProfileAmountInactivePresentation(control, state, message) {
+            cancelDevelopSliderThrottle(control);
+            activeSliderInteractions.delete(control.definition.id);
+            control.interactionKind = null;
+            control.dragging = false;
+            control.editing = false;
+            cancelDevelopSliderStep(control);
+            control.pendingValue = null;
+            control.pendingKind = null;
+            control.pendingCompletion = null;
+            control.deferredFeedbackResult = null;
+            control.authoritativeValue = null;
+            control.hasAuthoritativeValueEver = false;
+            control.numberCommittedValue = null;
+            control.localValue = null;
+            control.number.value = "";
+            control.range.value = String(control.definition.min);
+            control.range.style.setProperty("--slider-progress", "0%");
+            control.visualProgress = "0%";
+            control.range.disabled = true;
+            control.number.disabled = true;
+            control.decrement.disabled = true;
+            control.increment.disabled = true;
+            control.reset.disabled = true;
+            control.row.hidden = false;
+            setDevelopSliderState(control, state, message);
+        }
+
+        function updateProfileAmountControl(presentation) {
+            const control = developSliderControls.ProfileAmount;
+            const profileControl = developCategoricalControls.profile;
+            if (!control) return;
+            const presentationIdentity = presentation && typeof presentation.authoritativeToken === "string"
+                ? presentation.authoritativeToken
+                : null;
+            const identityChanged = control.profileAmountPresentationIdentity !== presentationIdentity;
+            control.profileAmountPresentationIdentity = presentationIdentity;
+            control.row.hidden = false;
+            if (profileControl) {
+                profileControl.row.classList.toggle("develop-profile-section-gap", false);
+            }
+            const capabilityUpdating = !presentation || presentation.pending === true || presentation.updating === true;
+            if (capabilityUpdating) {
+                control.profileAmountEnabled = false;
+                setProfileAmountInactivePresentation(control, "loading", "Updating Profile Amount…");
+                return;
+            }
+            const enabled = profileAmountSupported(presentation);
+            const wasEnabled = control.profileAmountEnabled === true;
+            control.profileAmountEnabled = enabled;
+            if (!enabled) {
+                setProfileAmountInactivePresentation(
+                    control,
+                    "unavailable",
+                    "Unavailable for this profile"
+                );
+                return;
+            }
+            if (identityChanged || control.feedbackState !== "available" ||
+                !Number.isFinite(Number(control.authoritativeValue))) {
+                setProfileAmountInactivePresentation(control, "loading", "Updating Profile Amount…");
+                control.profileAmountEnabled = true;
+            } else {
+                control.range.disabled = false;
+                control.number.disabled = false;
+                control.decrement.disabled = false;
+                control.increment.disabled = false;
+                control.reset.disabled = control.definition.resetSupported === false;
+                setDevelopSliderState(control, "", "");
+            }
+            if (!wasEnabled || identityChanged) requestLiveFeedbackSnapshot(true);
+        }
+
         function updateProfileControl() {
             const control = developCategoricalControls.profile;
             if (!control || !profileModel) return;
@@ -5242,6 +5390,7 @@
             } else {
                 control.status.textContent = presentation.authoritativeLabel || "Unavailable";
             }
+            updateProfileAmountControl(presentation);
         }
 
         function updateDevelopCategoricalControls() {
@@ -7703,16 +7852,17 @@
 
         function updateTreatmentButton() {
             if (!treatmentButton) return;
+            const authoritativeBlackAndWhite = treatmentHasAuthoritativeState &&
+                treatmentAuthoritativeState === true;
             treatmentButton.disabled = treatmentPending || !treatmentHasAuthoritativeState;
-            treatmentButton.setAttribute("role", "switch");
-            treatmentButton.setAttribute("aria-checked", String(treatmentHasAuthoritativeState && treatmentAuthoritativeState));
-            treatmentButton.classList.toggle("active", treatmentAuthoritativeState === true);
+            treatmentButton.setAttribute("aria-pressed", String(authoritativeBlackAndWhite));
+            treatmentButton.classList.toggle("bw-treatment-active", authoritativeBlackAndWhite);
             treatmentButton.classList.toggle("pending", treatmentPending);
-            treatmentButton.title = treatmentAuthoritativeState ? "Black & White mode" : "Color mode";
+            treatmentButton.title = authoritativeBlackAndWhite ? "Black & White mode" : "Color mode";
             if (treatmentStatus) {
                 treatmentStatus.textContent = treatmentPending ? "Applying…" :
                     (!treatmentHasAuthoritativeState ? "Loading treatment…" :
-                        (treatmentStateFresh ? (treatmentAuthoritativeState ? "Black & White" : "Color") : "Treatment unavailable"));
+                        (treatmentStateFresh ? (authoritativeBlackAndWhite ? "Black & White" : "Color") : "Treatment unavailable"));
             }
         }
 
@@ -7802,6 +7952,7 @@
         function validateDevelopSectionMapping(sections) {
             const expectedIds = developSliderDefinitions.filter(function (definition) {
                 if (definition.group === "Tone Curve") return false;
+                if (definition.group === "Profile") return false;
                 if (treatmentAuthoritativeState && definition.group === "Color Mixer / HSL") return false;
                 if (!treatmentAuthoritativeState && definition.group === "B&W Mixer") return false;
                 return true;
@@ -7886,7 +8037,7 @@
             status.setAttribute("aria-live", "polite");
             const help = document.createElement("div");
             help.className = "develop-profile-help";
-            help.textContent = "Lightroom quick/favorite profiles. Manage additional profiles through Browse in Lightroom.";
+            help.textContent = "Lightroom SDK limitation: only supported profiles can be selected here. Other profiles are shown for feedback but must be selected in Lightroom. Manage additional profiles through Browse in Lightroom.";
             select.addEventListener("change", function () {
                 const presentation = profileModel ? profileModel.presentation() : null;
                 if (select.disabled || !presentation || presentation.pending) {
@@ -7905,6 +8056,28 @@
                 status: status,
                 optionSnapshotRevision: -1
             };
+            return row;
+        }
+
+        function createProfileAmountSlider() {
+            const definition = developSliderDefinitions.find(function (item) {
+                return item.id === "ProfileAmount";
+            });
+            if (!definition) return null;
+            const row = createDevelopSliderControl(definition);
+            const control = developSliderControls.ProfileAmount;
+            row.classList.add("develop-profile-amount-row", "develop-profile-section-gap");
+            row.hidden = false;
+            if (control) {
+                control.profileAmountEnabled = false;
+                control.profileAmountPresentationIdentity = null;
+                setDevelopSliderState(control, "loading", "Updating Profile Amount…");
+                control.onPresentationChange = function () {
+                    updateProfileAmountControl(profileModel ? profileModel.presentation() : null);
+                };
+            }
+            const profileControl = developCategoricalControls.profile;
+            if (profileControl) profileControl.row.classList.remove("develop-profile-section-gap");
             return row;
         }
 
@@ -8015,6 +8188,8 @@
             if (!developCategoricalHelper) return;
             if (sectionId === "white-balance") {
                 groupElement.appendChild(createProfileSelector());
+                const profileAmount = createProfileAmountSlider();
+                if (profileAmount) groupElement.appendChild(profileAmount);
                 const whiteBalanceTitle = document.createElement("div");
                 whiteBalanceTitle.className = "group-title develop-white-balance-title";
                 whiteBalanceTitle.textContent = "WHITE BALANCE";

@@ -1,5 +1,23 @@
 [
     {
+        "id": "ProfileAmount",
+        "label": "Profile Amount",
+        "group": "Profile",
+        "min": 0,
+        "max": 200,
+        "default": 100,
+        "incrementDescription": "Profile amount. Web Controller writes use absolute documented ProfileAmount values only.",
+        "rangeStep": 1,
+        "numericStep": 1,
+        "displayPrecision": 0,
+        "adjustSupported": false,
+        "resetSupported": true,
+        "useRuntimeRangeForAdmission": false,
+        "authoritativeUnavailableImmediate": true,
+        "retainAuthoritativeAcrossRender": false,
+        "feedbackSupported": true
+    },
+    {
         "id": "Exposure",
         "label": "Exposure",
         "group": "Basic",

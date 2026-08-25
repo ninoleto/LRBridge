@@ -236,6 +236,7 @@
     "selectMaskingTool"
   ],
   "groups": [
+    "Profile",
     "Basic",
     "Color",
     "Presence",
@@ -249,14 +250,17 @@
     "Tone Curve",
     "Lens Blur"
   ],
-  "sliderCount": 101,
-  "sliderIdsSha256": "7a34be0ed59a35b63d0ee4aeef074d61c7151ec47c5bdf9bc268854d6a68ca0b",
-  "groupsSha256": "2d75f11ffbad7874142a3e8dd1299bc5d1c39022b22e4a0b905f6c49cf206e85",
+  "sliderCount": 102,
+  "sliderIdsSha256": "310e4d75c40f9c373fc882745ca8db9f6d896f766c09ca2657325a67819575fe",
+  "groupsSha256": "4af41d2bc2a182d3e0d99e674f8cb4a79024fa6f3ab09fd0db99966c789314f5",
   "nonReadableSliders": [
     "LensProfileChromaticAberrationScale"
   ],
   "webControllerExcludedSliders": [
     "LensProfileChromaticAberrationScale"
+  ],
+  "protectedCheatsheetExcludedSliders": [
+    "ProfileAmount"
   ],
   "settings": {
     "field": "poll_interval_ms",
