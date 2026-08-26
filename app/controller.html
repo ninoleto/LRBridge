@@ -1463,6 +1463,203 @@
 
         .angle-value:not(:empty) { visibility: visible; }
 
+        .point-curve-group {
+            --point-curve-color: #eef4f8;
+        }
+
+        .point-curve-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .point-curve-channels {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(64px, 1fr));
+            gap: 8px;
+            flex: 1 1 auto;
+        }
+
+        .point-curve-channel,
+        .point-curve-actions button {
+            min-height: 48px;
+            border: 1px solid #435363;
+            border-radius: 9px;
+            padding: 10px 14px;
+            background: #111820;
+            color: #eaf1f5;
+            font-size: 15px;
+            font-weight: 700;
+            touch-action: manipulation;
+        }
+
+        .point-curve-channel.active {
+            border-color: currentColor;
+            box-shadow: inset 0 0 0 2px currentColor, 0 0 0 2px rgba(255, 255, 255, 0.08);
+            background: #25313b;
+        }
+
+        .point-curve-channel-rgb { color: #f2f5f7; }
+        .point-curve-channel-red { color: #ff7878; }
+        .point-curve-channel-green { color: #69dc8b; }
+        .point-curve-channel-blue { color: #78aaff; }
+
+        .point-curve-name {
+            flex: 0 0 auto;
+            min-width: 88px;
+            color: #b9c8d3;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .point-curve-graph-shell {
+            position: relative;
+            width: min(100%, 620px);
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            overflow: hidden;
+            border: 1px solid #52616d;
+            border-radius: 10px;
+            background: #090d11;
+        }
+
+        .point-curve-graph {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .point-curve-grid line {
+            stroke: #33404a;
+            stroke-width: 0.7;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .point-curve-grid line:first-child,
+        .point-curve-grid line:nth-child(2),
+        .point-curve-grid line:nth-last-child(1),
+        .point-curve-grid line:nth-last-child(2) {
+            stroke: #66737d;
+        }
+
+        .point-curve-reference {
+            stroke: #75818a;
+            stroke-width: 1;
+            stroke-dasharray: 4 4;
+            vector-effect: non-scaling-stroke;
+            pointer-events: none;
+        }
+
+        .point-curve-line,
+        .point-curve-preview-line {
+            fill: none;
+            stroke: var(--point-curve-color);
+            stroke-width: 2.4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
+            pointer-events: none;
+        }
+
+        .point-curve-line[data-channel="red"] { stroke: #ff6868; }
+        .point-curve-line[data-channel="green"] { stroke: #57d77d; }
+        .point-curve-line[data-channel="blue"] { stroke: #669cff; }
+        .point-curve-line.previewing { opacity: 0.24; }
+        .point-curve-preview-line[data-channel="red"] { stroke: #ff6868; }
+        .point-curve-preview-line[data-channel="green"] { stroke: #57d77d; }
+        .point-curve-preview-line[data-channel="blue"] { stroke: #669cff; }
+        .point-curve-preview-line { opacity: 0.96; }
+
+        .point-curve-hit-target {
+            fill: transparent;
+            stroke: none;
+            pointer-events: all;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .point-curve-marker {
+            fill: #0a1015;
+            stroke: var(--point-curve-color);
+            stroke-width: 1.5;
+            vector-effect: non-scaling-stroke;
+            pointer-events: none;
+        }
+
+        .point-curve-line[data-channel="red"] + .point-curve-handles .point-curve-marker { stroke: #ff6868; }
+        .point-curve-line[data-channel="green"] + .point-curve-handles .point-curve-marker { stroke: #57d77d; }
+        .point-curve-line[data-channel="blue"] + .point-curve-handles .point-curve-marker { stroke: #669cff; }
+        .point-curve-marker.selected { fill: #f7bf59; stroke: #fff3d1 !important; }
+        .point-curve-marker.preview-source { opacity: 0.24; }
+        .point-curve-preview-marker[data-channel="red"] { stroke: #ff6868; }
+        .point-curve-preview-marker[data-channel="green"] { stroke: #57d77d; }
+        .point-curve-preview-marker[data-channel="blue"] { stroke: #669cff; }
+        .point-curve-hit-target:focus-visible + .point-curve-marker {
+            filter: drop-shadow(0 0 2px #ffffff);
+            stroke: #ffffff !important;
+        }
+
+        .point-curve-values {
+            display: flex;
+            justify-content: flex-end;
+            gap: 18px;
+            min-height: 22px;
+            margin-top: 7px;
+            color: #9eabb4;
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .point-curve-value-number {
+            display: inline-block;
+            min-width: 3ch;
+            color: #e6edf2;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .point-curve-updating {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: rgba(7, 10, 13, 0.74);
+            color: #dce8ef;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .point-curve-updating[hidden] { display: none; }
+
+        .point-curve-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .point-curve-actions button:disabled,
+        .point-curve-channel:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 620px) {
+            .point-curve-toolbar { align-items: stretch; flex-direction: column; }
+            .point-curve-name { min-height: 20px; text-align: left; }
+            .point-curve-channels { grid-template-columns: repeat(2, minmax(90px, 1fr)); }
+            .point-curve-actions { grid-template-columns: 1fr; }
+        }
+
     </style>
 </head>
 <body>
@@ -1504,6 +1701,7 @@
     <script src="/controller-denoise-state.js"></script>
     <script src="/controller-develop-categorical.js"></script>
     <script src="/controller-lens-blur.js"></script>
+    <script src="/controller-tone-curve.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -3128,6 +3326,11 @@
         let currentDevelopRefreshClassification = "initial";
         let developLoadingStatus = null;
         let hasReceivedAnyAuthoritativeDevelopValue = false;
+        const pointCurveController = LRBridgeToneCurve.createController({
+            document: document,
+            fetch: fetch.bind(window),
+            setStatus: setStatus
+        });
 
         function classifyControllerContextChange(previous, next) {
             if (!previous || previous.activeModule === null) return "none";
@@ -3426,6 +3629,7 @@
                 lastControllerActiveModule = data.activeModule;
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
                 lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;
+                pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
                         profileSelectionGeneration += 1;
@@ -8650,6 +8854,13 @@
                 hasReceivedAnyAuthoritativeDevelopValue
             ) ? "" : "Loading Lightroom values…";
             content.appendChild(developLoadingStatus);
+            content.appendChild(pointCurveController.element);
+            pointCurveController.activate({
+                activeModule: lastControllerActiveModule,
+                selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                contextCounter: lastControllerContextCounter,
+                developCounter: lastControllerDevelopCounter
+            });
 
             const groupElement = document.createElement("section");
             groupElement.className = "group";
@@ -8718,6 +8929,7 @@
             }
 
             colorGradingController.deactivate();
+            if (activeTab !== "tone-curve") pointCurveController.deactivate();
             if (activeTab !== "sliders") invalidateTreatmentState();
             if (activeTab !== "sliders") {
                 lensBlurModel.applyAuthoritative(null);

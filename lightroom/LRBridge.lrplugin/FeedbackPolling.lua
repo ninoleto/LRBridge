@@ -4,6 +4,7 @@ local LrApplication = import "LrApplication"
 local LrApplicationView = import "LrApplicationView"
 local LrDate = import "LrDate"
 local LrDevelopController = import "LrDevelopController"
+local LrFunctionContext = import "LrFunctionContext"
 
 local Query = require "Query"
 local ColorGrading = require "ColorGrading"
@@ -12,6 +13,7 @@ local PointColor = require "PointColor"
 local History = require "History"
 local LensBlur = require "LensBlur"
 local DevelopCategorical = require "DevelopCategorical"
+local ToneCurve = require "ToneCurve"
 
 local function getPortableRoot()
 
@@ -333,7 +335,7 @@ local function readProfileFeedback(identity)
     }
 end
 
-local function getDevelopFingerprint(activeModule, profileFingerprint)
+local function getDevelopFingerprint(activeModule, profileFingerprint, toneCurveFingerprint)
 
     if activeModule ~= "develop" then
         return ""
@@ -353,6 +355,10 @@ local function getDevelopFingerprint(activeModule, profileFingerprint)
 
     if profileFingerprint ~= nil and profileFingerprint ~= "" then
         table.insert(parts, "ProfileState=" .. tostring(profileFingerprint))
+    end
+
+    if toneCurveFingerprint ~= nil and toneCurveFingerprint ~= "" then
+        table.insert(parts, tostring(toneCurveFingerprint))
     end
 
     if #parts == 0 then
@@ -380,7 +386,23 @@ local function sendContextHeartbeat()
     local identity = getSelectedPhotoIdentity()
     local profile = activeModule == "develop" and readProfileFeedback(identity) or
         { available = false, label = "", source = "", fingerprint = "", supportsAmount = nil }
-    local developFingerprint = getDevelopFingerprint(activeModule, profile.fingerprint)
+    local toneCurve = nil
+    if activeModule == "develop" and identity.photo ~= nil and identity.uuid ~= "" then
+        toneCurve = ToneCurve.readSnapshot()
+        local afterCurveIdentity = getSelectedPhotoIdentity()
+        if afterCurveIdentity.photo ~= identity.photo or afterCurveIdentity.key ~= identity.key or
+            afterCurveIdentity.uuid ~= identity.uuid then
+            toneCurve = nil
+        end
+    end
+    local developFingerprint = getDevelopFingerprint(
+        activeModule,
+        profile.fingerprint,
+        toneCurve and toneCurve.fingerprint or nil
+    )
+    if activeModule == "develop" and identity.photo ~= nil and identity.uuid ~= "" and toneCurve == nil then
+        developFingerprint = ""
+    end
 
     local url =
         "http://127.0.0.1:17891/context/update" ..
@@ -405,13 +427,30 @@ local function sendContextHeartbeat()
         LrHttp.get(feedbackUrl)
     end
 
+    if toneCurve ~= nil and contextCounter ~= nil and developCounter ~= nil then
+        local currentIdentity = getSelectedPhotoIdentity()
+        if currentIdentity.photo == identity.photo and currentIdentity.key == identity.key and
+            currentIdentity.uuid == identity.uuid then
+            local toneCurveUrl = "http://127.0.0.1:17891/tone-curve/feedback" ..
+                "?contextCounter=" .. tostring(contextCounter) ..
+                "&developCounter=" .. tostring(developCounter) ..
+                "&selectedPhotoUuid=" .. urlEncode(identity.uuid) ..
+                "&name=" .. urlEncode(toneCurve.name) ..
+                "&rgb=" .. urlEncode(toneCurve.rgbSerialized) ..
+                "&red=" .. urlEncode(toneCurve.redSerialized) ..
+                "&green=" .. urlEncode(toneCurve.greenSerialized) ..
+                "&blue=" .. urlEncode(toneCurve.blueSerialized)
+            LrHttp.get(toneCurveUrl)
+        end
+    end
+
 end
 
-local function maybeSendContextHeartbeat()
+local function maybeSendContextHeartbeat(force)
 
     local now = LrDate.currentTime()
 
-    if now - lastContextSentAt < contextIntervalSeconds then
+    if force ~= true and now - lastContextSentAt < contextIntervalSeconds then
         return
     end
 
@@ -742,7 +781,11 @@ _G.LRBridgeFeedbackPollingStarted = true
 
 LrTasks.startAsyncTask(function()
 
+    LrFunctionContext.callWithContext("LRBridge Tone Curve feedback observer", function(observerContext)
+
     log("feedback request polling loop started")
+
+    local toneCurveObserverInstalled = false
 
     while _G.LRBridgeFeedbackPollingStarted == true do
 
@@ -780,7 +823,16 @@ LrTasks.startAsyncTask(function()
 
         end
 
-        maybeSendContextHeartbeat()
+        if toneCurveObserverInstalled ~= true and getActiveModule() == "develop" then
+            local observerIdentity = getSelectedPhotoIdentity()
+            if observerIdentity.photo ~= nil and observerIdentity.uuid ~= "" then
+                toneCurveObserverInstalled = ToneCurve.installAdjustmentObserver(observerContext)
+            end
+        end
+
+        local toneCurveDirty = false
+        if _G.LRBridgeCommandBusy ~= true then toneCurveDirty = ToneCurve.consumeDirty() end
+        maybeSendContextHeartbeat(toneCurveDirty)
 
         local enhanceRequest = LrHttp.get("http://127.0.0.1:17891/enhance/next")
         if string.find(enhanceRequest or "", [["requested":true]], 1, true) then
@@ -812,5 +864,7 @@ LrTasks.startAsyncTask(function()
     end
 
     log("feedback request polling loop stopped")
+
+    end)
 
 end)

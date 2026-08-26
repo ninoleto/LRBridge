@@ -7,6 +7,7 @@ const focalRange = require("./lens-blur-focal-range");
 const context = require("./context");
 const developCategorical = require("./develop-categorical-state");
 const profileSdkRegistry = require("./profile-sdk-registry");
+const pointCurve = require("./point-curve-state");
 
 const commandQueue = [];
 let latestResult = null;
@@ -163,11 +164,37 @@ function validateCommand(command) {
         ,"develop_categorical.upright_mode.set"
         ,"develop_categorical.constrain_crop.set"
         ,"develop_categorical.upright_tool.select"
+        ,"tone_curve.gesture.begin"
+        ,"tone_curve.gesture.update"
+        ,"tone_curve.gesture.end"
+        ,"tone_curve.gesture.cancel"
+        ,"tone_curve.reset"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
         console.log("Invalid command");
         return false;
+    }
+
+    if (command.command === "tone_curve.gesture.begin" || command.command === "tone_curve.gesture.update" ||
+        command.command === "tone_curve.gesture.end" || command.command === "tone_curve.gesture.cancel" ||
+        command.command === "tone_curve.reset") {
+        const gestureCommand = command.command !== "tone_curve.reset";
+        const carriesPoints = command.command === "tone_curve.gesture.update" || command.command === "tone_curve.gesture.end";
+        const cancellation = command.command === "tone_curve.gesture.cancel";
+        const expectedKeys = cancellation ? 7 : (gestureCommand ? (carriesPoints ? 9 : 8) : 7);
+        if (Object.keys(command).length !== expectedKeys || !pointCurve.validChannel(command.channel) ||
+            command.field !== pointCurve.fieldForChannel(command.channel) ||
+            typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
+            command.expectedSelectedPhotoUuid.length > 160 ||
+            !Number.isSafeInteger(command.expectedContextCounter) || command.expectedContextCounter < 0 ||
+            !Number.isSafeInteger(command.expectedDevelopCounter) || command.expectedDevelopCounter < 0 ||
+            (!cancellation && !pointCurve.validCurveArray(command.expectedPoints))) {
+            return false;
+        }
+        if (gestureCommand && !pointCurve.GESTURE_ID_PATTERN.test(command.gestureId || "")) return false;
+        if (carriesPoints && !pointCurve.validCurveArray(command.points)) return false;
+        return true;
     }
 
     if (command.command === "point_color.value.set") {
@@ -211,6 +238,7 @@ function validateCommand(command) {
         return (publicShape || internalShape) && typeof command.value === "string" &&
             focalRange.format(focalRange.parse(command.value)) === command.value;
     }
+
     if (command.command === "develop_categorical.white_balance.set") {
         return Object.keys(command).length === 2 && developCategorical.whiteBalanceWritableValues.includes(command.value);
     }
@@ -501,6 +529,35 @@ function tryEnqueueCommand(command) {
         }
     }
 
+    if (command.command === "tone_curve.gesture.update" || command.command === "tone_curve.gesture.end" ||
+        command.command === "tone_curve.gesture.cancel") {
+        const admittedAt = Date.now();
+        const matchingIndexes = [];
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+            if ((pending.command === "tone_curve.gesture.update" || pending.command === "tone_curve.gesture.end" ||
+                (command.command === "tone_curve.gesture.cancel" &&
+                    (pending.command === "tone_curve.gesture.begin" || pending.command === "tone_curve.gesture.cancel"))) &&
+                pending.channel === command.channel && pending.gestureId === command.gestureId &&
+                pending.expectedSelectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+                pending.expectedContextCounter === command.expectedContextCounter) {
+                matchingIndexes.push(index);
+            }
+        }
+        if (matchingIndexes.length > 0) {
+            for (const index of matchingIndexes) {
+                commandQueue.splice(index, 1);
+                queueEntryMetadata.splice(index, 1);
+            }
+            commandQueue.push(command);
+            queueEntryMetadata.push({ enqueuedAt: admittedAt });
+            coalescedCommands += 1;
+            lastCoalescedAt = admittedAt;
+            console.log("Coalesced Tone Curve gesture:", command);
+            return admissionResult(ADMISSION_COALESCED);
+        }
+    }
+
     if (command.command === "develop_categorical.white_balance.set" ||
         command.command === "develop_categorical.process.set" ||
         command.command === "develop_categorical.vignette_style.set" ||
@@ -697,7 +754,14 @@ function tryEnqueueBatch(batch) {
 function isProtectedCommand(command) {
     return command.command === "develop.reset" || command.command === "develop.action" ||
         command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset" ||
-        command.command === "lightroom.undo" || command.command === "lightroom.redo";
+        command.command === "lightroom.undo" || command.command === "lightroom.redo" ||
+        command.command === "tone_curve.reset" || command.command === "tone_curve.gesture.cancel";
+}
+
+function pointCurveCommandBindingMatches(command) {
+    const fields = context.getContextFields();
+    return fields.activeModule === "develop" && fields.selectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+        fields.contextCounter === command.expectedContextCounter && fields.developCounter === command.expectedDevelopCounter;
 }
 
 function admissionResult(status) {
@@ -717,6 +781,8 @@ function getNextCommand() {
         lastDequeuedAt = Date.now();
         if ((command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate" ||
             command.command === "develop_categorical.profile.set") && command.expectedContextCounter !== context.getContextFields().contextCounter) continue;
+        if ((command.command === "tone_curve.gesture.begin" || command.command === "tone_curve.gesture.update" ||
+            command.command === "tone_curve.reset") && !pointCurveCommandBindingMatches(command)) continue;
         return command;
     }
     return null;
@@ -765,6 +831,11 @@ function getQueueDiagnostics(nowMs) {
         ,"lens_blur.depth_refinement.select": 0
         ,"lens_blur.depth_refinement.close": 0
         ,"lens_blur.focal_range.set": 0
+        ,"tone_curve.gesture.begin": 0
+        ,"tone_curve.gesture.update": 0
+        ,"tone_curve.gesture.end": 0
+        ,"tone_curve.gesture.cancel": 0
+        ,"tone_curve.reset": 0
     };
 
     for (const command of commandQueue) {
@@ -828,9 +899,13 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["lens_blur.bokeh.set"] +
                     pendingByCommand["lens_blur.depth_refinement.select"] +
                     pendingByCommand["lens_blur.depth_refinement.close"] +
-                    pendingByCommand["lens_blur.focal_range.set"],
+                    pendingByCommand["lens_blur.focal_range.set"] +
+                    pendingByCommand["tone_curve.gesture.begin"] +
+                    pendingByCommand["tone_curve.gesture.update"] +
+                    pendingByCommand["tone_curve.gesture.end"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
-                    pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"],
+                    pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"] +
+                    pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"],
                 byCommand: pendingByCommand
             }
         },

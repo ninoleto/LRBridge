@@ -27,6 +27,7 @@ const controllerColorGradingPath = path.join(__dirname, "controller-color-gradin
 const controllerLensBlurPath = path.join(__dirname, "controller-lens-blur.js");
 const controllerDenoiseStatePath = path.join(__dirname, "controller-denoise-state.js");
 const controllerDevelopCategoricalPath = path.join(__dirname, "controller-develop-categorical.js");
+const controllerToneCurvePath = path.join(__dirname, "controller-tone-curve.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
@@ -360,6 +361,12 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/controller-develop-categorical.js") {
         const script = fs.readFileSync(controllerDevelopCategoricalPath, "utf8");
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-tone-curve.js") {
+        const script = fs.readFileSync(controllerToneCurvePath, "utf8");
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
         return;
     }

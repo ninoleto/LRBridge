@@ -77,7 +77,12 @@ function emptyDiagnostics() {
                     "lens_blur.bokeh.set": 0,
                     "lens_blur.depth_refinement.select": 0,
                     "lens_blur.depth_refinement.close": 0,
-                    "lens_blur.focal_range.set": 0
+                    "lens_blur.focal_range.set": 0,
+                    "tone_curve.gesture.begin": 0,
+                    "tone_curve.gesture.update": 0,
+                    "tone_curve.gesture.end": 0,
+                    "tone_curve.gesture.cancel": 0,
+                    "tone_curve.reset": 0
                 }
             }
         },
@@ -235,7 +240,12 @@ function testCoreMetrics() {
         "lens_blur.bokeh.set": 0,
         "lens_blur.depth_refinement.select": 0,
         "lens_blur.depth_refinement.close": 0,
-        "lens_blur.focal_range.set": 0
+        "lens_blur.focal_range.set": 0,
+        "tone_curve.gesture.begin": 0,
+        "tone_curve.gesture.update": 0,
+        "tone_curve.gesture.end": 0,
+        "tone_curve.gesture.cancel": 0,
+        "tone_curve.reset": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);
@@ -360,7 +370,9 @@ async function testEndpointAndLifecycle() {
         let response = await get(bridge, "/diagnostics/queue");
         assert.equal(response.status, 200);
         assert.match(response.headers.get("cache-control"), /no-store/);
-        assert.deepEqual(response.body, emptyDiagnostics());
+        assert.deepEqual(response.body, Object.assign(emptyDiagnostics(), {
+            pointCurveGestures: { count: 0, admitted: [] }
+        }));
         assert.deepEqual((await get(bridge, "/status")).body, statusBefore.body);
         assert.deepEqual((await get(bridge, "/context")).body, contextBefore.body);
 

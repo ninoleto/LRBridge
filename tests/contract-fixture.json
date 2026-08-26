@@ -145,6 +145,11 @@
     ,"develop_categorical.upright_mode.set"
     ,"develop_categorical.constrain_crop.set"
     ,"develop_categorical.upright_tool.select"
+    ,"tone_curve.gesture.begin"
+    ,"tone_curve.gesture.update"
+    ,"tone_curve.gesture.end"
+    ,"tone_curve.gesture.cancel"
+    ,"tone_curve.reset"
   ],
   "selectionOperations": [
     "select_all",

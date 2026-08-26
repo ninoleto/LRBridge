@@ -10,6 +10,7 @@ local PointColor = require "PointColor"
 local History = require "History"
 local LensBlur = require "LensBlur"
 local DevelopCategorical = require "DevelopCategorical"
+local ToneCurve = require "ToneCurve"
 local Profile = require "Profile"
 local LrHttp = import "LrHttp"
 
@@ -61,6 +62,11 @@ function Commands.execute(command)
     if command.command == "develop_categorical.upright_mode.set" then DevelopCategorical.setUprightMode(command.value); return end
     if command.command == "develop_categorical.constrain_crop.set" then DevelopCategorical.setConstrainCrop(command.value); return end
     if command.command == "develop_categorical.upright_tool.select" then DevelopCategorical.selectUprightTool(); return end
+    if command.command == "tone_curve.gesture.begin" then ToneCurve.beginGesture(command); return end
+    if command.command == "tone_curve.gesture.update" then ToneCurve.updateGesture(command); return end
+    if command.command == "tone_curve.gesture.end" then ToneCurve.endGesture(command); return end
+    if command.command == "tone_curve.gesture.cancel" then ToneCurve.cancelGesture(command); return end
+    if command.command == "tone_curve.reset" then ToneCurve.resetChannel(command); return end
 
     if command.command == "develop.adjust" then
 

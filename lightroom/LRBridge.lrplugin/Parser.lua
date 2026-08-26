@@ -23,6 +23,23 @@ local function parseBooleanField(json, fieldName)
     return nil
 end
 
+local function parseIntegerArrayField(json, fieldName)
+    local keyPattern = '"' .. fieldName .. '"%s*:'
+    local count = 0
+    for _ in string.gmatch(json, keyPattern) do count = count + 1 end
+    if count ~= 1 then return nil end
+
+    local body = string.match(json, keyPattern .. '%s*%[([^%]]*)%]')
+    if body == nil or body == "" then return nil end
+    local values = {}
+    for token in string.gmatch(body, "([^,]+)") do
+        local trimmed = string.match(token, "^%s*(.-)%s*$")
+        if trimmed == nil or string.match(trimmed, "^%-?%d+$") == nil then return nil end
+        table.insert(values, tonumber(trimmed))
+    end
+    return values
+end
+
 function Parser.parse(json)
 
     local command = string.match(json, [["command":"([^"]+)"]])
@@ -43,8 +60,12 @@ function Parser.parse(json)
     local boundary = string.match(json, [["boundary":"([^"]+)"]])
     local profile = string.match(json, [["profile":"([^"]+)"]])
     local commitId = string.match(json, [["commitId":"([^"]+)"]])
+    local channel = string.match(json, [["channel":"([^"]+)"]])
+    local gestureId = string.match(json, [["gestureId":"([^"]+)"]])
+    local expectedSelectedPhotoUuid = string.match(json, [["expectedSelectedPhotoUuid":"([^"]+)"]])
     local expectedSelectedIndex = string.match(json, [["expectedSelectedIndex":([%-]?%d+)]])
     local expectedContextCounter = string.match(json, [["expectedContextCounter":([%-]?%d+)]])
+    local expectedDevelopCounter = string.match(json, [["expectedDevelopCounter":([%-]?%d+)]])
     local profileGeneration = string.match(json, [["profileGeneration":([%-]?%d+)]])
     local lowerNone = string.match(json, [["LowerNone":([%-]?%d+%.?%d*)]])
     local lowerFull = string.match(json, [["LowerFull":([%-]?%d+%.?%d*)]])
@@ -58,6 +79,8 @@ function Parser.parse(json)
     local w = string.match(json, [["w":([%-]?%d+)]])
     local h = string.match(json, [["h":([%-]?%d+)]])
     local value = string.match(json, [["value":"([^"]+)"]])
+    local points = parseIntegerArrayField(json, "points")
+    local expectedPoints = parseIntegerArrayField(json, "expectedPoints")
 
     if value == nil then
         value = string.match(json, [["value":([%-]?%d+%.?%d*)]])
@@ -85,6 +108,7 @@ function Parser.parse(json)
     end
     if expectedSelectedIndex then expectedSelectedIndex = tonumber(expectedSelectedIndex) end
     if expectedContextCounter then expectedContextCounter = tonumber(expectedContextCounter) end
+    if expectedDevelopCounter then expectedDevelopCounter = tonumber(expectedDevelopCounter) end
     if profileGeneration then profileGeneration = tonumber(profileGeneration) end
     if lowerNone then lowerNone = tonumber(lowerNone) end
     if lowerFull then lowerFull = tonumber(lowerFull) end
@@ -132,6 +156,12 @@ function Parser.parse(json)
         ,expectedContextCounter = expectedContextCounter
         ,profileGeneration = profileGeneration
         ,commitId = commitId
+        ,channel = channel
+        ,gestureId = gestureId
+        ,expectedSelectedPhotoUuid = expectedSelectedPhotoUuid
+        ,expectedDevelopCounter = expectedDevelopCounter
+        ,points = points
+        ,expectedPoints = expectedPoints
     }
 
 end

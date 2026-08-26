@@ -10,6 +10,8 @@ const enhance = require("./enhance-state").createEnhanceState();
 const pointColorDefinition = require("./point-color-state");
 const history = require("./history-state").createHistoryState();
 const pointColor = pointColorDefinition.createPointColorState();
+const pointCurveDefinition = require("./point-curve-state");
+const pointCurve = pointCurveDefinition.createPointCurveState();
 const lensBlurDefinition = require("./lens-blur-state");
 const lensBlur = lensBlurDefinition.createLensBlurState();
 const focalRangeDefinition = require("./lens-blur-focal-range");
@@ -302,7 +304,10 @@ app.get("/status", function (req, res) {
 });
 
 app.get("/diagnostics/queue", function (req, res) {
-    res.set("Cache-Control", "no-store").json(commands.getQueueDiagnostics());
+    res.set("Cache-Control", "no-store").json(Object.assign(
+        commands.getQueueDiagnostics(),
+        { pointCurveGestures: pointCurve.getGestureDiagnostics() }
+    ));
 });
 
 app.get("/context", function (req, res) {
@@ -320,8 +325,13 @@ app.get("/context/update", function (req, res) {
         selectedPhotoPath: req.query.selectedPhotoPath,
         developFingerprint: req.query.developFingerprint
     });
+    const pointCurveNavigationChanged = previousContext.selectedPhotoUuid !== updated.selectedPhotoUuid ||
+        previousContext.contextCounter !== updated.contextCounter || updated.activeModule !== "develop";
+    const abandonedPointCurveGestures = pointCurveNavigationChanged ? pointCurve.drainGestures() : [];
     enhance.syncContext(updated.contextCounter);
     pointColor.syncContext(updated.contextCounter);
+    pointCurve.syncContext(updated);
+    abandonedPointCurveGestures.forEach(queuePointCurveCancellation);
     lensBlur.syncContext(updated.contextCounter);
     developCategorical.syncContext(updated.contextCounter);
     const profileContextChanged = profileNative.syncContext(
@@ -350,6 +360,191 @@ app.get("/sliders", function (req, res) {
     res.json({
         sliders: commands.getSliderMetadata()
     });
+});
+
+function parsePointCurveCounter(value) {
+    if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function pointCurveBindingFromQuery(query) {
+    const contextCounter = parsePointCurveCounter(query.contextCounter);
+    const developCounter = parsePointCurveCounter(query.developCounter);
+    if (typeof query.selectedPhotoUuid !== "string" || Array.isArray(query.selectedPhotoUuid) ||
+        query.selectedPhotoUuid.length < 1 || query.selectedPhotoUuid.length > 160 ||
+        contextCounter === null || developCounter === null) {
+        return null;
+    }
+    return {
+        selectedPhotoUuid: query.selectedPhotoUuid,
+        contextCounter: contextCounter,
+        developCounter: developCounter
+    };
+}
+
+function hasExactPointCurveQuery(query, keys) {
+    const actual = Object.keys(query).sort();
+    const expected = keys.slice().sort();
+    return actual.length === expected.length && actual.every(function (key, index) {
+        return key === expected[index] && typeof query[key] === "string" && !Array.isArray(query[key]);
+    });
+}
+
+app.get("/tone-curve/state", function (req, res) {
+    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json({ ok: true, pointCurve: pointCurve.get(context.getContextFields()) });
+});
+
+app.get("/tone-curve/feedback", function (req, res) {
+    const keys = ["selectedPhotoUuid", "contextCounter", "developCounter", "name", "rgb", "red", "green", "blue"];
+    if (!hasExactPointCurveQuery(req.query, keys)) {
+        return res.status(400).json({ ok: false, error: "Invalid Point Curve feedback" });
+    }
+    const binding = pointCurveBindingFromQuery(req.query);
+    const curves = {};
+    for (const channel of pointCurveDefinition.CHANNELS) {
+        curves[channel] = pointCurveDefinition.parseCurve(req.query[channel]);
+        if (!curves[channel]) return res.status(400).json({ ok: false, error: "Invalid Point Curve feedback" });
+    }
+    const feedback = Object.assign({}, binding || {}, { name: req.query.name, curves: curves });
+    if (!binding || !pointCurve.acceptFeedback(feedback, context.getContextFields())) {
+        return res.status(409).json({ ok: false, error: "Stale or invalid Point Curve feedback" });
+    }
+    res.json({ ok: true, accepted: true });
+});
+
+function pointCurveCommandFromQuery(req, phase) {
+    const carriesPoints = phase === "update" || phase === "end";
+    const keys = ["channel", "gestureId", "selectedPhotoUuid", "contextCounter", "developCounter", "baseline"];
+    if (carriesPoints) keys.push("points");
+    if (!hasExactPointCurveQuery(req.query, keys) || !pointCurveDefinition.validChannel(req.query.channel) ||
+        !pointCurveDefinition.GESTURE_ID_PATTERN.test(req.query.gestureId || "")) return null;
+    const binding = pointCurveBindingFromQuery(req.query);
+    const baseline = pointCurveDefinition.parseCurve(req.query.baseline);
+    const points = carriesPoints ? pointCurveDefinition.parseCurve(req.query.points) : null;
+    if (!binding || !baseline || (carriesPoints && !points)) return null;
+    return Object.assign({
+        command: "tone_curve.gesture." + phase,
+        channel: req.query.channel,
+        field: pointCurveDefinition.fieldForChannel(req.query.channel),
+        gestureId: req.query.gestureId,
+        expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
+        expectedContextCounter: binding.contextCounter,
+        expectedDevelopCounter: binding.developCounter,
+        expectedPoints: baseline
+    }, carriesPoints ? { points: points } : {});
+}
+
+function pointCurveCancellationCommand(admitted) {
+    const binding = admitted && admitted.binding;
+    if (!binding) return null;
+    return {
+        command: "tone_curve.gesture.cancel",
+        channel: admitted.channel,
+        field: pointCurveDefinition.fieldForChannel(admitted.channel),
+        gestureId: admitted.gestureId,
+        expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
+        expectedContextCounter: binding.contextCounter,
+        expectedDevelopCounter: binding.developCounter
+    };
+}
+
+function queuePointCurveCancellation(admitted) {
+    const command = pointCurveCancellationCommand(admitted);
+    return command ? queueCommand(command) : { accepted: false, status: commands.ADMISSION_INVALID };
+}
+
+function gestureAdmission(binding, command) {
+    return {
+        binding: Object.assign({}, binding),
+        channel: command.channel,
+        gestureId: command.gestureId
+    };
+}
+
+function queuePointCurveGesture(req, res, phase) {
+    const command = pointCurveCommandFromQuery(req, phase);
+    if (!command) return res.status(400).json({ ok: false, error: "Invalid Point Curve gesture" });
+    const binding = {
+        selectedPhotoUuid: command.expectedSelectedPhotoUuid,
+        contextCounter: command.expectedContextCounter,
+        developCounter: command.expectedDevelopCounter
+    };
+    const fields = context.getContextFields();
+    let admitted = phase === "begin"
+        ? pointCurve.beginGesture(binding, command.channel, command.gestureId, command.expectedPoints, fields)
+        : phase === "update"
+            ? pointCurve.updateGesture(binding, command.channel, command.gestureId, command.expectedPoints, command.points, fields)
+            : pointCurve.endGesture(binding, command.channel, command.gestureId, command.expectedPoints, command.points, fields);
+    if (!admitted && phase === "begin") {
+        const conflicts = pointCurve.takeGestureConflicts(binding, command.channel, command.gestureId);
+        conflicts.forEach(queuePointCurveCancellation);
+        if (conflicts.length > 0) {
+            admitted = pointCurve.beginGesture(binding, command.channel, command.gestureId, command.expectedPoints, fields);
+        }
+    }
+    if (!admitted) {
+        pointCurve.finishGesture(binding, command.channel, command.gestureId);
+        queuePointCurveCancellation(gestureAdmission(binding, command));
+        return res.status(409).json({ ok: false, error: "Stale Point Curve gesture" });
+    }
+
+    const queueAdmission = queueCommand(command);
+    if (!queueAdmission.accepted) {
+        pointCurve.finishGesture(binding, command.channel, command.gestureId);
+        queuePointCurveCancellation(gestureAdmission(binding, command));
+        if (queueAdmission.status === commands.ADMISSION_QUEUE_FULL) return rejectQueueFull(res, queueAdmission.queueLength);
+        return res.status(400).json({ ok: false, error: "Invalid Point Curve command" });
+    }
+    if (phase === "end") pointCurve.finishGesture(binding, command.channel, command.gestureId);
+    res.json({ ok: true, queued: command, coalesced: queueAdmission.coalesced === true });
+}
+
+app.get("/tone-curve/gesture/begin", function (req, res) { queuePointCurveGesture(req, res, "begin"); });
+app.get("/tone-curve/gesture/update", function (req, res) { queuePointCurveGesture(req, res, "update"); });
+app.get("/tone-curve/gesture/end", function (req, res) { queuePointCurveGesture(req, res, "end"); });
+app.get("/tone-curve/gesture/cancel", function (req, res) {
+    const keys = ["channel", "gestureId", "selectedPhotoUuid", "contextCounter", "developCounter"];
+    if (!hasExactPointCurveQuery(req.query, keys) || !pointCurveDefinition.validChannel(req.query.channel) ||
+        !pointCurveDefinition.GESTURE_ID_PATTERN.test(req.query.gestureId || "")) {
+        return res.status(400).json({ ok: false, error: "Invalid Point Curve cancellation" });
+    }
+    const binding = pointCurveBindingFromQuery(req.query);
+    if (!binding) return res.status(400).json({ ok: false, error: "Invalid Point Curve cancellation" });
+    pointCurve.finishGesture(binding, req.query.channel, req.query.gestureId);
+    const admission = queuePointCurveCancellation({
+        binding: binding,
+        channel: req.query.channel,
+        gestureId: req.query.gestureId
+    });
+    if (!admission.accepted) {
+        if (admission.status === commands.ADMISSION_QUEUE_FULL) return rejectQueueFull(res, admission.queueLength);
+        return res.status(400).json({ ok: false, error: "Invalid Point Curve cancellation" });
+    }
+    res.json({ ok: true, cancelled: true, coalesced: admission.coalesced === true });
+});
+
+app.get("/tone-curve/reset", function (req, res) {
+    const keys = ["channel", "selectedPhotoUuid", "contextCounter", "developCounter", "baseline"];
+    if (!hasExactPointCurveQuery(req.query, keys) || !pointCurveDefinition.validChannel(req.query.channel)) {
+        return res.status(400).json({ ok: false, error: "Invalid Point Curve reset" });
+    }
+    const binding = pointCurveBindingFromQuery(req.query);
+    const baseline = pointCurveDefinition.parseCurve(req.query.baseline);
+    if (!binding || !baseline || !pointCurve.admitReset(binding, req.query.channel, baseline, context.getContextFields())) {
+        return res.status(409).json({ ok: false, error: "Stale Point Curve reset" });
+    }
+    const command = {
+        command: "tone_curve.reset",
+        channel: req.query.channel,
+        field: pointCurveDefinition.fieldForChannel(req.query.channel),
+        expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
+        expectedContextCounter: binding.contextCounter,
+        expectedDevelopCounter: binding.developCounter,
+        expectedPoints: baseline
+    };
+    queueOrReject(res, command);
 });
 
 app.get("/color-grading", function (req, res) {
