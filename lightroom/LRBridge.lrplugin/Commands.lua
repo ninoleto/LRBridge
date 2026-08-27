@@ -67,6 +67,12 @@ function Commands.execute(command)
     if command.command == "tone_curve.gesture.end" then ToneCurve.endGesture(command); return end
     if command.command == "tone_curve.gesture.cancel" then ToneCurve.cancelGesture(command); return end
     if command.command == "tone_curve.reset" then ToneCurve.resetChannel(command); return end
+    if command.command == "tone_curve.refine_saturation.gesture.begin" then ToneCurve.beginRefineSaturationGesture(command); return end
+    if command.command == "tone_curve.refine_saturation.gesture.update" then ToneCurve.updateRefineSaturationGesture(command); return end
+    if command.command == "tone_curve.refine_saturation.gesture.end" then ToneCurve.endRefineSaturationGesture(command); return end
+    if command.command == "tone_curve.refine_saturation.gesture.cancel" then ToneCurve.cancelRefineSaturationGesture(command); return end
+    if command.command == "tone_curve.refine_saturation.reset" then ToneCurve.resetRefineSaturation(command); return end
+    if command.command == "tone_curve.preset.set" then ToneCurve.setPreset(command); return end
 
     if command.command == "develop.adjust" then
 

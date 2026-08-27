@@ -62,10 +62,12 @@ function Parser.parse(json)
     local commitId = string.match(json, [["commitId":"([^"]+)"]])
     local channel = string.match(json, [["channel":"([^"]+)"]])
     local gestureId = string.match(json, [["gestureId":"([^"]+)"]])
+    local preset = string.match(json, [["preset":"([^"]+)"]])
     local expectedSelectedPhotoUuid = string.match(json, [["expectedSelectedPhotoUuid":"([^"]+)"]])
     local expectedSelectedIndex = string.match(json, [["expectedSelectedIndex":([%-]?%d+)]])
     local expectedContextCounter = string.match(json, [["expectedContextCounter":([%-]?%d+)]])
     local expectedDevelopCounter = string.match(json, [["expectedDevelopCounter":([%-]?%d+)]])
+    local expectedValue = string.match(json, [["expectedValue":([%-]?%d+%.?%d*)]])
     local profileGeneration = string.match(json, [["profileGeneration":([%-]?%d+)]])
     local lowerNone = string.match(json, [["LowerNone":([%-]?%d+%.?%d*)]])
     local lowerFull = string.match(json, [["LowerFull":([%-]?%d+%.?%d*)]])
@@ -109,6 +111,7 @@ function Parser.parse(json)
     if expectedSelectedIndex then expectedSelectedIndex = tonumber(expectedSelectedIndex) end
     if expectedContextCounter then expectedContextCounter = tonumber(expectedContextCounter) end
     if expectedDevelopCounter then expectedDevelopCounter = tonumber(expectedDevelopCounter) end
+    if expectedValue then expectedValue = tonumber(expectedValue) end
     if profileGeneration then profileGeneration = tonumber(profileGeneration) end
     if lowerNone then lowerNone = tonumber(lowerNone) end
     if lowerFull then lowerFull = tonumber(lowerFull) end
@@ -158,8 +161,10 @@ function Parser.parse(json)
         ,commitId = commitId
         ,channel = channel
         ,gestureId = gestureId
+        ,preset = preset
         ,expectedSelectedPhotoUuid = expectedSelectedPhotoUuid
         ,expectedDevelopCounter = expectedDevelopCounter
+        ,expectedValue = expectedValue
         ,points = points
         ,expectedPoints = expectedPoints
     }

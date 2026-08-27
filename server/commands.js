@@ -169,6 +169,12 @@ function validateCommand(command) {
         ,"tone_curve.gesture.end"
         ,"tone_curve.gesture.cancel"
         ,"tone_curve.reset"
+        ,"tone_curve.refine_saturation.gesture.begin"
+        ,"tone_curve.refine_saturation.gesture.update"
+        ,"tone_curve.refine_saturation.gesture.end"
+        ,"tone_curve.refine_saturation.gesture.cancel"
+        ,"tone_curve.refine_saturation.reset"
+        ,"tone_curve.preset.set"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -195,6 +201,40 @@ function validateCommand(command) {
         if (gestureCommand && !pointCurve.GESTURE_ID_PATTERN.test(command.gestureId || "")) return false;
         if (carriesPoints && !pointCurve.validCurveArray(command.points)) return false;
         return true;
+    }
+
+    if (command.command === "tone_curve.refine_saturation.gesture.begin" ||
+        command.command === "tone_curve.refine_saturation.gesture.update" ||
+        command.command === "tone_curve.refine_saturation.gesture.end" ||
+        command.command === "tone_curve.refine_saturation.gesture.cancel" ||
+        command.command === "tone_curve.refine_saturation.reset") {
+        const gestureCommand = command.command !== "tone_curve.refine_saturation.reset";
+        const carriesValue = command.command === "tone_curve.refine_saturation.gesture.update" ||
+            command.command === "tone_curve.refine_saturation.gesture.end";
+        const cancellation = command.command === "tone_curve.refine_saturation.gesture.cancel";
+        const expectedKeys = cancellation ? 6 : (gestureCommand ? (carriesValue ? 8 : 7) : 6);
+        if (Object.keys(command).length !== expectedKeys ||
+            command.field !== pointCurve.REFINE_SATURATION_FIELD ||
+            typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
+            command.expectedSelectedPhotoUuid.length > 160 ||
+            !Number.isSafeInteger(command.expectedContextCounter) || command.expectedContextCounter < 0 ||
+            !Number.isSafeInteger(command.expectedDevelopCounter) || command.expectedDevelopCounter < 0 ||
+            (!cancellation && !Number.isFinite(command.expectedValue))) return false;
+        if (gestureCommand && !pointCurve.GESTURE_ID_PATTERN.test(command.gestureId || "")) return false;
+        if (carriesValue && !Number.isFinite(command.value)) return false;
+        return true;
+    }
+
+    if (command.command === "tone_curve.preset.set") {
+        const target = pointCurve.presetCurve(command.preset);
+        return Object.keys(command).length === 8 && target !== null &&
+            command.field === pointCurve.CHANNEL_FIELDS.rgb &&
+            typeof command.expectedSelectedPhotoUuid === "string" && command.expectedSelectedPhotoUuid.length >= 1 &&
+            command.expectedSelectedPhotoUuid.length <= 160 &&
+            Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
+            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0 &&
+            pointCurve.validCurveArray(command.expectedPoints) && pointCurve.validCurveArray(command.points) &&
+            pointCurve.serializeCurve(command.points) === pointCurve.serializeCurve(target);
     }
 
     if (command.command === "point_color.value.set") {
@@ -558,6 +598,48 @@ function tryEnqueueCommand(command) {
         }
     }
 
+    if (command.command === "tone_curve.refine_saturation.gesture.update" ||
+        command.command === "tone_curve.refine_saturation.gesture.end" ||
+        command.command === "tone_curve.refine_saturation.gesture.cancel") {
+        const admittedAt = Date.now();
+        const matchingIndexes = [];
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+            if ((pending.command === "tone_curve.refine_saturation.gesture.update" ||
+                pending.command === "tone_curve.refine_saturation.gesture.end" ||
+                (command.command === "tone_curve.refine_saturation.gesture.cancel" &&
+                    (pending.command === "tone_curve.refine_saturation.gesture.begin" ||
+                        pending.command === "tone_curve.refine_saturation.gesture.cancel"))) &&
+                pending.gestureId === command.gestureId &&
+                pending.expectedSelectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+                pending.expectedContextCounter === command.expectedContextCounter) matchingIndexes.push(index);
+        }
+        if (matchingIndexes.length > 0) {
+            for (const index of matchingIndexes) {
+                commandQueue.splice(index, 1);
+                queueEntryMetadata.splice(index, 1);
+            }
+            commandQueue.push(command);
+            queueEntryMetadata.push({ enqueuedAt: admittedAt });
+            coalescedCommands += 1;
+            lastCoalescedAt = admittedAt;
+            console.log("Coalesced Refine Saturation gesture:", command);
+            return admissionResult(ADMISSION_COALESCED);
+        }
+    }
+
+    if (command.command === "tone_curve.preset.set") {
+        const admittedAt = Date.now();
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+            if (pending.command === command.command &&
+                pending.expectedSelectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+                pending.expectedContextCounter === command.expectedContextCounter) {
+                return replacePendingAt(index, command, admittedAt, "Coalesced Point Curve preset:");
+            }
+        }
+    }
+
     if (command.command === "develop_categorical.white_balance.set" ||
         command.command === "develop_categorical.process.set" ||
         command.command === "develop_categorical.vignette_style.set" ||
@@ -755,7 +837,9 @@ function isProtectedCommand(command) {
     return command.command === "develop.reset" || command.command === "develop.action" ||
         command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset" ||
         command.command === "lightroom.undo" || command.command === "lightroom.redo" ||
-        command.command === "tone_curve.reset" || command.command === "tone_curve.gesture.cancel";
+        command.command === "tone_curve.reset" || command.command === "tone_curve.gesture.cancel" ||
+        command.command === "tone_curve.refine_saturation.reset" ||
+        command.command === "tone_curve.refine_saturation.gesture.cancel";
 }
 
 function pointCurveCommandBindingMatches(command) {
@@ -783,6 +867,10 @@ function getNextCommand() {
             command.command === "develop_categorical.profile.set") && command.expectedContextCounter !== context.getContextFields().contextCounter) continue;
         if ((command.command === "tone_curve.gesture.begin" || command.command === "tone_curve.gesture.update" ||
             command.command === "tone_curve.reset") && !pointCurveCommandBindingMatches(command)) continue;
+        if ((command.command === "tone_curve.refine_saturation.gesture.begin" ||
+            command.command === "tone_curve.refine_saturation.gesture.update" ||
+            command.command === "tone_curve.refine_saturation.reset" ||
+            command.command === "tone_curve.preset.set") && !pointCurveCommandBindingMatches(command)) continue;
         return command;
     }
     return null;
@@ -836,6 +924,12 @@ function getQueueDiagnostics(nowMs) {
         ,"tone_curve.gesture.end": 0
         ,"tone_curve.gesture.cancel": 0
         ,"tone_curve.reset": 0
+        ,"tone_curve.refine_saturation.gesture.begin": 0
+        ,"tone_curve.refine_saturation.gesture.update": 0
+        ,"tone_curve.refine_saturation.gesture.end": 0
+        ,"tone_curve.refine_saturation.gesture.cancel": 0
+        ,"tone_curve.refine_saturation.reset": 0
+        ,"tone_curve.preset.set": 0
     };
 
     for (const command of commandQueue) {
@@ -902,10 +996,16 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["lens_blur.focal_range.set"] +
                     pendingByCommand["tone_curve.gesture.begin"] +
                     pendingByCommand["tone_curve.gesture.update"] +
-                    pendingByCommand["tone_curve.gesture.end"],
+                    pendingByCommand["tone_curve.gesture.end"] +
+                    pendingByCommand["tone_curve.refine_saturation.gesture.begin"] +
+                    pendingByCommand["tone_curve.refine_saturation.gesture.update"] +
+                    pendingByCommand["tone_curve.refine_saturation.gesture.end"] +
+                    pendingByCommand["tone_curve.preset.set"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
                     pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"] +
-                    pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"],
+                    pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
+                    pendingByCommand["tone_curve.refine_saturation.reset"] +
+                    pendingByCommand["tone_curve.refine_saturation.gesture.cancel"],
                 byCommand: pendingByCommand
             }
         },

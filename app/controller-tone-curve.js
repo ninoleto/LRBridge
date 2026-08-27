@@ -8,10 +8,17 @@
 
     const CHANNELS = Object.freeze(["rgb", "red", "green", "blue"]);
     const CHANNEL_LABELS = Object.freeze({ rgb: "RGB", red: "Red", green: "Green", blue: "Blue" });
+    const REFINE_SATURATION_FIELD = "CurveRefineSaturation";
+    const PRESET_CURVES = Object.freeze({
+        Linear: Object.freeze([0, 0, 255, 255]),
+        "Medium Contrast": Object.freeze([0, 0, 32, 22, 64, 56, 128, 128, 192, 196, 255, 255]),
+        "Strong Contrast": Object.freeze([0, 0, 32, 16, 64, 50, 128, 128, 192, 202, 255, 255])
+    });
     const MIN_COORDINATE = 0;
     const MAX_COORDINATE = 255;
-    const VISUAL_POINT_RADIUS = 3.25;
+    const VISUAL_POINT_RADIUS = 2.6;
     const TOUCH_TARGET_RADIUS = 12;
+    const POINTER_DRAG_THRESHOLD_PX = 2;
     const POINT_CURVE_REQUEST_TIMEOUT_MS = 15_000;
     const POINT_CURVE_FEEDBACK_TIMEOUT_MS = 15_000;
 
@@ -176,6 +183,39 @@
         return null;
     }
 
+    function createInsertionIdentity(points, pointIndex) {
+        if (!validCurveArray(points) || !Number.isSafeInteger(pointIndex) || pointIndex <= 0 ||
+            pointIndex >= points.length / 2) return null;
+        return Object.freeze({
+            originalLength: points.length,
+            insertionIndex: pointIndex,
+            left: Object.freeze([points[(pointIndex - 1) * 2], points[(pointIndex - 1) * 2 + 1]]),
+            right: Object.freeze([points[pointIndex * 2], points[pointIndex * 2 + 1]])
+        });
+    }
+
+    function insertionBaselineMatches(points, identity) {
+        if (!validCurveArray(points) || !identity || points.length !== identity.originalLength ||
+            !Number.isSafeInteger(identity.insertionIndex)) return false;
+        const index = identity.insertionIndex;
+        return index > 0 && index < points.length / 2 && Array.isArray(identity.left) &&
+            Array.isArray(identity.right) && points[(index - 1) * 2] === identity.left[0] &&
+            points[(index - 1) * 2 + 1] === identity.left[1] &&
+            points[index * 2] === identity.right[0] && points[index * 2 + 1] === identity.right[1];
+    }
+
+    function locateInsertedPoint(points, identity) {
+        if (!validCurveArray(points) || !identity || points.length !== identity.originalLength + 2 ||
+            !Number.isSafeInteger(identity.insertionIndex)) return null;
+        const index = identity.insertionIndex;
+        if (index <= 0 || index >= points.length / 2 - 1 || !Array.isArray(identity.left) ||
+            !Array.isArray(identity.right)) return null;
+        return points[(index - 1) * 2] === identity.left[0] &&
+            points[(index - 1) * 2 + 1] === identity.left[1] &&
+            points[(index + 1) * 2] === identity.right[0] &&
+            points[(index + 1) * 2 + 1] === identity.right[1] ? index : null;
+    }
+
     function movePoint(points, pointIndex, x, y) {
         if (!validCurveArray(points) || !Number.isSafeInteger(pointIndex) || pointIndex < 0 || pointIndex >= points.length / 2) {
             return null;
@@ -208,6 +248,26 @@
         return serializeCurve(left) !== null && serializeCurve(left) === serializeCurve(right);
     }
 
+    function validRefineSaturation(value) {
+        return value && typeof value === "object" && Number.isFinite(value.value) &&
+            Number.isFinite(value.min) && Number.isFinite(value.max) && value.min < value.max &&
+            value.value >= value.min && value.value <= value.max;
+    }
+
+    function parseRefineEditorValue(text, range) {
+        if (!validRefineSaturation(range) || typeof text !== "string") return null;
+        const trimmed = text.trim();
+        if (trimmed === "" || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) return null;
+        const numeric = Number(trimmed);
+        if (!Number.isFinite(numeric)) return null;
+        return Math.min(range.max, Math.max(range.min, Math.round(numeric)));
+    }
+
+    function presetCurve(name) {
+        return typeof name === "string" && Object.prototype.hasOwnProperty.call(PRESET_CURVES, name)
+            ? PRESET_CURVES[name].slice() : null;
+    }
+
     function validBinding(value) {
         return value && typeof value.selectedPhotoUuid === "string" && value.selectedPhotoUuid.length > 0 &&
             Number.isSafeInteger(value.contextCounter) && value.contextCounter >= 0 &&
@@ -225,6 +285,7 @@
 
     function normalizeSnapshot(value) {
         if (!value || value.available !== true || !validBinding(value) || typeof value.name !== "string" ||
+            !validRefineSaturation(value.refineSaturation) ||
             !value.curves || typeof value.curves !== "object") return null;
         const curves = {};
         for (const channel of CHANNELS) {
@@ -239,8 +300,54 @@
             revision: Number.isSafeInteger(value.revision) ? value.revision : 0,
             updatedAt: Number.isFinite(value.updatedAt) && value.updatedAt >= 0 ? value.updatedAt : 0,
             name: value.name,
+            refineSaturation: Object.assign({}, value.refineSaturation),
             curves: curves
         };
+    }
+
+    function createAwaitingScalar(value, snapshot, submittedAt, gestureId) {
+        if (!Number.isFinite(value) || !normalizeSnapshot(snapshot)) return null;
+        return {
+            gestureId: gestureId || null,
+            selectedPhotoUuid: snapshot.selectedPhotoUuid,
+            contextCounter: snapshot.contextCounter,
+            developCounter: snapshot.developCounter,
+            submittedDevelopCounter: snapshot.developCounter,
+            submittedRevision: snapshot.revision,
+            submittedUpdatedAt: snapshot.updatedAt,
+            value: value,
+            submittedAt: submittedAt
+        };
+    }
+
+    function resolveAwaitingScalar(transaction, snapshot) {
+        if (!transaction || !snapshot || !validBinding(snapshot) || !validRefineSaturation(snapshot.refineSaturation) ||
+            transaction.selectedPhotoUuid !== snapshot.selectedPhotoUuid ||
+            transaction.contextCounter !== snapshot.contextCounter) return null;
+        if (snapshot.refineSaturation.value === transaction.value) return "matched";
+        return authoritativeSnapshotIsNewer(snapshot, transaction) ? "superseded" : null;
+    }
+
+    function createAwaitingPreset(name, points, snapshot, submittedAt) {
+        if (!presetCurve(name) || !validCurveArray(points) || !normalizeSnapshot(snapshot)) return null;
+        return {
+            name: name,
+            points: points.slice(),
+            selectedPhotoUuid: snapshot.selectedPhotoUuid,
+            contextCounter: snapshot.contextCounter,
+            submittedDevelopCounter: snapshot.developCounter,
+            submittedRevision: snapshot.revision,
+            submittedUpdatedAt: snapshot.updatedAt,
+            submittedAt: submittedAt
+        };
+    }
+
+    function resolveAwaitingPreset(transaction, snapshot) {
+        if (!transaction || !snapshot || !validBinding(snapshot) ||
+            transaction.selectedPhotoUuid !== snapshot.selectedPhotoUuid ||
+            transaction.contextCounter !== snapshot.contextCounter) return null;
+        if (curvesEqual(snapshot.curves.rgb, transaction.points) && snapshot.name === transaction.name) return "matched";
+        return authoritativeSnapshotIsNewer(snapshot, transaction) ? "superseded" : null;
     }
 
     function authoritativeSnapshotIsNewer(snapshot, transaction) {
@@ -255,9 +362,10 @@
     function createAwaitingTarget(session, points, snapshot, submittedAt) {
         if (!session || typeof session.id !== "string" || !validCurveArray(points) ||
             !normalizeSnapshot(snapshot)) return null;
-        return {
+        const transaction = {
             channel: session.channel,
             gestureId: session.id,
+            operation: session.operation || "change",
             selectedPhotoUuid: snapshot.selectedPhotoUuid,
             contextCounter: snapshot.contextCounter,
             submittedDevelopCounter: snapshot.developCounter,
@@ -266,6 +374,15 @@
             points: points.slice(),
             submittedAt: submittedAt
         };
+        if (session.insertion) {
+            transaction.insertion = {
+                originalLength: session.insertion.originalLength,
+                insertionIndex: session.insertion.insertionIndex,
+                left: session.insertion.left.slice(),
+                right: session.insertion.right.slice()
+            };
+        }
+        return transaction;
     }
 
     function resolveAwaitingTarget(transaction, snapshot) {
@@ -326,9 +443,15 @@
         let previewMarker = null;
         let handlesGroup = null;
         let overlay = null;
-        let nameElement = null;
         let inputValueElement = null;
         let outputValueElement = null;
+        let refineRow = null;
+        let refineRange = null;
+        let refineNumber = null;
+        let refineResetButton = null;
+        let presetSelect = null;
+        let addPointButton = null;
+        let addPointInstruction = null;
         let deleteButton = null;
         let resetButton = null;
         let channelButtons = {};
@@ -346,6 +469,16 @@
         let gestureCounter = 0;
         let awaitingTarget = null;
         let awaitingReset = null;
+        let refineGesture = null;
+        let awaitingRefine = null;
+        let awaitingRefineReset = null;
+        let awaitingPreset = null;
+        let presetRequestInFlight = false;
+        let presetRequestToken = 0;
+        let refineNumberEditing = false;
+        let ignoreNextRefineChange = false;
+        let presetOptionsSignature = "";
+        let addPointArmed = false;
 
         function abortStateRequest() {
             stateRequestToken += 1;
@@ -361,9 +494,27 @@
             refresh();
         }
 
-        function handleRecoverySignal() {
+        function cancelAddPointMode(message) {
+            const addingSession = gesture && gesture.adding ? gesture : null;
+            if (!addPointArmed && !addingSession) return false;
+            addPointArmed = false;
+            if (addingSession) retireActiveGesture(addingSession, message || "Add Point cancelled");
+            else if (message) setStatus(message);
+            render();
+            return true;
+        }
+
+        function handleRecoverySignal(event) {
+            cancelAddPointMode("Add Point mode cancelled by controller state change");
+            if (event && event.type === "offline") return;
             if (documentObject.visibilityState && documentObject.visibilityState !== "visible") return;
             immediateRefresh();
+        }
+
+        function handleControllerKeydown(event) {
+            if (event.key !== "Escape" || (!addPointArmed && !(gesture && gesture.adding))) return;
+            event.preventDefault();
+            cancelAddPointMode("Add Point mode cancelled");
         }
 
         function installRecoveryListeners() {
@@ -371,9 +522,11 @@
             if (windowObject && typeof windowObject.addEventListener === "function") {
                 windowObject.addEventListener("focus", handleRecoverySignal);
                 windowObject.addEventListener("online", handleRecoverySignal);
+                windowObject.addEventListener("offline", handleRecoverySignal);
             }
             if (typeof documentObject.addEventListener === "function") {
                 documentObject.addEventListener("visibilitychange", handleRecoverySignal);
+                documentObject.addEventListener("keydown", handleControllerKeydown);
             }
             recoveryListenersInstalled = true;
         }
@@ -383,9 +536,11 @@
             if (windowObject && typeof windowObject.removeEventListener === "function") {
                 windowObject.removeEventListener("focus", handleRecoverySignal);
                 windowObject.removeEventListener("online", handleRecoverySignal);
+                windowObject.removeEventListener("offline", handleRecoverySignal);
             }
             if (typeof documentObject.removeEventListener === "function") {
                 documentObject.removeEventListener("visibilitychange", handleRecoverySignal);
+                documentObject.removeEventListener("keydown", handleControllerKeydown);
             }
             recoveryListenersInstalled = false;
         }
@@ -409,11 +564,36 @@
 
         function activePreview(points) {
             if (!gesture || !points || gesture.channel !== selectedChannel || !authoritative ||
-                !sameIdentity(gesture.identity, authoritative)) return null;
+                !sameIdentity(gesture.identity, authoritative) || (!gesture.adding && !gesture.dragStarted)) return null;
             const previewPoints = gestureTarget(gesture, points);
             if (!previewPoints || !Number.isSafeInteger(gesture.pointIndex) ||
                 gesture.pointIndex < 0 || gesture.pointIndex >= previewPoints.length / 2) return null;
             return { points: previewPoints, pointIndex: gesture.pointIndex };
+        }
+
+        function updatePresetOptions(name) {
+            if (!presetSelect) return;
+            const names = Object.keys(PRESET_CURVES);
+            if (typeof name === "string" && name !== "" && names.indexOf(name) < 0) names.push(name);
+            const signature = names.join("\u0000");
+            if (signature !== presetOptionsSignature) {
+                presetSelect.replaceChildren();
+                names.forEach(function (presetName) {
+                    const option = documentObject.createElement("option");
+                    option.value = presetName;
+                    option.textContent = presetName;
+                    option.disabled = !Object.prototype.hasOwnProperty.call(PRESET_CURVES, presetName);
+                    presetSelect.appendChild(option);
+                });
+                presetOptionsSignature = signature;
+            }
+            const selectedName = typeof name === "string" ? name : "";
+            if (presetSelect.value !== selectedName) presetSelect.value = selectedName;
+        }
+
+        function interactionBusy() {
+            return gesture !== null || refineGesture !== null || awaitingTarget !== null || awaitingReset !== null ||
+                awaitingRefine !== null || awaitingRefineReset !== null || awaitingPreset !== null || presetRequestInFlight;
         }
 
         function render() {
@@ -428,9 +608,13 @@
                 previewPath.setAttribute("display", "none");
                 previewMarker.setAttribute("display", "none");
                 handlesGroup.replaceChildren();
-                nameElement.textContent = "Updating…";
                 inputValueElement.textContent = "—";
                 outputValueElement.textContent = "—";
+                refineRange.disabled = true;
+                refineNumber.disabled = true;
+                refineResetButton.disabled = true;
+                updatePresetOptions("");
+                presetSelect.disabled = true;
                 setUpdating();
             } else {
                 curvePath.setAttribute("d", curvePathData(points));
@@ -468,6 +652,11 @@
                     hitTarget.addEventListener("pointerdown", function (event) {
                         event.preventDefault();
                         event.stopPropagation();
+                        if (gesture) return;
+                        if (addPointArmed) {
+                            addPointArmed = false;
+                            setStatus("Add Point mode cancelled; existing point selected");
+                        }
                         beginPointerGesture(event, pointIndex, false);
                     });
                     hitTarget.addEventListener("click", function () {
@@ -490,21 +679,46 @@
                 const selectedValues = selectedPointValues(points, selectedPointIndex);
                 inputValueElement.textContent = selectedValues ? String(selectedValues.input) : "—";
                 outputValueElement.textContent = selectedValues ? String(selectedValues.output) : "—";
-                nameElement.textContent = authoritative.name;
-                if (awaitingTarget || awaitingReset) setUpdating("Awaiting authoritative Lightroom feedback…");
+                const refine = authoritative.refineSaturation;
+                const presentedRefineValue = refineGesture && Number.isFinite(refineGesture.desired)
+                    ? refineGesture.desired : refine.value;
+                refineRange.min = String(refine.min);
+                refineRange.max = String(refine.max);
+                refineRange.step = "1";
+                refineRange.value = String(presentedRefineValue);
+                refineRange.style.setProperty("--slider-progress",
+                    (100 * (presentedRefineValue - refine.min) / (refine.max - refine.min)) + "%");
+                if (!refineNumberEditing) refineNumber.value = String(refine.value);
+                updatePresetOptions(authoritative.name);
+                if (awaitingTarget || awaitingReset || awaitingPreset) {
+                    setUpdating("Awaiting authoritative Lightroom feedback…");
+                }
                 else overlay.hidden = true;
             }
+            const busy = interactionBusy();
+            addPointButton.classList.toggle("active", addPointArmed);
+            addPointButton.setAttribute("aria-pressed", String(addPointArmed));
+            addPointButton.disabled = !available || busy;
+            addPointInstruction.hidden = !addPointArmed;
             Object.keys(channelButtons).forEach(function (channel) {
                 const button = channelButtons[channel];
                 const selected = channel === selectedChannel;
                 button.classList.toggle("active", selected);
                 button.setAttribute("aria-pressed", String(selected));
-                button.disabled = gesture !== null;
+                button.disabled = gesture !== null || refineGesture !== null;
             });
+            refineRow.hidden = selectedChannel !== "rgb";
+            const refineChannelAvailable = available && selectedChannel === "rgb";
+            refineRange.disabled = !refineChannelAvailable || (busy && refineGesture === null);
+            refineNumber.disabled = !refineChannelAvailable || busy;
+            refineNumber.classList.toggle("pending", !!(refineGesture || awaitingRefine || awaitingRefineReset));
+            refineNumber.setAttribute("aria-busy", String(!!(refineGesture || awaitingRefine || awaitingRefineReset)));
+            refineResetButton.disabled = !refineChannelAvailable || busy;
+            presetSelect.disabled = !available || busy;
             const interiorSelected = available && Number.isSafeInteger(selectedPointIndex) && selectedPointIndex > 0 &&
                 selectedPointIndex < points.length / 2 - 1;
-            deleteButton.disabled = !interiorSelected || gesture !== null;
-            resetButton.disabled = !available || gesture !== null;
+            deleteButton.disabled = !interiorSelected || busy;
+            resetButton.disabled = !available || busy;
         }
 
         async function requestJson(path, requestOptions) {
@@ -555,7 +769,7 @@
 
         function releaseRemoteGesture(session) {
             const binding = remoteGestureBinding(session);
-            if (!session || session.cancelSent || !binding ||
+            if (!session || session.admissionStarted === false || session.cancelSent || !binding ||
                 (typeof session.gestureId !== "string" && typeof session.id !== "string") ||
                 typeof session.channel !== "string") return Promise.resolve(false);
             session.cancelSent = true;
@@ -568,16 +782,27 @@
         function retireActiveGesture(session, message) {
             if (!session) return;
             releaseRemoteGesture(session);
+            if (session.adding) addPointArmed = false;
             if (gesture === session) gesture = null;
             if (message) setStatus(message);
         }
 
         function gestureTarget(session, baseline) {
             if (session.adding && baseline.length === session.initialLength) {
-                const added = addPoint(baseline, session.desired.x, session.desired.y);
-                if (!added) return null;
+                if (!insertionBaselineMatches(baseline, session.insertion)) return null;
+                const constrainedX = Math.min(session.insertion.right[0] - 1,
+                    Math.max(session.insertion.left[0] + 1, clampCoordinate(session.desired.x)));
+                const added = addPoint(baseline, constrainedX, session.desired.y);
+                if (!added || added.pointIndex !== session.insertion.insertionIndex) return null;
                 session.pointIndex = added.pointIndex;
                 return added.points;
+            }
+            if (session.adding) {
+                const insertedIndex = locateInsertedPoint(baseline, session.insertion);
+                if (insertedIndex === null) return null;
+                session.additionObserved = true;
+                session.pointIndex = insertedIndex;
+                return movePoint(baseline, insertedIndex, session.desired.x, session.desired.y);
             }
             return movePoint(baseline, session.pointIndex, session.desired.x, session.desired.y);
         }
@@ -615,7 +840,7 @@
                 if (phase === "end") {
                     awaitingTarget = createAwaitingTarget(session, target, submittedSnapshot, session.lastSubmittedAt);
                     gesture = null;
-                    selectedPointIndex = session.pointIndex;
+                    if (!session.adding) selectedPointIndex = session.pointIndex;
                     setStatus("Point Curve gesture committed; awaiting authoritative Lightroom feedback");
                 } else {
                     session.awaitingAuthoritative = true;
@@ -635,11 +860,15 @@
         }
 
         async function startGesture(session) {
+            if (!session || !authoritative || !sameIdentity(session.identity, authoritative) ||
+                !bindingsEqual(authoritative, expectedBinding)) return;
+            session.identity.developCounter = authoritative.developCounter;
             const baseline = authoritative.curves[session.channel];
             const path = "/api/tone-curve/gesture/begin?channel=" + encodeURIComponent(session.channel) +
                 "&gestureId=" + encodeURIComponent(session.id) + "&" + queryForBinding(authoritative) +
                 "&baseline=" + encodeURIComponent(serializeCurve(baseline));
             session.transportInFlight = true;
+            session.admissionStarted = true;
             try {
                 await requestJson(path);
                 if (gesture !== session) return;
@@ -652,13 +881,14 @@
             }
         }
 
-        function beginPointerGesture(event, pointIndex, adding) {
+        function beginPointerGesture(event, pointIndex, adding, insertion) {
             const points = currentPoints();
-            if (gesture || !points || !authoritative || !bindingsEqual(authoritative, expectedBinding)) return;
+            if (interactionBusy() || !points || !authoritative || !bindingsEqual(authoritative, expectedBinding)) return;
+            if (adding && (!insertion || !insertionBaselineMatches(points, insertion))) return;
             const coordinates = graphCoordinates(event.clientX, event.clientY, svg.getBoundingClientRect());
             if (!coordinates) return;
             gestureCounter += 1;
-            selectedPointIndex = pointIndex;
+            selectedPointIndex = adding ? null : pointIndex;
             gesture = {
                 id: "curve_" + now().toString(36) + "_" + gestureCounter.toString(36),
                 channel: selectedChannel,
@@ -670,8 +900,14 @@
                 pointIndex: pointIndex,
                 initialLength: points.length,
                 adding: adding,
+                operation: adding ? "add" : "change",
+                insertion: insertion || null,
+                additionObserved: false,
                 desired: coordinates,
                 pointerId: event.pointerId,
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                dragStarted: adding,
                 begun: false,
                 finishing: false,
                 transportInFlight: false,
@@ -681,10 +917,11 @@
                 lastSubmittedRevision: null,
                 lastSubmittedUpdatedAt: null,
                 lastSubmittedAt: null,
-                cancelSent: false
+                cancelSent: false,
+                admissionStarted: false
             };
             if (svg.setPointerCapture && event.pointerId !== undefined) svg.setPointerCapture(event.pointerId);
-            startGesture(gesture);
+            if (adding) startGesture(gesture);
             render();
         }
 
@@ -693,6 +930,16 @@
             const coordinates = graphCoordinates(event.clientX, event.clientY, svg.getBoundingClientRect());
             if (!coordinates) return;
             event.preventDefault();
+            if (!gesture.dragStarted) {
+                const deltaX = event.clientX - gesture.startClientX;
+                const deltaY = event.clientY - gesture.startClientY;
+                if (Math.hypot(deltaX, deltaY) < POINTER_DRAG_THRESHOLD_PX) return;
+                gesture.dragStarted = true;
+                gesture.desired = coordinates;
+                startGesture(gesture);
+                render();
+                return;
+            }
             gesture.desired = coordinates;
             render();
             if (!gesture.awaitingAuthoritative) pumpGesture();
@@ -700,8 +947,14 @@
 
         function handlePointerEnd(event) {
             if (!gesture || gesture.pointerId !== event.pointerId) return;
+            if (!gesture.dragStarted) {
+                gesture = null;
+                render();
+                return;
+            }
             const coordinates = graphCoordinates(event.clientX, event.clientY, svg.getBoundingClientRect());
             if (coordinates) gesture.desired = coordinates;
+            if (gesture.adding) addPointArmed = false;
             gesture.finishing = true;
             pumpGesture();
             render();
@@ -709,8 +962,206 @@
 
         function handlePointerCancel(event) {
             if (!gesture || gesture.pointerId !== event.pointerId) return;
+            if (!gesture.dragStarted) {
+                gesture = null;
+                render();
+                return;
+            }
+            if (gesture.adding) addPointArmed = false;
             retireActiveGesture(gesture, "Point Curve gesture cancelled");
             render();
+        }
+
+        function refineRemoteBinding(session) {
+            if (!session) return null;
+            const identity = session.identity || session;
+            const developCounter = Number.isSafeInteger(session.submittedDevelopCounter)
+                ? session.submittedDevelopCounter
+                : (Number.isSafeInteger(session.lastSubmittedDevelopCounter)
+                    ? session.lastSubmittedDevelopCounter : identity.developCounter);
+            if (!identity || typeof identity.selectedPhotoUuid !== "string" ||
+                !Number.isSafeInteger(identity.contextCounter) || !Number.isSafeInteger(developCounter)) return null;
+            return {
+                selectedPhotoUuid: identity.selectedPhotoUuid,
+                contextCounter: identity.contextCounter,
+                developCounter: developCounter
+            };
+        }
+
+        function releaseRemoteRefineGesture(session) {
+            const binding = refineRemoteBinding(session);
+            if (!session || session.cancelSent || !binding ||
+                (typeof session.gestureId !== "string" && typeof session.id !== "string")) return Promise.resolve(false);
+            session.cancelSent = true;
+            const path = "/api/tone-curve/refine-saturation/gesture/cancel?gestureId=" +
+                encodeURIComponent(session.gestureId || session.id) + "&" + queryForBinding(binding);
+            return requestJson(path).then(function () { return true; }).catch(function () { return false; });
+        }
+
+        function retireRefineGesture(session, message) {
+            if (!session) return;
+            releaseRemoteRefineGesture(session);
+            if (refineGesture === session) refineGesture = null;
+            if (message) setStatus(message);
+        }
+
+        async function pumpRefineGesture() {
+            const session = refineGesture;
+            if (!session || session.transportInFlight || !session.begun || !authoritative ||
+                session.awaitingAuthoritative || !sameIdentity(session.identity, authoritative) ||
+                !bindingsEqual(authoritative, expectedBinding)) return;
+            const refine = authoritative.refineSaturation;
+            if (!validRefineSaturation(refine) || !Number.isFinite(session.desired) ||
+                session.desired < refine.min || session.desired > refine.max) {
+                retireRefineGesture(session, "Refine Saturation gesture cancelled because its value is outside Lightroom's current range");
+                render();
+                return;
+            }
+            const phase = session.finishing ? "end" : "update";
+            if (phase === "update" && session.desired === refine.value) return;
+            session.transportInFlight = true;
+            session.lastTarget = session.desired;
+            session.lastSubmittedDevelopCounter = authoritative.developCounter;
+            session.lastSubmittedRevision = authoritative.revision;
+            session.lastSubmittedUpdatedAt = authoritative.updatedAt;
+            session.lastSubmittedAt = now();
+            const submittedSnapshot = normalizeSnapshot(authoritative);
+            const path = "/api/tone-curve/refine-saturation/gesture/" + phase + "?gestureId=" +
+                encodeURIComponent(session.id) + "&" + queryForBinding(authoritative) +
+                "&baseline=" + encodeURIComponent(String(refine.value)) +
+                "&value=" + encodeURIComponent(String(session.desired));
+            try {
+                await requestJson(path);
+                if (refineGesture !== session) return;
+                if (phase === "end") {
+                    awaitingRefine = createAwaitingScalar(
+                        session.desired, submittedSnapshot, session.lastSubmittedAt, session.id
+                    );
+                    refineGesture = null;
+                    setStatus("Refine Saturation committed; awaiting authoritative Lightroom feedback");
+                } else {
+                    session.awaitingAuthoritative = true;
+                    setStatus("Refine Saturation update queued; awaiting authoritative Lightroom feedback");
+                }
+            } catch (error) {
+                if (refineGesture === session) retireRefineGesture(session, "ERROR: " + error.message);
+            } finally {
+                if (refineGesture === session) {
+                    session.transportInFlight = false;
+                    if (session.finishing && phase !== "end") pumpRefineGesture();
+                }
+                render();
+            }
+        }
+
+        async function startRefineGesture(session) {
+            const baseline = authoritative.refineSaturation.value;
+            const path = "/api/tone-curve/refine-saturation/gesture/begin?gestureId=" +
+                encodeURIComponent(session.id) + "&" + queryForBinding(authoritative) +
+                "&baseline=" + encodeURIComponent(String(baseline));
+            session.transportInFlight = true;
+            try {
+                await requestJson(path);
+                if (refineGesture !== session) return;
+                session.begun = true;
+                session.transportInFlight = false;
+                pumpRefineGesture();
+            } catch (error) {
+                if (refineGesture === session) retireRefineGesture(session, "ERROR: " + error.message);
+                render();
+            }
+        }
+
+        function beginRefineGesture(pointerId, desired, finishing) {
+            if (interactionBusy() || selectedChannel !== "rgb" || !authoritative ||
+                !bindingsEqual(authoritative, expectedBinding) || !validRefineSaturation(authoritative.refineSaturation) ||
+                !Number.isFinite(desired) || desired < authoritative.refineSaturation.min ||
+                desired > authoritative.refineSaturation.max) return false;
+            gestureCounter += 1;
+            refineGesture = {
+                id: "refine_" + now().toString(36) + "_" + gestureCounter.toString(36),
+                identity: {
+                    selectedPhotoUuid: authoritative.selectedPhotoUuid,
+                    contextCounter: authoritative.contextCounter,
+                    developCounter: authoritative.developCounter
+                },
+                pointerId: pointerId,
+                desired: desired,
+                begun: false,
+                finishing: finishing === true,
+                transportInFlight: false,
+                awaitingAuthoritative: false,
+                lastTarget: null,
+                lastSubmittedDevelopCounter: null,
+                lastSubmittedRevision: null,
+                lastSubmittedUpdatedAt: null,
+                lastSubmittedAt: null,
+                cancelSent: false
+            };
+            startRefineGesture(refineGesture);
+            render();
+            return true;
+        }
+
+        function commitRefineEditor() {
+            if (!refineNumberEditing) return false;
+            refineNumberEditing = false;
+            if (!authoritative || !bindingsEqual(authoritative, expectedBinding) ||
+                !validRefineSaturation(authoritative.refineSaturation)) {
+                render();
+                return false;
+            }
+            const value = parseRefineEditorValue(refineNumber.value, authoritative.refineSaturation);
+            if (value === null) {
+                setStatus("ERROR: Refine Saturation must be a numeric value in Lightroom's current range");
+                render();
+                return false;
+            }
+            if (value === authoritative.refineSaturation.value) {
+                render();
+                return true;
+            }
+            if (!beginRefineGesture(null, value, true)) render();
+            return refineGesture !== null;
+        }
+
+        function cancelRefineEditor() {
+            refineNumberEditing = false;
+            if (authoritative && validRefineSaturation(authoritative.refineSaturation)) {
+                refineNumber.value = String(authoritative.refineSaturation.value);
+            }
+            render();
+        }
+
+        async function applyPreset(name) {
+            const target = presetCurve(name);
+            if (!target || interactionBusy() || !authoritative || !bindingsEqual(authoritative, expectedBinding)) return false;
+            addPointArmed = false;
+            selectedChannel = "rgb";
+            selectedPointIndex = null;
+            const submittedSnapshot = normalizeSnapshot(authoritative);
+            const token = presetRequestToken + 1;
+            presetRequestToken = token;
+            const path = "/api/tone-curve/preset?preset=" + encodeURIComponent(name) + "&" +
+                queryForBinding(authoritative) + "&baseline=" +
+                encodeURIComponent(serializeCurve(authoritative.curves.rgb));
+            try {
+                presetRequestInFlight = true;
+                render();
+                await requestJson(path);
+                if (!active || token !== presetRequestToken || !expectedBinding ||
+                    !sameIdentity(submittedSnapshot, expectedBinding)) return false;
+                awaitingPreset = createAwaitingPreset(name, target, submittedSnapshot, now());
+                setStatus("Point Curve preset queued; awaiting authoritative Lightroom feedback");
+                return true;
+            } catch (error) {
+                awaitingPreset = null;
+                setStatus("ERROR: " + error.message);
+                return false;
+            } finally {
+                if (token === presetRequestToken) presetRequestInFlight = false;
+                render();
+            }
         }
 
         function applyAuthoritative(value) {
@@ -720,11 +1171,13 @@
             authoritative = normalized;
 
             const previousSelectedPoints = previous && previous.curves ? previous.curves[selectedChannel] : null;
-            selectedPointIndex = remapSelectedPointIndex(
-                previousSelectedPoints,
-                normalized.curves[selectedChannel],
-                selectedPointIndex
-            );
+            if (!(gesture && gesture.adding && gesture.channel === selectedChannel)) {
+                selectedPointIndex = remapSelectedPointIndex(
+                    previousSelectedPoints,
+                    normalized.curves[selectedChannel],
+                    selectedPointIndex
+                );
+            }
 
             if (awaitingTarget) {
                 const resolution = resolveAwaitingTarget(awaitingTarget, normalized);
@@ -732,8 +1185,18 @@
                     const completed = awaitingTarget;
                     awaitingTarget = null;
                     releaseRemoteGesture(completed);
+                    if (completed.operation === "delete" && resolution === "matched") selectedPointIndex = null;
+                    if (completed.operation === "add") {
+                        selectedPointIndex = locateInsertedPoint(
+                            normalized.curves[completed.channel], completed.insertion
+                        );
+                    }
                     setStatus(resolution === "matched"
-                        ? "Point Curve change confirmed by Lightroom"
+                        ? (completed.operation === "delete"
+                            ? "Point Curve point deletion confirmed by Lightroom"
+                            : (completed.operation === "add"
+                                ? "Point Curve point addition confirmed by Lightroom"
+                                : "Point Curve change confirmed by Lightroom"))
                         : "Point Curve request was superseded or normalized; Lightroom's authoritative curve was adopted");
                 }
             }
@@ -744,14 +1207,54 @@
                 awaitingReset = null;
                 setStatus("Point Curve reset feedback received from Lightroom");
             }
+            if (awaitingRefine) {
+                const resolution = resolveAwaitingScalar(awaitingRefine, normalized);
+                if (resolution) {
+                    const completed = awaitingRefine;
+                    awaitingRefine = null;
+                    releaseRemoteRefineGesture(completed);
+                    setStatus(resolution === "matched"
+                        ? "Refine Saturation confirmed by Lightroom"
+                        : "Refine Saturation was superseded or normalized; Lightroom's authoritative value was adopted");
+                }
+            }
+            if (awaitingRefineReset && sameIdentity(awaitingRefineReset, normalized) &&
+                (normalized.developCounter > awaitingRefineReset.submittedDevelopCounter ||
+                    normalized.revision > awaitingRefineReset.submittedRevision ||
+                    normalized.updatedAt > awaitingRefineReset.submittedAt)) {
+                awaitingRefineReset = null;
+                setStatus("Refine Saturation reset feedback received from Lightroom");
+            }
+            if (awaitingPreset) {
+                const resolution = resolveAwaitingPreset(awaitingPreset, normalized);
+                if (resolution) {
+                    awaitingPreset = null;
+                    setStatus(resolution === "matched"
+                        ? "Point Curve preset confirmed by Lightroom"
+                        : "Point Curve preset was superseded or normalized; Lightroom's authoritative curve and name were adopted");
+                }
+            }
 
             if (gesture && sameIdentity(gesture.identity, normalized)) {
                 const previousGesturePoints = previous && previous.curves ? previous.curves[gesture.channel] : null;
-                const remappedIndex = remapSelectedPointIndex(
-                    previousGesturePoints,
-                    normalized.curves[gesture.channel],
-                    gesture.pointIndex
-                );
+                let remappedIndex;
+                if (gesture.adding) {
+                    if (insertionBaselineMatches(normalized.curves[gesture.channel], gesture.insertion)) {
+                        remappedIndex = gesture.insertion.insertionIndex;
+                    } else {
+                        remappedIndex = locateInsertedPoint(normalized.curves[gesture.channel], gesture.insertion);
+                        if (remappedIndex !== null) {
+                            gesture.additionObserved = true;
+                            selectedPointIndex = remappedIndex;
+                        }
+                    }
+                } else {
+                    remappedIndex = remapSelectedPointIndex(
+                        previousGesturePoints,
+                        normalized.curves[gesture.channel],
+                        gesture.pointIndex
+                    );
+                }
                 if (remappedIndex === null) {
                     retireActiveGesture(gesture, "Point Curve gesture cancelled because Lightroom changed the point structure");
                 } else {
@@ -769,6 +1272,22 @@
                         }
                         pumpGesture();
                     }
+                }
+            }
+            if (refineGesture && sameIdentity(refineGesture.identity, normalized)) {
+                const targetMatched = Number.isFinite(refineGesture.lastTarget) &&
+                    normalized.refineSaturation.value === refineGesture.lastTarget;
+                const authorityAdvanced = Number.isSafeInteger(refineGesture.lastSubmittedDevelopCounter) &&
+                    (normalized.developCounter > refineGesture.lastSubmittedDevelopCounter ||
+                        normalized.revision > refineGesture.lastSubmittedRevision ||
+                        (Number.isFinite(refineGesture.lastSubmittedAt) &&
+                            normalized.updatedAt > refineGesture.lastSubmittedAt));
+                if (targetMatched || authorityAdvanced) {
+                    refineGesture.awaitingAuthoritative = false;
+                    if (authorityAdvanced && !targetMatched) {
+                        setStatus("Lightroom's newer Refine Saturation value superseded the pending update; drag rebased");
+                    }
+                    pumpRefineGesture();
                 }
             }
             render();
@@ -789,9 +1308,31 @@
                 awaitingReset = null;
                 setStatus("Point Curve reset feedback timed out; refreshing Lightroom authority");
             }
+            if (awaitingRefine && Number.isFinite(awaitingRefine.submittedAt) &&
+                currentTime - awaitingRefine.submittedAt >= feedbackTimeoutMs) {
+                const expired = awaitingRefine;
+                awaitingRefine = null;
+                releaseRemoteRefineGesture(expired);
+                setStatus("Refine Saturation feedback timed out; Lightroom authority was restored");
+            }
+            if (awaitingRefineReset && Number.isFinite(awaitingRefineReset.submittedAt) &&
+                currentTime - awaitingRefineReset.submittedAt >= feedbackTimeoutMs) {
+                awaitingRefineReset = null;
+                setStatus("Refine Saturation reset feedback timed out; refreshing Lightroom authority");
+            }
+            if (awaitingPreset && Number.isFinite(awaitingPreset.submittedAt) &&
+                currentTime - awaitingPreset.submittedAt >= feedbackTimeoutMs) {
+                awaitingPreset = null;
+                setStatus("Point Curve preset feedback timed out; Lightroom authority was restored");
+            }
             if (gesture && gesture.awaitingAuthoritative && Number.isFinite(gesture.lastSubmittedAt) &&
                 currentTime - gesture.lastSubmittedAt >= feedbackTimeoutMs) {
                 retireActiveGesture(gesture, "Point Curve gesture feedback timed out; interaction unlocked");
+            }
+            if (refineGesture && refineGesture.awaitingAuthoritative &&
+                Number.isFinite(refineGesture.lastSubmittedAt) &&
+                currentTime - refineGesture.lastSubmittedAt >= feedbackTimeoutMs) {
+                retireRefineGesture(refineGesture, "Refine Saturation feedback timed out; interaction unlocked");
             }
         }
 
@@ -829,8 +1370,9 @@
             }
         }
 
-        async function commitOneShot(target) {
-            if (!authoritative || !bindingsEqual(authoritative, expectedBinding) || gesture) return false;
+        async function commitOneShot(target, operation) {
+            if (!validCurveArray(target) || interactionBusy() || !authoritative ||
+                !bindingsEqual(authoritative, expectedBinding)) return false;
             gestureCounter += 1;
             const id = "curve_" + now().toString(36) + "_" + gestureCounter.toString(36);
             const baseline = authoritative.curves[selectedChannel];
@@ -846,6 +1388,7 @@
                     contextCounter: authoritative.contextCounter,
                     developCounter: authoritative.developCounter
                 },
+                operation: operation || "change",
                 cancelSent: false
             };
             gesture = session;
@@ -877,6 +1420,10 @@
 
             const toolbar = documentObject.createElement("div");
             toolbar.className = "point-curve-toolbar";
+            const adjustLabel = documentObject.createElement("span");
+            adjustLabel.className = "point-curve-adjust-label";
+            adjustLabel.textContent = "Adjust:";
+            toolbar.appendChild(adjustLabel);
             const channels = documentObject.createElement("div");
             channels.className = "point-curve-channels";
             channels.setAttribute("role", "group");
@@ -885,9 +1432,12 @@
                 const button = documentObject.createElement("button");
                 button.type = "button";
                 button.className = "point-curve-channel point-curve-channel-" + channel;
-                button.textContent = CHANNEL_LABELS[channel];
+                button.textContent = channel === "rgb" ? "RGB" : CHANNEL_LABELS[channel].slice(0, 1);
+                button.title = CHANNEL_LABELS[channel];
+                button.setAttribute("aria-label", "Adjust " + CHANNEL_LABELS[channel] + " Point Curve");
                 button.addEventListener("click", function () {
                     if (gesture) return;
+                    addPointArmed = false;
                     selectedChannel = channel;
                     selectedPointIndex = null;
                     render();
@@ -896,11 +1446,25 @@
                 channels.appendChild(button);
             });
             toolbar.appendChild(channels);
-            nameElement = documentObject.createElement("div");
-            nameElement.className = "point-curve-name";
-            nameElement.setAttribute("aria-live", "polite");
-            nameElement.textContent = "Updating…";
-            toolbar.appendChild(nameElement);
+            addPointButton = documentObject.createElement("button");
+            addPointButton.type = "button";
+            addPointButton.className = "point-curve-add-button";
+            addPointButton.textContent = "+";
+            addPointButton.setAttribute("aria-label", "Add point");
+            addPointButton.setAttribute("aria-pressed", "false");
+            addPointButton.addEventListener("click", function () {
+                if (interactionBusy() || !authoritative || !bindingsEqual(authoritative, expectedBinding)) return;
+                addPointArmed = !addPointArmed;
+                setStatus(addPointArmed ? "Tap graph to add point" : "Add Point mode cancelled");
+                render();
+            });
+            toolbar.appendChild(addPointButton);
+            addPointInstruction = documentObject.createElement("span");
+            addPointInstruction.className = "point-curve-add-instruction";
+            addPointInstruction.textContent = "Tap graph to add point";
+            addPointInstruction.setAttribute("role", "status");
+            addPointInstruction.hidden = true;
+            toolbar.appendChild(addPointInstruction);
             rootElement.appendChild(toolbar);
 
             const graphShell = documentObject.createElement("div");
@@ -912,9 +1476,20 @@
                 "aria-label": "Point Curve graph. Tap empty space to add a point, or drag a point to adjust it."
             });
             const grid = svgElement("g", { class: "point-curve-grid", "aria-hidden": "true" });
-            [0, 64, 128, 192, 255].forEach(function (coordinate) {
-                grid.appendChild(svgElement("line", { x1: coordinate, y1: 0, x2: coordinate, y2: 255 }));
-                grid.appendChild(svgElement("line", { x1: 0, y1: coordinate, x2: 255, y2: coordinate }));
+            const gridCoordinates = [];
+            for (let coordinate = 0; coordinate < 255; coordinate += 16) gridCoordinates.push(coordinate);
+            gridCoordinates.push(255);
+            gridCoordinates.forEach(function (coordinate) {
+                const kind = coordinate === 0 || coordinate === 255 ? "boundary" :
+                    (coordinate % 64 === 0 ? "major" : "minor");
+                grid.appendChild(svgElement("line", {
+                    class: "point-curve-grid-" + kind,
+                    x1: coordinate, y1: 0, x2: coordinate, y2: 255
+                }));
+                grid.appendChild(svgElement("line", {
+                    class: "point-curve-grid-" + kind,
+                    x1: 0, y1: coordinate, x2: 255, y2: coordinate
+                }));
             });
             svg.appendChild(grid);
             const clipDefinitions = svgElement("defs");
@@ -957,13 +1532,25 @@
             previewMarker.setAttribute("display", "none");
             svg.appendChild(previewMarker);
             svg.addEventListener("pointerdown", function (event) {
+                if (!addPointArmed || gesture) return;
                 event.preventDefault();
                 const points = currentPoints();
                 const coordinates = graphCoordinates(event.clientX, event.clientY, svg.getBoundingClientRect());
                 if (!points || !coordinates) return;
                 const added = addPoint(points, coordinates.x, coordinates.y);
-                if (!added) return;
-                beginPointerGesture(event, added.pointIndex, true);
+                if (!added) {
+                    addPointArmed = false;
+                    setStatus("Add Point rejected because no valid integer input position is available there");
+                    render();
+                    return;
+                }
+                const insertion = createInsertionIdentity(points, added.pointIndex);
+                if (!insertion) {
+                    addPointArmed = false;
+                    render();
+                    return;
+                }
+                beginPointerGesture(event, added.pointIndex, true, insertion);
             });
             svg.addEventListener("pointermove", handlePointerMove);
             svg.addEventListener("pointerup", handlePointerEnd);
@@ -998,6 +1585,125 @@
             values.appendChild(outputLabel);
             rootElement.appendChild(values);
 
+            refineRow = documentObject.createElement("div");
+            refineRow.className = "point-curve-refine-row";
+            const refineLabel = documentObject.createElement("label");
+            refineLabel.className = "point-curve-row-label";
+            refineLabel.textContent = "Refine Sat.";
+            refineRange = documentObject.createElement("input");
+            refineRange.type = "range";
+            refineRange.setAttribute("aria-label", "Refine Saturation");
+            refineRange.disabled = true;
+            refineNumber = documentObject.createElement("input");
+            refineNumber.type = "text";
+            refineNumber.inputMode = "numeric";
+            refineNumber.autocomplete = "off";
+            refineNumber.setAttribute("autocomplete", "off");
+            refineNumber.setAttribute("autocapitalize", "off");
+            refineNumber.spellcheck = false;
+            refineNumber.setAttribute("spellcheck", "false");
+            refineNumber.id = "lrbridge-tone-curve-refine-editor";
+            refineNumber.setAttribute("id", "lrbridge-tone-curve-refine-editor");
+            refineNumber.setAttribute("aria-label", "Edit Refine Saturation value");
+            refineNumber.disabled = true;
+            refineResetButton = documentObject.createElement("button");
+            refineResetButton.type = "button";
+            refineResetButton.className = "point-curve-refine-reset";
+            refineResetButton.textContent = "Reset";
+            refineResetButton.disabled = true;
+            refineRange.addEventListener("pointerdown", function (event) {
+                if (beginRefineGesture(event.pointerId, Number(refineRange.value), false) &&
+                    refineRange.setPointerCapture && event.pointerId !== undefined) {
+                    refineRange.setPointerCapture(event.pointerId);
+                }
+            });
+            refineRange.addEventListener("input", function () {
+                if (!refineGesture) return;
+                refineGesture.desired = Number(refineRange.value);
+                render();
+                if (!refineGesture.awaitingAuthoritative) pumpRefineGesture();
+            });
+            refineRange.addEventListener("pointerup", function (event) {
+                if (!refineGesture || refineGesture.pointerId !== event.pointerId) return;
+                refineGesture.desired = Number(refineRange.value);
+                refineGesture.finishing = true;
+                ignoreNextRefineChange = true;
+                pumpRefineGesture();
+                render();
+            });
+            refineRange.addEventListener("pointercancel", function (event) {
+                if (!refineGesture || refineGesture.pointerId !== event.pointerId) return;
+                ignoreNextRefineChange = true;
+                retireRefineGesture(refineGesture, "Refine Saturation gesture cancelled");
+                render();
+            });
+            refineRange.addEventListener("change", function () {
+                if (ignoreNextRefineChange) {
+                    ignoreNextRefineChange = false;
+                    return;
+                }
+                if (!refineGesture) beginRefineGesture(null, Number(refineRange.value), true);
+            });
+            refineNumber.addEventListener("focus", function () { refineNumberEditing = true; });
+            refineNumber.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitRefineEditor();
+                    if (typeof refineNumber.blur === "function") refineNumber.blur();
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelRefineEditor();
+                    if (typeof refineNumber.blur === "function") refineNumber.blur();
+                }
+            });
+            refineNumber.addEventListener("blur", function () { commitRefineEditor(); });
+            refineResetButton.addEventListener("click", async function () {
+                if (interactionBusy() || selectedChannel !== "rgb" || !authoritative ||
+                    !bindingsEqual(authoritative, expectedBinding)) return;
+                const submitted = createAwaitingScalar(
+                    authoritative.refineSaturation.value, authoritative, now(), null
+                );
+                const path = "/api/tone-curve/refine-saturation/reset?" + queryForBinding(authoritative) +
+                    "&baseline=" + encodeURIComponent(String(authoritative.refineSaturation.value));
+                awaitingRefineReset = submitted;
+                render();
+                try {
+                    await requestJson(path);
+                    setStatus("Refine Saturation reset queued; awaiting authoritative Lightroom feedback");
+                } catch (error) {
+                    awaitingRefineReset = null;
+                    setStatus("ERROR: " + error.message);
+                } finally {
+                    render();
+                }
+            });
+            refineRow.appendChild(refineLabel);
+            refineRow.appendChild(refineRange);
+            refineRow.appendChild(refineNumber);
+            refineRow.appendChild(refineResetButton);
+            rootElement.appendChild(refineRow);
+
+            const presetRow = documentObject.createElement("div");
+            presetRow.className = "point-curve-preset-row";
+            const presetLabel = documentObject.createElement("label");
+            presetLabel.className = "point-curve-row-label";
+            presetLabel.textContent = "Point Curve:";
+            presetSelect = documentObject.createElement("select");
+            presetSelect.className = "point-curve-preset-select";
+            presetSelect.setAttribute("aria-label", "Point Curve preset");
+            presetSelect.disabled = true;
+            presetSelect.addEventListener("change", function () {
+                const name = presetSelect.value;
+                if (!presetCurve(name)) {
+                    render();
+                    return;
+                }
+                applyPreset(name);
+            });
+            presetRow.appendChild(presetLabel);
+            presetRow.appendChild(presetSelect);
+            rootElement.appendChild(presetRow);
+
             const actions = documentObject.createElement("div");
             actions.className = "point-curve-actions";
             deleteButton = documentObject.createElement("button");
@@ -1006,9 +1712,7 @@
             deleteButton.addEventListener("click", function () {
                 const target = deletePoint(currentPoints(), selectedPointIndex);
                 if (!target) return;
-                commitOneShot(target).then(function (accepted) {
-                    if (accepted) selectedPointIndex = null;
-                });
+                commitOneShot(target, "delete");
             });
             actions.appendChild(deleteButton);
             resetButton = documentObject.createElement("button");
@@ -1060,17 +1764,27 @@
             },
             deactivate: function () {
                 active = false;
+                addPointArmed = false;
                 if (pollTimer !== null) clearIntervalImpl(pollTimer);
                 pollTimer = null;
                 removeRecoveryListeners();
                 abortStateRequest();
                 if (gesture) retireActiveGesture(gesture);
                 if (awaitingTarget) releaseRemoteGesture(awaitingTarget);
+                if (refineGesture) retireRefineGesture(refineGesture);
+                if (awaitingRefine) releaseRemoteRefineGesture(awaitingRefine);
+                presetRequestToken += 1;
+                presetRequestInFlight = false;
                 authoritative = null;
                 expectedBinding = null;
                 selectedPointIndex = null;
                 awaitingTarget = null;
                 awaitingReset = null;
+                refineGesture = null;
+                awaitingRefine = null;
+                awaitingRefineReset = null;
+                awaitingPreset = null;
+                refineNumberEditing = false;
                 render();
             },
             applyContext: function (binding) {
@@ -1081,22 +1795,41 @@
                 } : null;
                 const navigationChanged = !!expectedBinding && (!normalized || !sameIdentity(expectedBinding, normalized));
                 if (!bindingsEqual(expectedBinding, normalized)) {
+                    addPointArmed = false;
                     if (navigationChanged) {
                         if (gesture) retireActiveGesture(gesture, "Point Curve gesture cancelled by navigation");
                         if (awaitingTarget) releaseRemoteGesture(awaitingTarget);
+                        if (refineGesture) retireRefineGesture(refineGesture, "Refine Saturation gesture cancelled by navigation");
+                        if (awaitingRefine) releaseRemoteRefineGesture(awaitingRefine);
+                        presetRequestToken += 1;
+                        presetRequestInFlight = false;
                         selectedPointIndex = null;
                         awaitingTarget = null;
                         awaitingReset = null;
+                        refineGesture = null;
+                        awaitingRefine = null;
+                        awaitingRefineReset = null;
+                        awaitingPreset = null;
+                        refineNumberEditing = false;
                         authoritative = null;
                     }
                     expectedBinding = normalized;
                     if (!normalized) {
                         if (gesture) retireActiveGesture(gesture, "Point Curve gesture cancelled outside Develop");
                         if (awaitingTarget) releaseRemoteGesture(awaitingTarget);
+                        if (refineGesture) retireRefineGesture(refineGesture, "Refine Saturation gesture cancelled outside Develop");
+                        if (awaitingRefine) releaseRemoteRefineGesture(awaitingRefine);
+                        presetRequestToken += 1;
+                        presetRequestInFlight = false;
                         authoritative = null;
                         selectedPointIndex = null;
                         awaitingTarget = null;
                         awaitingReset = null;
+                        refineGesture = null;
+                        awaitingRefine = null;
+                        awaitingRefineReset = null;
+                        awaitingPreset = null;
+                        refineNumberEditing = false;
                     }
                     render();
                     immediateRefresh();
@@ -1107,6 +1840,7 @@
             getState: function () {
                 return {
                     active: active,
+                    addPointArmed: addPointArmed,
                     selectedChannel: selectedChannel,
                     selectedPointIndex: selectedPointIndex,
                     expectedBinding: expectedBinding && Object.assign({}, expectedBinding),
@@ -1115,10 +1849,13 @@
                     gesture: gesture && {
                         id: gesture.id,
                         channel: gesture.channel,
+                        adding: !!gesture.adding,
+                        pointIndex: gesture.pointIndex,
                         finishing: !!gesture.finishing,
                         awaitingAuthoritative: !!gesture.awaitingAuthoritative
                     },
                     awaitingTarget: awaitingTarget && {
+                        operation: awaitingTarget.operation || "change",
                         channel: awaitingTarget.channel,
                         gestureId: awaitingTarget.gestureId,
                         selectedPhotoUuid: awaitingTarget.selectedPhotoUuid,
@@ -1126,9 +1863,34 @@
                         submittedDevelopCounter: awaitingTarget.submittedDevelopCounter,
                         submittedRevision: awaitingTarget.submittedRevision,
                         submittedUpdatedAt: awaitingTarget.submittedUpdatedAt,
-                        points: awaitingTarget.points.slice()
+                        points: awaitingTarget.points.slice(),
+                        insertion: awaitingTarget.insertion && {
+                            originalLength: awaitingTarget.insertion.originalLength,
+                            insertionIndex: awaitingTarget.insertion.insertionIndex,
+                            left: awaitingTarget.insertion.left.slice(),
+                            right: awaitingTarget.insertion.right.slice()
+                        }
                     },
                     awaitingReset: awaitingReset && Object.assign({}, awaitingReset),
+                    refineGestureActive: refineGesture !== null,
+                    refineGesture: refineGesture && {
+                        id: refineGesture.id,
+                        finishing: !!refineGesture.finishing,
+                        awaitingAuthoritative: !!refineGesture.awaitingAuthoritative,
+                        desired: refineGesture.desired
+                    },
+                    awaitingRefine: awaitingRefine && Object.assign({}, awaitingRefine),
+                    awaitingRefineReset: awaitingRefineReset && Object.assign({}, awaitingRefineReset),
+                    awaitingPreset: awaitingPreset && {
+                        name: awaitingPreset.name,
+                        points: awaitingPreset.points.slice(),
+                        selectedPhotoUuid: awaitingPreset.selectedPhotoUuid,
+                        contextCounter: awaitingPreset.contextCounter,
+                        submittedDevelopCounter: awaitingPreset.submittedDevelopCounter,
+                        submittedRevision: awaitingPreset.submittedRevision,
+                        submittedAt: awaitingPreset.submittedAt
+                    },
+                    presetRequestInFlight: presetRequestInFlight,
                     requestInFlight: requestInFlight
                 };
             }
@@ -1138,10 +1900,13 @@
     return Object.freeze({
         CHANNELS,
         CHANNEL_LABELS,
+        REFINE_SATURATION_FIELD,
+        PRESET_CURVES,
         MIN_COORDINATE,
         MAX_COORDINATE,
         VISUAL_POINT_RADIUS,
         TOUCH_TARGET_RADIUS,
+        POINTER_DRAG_THRESHOLD_PX,
         POINT_CURVE_REQUEST_TIMEOUT_MS,
         POINT_CURVE_FEEDBACK_TIMEOUT_MS,
         validCurveArray,
@@ -1152,15 +1917,25 @@
         curvePathData,
         selectedPointValues,
         addPoint,
+        createInsertionIdentity,
+        insertionBaselineMatches,
+        locateInsertedPoint,
         movePoint,
         deletePoint,
         curvesEqual,
+        validRefineSaturation,
+        parseRefineEditorValue,
+        presetCurve,
         validBinding,
         bindingsEqual,
         normalizeSnapshot,
         authoritativeSnapshotIsNewer,
         createAwaitingTarget,
         resolveAwaitingTarget,
+        createAwaitingScalar,
+        resolveAwaitingScalar,
+        createAwaitingPreset,
+        resolveAwaitingPreset,
         remapSelectedPointIndex,
         createController
     });

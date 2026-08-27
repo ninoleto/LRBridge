@@ -14,12 +14,22 @@ local channelFields = {
 }
 
 local channelOrder = { "rgb", "red", "green", "blue" }
+local refineSaturationField = "CurveRefineSaturation"
+local presetCurves = {
+    ["Linear"] = { 0, 0, 255, 255 },
+    ["Medium Contrast"] = { 0, 0, 32, 22, 64, 56, 128, 128, 192, 196, 255, 255 },
+    ["Strong Contrast"] = { 0, 0, 32, 16, 64, 50, 128, 128, 192, 202, 255, 255 }
+}
 local adjustmentDirty = true
 local observerOwner = nil
 local activeGesture = nil
 
 local function validInteger(value)
     return type(value) == "number" and value == math.floor(value)
+end
+
+local function validNumber(value)
+    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
 end
 
 local function validCurve(points)
@@ -125,8 +135,17 @@ local function validateWriteBaseline(command)
 end
 
 local function gestureMatches(command)
-    return activeGesture ~= nil and activeGesture.gestureId == command.gestureId and
+    return activeGesture ~= nil and activeGesture.kind == "curve" and activeGesture.gestureId == command.gestureId and
         activeGesture.channel == command.channel and activeGesture.field == command.field and
+        activeGesture.selectedPhotoUuid == command.expectedSelectedPhotoUuid and
+        activeGesture.contextCounter == command.expectedContextCounter
+end
+
+
+local function refineGestureMatches(command)
+    return activeGesture ~= nil and activeGesture.kind == "refineSaturation" and
+        activeGesture.gestureId == command.gestureId and activeGesture.field == refineSaturationField and
+        command.field == refineSaturationField and
         activeGesture.selectedPhotoUuid == command.expectedSelectedPhotoUuid and
         activeGesture.contextCounter == command.expectedContextCounter
 end
@@ -150,12 +169,25 @@ function ToneCurve.readSnapshot()
     local nameOk, name = LrTasks.pcall(function() return LrDevelopController.getValue("ToneCurveName2012") end)
     if nameOk ~= true or type(name) ~= "string" or name == "" or string.len(name) > 80 then return nil end
     snapshot.name = name
+    local refineOk, refineValue = LrTasks.pcall(function()
+        return LrDevelopController.getValue(refineSaturationField)
+    end)
+    local rangeOk, refineMin, refineMax = LrTasks.pcall(function()
+        return LrDevelopController.getRange(refineSaturationField)
+    end)
+    if refineOk ~= true or rangeOk ~= true or not validNumber(refineValue) or
+        not validNumber(refineMin) or not validNumber(refineMax) or refineMin >= refineMax or
+        refineValue < refineMin or refineValue > refineMax then return nil end
+    snapshot.refineSaturation = refineValue
+    snapshot.refineMin = refineMin
+    snapshot.refineMax = refineMax
     snapshot.fingerprint = table.concat({
         "ToneCurvePV2012=" .. snapshot.rgbSerialized,
         "ToneCurvePV2012Red=" .. snapshot.redSerialized,
         "ToneCurvePV2012Green=" .. snapshot.greenSerialized,
         "ToneCurvePV2012Blue=" .. snapshot.blueSerialized,
-        "ToneCurveName2012=" .. name
+        "ToneCurveName2012=" .. name,
+        "CurveRefineSaturation=" .. tostring(refineValue) .. "," .. tostring(refineMin) .. "," .. tostring(refineMax)
     }, "|")
     return snapshot
 end
@@ -191,6 +223,7 @@ function ToneCurve.beginGesture(command)
     local ok = LrTasks.pcall(function() LrDevelopController.startTracking(command.field) end)
     if ok ~= true then return false end
     activeGesture = {
+        kind = "curve",
         gestureId = command.gestureId,
         channel = command.channel,
         field = command.field,
@@ -237,6 +270,126 @@ function ToneCurve.resetChannel(command)
     local ok = LrTasks.pcall(function() LrDevelopController.resetToDefault(command.field) end)
     if ok == true then adjustmentDirty = true end
     return ok == true
+end
+
+
+local function refineCommandShapeMatches(command, requireValue)
+    if command.field ~= refineSaturationField or type(command.expectedSelectedPhotoUuid) ~= "string" or
+        command.expectedSelectedPhotoUuid == "" or not validInteger(command.expectedContextCounter) or
+        command.expectedContextCounter < 0 or not validInteger(command.expectedDevelopCounter) or
+        command.expectedDevelopCounter < 0 or not validNumber(command.expectedValue) then return false end
+    if requireValue == true and not validNumber(command.value) then return false end
+    return true
+end
+
+local function validateRefineBaseline(command, requireValue)
+    if not refineCommandShapeMatches(command, requireValue) or not activeModuleIsDevelop() then return false end
+    local beforePhoto = selectedPhoto()
+    if beforePhoto == nil or photoUuid(beforePhoto) ~= command.expectedSelectedPhotoUuid then return false end
+    if not currentServerContextMatches(command) then return false end
+    local valueOk, currentValue = LrTasks.pcall(function()
+        return LrDevelopController.getValue(refineSaturationField)
+    end)
+    local rangeOk, minimum, maximum = LrTasks.pcall(function()
+        return LrDevelopController.getRange(refineSaturationField)
+    end)
+    if valueOk ~= true or rangeOk ~= true or not validNumber(currentValue) or currentValue ~= command.expectedValue or
+        not validNumber(minimum) or not validNumber(maximum) or minimum >= maximum then return false end
+    if requireValue == true and (command.value < minimum or command.value > maximum) then return false end
+    local afterPhoto = selectedPhoto()
+    return afterPhoto == beforePhoto and photoUuid(afterPhoto) == command.expectedSelectedPhotoUuid and activeModuleIsDevelop()
+end
+
+function ToneCurve.beginRefineSaturationGesture(command)
+    if activeGesture ~= nil then
+        if refineGestureMatches(command) then return false end
+        clearActiveGesture()
+    end
+    if type(command.gestureId) ~= "string" or not validateRefineBaseline(command, false) then return false end
+    local ok = LrTasks.pcall(function() LrDevelopController.startTracking(refineSaturationField) end)
+    if ok ~= true then return false end
+    activeGesture = {
+        kind = "refineSaturation",
+        gestureId = command.gestureId,
+        field = refineSaturationField,
+        selectedPhotoUuid = command.expectedSelectedPhotoUuid,
+        contextCounter = command.expectedContextCounter
+    }
+    return true
+end
+
+function ToneCurve.updateRefineSaturationGesture(command)
+    if not refineGestureMatches(command) then return false end
+    if not validateRefineBaseline(command, true) then
+        clearActiveGesture()
+        return false
+    end
+    local ok = LrTasks.pcall(function() LrDevelopController.setValue(refineSaturationField, command.value) end)
+    if ok == true then adjustmentDirty = true else clearActiveGesture() end
+    return ok == true
+end
+
+function ToneCurve.endRefineSaturationGesture(command)
+    if not refineGestureMatches(command) then return false end
+    local writeAccepted = false
+    if validateRefineBaseline(command, true) then
+        local ok = LrTasks.pcall(function() LrDevelopController.setValue(refineSaturationField, command.value) end)
+        writeAccepted = ok == true
+        if writeAccepted then adjustmentDirty = true end
+    end
+    local stopOk = clearActiveGesture()
+    return writeAccepted and stopOk == true
+end
+
+function ToneCurve.cancelRefineSaturationGesture(command)
+    if not refineGestureMatches(command) then return false end
+    return clearActiveGesture()
+end
+
+function ToneCurve.resetRefineSaturation(command)
+    if not validateRefineBaseline(command, false) then return false end
+    if activeGesture ~= nil then clearActiveGesture() end
+    local ok = LrTasks.pcall(function()
+        LrDevelopController.resetToDefault(refineSaturationField)
+    end)
+    if ok == true then adjustmentDirty = true end
+    return ok == true
+end
+
+local function validatePresetBaseline(command)
+    local preset = presetCurves[command.preset]
+    if preset == nil or command.field ~= channelFields.rgb or not validCurve(command.points) or
+        serializeCurve(command.points) ~= serializeCurve(preset) then return false end
+    if not commandShapeMatches({
+        channel = "rgb",
+        field = command.field,
+        expectedSelectedPhotoUuid = command.expectedSelectedPhotoUuid,
+        expectedContextCounter = command.expectedContextCounter,
+        expectedDevelopCounter = command.expectedDevelopCounter,
+        expectedPoints = command.expectedPoints
+    }, false) or not activeModuleIsDevelop() then return false end
+    local beforePhoto = selectedPhoto()
+    if beforePhoto == nil or photoUuid(beforePhoto) ~= command.expectedSelectedPhotoUuid then return false end
+    if not currentServerContextMatches(command) then return false end
+    local ok, currentCurve = LrTasks.pcall(function()
+        return LrDevelopController.getValue(channelFields.rgb)
+    end)
+    if ok ~= true or serializeCurve(currentCurve) ~= serializeCurve(command.expectedPoints) then return false end
+    local afterPhoto = selectedPhoto()
+    return afterPhoto == beforePhoto and photoUuid(afterPhoto) == command.expectedSelectedPhotoUuid and activeModuleIsDevelop()
+end
+
+function ToneCurve.setPreset(command)
+    if not validatePresetBaseline(command) then return false end
+    if activeGesture ~= nil then clearActiveGesture() end
+    local startOk = LrTasks.pcall(function() LrDevelopController.startTracking(channelFields.rgb) end)
+    if startOk ~= true then return false end
+    local writeOk = LrTasks.pcall(function()
+        LrDevelopController.setValue(channelFields.rgb, copyCurve(command.points))
+    end)
+    local stopOk = LrTasks.pcall(function() LrDevelopController.stopTracking(false) end)
+    if writeOk == true then adjustmentDirty = true end
+    return writeOk == true and stopOk == true
 end
 
 function ToneCurve.fieldForChannel(channel)

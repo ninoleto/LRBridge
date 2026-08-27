@@ -23,6 +23,7 @@ const composite = [0, 0, 64, 58, 192, 200, 255, 255];
 const red = [0, 0, 128, 140, 255, 255];
 const green = [0, 0, 96, 108, 255, 255];
 const blue = [0, 0, 160, 148, 255, 255];
+const refineSaturation = Object.freeze({ value: 100, min: 0, max: 100 });
 // Read-only Lightroom snapshot captured before the raw-spline renderer change
 // (photo 0E640600-8990-4822-8CCB-73C1E555A7F9, Develop counter 5).
 const authoritativeRenderingFixtures = Object.freeze({
@@ -76,7 +77,10 @@ function feedbackQuery(binding, curves, name) {
         rgb: pointCurve.serializeCurve(curves.rgb),
         red: pointCurve.serializeCurve(curves.red),
         green: pointCurve.serializeCurve(curves.green),
-        blue: pointCurve.serializeCurve(curves.blue)
+        blue: pointCurve.serializeCurve(curves.blue),
+        refineSaturation: refineSaturation.value,
+        refineMin: refineSaturation.min,
+        refineMax: refineSaturation.max
     }));
 }
 
@@ -95,6 +99,15 @@ assert.deepEqual(pointCurve.CHANNEL_FIELDS, {
     green: "ToneCurvePV2012Green",
     blue: "ToneCurvePV2012Blue"
 });
+assert.equal(pointCurve.REFINE_SATURATION_FIELD, "CurveRefineSaturation");
+assert.deepEqual(pointCurve.presetCurve("Linear"), [0, 0, 255, 255]);
+assert.deepEqual(pointCurve.presetCurve("Medium Contrast"),
+    [0, 0, 32, 22, 64, 56, 128, 128, 192, 196, 255, 255]);
+assert.deepEqual(pointCurve.presetCurve("Strong Contrast"),
+    [0, 0, 32, 16, 64, 50, 128, 128, 192, 202, 255, 255]);
+assert.equal(pointCurve.presetCurve("Custom"), null, "Custom must remain feedback-only");
+assert.equal(pointCurve.validRefineSaturation(100, 0, 100), true);
+assert.equal(pointCurve.validRefineSaturation(101, 0, 100), false);
 assert.equal(pointCurve.serializeCurve(composite), "0,0,64,58,192,200,255,255");
 assert.deepEqual(pointCurve.parseCurve("0,0,64,58,192,200,255,255"), composite);
 
@@ -231,6 +244,18 @@ for (const [fixtureName, points] of Object.entries(interactionFixtures)) {
         assert.equal(moved.length, points.length, "Moving a point must not impose a point-count limit");
     }
 }
+const insertionBase = [0, 0, 64, 70, 128, 150, 255, 255];
+const inserted = controllerToneCurve.addPoint(insertionBase, 96, 110);
+const insertionIdentity = controllerToneCurve.createInsertionIdentity(insertionBase, inserted.pointIndex);
+assert.deepEqual(insertionIdentity.left, [64, 70]);
+assert.deepEqual(insertionIdentity.right, [128, 150]);
+assert.equal(controllerToneCurve.insertionBaselineMatches(insertionBase, insertionIdentity), true);
+assert.equal(controllerToneCurve.locateInsertedPoint(inserted.points, insertionIdentity), inserted.pointIndex,
+    "Structural feedback must retain the exact inserted point rather than remapping to its right-hand neighbor");
+assert.deepEqual(inserted.points.slice((inserted.pointIndex + 1) * 2, (inserted.pointIndex + 2) * 2),
+    insertionIdentity.right, "Point insertion must leave the right-hand neighbor byte-for-byte unchanged");
+assert.equal(controllerToneCurve.addPoint([0, 0, 1, 1, 255, 255], 0.5, 50), null,
+    "Addition must reject cleanly when no strictly increasing integer X exists between neighbors");
 
 const transactionSnapshot = controllerToneCurve.normalizeSnapshot({
     available: true,
@@ -239,15 +264,22 @@ const transactionSnapshot = controllerToneCurve.normalizeSnapshot({
     developCounter: 11,
     revision: 30,
     name: "Custom",
+    refineSaturation: refineSaturation,
     curves: { rgb: composite, red: red, green: green, blue: blue }
 });
 const transaction = controllerToneCurve.createAwaitingTarget(
     { id: "transaction_gesture", channel: "green" }, green, transactionSnapshot, 100
 );
 assert.deepEqual(Object.keys(transaction).sort(), [
-    "channel", "contextCounter", "gestureId", "points", "selectedPhotoUuid", "submittedAt",
+    "channel", "contextCounter", "gestureId", "operation", "points", "selectedPhotoUuid", "submittedAt",
     "submittedDevelopCounter", "submittedRevision", "submittedUpdatedAt"
 ].sort(), "Pending writes must bind gesture, photo, context, Develop counter, revision, channel, and target");
+assert.equal(controllerToneCurve.parseRefineEditorValue("72", refineSaturation), 72);
+assert.equal(controllerToneCurve.parseRefineEditorValue("120", refineSaturation), 100,
+    "Refine editor values must clamp to Lightroom's authoritative maximum");
+assert.equal(controllerToneCurve.parseRefineEditorValue("-5", refineSaturation), 0,
+    "Refine editor values must clamp to Lightroom's authoritative minimum");
+assert.equal(controllerToneCurve.parseRefineEditorValue("not numeric", refineSaturation), null);
 assert.equal(controllerToneCurve.resolveAwaitingTarget(transaction, transactionSnapshot), "matched");
 const externalSnapshot = controllerToneCurve.normalizeSnapshot(Object.assign({}, transactionSnapshot, {
     revision: 31,
@@ -261,6 +293,31 @@ const laterHeartbeatSnapshot = controllerToneCurve.normalizeSnapshot(Object.assi
 }));
 assert.equal(controllerToneCurve.resolveAwaitingTarget(transaction, laterHeartbeatSnapshot), "superseded",
     "A later authoritative heartbeat must settle a rejected target even when revision counters already advanced");
+const scalarTransaction = controllerToneCurve.createAwaitingScalar(75, transactionSnapshot, 100, "refine_1");
+assert.equal(controllerToneCurve.resolveAwaitingScalar(scalarTransaction,
+    controllerToneCurve.normalizeSnapshot(Object.assign({}, transactionSnapshot, {
+        refineSaturation: { value: 75, min: 0, max: 100 }
+    }))), "matched");
+assert.equal(controllerToneCurve.resolveAwaitingScalar(scalarTransaction,
+    controllerToneCurve.normalizeSnapshot(Object.assign({}, transactionSnapshot, {
+        revision: 31,
+        refineSaturation: { value: 80, min: 0, max: 100 }
+    }))), "superseded", "A newer Lightroom scalar value must retire an obsolete Refine target");
+const presetTransaction = controllerToneCurve.createAwaitingPreset(
+    "Medium Contrast", controllerToneCurve.presetCurve("Medium Contrast"), transactionSnapshot, 100
+);
+assert.equal(controllerToneCurve.resolveAwaitingPreset(presetTransaction,
+    controllerToneCurve.normalizeSnapshot(Object.assign({}, transactionSnapshot, {
+        name: "Medium Contrast",
+        curves: Object.assign({}, transactionSnapshot.curves, {
+            rgb: controllerToneCurve.presetCurve("Medium Contrast")
+        })
+    }))), "matched");
+assert.equal(controllerToneCurve.resolveAwaitingPreset(presetTransaction,
+    controllerToneCurve.normalizeSnapshot(Object.assign({}, transactionSnapshot, {
+        revision: 31,
+        name: "Custom"
+    }))), "superseded", "Newer authoritative preset feedback must unlock a stale request");
 assert.equal(controllerToneCurve.remapSelectedPointIndex(
     interactionFixtures.thirteen, interactionFixtures.six, 6
 ), null, "A structural change must clear a selected point that cannot be safely remapped");
@@ -268,7 +325,8 @@ assert.equal(controllerToneCurve.remapSelectedPointIndex(
 const canonicalA = "scalars|ToneCurvePV2012=" + pointCurve.serializeCurve(linear) +
     "|ToneCurvePV2012Red=" + pointCurve.serializeCurve(linear) +
     "|ToneCurvePV2012Green=" + pointCurve.serializeCurve(linear) +
-    "|ToneCurvePV2012Blue=" + pointCurve.serializeCurve(linear) + "|ToneCurveName2012=Linear";
+    "|ToneCurvePV2012Blue=" + pointCurve.serializeCurve(linear) +
+    "|ToneCurveName2012=Linear|CurveRefineSaturation=100,0,100";
 const canonicalB = canonicalA.replace("ToneCurvePV2012=0,0,255,255", "ToneCurvePV2012=0,0,64,58,192,200,255,255")
     .replace("ToneCurveName2012=Linear", "ToneCurveName2012=Custom");
 const initialContext = context.updateContext({
@@ -291,8 +349,15 @@ for (const field of Object.values(pointCurve.CHANNEL_FIELDS)) {
 }
 assert.ok(feedbackPolling.includes("toneCurve and toneCurve.fingerprint"));
 assert.match(luaToneCurve, /LrDevelopController\.getValue\("ToneCurveName2012"\)/);
-assert.doesNotMatch(luaToneCurve, /LrDevelopController\.getRange/,
-    "The misleading -100..100 SDK range must never define Point Curve coordinates");
+assert.match(luaToneCurve, /LrDevelopController\.getValue\(refineSaturationField\)/);
+assert.match(luaToneCurve, /LrDevelopController\.getRange\(refineSaturationField\)/,
+    "Refine Saturation must publish Lightroom's live SDK range instead of assuming 0..100");
+assert.doesNotMatch(luaToneCurve, /getRange\(channelFields|Curve coordinates.*getRange/,
+    "SDK scalar ranges must never define Point Curve coordinates");
+assert.match(luaToneCurve, /CurveRefineSaturation=/,
+    "The authoritative Develop fingerprint must include Refine Saturation value and live range");
+assert.match(feedbackPolling, /refineSaturation=[\s\S]*refineMin=[\s\S]*refineMax=/,
+    "Point Curve feedback must publish the authoritative Refine Saturation value and range");
 assert.match(luaToneCurve, /addAdjustmentChangeObserver\(functionContext, owner, function\(\)\s*adjustmentDirty = true\s*end\)/);
 assert.match(feedbackPolling, /maybeSendContextHeartbeat\(toneCurveDirty\)/);
 assert.match(feedbackPolling, /contextIntervalSeconds = 0\.75/,
@@ -314,9 +379,27 @@ assert.match(endGestureSource, /clearActiveGesture\(\)/,
 assert.match(luaToneCurve, /function ToneCurve\.cancelGesture\(command\)[\s\S]*clearActiveGesture\(\)/,
     "Explicit cancellation must terminate Lightroom tracking");
 assert.match(luaToneCurve, /LrDevelopController\.resetToDefault\(command\.field\)/);
+assert.match(luaToneCurve,
+    /function ToneCurve\.beginRefineSaturationGesture[\s\S]*startTracking\(refineSaturationField\)/);
+assert.match(luaToneCurve,
+    /function ToneCurve\.updateRefineSaturationGesture[\s\S]*setValue\(refineSaturationField, command\.value\)/);
+assert.match(luaToneCurve,
+    /function ToneCurve\.endRefineSaturationGesture[\s\S]*setValue\(refineSaturationField, command\.value\)[\s\S]*clearActiveGesture\(\)/,
+    "A Refine gesture must end with authoritative setValue and terminal stopTracking cleanup");
+assert.match(luaToneCurve,
+    /function ToneCurve\.resetRefineSaturation[\s\S]*resetToDefault\(refineSaturationField\)/);
+const presetLuaSource = luaToneCurve.slice(luaToneCurve.indexOf("function ToneCurve.setPreset"));
+assert.match(presetLuaSource,
+    /startTracking\(channelFields\.rgb\)[\s\S]*setValue\(channelFields\.rgb, copyCurve\(command\.points\)\)[\s\S]*stopTracking\(false\)/,
+    "Preset application must be one tracked RGB history operation");
+assert.doesNotMatch(presetLuaSource, /ToneCurveName2012|applyDevelopSettings/,
+    "The initial production preset route must write only ToneCurvePV2012 until Lightroom proves a name write is needed");
 for (const phase of ["begin", "update", "end", "cancel"]) {
     assert.ok(luaCommands.includes('command.command == "tone_curve.gesture.' + phase + '"'));
+    assert.ok(luaCommands.includes('command.command == "tone_curve.refine_saturation.gesture.' + phase + '"'));
 }
+assert.ok(luaCommands.includes('command.command == "tone_curve.refine_saturation.reset"'));
+assert.ok(luaCommands.includes('command.command == "tone_curve.preset.set"'));
 for (const field of ["channel", "gestureId", "expectedSelectedPhotoUuid", "expectedDevelopCounter", "points", "expectedPoints"]) {
     assert.match(luaParser, new RegExp("\\b" + field + " = " + field + "\\b"));
 }
@@ -324,6 +407,14 @@ for (const field of ["channel", "gestureId", "expectedSelectedPhotoUuid", "expec
 assert.ok(controllerHtml.indexOf("pointCurveController.element") < controllerHtml.indexOf('title.textContent = "Parametric Curve"'),
     "POINT CURVE must render before the accepted PARAMETRIC CURVE section");
 assert.match(controllerHtml, /\.point-curve-graph[\s\S]*aspect-ratio: 1 \/ 1|\.point-curve-graph-shell[\s\S]*aspect-ratio: 1 \/ 1/);
+assert.match(controllerHtml, /\.point-curve-group\s*\{[\s\S]*width: min\(100%, 560px\)/,
+    "The complete Point Curve workspace must stay compact on large screens and responsive below 560px");
+assert.match(controllerHtml, /\.point-curve-channel\s*\{[\s\S]*width: 44px;[\s\S]*height: 44px;/,
+    "Compact channel glyphs must retain 44px touch targets");
+assert.match(controllerHtml, /\.point-curve-channel::before\s*\{[\s\S]*inset: 9px;/,
+    "Visible channel controls must be independently restrained inside their touch targets");
+assert.match(controllerHtml, /\.point-curve-grid-minor[\s\S]*\.point-curve-grid-major/,
+    "The graph must provide subtle minor divisions and stronger quarter divisions");
 const pointCurveControllerSource = read("app/controller-tone-curve.js");
 assert.match(pointCurveControllerSource, /addEventListener\("pointerdown"/);
 assert.match(pointCurveControllerSource, /addEventListener\("pointermove"/);
@@ -352,6 +443,44 @@ assert.match(controllerHtml, /\.point-curve-marker\s*\{[\s\S]*pointer-events: no
 assert.match(pointCurveControllerSource,
     /selectedPointValues\(points, selectedPointIndex\)[\s\S]*inputValueElement\.textContent = selectedValues[\s\S]*outputValueElement\.textContent = selectedValues/,
     "Displayed Input/Output values must be read from the selected authoritative point");
+assert.match(pointCurveControllerSource, /adjustLabel\.textContent = "Adjust:"/);
+assert.doesNotMatch(pointCurveControllerSource, /point-curve-name|nameElement/,
+    "The authoritative curve name must no longer float at the right edge of the channel toolbar");
+assert.match(pointCurveControllerSource,
+    /coordinate % 64 === 0 \? "major" : "minor"[\s\S]*class: "point-curve-grid-" \+ kind/,
+    "SVG grid elements must distinguish major and minor divisions");
+assert.match(pointCurveControllerSource,
+    /refineRow\.hidden = selectedChannel !== "rgb"[\s\S]*const refineChannelAvailable = available && selectedChannel === "rgb"/,
+    "Refine Saturation must be visible and enabled only for RGB");
+assert.match(pointCurveControllerSource,
+    /refineNumber\.type = "text";[\s\S]*refineNumber\.inputMode = "numeric";[\s\S]*setAttribute\("autocomplete", "off"\)[\s\S]*setAttribute\("autocapitalize", "off"\)[\s\S]*setAttribute\("spellcheck", "false"\)/,
+    "Refine Saturation must use a numeric-keyboard text editor with autofill and text services disabled");
+assert.doesNotMatch(pointCurveControllerSource, /refineNumber\.type = "number"|point-curve-refine-authoritative/,
+    "Refine Saturation must not retain a native number input or duplicate visible value");
+assert.doesNotMatch(controllerHtml, /\.point-curve-refine-row input\[type="number"\]/,
+    "Refine Saturation styling must not conceal a native number editor");
+assert.match(pointCurveControllerSource,
+    /if \(!refineNumberEditing\) refineNumber\.value = String\(refine\.value\)/,
+    "Polling must preserve active Refine editor text, caret, and selection");
+assert.match(pointCurveControllerSource,
+    /event\.key === "Enter"[\s\S]*commitRefineEditor\(\)[\s\S]*event\.key === "Escape"[\s\S]*cancelRefineEditor\(\)[\s\S]*addEventListener\("blur", function \(\) \{ commitRefineEditor\(\); \}\)/,
+    "Enter and blur must commit while Escape restores Lightroom authority");
+assert.match(pointCurveControllerSource,
+    /addPointButton\.textContent = "\+";[\s\S]*setAttribute\("aria-label", "Add point"\)[\s\S]*addPointArmed = !addPointArmed/,
+    "A compact accessible button must explicitly arm one-shot Add Point mode");
+assert.match(controllerHtml,
+    /\.point-curve-add-button\s*\{[\s\S]*width: 44px;[\s\S]*height: 44px;[\s\S]*\.point-curve-add-button\.active/,
+    "Add Point must have an independent 44px touch target and visible active state");
+assert.match(pointCurveControllerSource,
+    /svg\.addEventListener\("pointerdown", function \(event\) \{\s*if \(!addPointArmed \|\| gesture\) return;/,
+    "Empty graph space must be inert outside explicit Add Point mode and ignore secondary pointers");
+assert.match(pointCurveControllerSource,
+    /if \(session\.adding\)[\s\S]*locateInsertedPoint\(baseline, session\.insertion\)[\s\S]*movePoint\(baseline, insertedIndex/,
+    "An accepted insertion must continue dragging only its stable inserted identity");
+assert.match(pointCurveControllerSource, /updatePresetOptions\(authoritative\.name\)/,
+    "The preset selector must render Lightroom's authoritative ToneCurveName2012");
+assert.match(pointCurveControllerSource, /presetCurve\(name\)[\s\S]*selectedChannel = "rgb"[\s\S]*selectedPointIndex = null/,
+    "A preset selection must switch presentation to RGB and clear structural point selection");
 assert.equal((pointCurveControllerSource.match(/authoritative = normalized/g) || []).length, 1,
     "Only accepted authoritative snapshots may replace rendered Point Curve state");
 assert.match(controllerHtml, /<script src="\/controller-tone-curve\.js"><\/script>/);
@@ -384,6 +513,12 @@ class FakeElement {
         this.textContent = "";
         this.hidden = false;
         this.disabled = false;
+        this.value = "";
+        this.selectionStart = 0;
+        this.selectionEnd = 0;
+        this.selectionDirection = "none";
+        this.ownerDocument = null;
+        this.style = { setProperty: function () {} };
     }
     setAttribute(name, value) {
         this.attributes[name] = String(value);
@@ -413,13 +548,34 @@ class FakeElement {
     }
     getBoundingClientRect() { return { left: 0, top: 0, width: 255, height: 255 }; }
     setPointerCapture() {}
+    setSelectionRange(start, end, direction) {
+        this.selectionStart = start;
+        this.selectionEnd = end;
+        this.selectionDirection = direction || "none";
+    }
+    focus() {
+        if (this.ownerDocument) this.ownerDocument.activeElement = this;
+        this.dispatch("focus");
+    }
+    blur() {
+        if (this.ownerDocument && this.ownerDocument.activeElement === this) this.ownerDocument.activeElement = null;
+        this.dispatch("blur");
+    }
 }
 
 function createFakeDocument() {
     const documentObject = new FakeElement("document");
     documentObject.visibilityState = "visible";
-    documentObject.createElement = function (name) { return new FakeElement(name); };
-    documentObject.createElementNS = function (_namespace, name) { return new FakeElement(name); };
+    documentObject.createElement = function (name) {
+        const element = new FakeElement(name);
+        element.ownerDocument = documentObject;
+        return element;
+    };
+    documentObject.createElementNS = function (_namespace, name) {
+        const element = new FakeElement(name);
+        element.ownerDocument = documentObject;
+        return element;
+    };
     documentObject.createTextNode = function (text) {
         const node = new FakeElement("#text");
         node.textContent = text;
@@ -452,6 +608,7 @@ function controllerSnapshot(points, revision, updatedAt) {
         revision: revision,
         updatedAt: updatedAt === undefined ? Date.now() : updatedAt,
         name: "Custom",
+        refineSaturation: Object.assign({}, refineSaturation),
         curves: { rgb: points.slice(), red: points.slice(), green: points.slice(), blue: points.slice() }
     };
 }
@@ -492,7 +649,12 @@ async function controllerInteractionTests() {
         return element.classList && element.classList.contains("point-curve-hit-target") &&
             element.getAttribute("data-point-index") === "3";
     })[0];
-    hitTarget.dispatch("click");
+    hitTarget.dispatch("pointerdown", {
+        pointerId: 40, pointerType: "mouse", clientX: 96, clientY: 165
+    });
+    svg.dispatch("pointerup", { pointerId: 40, pointerType: "mouse", clientX: 96, clientY: 165 });
+    assert.equal(controller.getState().gestureActive, false,
+        "A mouse tap must settle as selection without opening an SDK write gesture");
     const input = findElements(rootElement, function (element) {
         return element.getAttribute && element.getAttribute("aria-label") === "Selected point input";
     })[0];
@@ -502,7 +664,20 @@ async function controllerInteractionTests() {
     assert.equal(input.textContent, String(interactionFixtures.eight[6]));
     assert.equal(output.textContent, String(interactionFixtures.eight[7]),
         "Selected Input/Output must reflect the authoritative array");
+    const deleteButton = findElements(rootElement, function (element) {
+        return element.tagName === "button" && element.textContent === "Delete selected point";
+    })[0];
+    assert.equal(deleteButton.disabled, false, "Selecting an interior point must visibly enable deletion");
+    const selectedMarker = findElements(rootElement, function (element) {
+        return element.classList && element.classList.contains("point-curve-marker") &&
+            element.classList.contains("selected");
+    })[0];
+    assert.ok(selectedMarker, "The selected interior point must have a visible selected marker");
 
+    hitTarget = findElements(rootElement, function (element) {
+        return element.classList && element.classList.contains("point-curve-hit-target") &&
+            element.getAttribute("data-point-index") === "3";
+    })[0];
     hitTarget.dispatch("pointerdown", { pointerId: 1, clientX: 96, clientY: 155 });
     const canonicalPath = findElements(rootElement, function (element) {
         return element.classList && element.classList.contains("point-curve-line");
@@ -515,18 +690,16 @@ async function controllerInteractionTests() {
     })[0];
     assert.equal(canonicalPath.getAttribute("d"), controllerToneCurve.curvePathData(interactionFixtures.eight),
         "The committed graph must remain authoritative during a drag");
-    const immediatePreview = interactionFixtures.eight.slice();
-    immediatePreview[7] = 100;
-    assert.equal(previewPath.getAttribute("d"), controllerToneCurve.curvePathData(immediatePreview),
-        "The unchanged Adobe spline must render a synchronous local drag preview");
-    assert.equal(previewMarker.getAttribute("cy"), "155",
-        "The visible drag marker must follow the pointer before any HTTP response");
+    assert.equal(previewPath.getAttribute("display"), "none",
+        "Pointer-down on an existing point must select it without prematurely admitting a write gesture");
     svg.dispatch("pointermove", { pointerId: 1, clientX: 98, clientY: 153 });
     const movedPreview = interactionFixtures.eight.slice();
     movedPreview[6] = 98;
     movedPreview[7] = 102;
     assert.equal(previewPath.getAttribute("d"), controllerToneCurve.curvePathData(movedPreview),
         "Every pointer move must update the local preview synchronously");
+    assert.equal(previewMarker.getAttribute("cy"), "153",
+        "The visible drag marker must follow the first intentional pointer movement immediately");
     await flushController();
     assert.equal(controller.getState().gesture.awaitingAuthoritative, true);
     svg.dispatch("pointerup", { pointerId: 1, clientX: 97, clientY: 154 });
@@ -561,7 +734,8 @@ async function controllerInteractionTests() {
     svg = findElements(rootElement, function (element) {
         return element.classList && element.classList.contains("point-curve-graph");
     })[0];
-    svg.dispatch("pointerup", { pointerId: 2, clientX: 129, clientY: 99 });
+    svg.dispatch("pointermove", { pointerId: 2, clientX: 131, clientY: 97 });
+    svg.dispatch("pointerup", { pointerId: 2, clientX: 131, clientY: 97 });
     await flushController();
     assert.equal(controller.getState().gestureActive, false,
         "Multiple sequential gestures must remain possible without refreshing");
@@ -585,7 +759,8 @@ async function controllerInteractionTests() {
             element.getAttribute("data-point-index") === "2";
     })[0];
     hitTarget.dispatch("pointerdown", { pointerId: 3, clientX: 102, clientY: 126 });
-    svg.dispatch("pointerup", { pointerId: 3, clientX: 103, clientY: 125 });
+    svg.dispatch("pointermove", { pointerId: 3, clientX: 106, clientY: 122 });
+    svg.dispatch("pointerup", { pointerId: 3, clientX: 106, clientY: 122 });
     await flushController();
     assert.ok(controller.getState().awaitingTarget);
     controller.applyContext({
@@ -625,6 +800,734 @@ async function controllerInteractionTests() {
     timeoutController.deactivate();
 }
 
+async function controllerRefineAndPresetTests() {
+    const documentObject = createFakeDocument();
+    const windowObject = new FakeElement("window");
+    let currentTime = 1000;
+    let snapshot = controllerSnapshot(linear, 1, currentTime);
+    snapshot.curves = {
+        rgb: linear.slice(), red: red.slice(), green: green.slice(), blue: blue.slice()
+    };
+    const requests = [];
+    let rejectStrong = false;
+    const fetchImpl = async function (requestPath) {
+        requests.push(requestPath);
+        if (requestPath === "/api/tone-curve/state") {
+            return jsonResponse({ ok: true, pointCurve: snapshot });
+        }
+        if (rejectStrong && requestPath.includes("preset=Strong%20Contrast")) {
+            return jsonResponse({ ok: false, error: "preset rejected" }, 409);
+        }
+        return jsonResponse({ ok: true });
+    };
+    const controller = controllerToneCurve.createController({
+        document: documentObject,
+        window: windowObject,
+        fetch: fetchImpl,
+        now: function () { return currentTime; },
+        feedbackTimeoutMs: 10,
+        setInterval: function () { return 20; },
+        clearInterval: function () {}
+    });
+    controller.activate(Object.assign({ activeModule: "develop" }, snapshot));
+    await flushController();
+    const rootElement = controller.element;
+    const refineRowElement = findElements(rootElement, function (element) {
+        return element.className === "point-curve-refine-row";
+    })[0];
+    const refineSlider = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Refine Saturation";
+    })[0];
+    const refineEditor = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Edit Refine Saturation value";
+    })[0];
+    const presetSelect = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Point Curve preset";
+    })[0];
+    const redButton = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Adjust Red Point Curve";
+    })[0];
+    const rgbButton = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Adjust RGB Point Curve";
+    })[0];
+    assert.equal(refineSlider.min, "0");
+    assert.equal(refineSlider.max, "100");
+    assert.equal(refineEditor.value, "100");
+    assert.equal(refineEditor.type, "text");
+    assert.equal(refineEditor.inputMode, "numeric");
+    assert.equal(refineEditor.getAttribute("autocomplete"), "off");
+    assert.equal(refineEditor.getAttribute("autocapitalize"), "off");
+    assert.equal(refineEditor.getAttribute("spellcheck"), "false");
+    assert.equal(refineEditor.getAttribute("name"), undefined,
+        "The Refine editor must not expose a payment-like form name");
+    assert.equal(findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") ===
+            "Authoritative Refine Saturation value";
+    }).length, 0, "Refine Saturation must have one visible authoritative numeric field");
+    assert.equal(refineRowElement.hidden, false);
+    redButton.dispatch("click");
+    assert.equal(refineRowElement.hidden, true, "Refine Saturation must disappear on individual channels");
+    assert.equal(refineSlider.disabled, true);
+
+    presetSelect.value = "Medium Contrast";
+    presetSelect.dispatch("change");
+    await flushController();
+    assert.equal(controller.getState().selectedChannel, "rgb",
+        "Selecting a preset from Red must switch the controller to RGB");
+    assert.ok(controller.getState().awaitingPreset);
+    assert.ok(requests.some(function (requestPath) {
+        return requestPath.includes("/api/tone-curve/preset?preset=Medium%20Contrast") &&
+            requestPath.includes("selectedPhotoUuid=browser-photo") &&
+            requestPath.includes("contextCounter=12") && requestPath.includes("developCounter=18");
+    }), "Preset command must carry the authoritative photo/context/Develop binding");
+    snapshot = controllerSnapshot(linear, 2, currentTime + 1);
+    snapshot.name = "Medium Contrast";
+    snapshot.curves = {
+        rgb: controllerToneCurve.presetCurve("Medium Contrast"),
+        red: red.slice(), green: green.slice(), blue: blue.slice()
+    };
+    controller.applyAuthoritative(snapshot);
+    assert.equal(controller.getState().awaitingPreset, null);
+    assert.equal(presetSelect.value, "Medium Contrast");
+    assert.deepEqual(controller.getState().authoritative.curves.red, red);
+    assert.deepEqual(controller.getState().authoritative.curves.green, green);
+    assert.deepEqual(controller.getState().authoritative.curves.blue, blue,
+        "Authoritative preset feedback must preserve individual-channel isolation");
+
+    snapshot = Object.assign({}, snapshot, { revision: 3, updatedAt: currentTime + 2, name: "Custom" });
+    controller.applyAuthoritative(snapshot);
+    assert.equal(presetSelect.value, "Custom", "Custom must render from authoritative ToneCurveName2012 feedback");
+    const customOption = presetSelect.children.find(function (option) { return option.value === "Custom"; });
+    assert.ok(customOption && customOption.disabled, "Custom must not be a selectable preset action");
+
+    rejectStrong = true;
+    presetSelect.value = "Strong Contrast";
+    presetSelect.dispatch("change");
+    await flushController();
+    assert.equal(controller.getState().awaitingPreset, null);
+    assert.equal(controller.getState().presetRequestInFlight, false,
+        "A rejected preset command must immediately unlock the selector");
+    assert.equal(presetSelect.value, "Custom");
+    rejectStrong = false;
+
+    presetSelect.value = "Linear";
+    presetSelect.dispatch("change");
+    await flushController();
+    assert.ok(controller.getState().awaitingPreset);
+    currentTime += 20;
+    await controller.refresh();
+    assert.equal(controller.getState().awaitingPreset, null,
+        "A timed-out preset must recover to Lightroom authority without browser refresh");
+
+    rgbButton.dispatch("click");
+    refineSlider.value = "75";
+    refineSlider.dispatch("pointerdown", { pointerId: 7 });
+    refineSlider.dispatch("input");
+    await flushController();
+    assert.equal(controller.getState().refineGesture.awaitingAuthoritative, true);
+    assert.equal(refineEditor.value, "100",
+        "Local Refine movement must not be published as the authoritative numeric value");
+    refineSlider.dispatch("pointerup", { pointerId: 7 });
+    snapshot = Object.assign({}, snapshot, {
+        revision: 4,
+        updatedAt: currentTime + 1,
+        refineSaturation: { value: 75, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    await flushController();
+    assert.ok(controller.getState().awaitingRefine,
+        "Pointer-up must reach the terminal Refine end and await authoritative feedback");
+    snapshot = Object.assign({}, snapshot, { revision: 5, updatedAt: currentTime + 2 });
+    controller.applyAuthoritative(snapshot);
+    assert.equal(controller.getState().awaitingRefine, null);
+    assert.equal(refineEditor.value, "75");
+    assert.ok(requests.some(function (requestPath) {
+        return requestPath.includes("/refine-saturation/gesture/end?") &&
+            requestPath.includes("baseline=75") && requestPath.includes("value=75");
+    }), "Refine pointer-up must send a terminal, context-bound SDK gesture command");
+
+    snapshot = Object.assign({}, snapshot, {
+        revision: 6,
+        updatedAt: currentTime + 3,
+        refineSaturation: { value: 82, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    assert.equal(refineEditor.value, "82",
+        "An external Lightroom Refine Saturation change must update the controller without refresh");
+
+    const refineReset = findElements(rootElement, function (element) {
+        return element.className === "point-curve-refine-reset";
+    })[0];
+    refineReset.dispatch("click");
+    await flushController();
+    assert.ok(controller.getState().awaitingRefineReset);
+    snapshot = Object.assign({}, snapshot, {
+        revision: 7,
+        updatedAt: currentTime + 4,
+        refineSaturation: { value: 100, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    assert.equal(controller.getState().awaitingRefineReset, null);
+    assert.ok(requests.some(function (requestPath) {
+        return requestPath.includes("/refine-saturation/reset?") && requestPath.includes("baseline=82");
+    }), "Refine reset must use the authoritative baseline and dedicated reset route");
+
+    refineEditor.focus();
+    refineEditor.value = "7x";
+    refineEditor.setSelectionRange(1, 1, "forward");
+    snapshot = Object.assign({}, snapshot, {
+        revision: 8,
+        updatedAt: currentTime + 5,
+        refineSaturation: { value: 90, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    assert.equal(refineEditor.value, "7x",
+        "Authoritative polling must not overwrite active Refine editor text");
+    assert.equal(refineEditor.selectionStart, 1);
+    assert.equal(refineEditor.selectionEnd, 1,
+        "Authoritative polling must preserve the active Refine editor caret and selection");
+    refineEditor.dispatch("keydown", { key: "Escape" });
+    assert.equal(refineEditor.value, "90", "Escape must restore Lightroom's authoritative Refine value");
+    assert.equal(controller.getState().refineGestureActive, false);
+
+    refineEditor.focus();
+    refineEditor.value = "75";
+    refineEditor.dispatch("keydown", { key: "Enter" });
+    await flushController();
+    assert.ok(controller.getState().awaitingRefine, "Enter must commit through the tracked Refine gesture queue");
+    assert.equal(refineEditor.value, "90",
+        "A submitted editor value must not replace the authoritative display before Lightroom feedback");
+    assert.equal(refineEditor.getAttribute("aria-busy"), "true");
+    snapshot = Object.assign({}, snapshot, {
+        revision: 9,
+        updatedAt: currentTime + 6,
+        refineSaturation: { value: 75, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    assert.equal(controller.getState().awaitingRefine, null);
+    assert.equal(refineEditor.value, "75");
+    assert.equal(refineEditor.getAttribute("aria-busy"), "false");
+
+    refineEditor.focus();
+    refineEditor.value = "140";
+    refineEditor.blur();
+    await flushController();
+    assert.ok(controller.getState().awaitingRefine, "Blur must commit the Refine editor");
+    assert.ok(requests.some(function (requestPath) {
+        return requestPath.includes("/refine-saturation/gesture/end?") && requestPath.includes("value=100");
+    }), "Blur submission must clamp against Lightroom's authoritative 0..100 range");
+    snapshot = Object.assign({}, snapshot, {
+        revision: 10,
+        updatedAt: currentTime + 7,
+        refineSaturation: { value: 100, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    assert.equal(refineEditor.value, "100");
+
+    refineSlider.value = "60";
+    refineSlider.dispatch("pointerdown", { pointerId: 8 });
+    refineSlider.dispatch("input");
+    await flushController();
+    controller.applyContext({
+        activeModule: "develop", selectedPhotoUuid: "other-feature-photo", contextCounter: 13, developCounter: 1
+    });
+    assert.equal(controller.getState().refineGestureActive, false);
+    assert.equal(controller.getState().awaitingRefine, null);
+    assert.equal(controller.getState().awaitingPreset, null,
+        "Photo/context changes must clear every pending Refine and preset transaction");
+    controller.deactivate();
+}
+
+async function controllerAdditionTests() {
+    const documentObject = createFakeDocument();
+    const windowObject = new FakeElement("window");
+    let currentTime = 3000;
+    let revision = 1;
+    let requestMode = "ok";
+    const curves = {
+        rgb: interactionFixtures.eight.slice(), red: red.slice(),
+        green: green.slice(), blue: blue.slice()
+    };
+    function makeSnapshot() {
+        const value = controllerSnapshot(curves.rgb, revision, currentTime);
+        value.curves = {
+            rgb: curves.rgb.slice(), red: curves.red.slice(),
+            green: curves.green.slice(), blue: curves.blue.slice()
+        };
+        return value;
+    }
+    let snapshot = makeSnapshot();
+    const requests = [];
+    const fetchImpl = function (requestPath, options) {
+        requests.push(requestPath);
+        if (requestPath === "/api/tone-curve/state") {
+            return Promise.resolve(jsonResponse({ ok: true, pointCurve: snapshot }));
+        }
+        if (requestMode === "stale" && requestPath.includes("/gesture/begin?")) {
+            return Promise.resolve(jsonResponse({ ok: false, error: "stale addition admission" }, 409));
+        }
+        if (requestMode === "rejected" && requestPath.includes("/gesture/end?")) {
+            return Promise.resolve(jsonResponse({ ok: false, error: "addition rejected" }, 409));
+        }
+        if (requestMode === "request-timeout" && requestPath.includes("/gesture/begin?")) {
+            return new Promise(function (_resolve, reject) {
+                options.signal.addEventListener("abort", function () { reject(new Error("aborted")); }, { once: true });
+            });
+        }
+        return Promise.resolve(jsonResponse({ ok: true }));
+    };
+    const controller = controllerToneCurve.createController({
+        document: documentObject,
+        window: windowObject,
+        fetch: fetchImpl,
+        now: function () { return currentTime; },
+        requestTimeoutMs: 10,
+        feedbackTimeoutMs: 10,
+        setInterval: function () { return 25; },
+        clearInterval: function () {}
+    });
+    controller.activate(Object.assign({ activeModule: "develop" }, snapshot));
+    await flushController();
+
+    const rootElement = controller.element;
+    const svg = findElements(rootElement, function (element) {
+        return element.classList && element.classList.contains("point-curve-graph");
+    })[0];
+    const addButton = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Add point";
+    })[0];
+    const instruction = findElements(rootElement, function (element) {
+        return element.className === "point-curve-add-instruction";
+    })[0];
+    const redButton = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Adjust Red Point Curve";
+    })[0];
+    const rgbButton = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Adjust RGB Point Curve";
+    })[0];
+    function pointerProperties(pointerType, pointerId, x, y) {
+        return { pointerType: pointerType, pointerId: pointerId, clientX: x, clientY: 255 - y };
+    }
+    function armAdd() {
+        if (!controller.getState().addPointArmed) addButton.dispatch("click");
+        assert.equal(controller.getState().addPointArmed, true);
+        assert.equal(addButton.classList.contains("active"), true);
+        assert.equal(addButton.getAttribute("aria-pressed"), "true");
+        assert.equal(instruction.hidden, false);
+        assert.equal(instruction.textContent, "Tap graph to add point");
+    }
+    function publishRgb(points) {
+        curves.rgb = points.slice();
+        revision += 1;
+        currentTime += 1;
+        snapshot = makeSnapshot();
+        controller.applyAuthoritative(snapshot);
+    }
+
+    for (const pointerType of ["mouse", "touch"]) {
+        const beforeRequests = requests.length;
+        const event = pointerProperties(pointerType, pointerType === "mouse" ? 501 : 502, 48, 100);
+        svg.dispatch("pointerdown", event);
+        svg.dispatch("pointerup", event);
+        await flushController();
+        assert.equal(requests.slice(beforeRequests).some(function (path) {
+            return path.includes("/gesture/");
+        }), false, pointerType + " empty-graph input must do nothing in Select/Move mode");
+        assert.deepEqual(controller.getState().authoritative.curves.rgb, curves.rgb);
+    }
+
+    for (const addition of [
+        { pointerType: "mouse", pointerId: 510, x: 48, y: 104 },
+        { pointerType: "touch", pointerId: 511, x: 80, y: 118 }
+    ]) {
+        const before = curves.rgb.slice();
+        const expected = controllerToneCurve.addPoint(before, addition.x, addition.y);
+        const identity = controllerToneCurve.createInsertionIdentity(before, expected.pointIndex);
+        const requestStart = requests.length;
+        armAdd();
+        const event = pointerProperties(addition.pointerType, addition.pointerId, addition.x, addition.y);
+        svg.dispatch("pointerdown", event);
+        svg.dispatch("pointerup", event);
+        await flushController();
+        const transaction = controller.getState().awaitingTarget;
+        assert.ok(transaction && transaction.operation === "add");
+        assert.equal(controller.getState().addPointArmed, false,
+            "Pointer-up must return one-shot addition to Select/Move mode");
+        assert.deepEqual(transaction.points, expected.points,
+            addition.pointerType + " tap must create exactly one point at its graph coordinate");
+        assert.deepEqual(transaction.points.slice((expected.pointIndex + 1) * 2, (expected.pointIndex + 2) * 2),
+            identity.right, "A simple addition must not modify its right-hand neighbor");
+        const operationRequests = requests.slice(requestStart);
+        assert.equal(operationRequests.filter(function (path) { return path.includes("/gesture/begin?"); }).length, 1);
+        assert.equal(operationRequests.filter(function (path) { return path.includes("/gesture/end?"); }).length, 1,
+            "Successful addition must produce exactly one completed Lightroom history gesture");
+        publishRgb(transaction.points);
+        assert.equal(controller.getState().awaitingTarget, null);
+        assert.equal(controller.getState().selectedPointIndex, expected.pointIndex,
+            "Successful authoritative addition feedback must keep the inserted point selected");
+    }
+
+    {
+        const before = curves.rgb.slice();
+        const expected = controllerToneCurve.addPoint(before, 112, 132);
+        const identity = controllerToneCurve.createInsertionIdentity(before, expected.pointIndex);
+        armAdd();
+        const held = pointerProperties("touch", 520, 112, 132);
+        svg.dispatch("pointerdown", held);
+        const owningGestureId = controller.getState().gesture.id;
+        svg.dispatch("pointerdown", pointerProperties("touch", 521, 120, 140));
+        assert.equal(controller.getState().gesture.id, owningGestureId,
+            "Additional pointers must not retarget an add gesture that owns capture");
+        await flushController();
+        assert.equal(controller.getState().gesture.awaitingAuthoritative, true);
+        assert.deepEqual(identity.right,
+            expected.points.slice((expected.pointIndex + 1) * 2, (expected.pointIndex + 2) * 2),
+            "A long press without movement must leave the adjacent point unchanged");
+        publishRgb(expected.points);
+        assert.equal(controller.getState().gesture.pointIndex, expected.pointIndex,
+            "Structural feedback must keep the active add gesture bound to the inserted point");
+        svg.dispatch("pointerup", held);
+        await flushController();
+        assert.equal(controller.getState().addPointArmed, false);
+        assert.ok(controller.getState().awaitingTarget);
+        publishRgb(expected.points);
+        assert.equal(controller.getState().selectedPointIndex, expected.pointIndex);
+    }
+
+    for (const drag of [
+        { pointerType: "mouse", pointerId: 530, startX: 144, startY: 150, endX: 152, endY: 166 },
+        { pointerType: "touch", pointerId: 531, startX: 184, startY: 188, endX: 194, endY: 176 }
+    ]) {
+        const before = curves.rgb.slice();
+        const insertedAtStart = controllerToneCurve.addPoint(before, drag.startX, drag.startY);
+        const identity = controllerToneCurve.createInsertionIdentity(before, insertedAtStart.pointIndex);
+        armAdd();
+        const start = pointerProperties(drag.pointerType, drag.pointerId, drag.startX, drag.startY);
+        svg.dispatch("pointerdown", start);
+        await flushController();
+        publishRgb(insertedAtStart.points);
+        assert.equal(controller.getState().gesture.pointIndex, insertedAtStart.pointIndex);
+        const moved = controllerToneCurve.movePoint(
+            insertedAtStart.points, insertedAtStart.pointIndex, drag.endX, drag.endY
+        );
+        const end = pointerProperties(drag.pointerType, drag.pointerId, drag.endX, drag.endY);
+        svg.dispatch("pointermove", end);
+        await flushController();
+        publishRgb(moved);
+        assert.deepEqual(moved.slice((insertedAtStart.pointIndex + 1) * 2,
+            (insertedAtStart.pointIndex + 2) * 2), identity.right,
+        drag.pointerType + " hold-drag must move only the newly inserted point, never its right neighbor");
+        svg.dispatch("pointerup", end);
+        await flushController();
+        assert.ok(controller.getState().awaitingTarget);
+        publishRgb(moved);
+        assert.equal(controller.getState().selectedPointIndex, insertedAtStart.pointIndex);
+        assert.equal(controller.getState().addPointArmed, false);
+    }
+
+    armAdd();
+    addButton.dispatch("click");
+    assert.equal(controller.getState().addPointArmed, false, "Pressing + again must cancel Add Point mode");
+    armAdd();
+    documentObject.dispatch("keydown", { key: "Escape" });
+    assert.equal(controller.getState().addPointArmed, false, "Escape must cancel Add Point mode");
+    armAdd();
+    const escapeActive = pointerProperties("mouse", 539, 16, 90);
+    svg.dispatch("pointerdown", escapeActive);
+    documentObject.dispatch("keydown", { key: "Escape" });
+    await flushController();
+    assert.equal(controller.getState().addPointArmed, false);
+    assert.equal(controller.getState().gestureActive, false,
+        "Escape during an active addition must release the gesture and return to Select/Move mode");
+
+    armAdd();
+    const existingIndex = 1;
+    const existingTarget = findElements(rootElement, function (element) {
+        return element.classList && element.classList.contains("point-curve-hit-target") &&
+            element.getAttribute("data-point-index") === String(existingIndex);
+    })[0];
+    const existingEvent = pointerProperties("touch", 540,
+        curves.rgb[existingIndex * 2], curves.rgb[existingIndex * 2 + 1]);
+    const existingRequestStart = requests.length;
+    existingTarget.dispatch("pointerdown", existingEvent);
+    svg.dispatch("pointerup", existingEvent);
+    assert.equal(controller.getState().addPointArmed, false);
+    assert.equal(controller.getState().selectedPointIndex, existingIndex,
+        "An existing point pressed while armed must be selected without creating another point");
+    assert.equal(requests.slice(existingRequestStart).some(function (path) { return path.includes("/gesture/"); }), false);
+
+    armAdd();
+    redButton.dispatch("click");
+    assert.equal(controller.getState().addPointArmed, false, "Channel changes must cancel Add Point mode");
+    rgbButton.dispatch("click");
+    armAdd();
+    windowObject.dispatch("offline");
+    assert.equal(controller.getState().addPointArmed, false, "Connection changes must cancel Add Point mode");
+    armAdd();
+    documentObject.visibilityState = "hidden";
+    documentObject.dispatch("visibilitychange");
+    assert.equal(controller.getState().addPointArmed, false, "Visibility changes must cancel Add Point mode");
+    documentObject.visibilityState = "visible";
+
+    requestMode = "ok";
+    armAdd();
+    const cancelled = pointerProperties("touch", 550, 16, 90);
+    svg.dispatch("pointerdown", cancelled);
+    svg.dispatch("pointercancel", cancelled);
+    await flushController();
+    assert.equal(controller.getState().addPointArmed, false);
+    assert.equal(controller.getState().gestureActive, false, "Pointer cancellation must terminally cancel addition");
+
+    for (const failureMode of ["rejected", "stale", "request-timeout"]) {
+        requestMode = failureMode;
+        armAdd();
+        const event = pointerProperties("mouse", 560 + failureMode.length, 16, 90);
+        svg.dispatch("pointerdown", event);
+        svg.dispatch("pointerup", event);
+        if (failureMode === "request-timeout") {
+            await new Promise(function (resolve) { setTimeout(resolve, 30); });
+        }
+        await flushController();
+        assert.equal(controller.getState().addPointArmed, false);
+        assert.equal(controller.getState().gestureActive, false);
+        assert.equal(controller.getState().awaitingTarget, null,
+            failureMode + " addition must terminate unlocked in Select/Move mode");
+    }
+
+    requestMode = "ok";
+    armAdd();
+    let event = pointerProperties("mouse", 570, 16, 90);
+    svg.dispatch("pointerdown", event);
+    svg.dispatch("pointerup", event);
+    await flushController();
+    assert.ok(controller.getState().awaitingTarget);
+    revision += 1;
+    currentTime += 1;
+    snapshot = makeSnapshot();
+    controller.applyAuthoritative(snapshot);
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(controller.getState().addPointArmed, false,
+        "Superseding Lightroom feedback must retire addition in Select/Move mode");
+
+    armAdd();
+    event = pointerProperties("touch", 571, 16, 90);
+    svg.dispatch("pointerdown", event);
+    svg.dispatch("pointerup", event);
+    await flushController();
+    assert.ok(controller.getState().awaitingTarget);
+    currentTime += 20;
+    await controller.refresh();
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(controller.getState().addPointArmed, false,
+        "Addition feedback timeout must restore Lightroom authority and Select/Move mode");
+
+    armAdd();
+    controller.applyContext({
+        activeModule: "develop", selectedPhotoUuid: "addition-other-photo", contextCounter: 13, developCounter: 1
+    });
+    assert.equal(controller.getState().addPointArmed, false, "Photo/context changes must cancel Add Point mode");
+    controller.deactivate();
+}
+
+async function controllerDeletionTests() {
+    const documentObject = createFakeDocument();
+    const windowObject = new FakeElement("window");
+    let currentTime = 5000;
+    let revision = 1;
+    let requestMode = "ok";
+    const curves = {
+        rgb: interactionFixtures.eight.slice(),
+        red: [0, 0, 32, 38, 64, 76, 128, 146, 192, 208, 255, 255],
+        green: [0, 0, 28, 44, 72, 62, 116, 150, 180, 176, 222, 236, 255, 255],
+        blue: interactionFixtures.thirteen.slice()
+    };
+    function makeSnapshot() {
+        const value = controllerSnapshot(curves.rgb, revision, currentTime);
+        value.curves = {
+            rgb: curves.rgb.slice(), red: curves.red.slice(),
+            green: curves.green.slice(), blue: curves.blue.slice()
+        };
+        return value;
+    }
+    let snapshot = makeSnapshot();
+    const requests = [];
+    const fetchImpl = function (requestPath, options) {
+        requests.push(requestPath);
+        if (requestPath === "/api/tone-curve/state") {
+            return Promise.resolve(jsonResponse({ ok: true, pointCurve: snapshot }));
+        }
+        if (requestMode === "stale" && requestPath.includes("/gesture/begin?")) {
+            return Promise.resolve(jsonResponse({ ok: false, error: "stale gesture admission" }, 409));
+        }
+        if (requestMode === "rejected" && requestPath.includes("/gesture/end?")) {
+            return Promise.resolve(jsonResponse({ ok: false, error: "deletion rejected" }, 409));
+        }
+        if (requestMode === "request-timeout" && requestPath.includes("/gesture/begin?")) {
+            return new Promise(function (_resolve, reject) {
+                options.signal.addEventListener("abort", function () { reject(new Error("aborted")); }, { once: true });
+            });
+        }
+        return Promise.resolve(jsonResponse({ ok: true }));
+    };
+    const controller = controllerToneCurve.createController({
+        document: documentObject,
+        window: windowObject,
+        fetch: fetchImpl,
+        now: function () { return currentTime; },
+        requestTimeoutMs: 10,
+        feedbackTimeoutMs: 10,
+        setInterval: function () { return 30; },
+        clearInterval: function () {}
+    });
+    controller.activate(Object.assign({ activeModule: "develop" }, snapshot));
+    await flushController();
+
+    const rootElement = controller.element;
+    const svg = findElements(rootElement, function (element) {
+        return element.classList && element.classList.contains("point-curve-graph");
+    })[0];
+    const deleteButton = findElements(rootElement, function (element) {
+        return element.tagName === "button" && element.textContent === "Delete selected point";
+    })[0];
+    function channelButton(channel) {
+        const label = channel === "rgb" ? "RGB" : channel.charAt(0).toUpperCase() + channel.slice(1);
+        return findElements(rootElement, function (element) {
+            return element.getAttribute && element.getAttribute("aria-label") === "Adjust " + label + " Point Curve";
+        })[0];
+    }
+    function tapPoint(channel, pointIndex, pointerType, pointerId) {
+        const points = curves[channel];
+        const target = findElements(rootElement, function (element) {
+            return element.classList && element.classList.contains("point-curve-hit-target") &&
+                element.getAttribute("data-point-index") === String(pointIndex);
+        })[0];
+        const properties = {
+            pointerId: pointerId,
+            pointerType: pointerType,
+            clientX: points[pointIndex * 2],
+            clientY: 255 - points[pointIndex * 2 + 1]
+        };
+        target.dispatch("pointerdown", properties);
+        svg.dispatch("pointerup", properties);
+    }
+
+    for (const pointerType of ["mouse", "touch"]) {
+        for (let pointIndex = 1; pointIndex < curves.rgb.length / 2 - 1; pointIndex += 1) {
+            tapPoint("rgb", pointIndex, pointerType, 100 + pointIndex);
+            assert.equal(controller.getState().selectedPointIndex, pointIndex,
+                pointerType + " must select RGB interior point " + pointIndex);
+            assert.equal(deleteButton.disabled, false,
+                "Every valid interior selection must enable Delete selected point");
+            const pointGroup = findElements(rootElement, function (element) {
+                return element.classList && element.classList.contains("point-curve-point") &&
+                    element.getAttribute("data-point-index") === String(pointIndex);
+            })[0];
+            assert.ok(pointGroup.children.some(function (element) {
+                return element.classList && element.classList.contains("point-curve-marker") &&
+                    element.classList.contains("selected");
+            }), "The selected point marker must be visibly highlighted");
+        }
+    }
+    for (const endpoint of [0, curves.rgb.length / 2 - 1]) {
+        tapPoint("rgb", endpoint, "touch", 200 + endpoint);
+        assert.equal(controller.getState().selectedPointIndex, endpoint);
+        assert.equal(deleteButton.disabled, true, "X=0 and X=255 endpoints must never be deletable");
+    }
+
+    for (const channel of controllerToneCurve.CHANNELS) {
+        channelButton(channel).dispatch("click");
+        tapPoint(channel, 1, "touch", 300 + controllerToneCurve.CHANNELS.indexOf(channel));
+        const before = Object.fromEntries(controllerToneCurve.CHANNELS.map(function (name) {
+            return [name, curves[name].slice()];
+        }));
+        const requestStart = requests.length;
+        deleteButton.dispatch("click");
+        await flushController();
+        const transaction = controller.getState().awaitingTarget;
+        assert.ok(transaction && transaction.operation === "delete",
+            channel + " deletion must wait for authoritative Point Curve feedback");
+        assert.equal(controller.getState().selectedPointIndex, 1,
+            "A queued deletion must retain selection until Lightroom settles it");
+        const operationRequests = requests.slice(requestStart);
+        assert.equal(operationRequests.filter(function (path) { return path.includes("/gesture/begin?"); }).length, 1);
+        assert.equal(operationRequests.filter(function (path) { return path.includes("/gesture/end?"); }).length, 1,
+            "A deletion must produce one tracked begin/end Lightroom history gesture");
+        assert.deepEqual(transaction.points, controllerToneCurve.deletePoint(before[channel], 1),
+            "Deletion must remove exactly the selected authoritative point pair");
+        curves[channel] = transaction.points.slice();
+        revision += 1;
+        currentTime += 1;
+        snapshot = makeSnapshot();
+        controller.applyAuthoritative(snapshot);
+        assert.equal(controller.getState().awaitingTarget, null);
+        assert.equal(controller.getState().selectedPointIndex, null,
+            "Matching deletion feedback must clear the deleted selection");
+        assert.equal(deleteButton.disabled, true);
+        for (const isolatedChannel of controllerToneCurve.CHANNELS) {
+            if (isolatedChannel !== channel) assert.deepEqual(curves[isolatedChannel], before[isolatedChannel],
+                channel + " deletion must not alter " + isolatedChannel);
+        }
+    }
+
+    channelButton("rgb").dispatch("click");
+    requestMode = "rejected";
+    tapPoint("rgb", 1, "mouse", 401);
+    deleteButton.dispatch("click");
+    await flushController();
+    assert.equal(controller.getState().gestureActive, false);
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(deleteButton.disabled, false, "A rejected deletion must unlock with its selection intact");
+
+    requestMode = "stale";
+    deleteButton.dispatch("click");
+    await flushController();
+    assert.equal(controller.getState().gestureActive, false);
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(deleteButton.disabled, false, "A stale admission must terminate and unlock");
+
+    requestMode = "request-timeout";
+    deleteButton.dispatch("click");
+    await new Promise(function (resolve) { setTimeout(resolve, 30); });
+    await flushController();
+    assert.equal(controller.getState().gestureActive, false);
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(deleteButton.disabled, false, "A timed-out deletion request must terminate and unlock");
+
+    requestMode = "ok";
+    deleteButton.dispatch("click");
+    await flushController();
+    assert.ok(controller.getState().awaitingTarget);
+    const superseding = curves.rgb.slice();
+    superseding[3] = Math.min(255, superseding[3] + 1);
+    curves.rgb = superseding;
+    revision += 1;
+    currentTime += 1;
+    snapshot = makeSnapshot();
+    controller.applyAuthoritative(snapshot);
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(deleteButton.disabled, false,
+        "A newer differing authoritative curve must supersede deletion and unlock");
+
+    deleteButton.dispatch("click");
+    await flushController();
+    assert.ok(controller.getState().awaitingTarget);
+    currentTime += 20;
+    await controller.refresh();
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(deleteButton.disabled, false, "Deletion feedback timeout must restore interaction");
+
+    deleteButton.dispatch("click");
+    await flushController();
+    assert.ok(controller.getState().awaitingTarget);
+    controller.applyContext({
+        activeModule: "develop", selectedPhotoUuid: "deletion-other-photo", contextCounter: 13, developCounter: 1
+    });
+    assert.equal(controller.getState().awaitingTarget, null);
+    assert.equal(controller.getState().gestureActive, false,
+        "Photo/context navigation must cancel pending deletion state");
+    controller.deactivate();
+}
+
 function exerciseMultiPointAdmissions() {
     for (const [fixtureName, fixture] of Object.entries(interactionFixtures)) {
         const state = pointCurve.createPointCurveState();
@@ -633,7 +1536,9 @@ function exerciseMultiPointAdmissions() {
         state.syncContext(fields);
         let current = fixture.slice();
         const curves = { rgb: current.slice(), red: current.slice(), green: current.slice(), blue: current.slice() };
-        assert.equal(state.acceptFeedback(Object.assign({ name: "Custom", curves: curves }, binding), fields), true);
+        assert.equal(state.acceptFeedback(Object.assign({
+            name: "Custom", curves: curves, refineSaturation: refineSaturation
+        }, binding), fields), true);
         for (let pointIndex = 1; pointIndex < current.length / 2 - 1; pointIndex += 1) {
             const gestureId = fixtureName + "_point_" + pointIndex;
             const target = controllerToneCurve.movePoint(
@@ -644,7 +1549,9 @@ function exerciseMultiPointAdmissions() {
             assert.equal(state.endGesture(binding, "blue", gestureId, current, target, fields), true);
             assert.equal(state.finishGesture(binding, "blue", gestureId), true);
             curves.blue = target.slice();
-            assert.equal(state.acceptFeedback(Object.assign({ name: "Custom", curves: curves }, binding), fields), true);
+            assert.equal(state.acceptFeedback(Object.assign({
+                name: "Custom", curves: curves, refineSaturation: refineSaturation
+            }, binding), fields), true);
             current = target;
         }
         assert.equal(state.getGestureDiagnostics().count, 0,
@@ -679,9 +1586,67 @@ async function integration() {
         const state = await get(bridge, "/tone-curve/state");
         assert.equal(state.body.pointCurve.available, true);
         assert.deepEqual(state.body.pointCurve.curves, curves);
+        assert.deepEqual(state.body.pointCurve.refineSaturation, refineSaturation,
+            "Server state must expose the authoritative Lightroom Refine Saturation value and range");
         curves.rgb[1] = 99;
         assert.deepEqual((await get(bridge, "/tone-curve/state")).body.pointCurve.curves.rgb, linear,
             "Server state must clone feedback and never expose mutable fabricated state");
+
+        const refineBegin = "/tone-curve/refine-saturation/gesture/begin?" + routeQuery(Object.assign({
+            gestureId: "refine_route_1", baseline: 100
+        }, bindingQuery(binding)));
+        const refineUpdate = "/tone-curve/refine-saturation/gesture/update?" + routeQuery(Object.assign({
+            gestureId: "refine_route_1", baseline: 100, value: 75
+        }, bindingQuery(binding)));
+        const refineEnd = "/tone-curve/refine-saturation/gesture/end?" + routeQuery(Object.assign({
+            gestureId: "refine_route_1", baseline: 100, value: 80
+        }, bindingQuery(binding)));
+        assert.equal((await get(bridge, refineBegin)).status, 200);
+        assert.equal((await get(bridge, refineUpdate)).status, 200);
+        assert.equal((await get(bridge, refineEnd)).status, 200);
+        const refineCommands = drain();
+        assert.deepEqual(refineCommands.map(function (command) { return command.command; }), [
+            "tone_curve.refine_saturation.gesture.begin",
+            "tone_curve.refine_saturation.gesture.end"
+        ], "Refine drag updates must coalesce to a tracked begin and terminal end");
+        assert.equal(refineCommands[0].field, "CurveRefineSaturation");
+        assert.equal(refineCommands[1].value, 80);
+        assert.equal(refineCommands[1].expectedSelectedPhotoUuid, uuid);
+        assert.equal(refineCommands[1].expectedContextCounter, binding.contextCounter);
+        assert.equal(refineCommands[1].expectedDevelopCounter, binding.developCounter);
+
+        assert.equal((await get(bridge, "/tone-curve/refine-saturation/reset?" + routeQuery(Object.assign({
+            baseline: 100
+        }, bindingQuery(binding))))).status, 200);
+        assert.deepEqual(commands.getNextCommand(), {
+            command: "tone_curve.refine_saturation.reset",
+            field: "CurveRefineSaturation",
+            expectedSelectedPhotoUuid: uuid,
+            expectedContextCounter: binding.contextCounter,
+            expectedDevelopCounter: binding.developCounter,
+            expectedValue: 100
+        });
+
+        for (const presetName of ["Linear", "Medium Contrast", "Strong Contrast"]) {
+            const presetResponse = await get(bridge, "/tone-curve/preset?" + routeQuery(Object.assign({
+                preset: presetName,
+                baseline: pointCurve.serializeCurve(linear)
+            }, bindingQuery(binding))));
+            assert.equal(presetResponse.status, 200);
+            const presetCommand = commands.getNextCommand();
+            assert.equal(presetCommand.command, "tone_curve.preset.set");
+            assert.equal(presetCommand.preset, presetName);
+            assert.equal(presetCommand.field, "ToneCurvePV2012");
+            assert.deepEqual(presetCommand.expectedPoints, linear);
+            assert.deepEqual(presetCommand.points, pointCurve.presetCurve(presetName));
+            assert.equal(Object.prototype.hasOwnProperty.call(presetCommand, "red"), false);
+            assert.equal(Object.prototype.hasOwnProperty.call(presetCommand, "green"), false);
+            assert.equal(Object.prototype.hasOwnProperty.call(presetCommand, "blue"), false,
+                "Preset commands must carry only the RGB Point Curve target");
+        }
+        assert.equal((await get(bridge, "/tone-curve/preset?" + routeQuery(Object.assign({
+            preset: "Custom", baseline: pointCurve.serializeCurve(linear)
+        }, bindingQuery(binding))))).status, 409, "Custom must not be selectable as a preset action");
 
         assert.equal((await get(bridge, "/tone-curve/gesture/begin?" +
             gestureQuery(binding, "green", "abandoned_1", linear))).status, 200);
@@ -794,7 +1759,8 @@ async function integration() {
     }
 }
 
-controllerInteractionTests().then(integration).then(function () {
+controllerInteractionTests().then(controllerRefineAndPresetTests).then(controllerAdditionTests)
+    .then(controllerDeletionTests).then(integration).then(function () {
     console.log("Point Curve authoritative SDK, server, queue, and controller tests passed.");
 }).catch(function (error) {
     console.error(error);

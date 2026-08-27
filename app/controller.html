@@ -1465,65 +1465,142 @@
 
         .point-curve-group {
             --point-curve-color: #eef4f8;
+            width: min(100%, 560px);
+            margin-inline: auto;
+            box-sizing: border-box;
         }
 
         .point-curve-toolbar {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 12px;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 6px;
+            width: 100%;
+            margin: 0 auto 6px;
+        }
+
+        .point-curve-adjust-label,
+        .point-curve-row-label {
+            color: #aeb8bf;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
         .point-curve-channels {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(64px, 1fr));
-            gap: 8px;
-            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
+            gap: 0;
         }
 
-        .point-curve-channel,
-        .point-curve-actions button {
-            min-height: 48px;
-            border: 1px solid #435363;
-            border-radius: 9px;
-            padding: 10px 14px;
-            background: #111820;
+        .point-curve-channel {
+            position: relative;
+            isolation: isolate;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            border: 0;
+            border-radius: 50%;
+            padding: 0;
+            background: transparent;
             color: #eaf1f5;
-            font-size: 15px;
+            font-size: 9px;
             font-weight: 700;
             touch-action: manipulation;
         }
 
+        .point-curve-channel::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: 9px;
+            border: 1px solid currentColor;
+            border-radius: 50%;
+            background: #171d22;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+        }
+
+        .point-curve-channel:hover { background: transparent; }
+
         .point-curve-channel.active {
-            border-color: currentColor;
-            box-shadow: inset 0 0 0 2px currentColor, 0 0 0 2px rgba(255, 255, 255, 0.08);
-            background: #25313b;
+            background: transparent;
+            filter: drop-shadow(0 0 2px currentColor);
+        }
+
+        .point-curve-channel.active::before {
+            border-width: 2px;
+            box-shadow: 0 0 0 2px #10161b, 0 0 0 3px currentColor;
         }
 
         .point-curve-channel-rgb { color: #f2f5f7; }
+        .point-curve-channel-rgb::before {
+            background: conic-gradient(from 40deg, #df5f66, #72c77d, #5b8fe0, #df5f66);
+            border-color: #d9e0e5;
+        }
         .point-curve-channel-red { color: #ff7878; }
         .point-curve-channel-green { color: #69dc8b; }
         .point-curve-channel-blue { color: #78aaff; }
 
-        .point-curve-name {
-            flex: 0 0 auto;
-            min-width: 88px;
-            color: #b9c8d3;
-            font-size: 14px;
-            font-weight: 700;
+        .point-curve-add-button {
+            position: relative;
+            isolation: isolate;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            margin-left: auto;
+            border: 0;
+            border-radius: 50%;
+            padding: 0;
+            background: transparent;
+            color: #dce4e9;
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 44px;
+            touch-action: manipulation;
+        }
+
+        .point-curve-add-button::before {
+            content: "";
+            position: absolute;
+            inset: 8px;
+            z-index: -1;
+            border: 1px solid #63717b;
+            border-radius: 3px;
+            background: #171d22;
+        }
+
+        .point-curve-add-button.active {
+            color: #fff0bc;
+            filter: drop-shadow(0 0 2px #d6a83b);
+        }
+
+        .point-curve-add-button.active::before {
+            border: 2px solid #d6a83b;
+            box-shadow: 0 0 0 2px #10161b;
+        }
+
+        .point-curve-add-instruction {
+            flex-basis: 100%;
+            margin-top: -4px;
+            color: #d7b85d;
+            font-size: 11px;
             text-align: right;
         }
 
+        .point-curve-add-instruction[hidden] { display: none; }
+
         .point-curve-graph-shell {
             position: relative;
-            width: min(100%, 620px);
+            width: 100%;
             aspect-ratio: 1 / 1;
             margin: 0 auto;
             overflow: hidden;
             border: 1px solid #52616d;
-            border-radius: 10px;
-            background: #090d11;
+            border-radius: 2px;
+            background: #0a0d10;
         }
 
         .point-curve-graph {
@@ -1536,22 +1613,30 @@
         }
 
         .point-curve-grid line {
-            stroke: #33404a;
-            stroke-width: 0.7;
             vector-effect: non-scaling-stroke;
+            pointer-events: none;
         }
 
-        .point-curve-grid line:first-child,
-        .point-curve-grid line:nth-child(2),
-        .point-curve-grid line:nth-last-child(1),
-        .point-curve-grid line:nth-last-child(2) {
-            stroke: #66737d;
+        .point-curve-grid-minor {
+            stroke: rgba(126, 139, 148, 0.16);
+            stroke-width: 0.5;
+        }
+
+        .point-curve-grid-major {
+            stroke: rgba(145, 158, 167, 0.48);
+            stroke-width: 0.8;
+        }
+
+        .point-curve-grid-boundary {
+            stroke: #67737c;
+            stroke-width: 1;
+            vector-effect: non-scaling-stroke;
         }
 
         .point-curve-reference {
             stroke: #75818a;
-            stroke-width: 1;
-            stroke-dasharray: 4 4;
+            stroke-width: 0.8;
+            stroke-dasharray: 3 3;
             vector-effect: non-scaling-stroke;
             pointer-events: none;
         }
@@ -1560,7 +1645,7 @@
         .point-curve-preview-line {
             fill: none;
             stroke: var(--point-curve-color);
-            stroke-width: 2.4;
+            stroke-width: 1.65;
             stroke-linecap: round;
             stroke-linejoin: round;
             vector-effect: non-scaling-stroke;
@@ -1587,7 +1672,7 @@
         .point-curve-marker {
             fill: #0a1015;
             stroke: var(--point-curve-color);
-            stroke-width: 1.5;
+            stroke-width: 1.15;
             vector-effect: non-scaling-stroke;
             pointer-events: none;
         }
@@ -1608,9 +1693,9 @@
         .point-curve-values {
             display: flex;
             justify-content: flex-end;
-            gap: 18px;
-            min-height: 22px;
-            margin-top: 7px;
+            gap: 14px;
+            min-height: 20px;
+            margin: 4px 1px 0;
             color: #9eabb4;
             font-size: 13px;
             font-variant-numeric: tabular-nums;
@@ -1622,6 +1707,93 @@
             color: #e6edf2;
             font-weight: 700;
             text-align: right;
+        }
+
+        .point-curve-refine-row,
+        .point-curve-preset-row {
+            display: grid;
+            grid-template-columns: 82px minmax(120px, 1fr) 70px 58px;
+            gap: 6px;
+            align-items: center;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .point-curve-preset-row {
+            grid-template-columns: 82px minmax(0, 1fr);
+            margin-top: 7px;
+        }
+
+        .point-curve-refine-row[hidden] { display: none; }
+
+        .point-curve-refine-row input[type="range"] {
+            width: 100%;
+            min-width: 0;
+            height: 44px;
+            margin: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        .point-curve-refine-row input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            border-radius: 999px;
+            background: linear-gradient(to right, #aeb7bd 0, #aeb7bd var(--slider-progress, 0%),
+                #3a444c var(--slider-progress, 0%), #3a444c 100%);
+        }
+
+        .point-curve-refine-row input[type="range"]::-webkit-slider-thumb {
+            width: 13px;
+            height: 13px;
+            margin-top: -4.5px;
+            border: 1px solid #dbe1e5;
+            border-radius: 50%;
+            appearance: none;
+            -webkit-appearance: none;
+            background: #aeb7bd;
+        }
+
+        .point-curve-refine-row input[type="range"]::-moz-range-track {
+            height: 4px;
+            border-radius: 999px;
+            background: #3a444c;
+        }
+
+        .point-curve-refine-row input[type="range"]::-moz-range-progress { height: 4px; background: #aeb7bd; }
+        .point-curve-refine-row input[type="range"]::-moz-range-thumb {
+            width: 13px; height: 13px; border: 1px solid #dbe1e5; border-radius: 50%; background: #aeb7bd;
+        }
+
+        .point-curve-refine-row input[type="text"],
+        .point-curve-preset-select {
+            width: 100%;
+            min-width: 0;
+            min-height: 44px;
+            box-sizing: border-box;
+            border: 1px solid #3d4850;
+            border-radius: 3px;
+            padding: 6px 7px;
+            background: #11171c;
+            color: #dfe5e9;
+            font-size: 12px;
+        }
+
+        .point-curve-refine-row input[type="text"] {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .point-curve-refine-row input[type="text"].pending {
+            border-color: #7d8d99;
+            color: #aebbc4;
+        }
+
+        .point-curve-refine-reset {
+            min-height: 44px;
+            padding: 5px 7px;
+            border-radius: 3px;
+            font-size: 11px;
         }
 
         .point-curve-updating {
@@ -1647,6 +1819,18 @@
             margin-top: 12px;
         }
 
+        .point-curve-actions button {
+            min-height: 44px;
+            border: 1px solid #435363;
+            border-radius: 4px;
+            padding: 8px 10px;
+            background: #182129;
+            color: #dbe3e8;
+            font-size: 12px;
+            font-weight: 600;
+            touch-action: manipulation;
+        }
+
         .point-curve-actions button:disabled,
         .point-curve-channel:disabled {
             opacity: 0.5;
@@ -1654,10 +1838,12 @@
         }
 
         @media (max-width: 620px) {
-            .point-curve-toolbar { align-items: stretch; flex-direction: column; }
-            .point-curve-name { min-height: 20px; text-align: left; }
-            .point-curve-channels { grid-template-columns: repeat(2, minmax(90px, 1fr)); }
+            .point-curve-group { width: 100%; }
+            .point-curve-toolbar { align-items: center; flex-direction: row; }
             .point-curve-actions { grid-template-columns: 1fr; }
+            .point-curve-refine-row { grid-template-columns: 76px minmax(90px, 1fr) 64px; }
+            .point-curve-refine-reset { grid-column: 2 / -1; justify-self: end; min-width: 64px; }
+            .point-curve-preset-row { grid-template-columns: 76px minmax(0, 1fr); }
         }
 
     </style>

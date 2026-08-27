@@ -150,6 +150,12 @@
     ,"tone_curve.gesture.end"
     ,"tone_curve.gesture.cancel"
     ,"tone_curve.reset"
+    ,"tone_curve.refine_saturation.gesture.begin"
+    ,"tone_curve.refine_saturation.gesture.update"
+    ,"tone_curve.refine_saturation.gesture.end"
+    ,"tone_curve.refine_saturation.gesture.cancel"
+    ,"tone_curve.refine_saturation.reset"
+    ,"tone_curve.preset.set"
   ],
   "selectionOperations": [
     "select_all",

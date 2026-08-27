@@ -439,7 +439,10 @@ local function sendContextHeartbeat()
                 "&rgb=" .. urlEncode(toneCurve.rgbSerialized) ..
                 "&red=" .. urlEncode(toneCurve.redSerialized) ..
                 "&green=" .. urlEncode(toneCurve.greenSerialized) ..
-                "&blue=" .. urlEncode(toneCurve.blueSerialized)
+                "&blue=" .. urlEncode(toneCurve.blueSerialized) ..
+                "&refineSaturation=" .. urlEncode(toneCurve.refineSaturation) ..
+                "&refineMin=" .. urlEncode(toneCurve.refineMin) ..
+                "&refineMax=" .. urlEncode(toneCurve.refineMax)
             LrHttp.get(toneCurveUrl)
         end
     end

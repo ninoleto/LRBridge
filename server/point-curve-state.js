@@ -6,6 +6,12 @@ const CHANNEL_FIELDS = Object.freeze({
 });
 
 const CHANNELS = Object.freeze(Object.keys(CHANNEL_FIELDS));
+const REFINE_SATURATION_FIELD = "CurveRefineSaturation";
+const PRESET_CURVES = Object.freeze({
+    Linear: Object.freeze([0, 0, 255, 255]),
+    "Medium Contrast": Object.freeze([0, 0, 32, 22, 64, 56, 128, 128, 192, 196, 255, 255]),
+    "Strong Contrast": Object.freeze([0, 0, 32, 16, 64, 50, 128, 128, 192, 202, 255, 255])
+});
 const MIN_COORDINATE = 0;
 const MAX_COORDINATE = 255;
 const MAX_ARRAY_LENGTH = 512;
@@ -61,6 +67,16 @@ function fieldForChannel(channel) {
     return validChannel(channel) ? CHANNEL_FIELDS[channel] : null;
 }
 
+function validRefineSaturation(value, minimum, maximum) {
+    return Number.isFinite(value) && Number.isFinite(minimum) && Number.isFinite(maximum) &&
+        minimum < maximum && value >= minimum && value <= maximum;
+}
+
+function presetCurve(name) {
+    return typeof name === "string" && Object.prototype.hasOwnProperty.call(PRESET_CURVES, name)
+        ? PRESET_CURVES[name].slice() : null;
+}
+
 function validBinding(binding) {
     return binding && typeof binding === "object" && !Array.isArray(binding) &&
         typeof binding.selectedPhotoUuid === "string" && binding.selectedPhotoUuid.length >= 1 &&
@@ -95,9 +111,14 @@ function createPointCurveState() {
     let revision = 0;
     let syncedBinding = null;
     const admittedGestures = new Map();
+    const admittedRefineGestures = new Map();
 
     function gestureKey(binding, channel, gestureId) {
         return [binding.selectedPhotoUuid, binding.contextCounter, channel, gestureId].join("|");
+    }
+
+    function refineGestureKey(binding, gestureId) {
+        return [binding.selectedPhotoUuid, binding.contextCounter, REFINE_SATURATION_FIELD, gestureId].join("|");
     }
 
     function invalidateSnapshot() {
@@ -107,6 +128,7 @@ function createPointCurveState() {
     function invalidate() {
         invalidateSnapshot();
         admittedGestures.clear();
+        admittedRefineGestures.clear();
     }
 
     function syncContext(fields) {
@@ -133,6 +155,9 @@ function createPointCurveState() {
         if (!fields || fields.activeModule !== "develop" || !validBinding(feedback) ||
             !bindingsEqual(feedback, currentBinding) || typeof feedback.name !== "string" ||
             feedback.name.length < 1 || feedback.name.length > 80 ||
+            !feedback.refineSaturation || typeof feedback.refineSaturation !== "object" ||
+            !validRefineSaturation(feedback.refineSaturation.value, feedback.refineSaturation.min,
+                feedback.refineSaturation.max) ||
             !feedback.curves || typeof feedback.curves !== "object" || Array.isArray(feedback.curves)) {
             return false;
         }
@@ -145,6 +170,11 @@ function createPointCurveState() {
             contextCounter: feedback.contextCounter,
             developCounter: feedback.developCounter,
             name: feedback.name,
+            refineSaturation: {
+                value: feedback.refineSaturation.value,
+                min: feedback.refineSaturation.min,
+                max: feedback.refineSaturation.max
+            },
             curves: cloneCurves(feedback.curves),
             updatedAt: Date.now()
         };
@@ -153,6 +183,7 @@ function createPointCurveState() {
             contextCounter: snapshot.contextCounter,
             developCounter: snapshot.developCounter,
             name: snapshot.name,
+            refineSaturation: snapshot.refineSaturation,
             curves: snapshot.curves
         });
         const nextCanonical = JSON.stringify({
@@ -160,6 +191,7 @@ function createPointCurveState() {
             contextCounter: next.contextCounter,
             developCounter: next.developCounter,
             name: next.name,
+            refineSaturation: next.refineSaturation,
             curves: next.curves
         });
         if (previousCanonical !== nextCanonical) revision += 1;
@@ -171,7 +203,13 @@ function createPointCurveState() {
         const binding = bindingFromContext(fields);
         const available = !!snapshot && fields && fields.activeModule === "develop" && bindingsEqual(snapshot, binding);
         if (!available) {
-            return Object.assign({ available: false, revision: revision, name: null, curves: null }, binding);
+            return Object.assign({
+                available: false,
+                revision: revision,
+                name: null,
+                refineSaturation: null,
+                curves: null
+            }, binding);
         }
         return {
             available: true,
@@ -180,6 +218,7 @@ function createPointCurveState() {
             contextCounter: snapshot.contextCounter,
             developCounter: snapshot.developCounter,
             name: snapshot.name,
+            refineSaturation: Object.assign({}, snapshot.refineSaturation),
             curves: cloneCurves(snapshot.curves),
             updatedAt: snapshot.updatedAt
         };
@@ -197,6 +236,10 @@ function createPointCurveState() {
         }
         const key = gestureKey(binding, channel, gestureId);
         if (admittedGestures.has(key)) return true;
+        for (const admitted of admittedRefineGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
+        }
         for (const admitted of admittedGestures.values()) {
             if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
                 admitted.binding.contextCounter === binding.contextCounter && admitted.channel === channel) return false;
@@ -226,12 +269,22 @@ function createPointCurveState() {
     function drainGestures() {
         const drained = Array.from(admittedGestures.values(), function (admitted) {
             return {
+                kind: "curve",
                 binding: Object.assign({}, admitted.binding),
                 channel: admitted.channel,
                 gestureId: admitted.gestureId
             };
         });
+        for (const admitted of admittedRefineGestures.values()) {
+            drained.push({
+                kind: "refineSaturation",
+                binding: Object.assign({}, admitted.binding),
+                field: REFINE_SATURATION_FIELD,
+                gestureId: admitted.gestureId
+            });
+        }
         admittedGestures.clear();
+        admittedRefineGestures.clear();
         return drained;
     }
 
@@ -255,7 +308,7 @@ function createPointCurveState() {
 
     function getGestureDiagnostics() {
         return {
-            count: admittedGestures.size,
+            count: admittedGestures.size + admittedRefineGestures.size,
             admitted: Array.from(admittedGestures.values(), function (admitted) {
                 return {
                     selectedPhotoUuid: admitted.binding.selectedPhotoUuid,
@@ -264,7 +317,16 @@ function createPointCurveState() {
                     channel: admitted.channel,
                     gestureId: admitted.gestureId
                 };
-            })
+            }).concat(Array.from(admittedRefineGestures.values(), function (admitted) {
+                return {
+                    kind: "refineSaturation",
+                    selectedPhotoUuid: admitted.binding.selectedPhotoUuid,
+                    contextCounter: admitted.binding.contextCounter,
+                    developCounter: admitted.binding.developCounter,
+                    field: REFINE_SATURATION_FIELD,
+                    gestureId: admitted.gestureId
+                };
+            }))
         };
     }
 
@@ -274,6 +336,101 @@ function createPointCurveState() {
         for (const admitted of admittedGestures.values()) {
             if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
                 admitted.binding.contextCounter === binding.contextCounter && admitted.channel === channel) return false;
+        }
+        for (const admitted of admittedRefineGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
+        }
+        return true;
+    }
+
+    function refineBaselineMatches(baseline) {
+        return Number.isFinite(baseline) && snapshot && snapshot.refineSaturation &&
+            baseline === snapshot.refineSaturation.value;
+    }
+
+    function beginRefineGesture(binding, gestureId, baseline, fields) {
+        if (!admitBinding(binding, fields) || !GESTURE_ID_PATTERN.test(gestureId || "") ||
+            !refineBaselineMatches(baseline)) return false;
+        const key = refineGestureKey(binding, gestureId);
+        if (admittedRefineGestures.has(key)) return true;
+        for (const admitted of admittedGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
+        }
+        for (const admitted of admittedRefineGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
+        }
+        admittedRefineGestures.set(key, {
+            binding: Object.assign({}, binding),
+            field: REFINE_SATURATION_FIELD,
+            gestureId: gestureId
+        });
+        return true;
+    }
+
+    function updateRefineGesture(binding, gestureId, baseline, value, fields) {
+        const key = validBinding(binding) ? refineGestureKey(binding, gestureId) : "";
+        return admittedRefineGestures.has(key) && admitBinding(binding, fields) &&
+            refineBaselineMatches(baseline) && validRefineSaturation(
+                value, snapshot.refineSaturation.min, snapshot.refineSaturation.max
+            );
+    }
+
+    function endRefineGesture(binding, gestureId, baseline, value, fields) {
+        const key = validBinding(binding) ? refineGestureKey(binding, gestureId) : "";
+        if (!admittedRefineGestures.has(key)) return false;
+        return admitBinding(binding, fields) && refineBaselineMatches(baseline) &&
+            validRefineSaturation(value, snapshot.refineSaturation.min, snapshot.refineSaturation.max);
+    }
+
+    function finishRefineGesture(binding, gestureId) {
+        if (!validBinding(binding)) return false;
+        return admittedRefineGestures.delete(refineGestureKey(binding, gestureId));
+    }
+
+    function takeRefineGestureConflicts(binding, gestureId) {
+        if (!validBinding(binding)) return [];
+        const removed = [];
+        for (const [key, admitted] of admittedRefineGestures.entries()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter && admitted.gestureId !== gestureId) {
+                removed.push({
+                    kind: "refineSaturation",
+                    binding: Object.assign({}, admitted.binding),
+                    field: REFINE_SATURATION_FIELD,
+                    gestureId: admitted.gestureId
+                });
+                admittedRefineGestures.delete(key);
+            }
+        }
+        return removed;
+    }
+
+    function admitRefineReset(binding, baseline, fields) {
+        if (!admitBinding(binding, fields) || !refineBaselineMatches(baseline)) return false;
+        for (const admitted of admittedRefineGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
+        }
+        for (const admitted of admittedGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
+        }
+        return true;
+    }
+
+    function admitPreset(binding, name, baseline, fields) {
+        if (!admitBinding(binding, fields) || !presetCurve(name) || !validCurveArray(baseline) ||
+            serializeCurve(snapshot.curves.rgb) !== serializeCurve(baseline)) return false;
+        for (const admitted of admittedGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
+        }
+        for (const admitted of admittedRefineGestures.values()) {
+            if (admitted.binding.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                admitted.binding.contextCounter === binding.contextCounter) return false;
         }
         return true;
     }
@@ -290,6 +447,13 @@ function createPointCurveState() {
         takeGestureConflicts,
         getGestureDiagnostics,
         admitReset,
+        beginRefineGesture,
+        updateRefineGesture,
+        endRefineGesture,
+        finishRefineGesture,
+        takeRefineGestureConflicts,
+        admitRefineReset,
+        admitPreset,
         invalidate
     };
 }
@@ -297,6 +461,8 @@ function createPointCurveState() {
 module.exports = {
     CHANNEL_FIELDS,
     CHANNELS,
+    REFINE_SATURATION_FIELD,
+    PRESET_CURVES,
     MIN_COORDINATE,
     MAX_COORDINATE,
     MAX_ARRAY_LENGTH,
@@ -306,6 +472,8 @@ module.exports = {
     parseCurve,
     validChannel,
     fieldForChannel,
+    validRefineSaturation,
+    presetCurve,
     validBinding,
     bindingsEqual,
     createPointCurveState

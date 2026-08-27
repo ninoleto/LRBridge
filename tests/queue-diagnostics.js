@@ -82,7 +82,13 @@ function emptyDiagnostics() {
                     "tone_curve.gesture.update": 0,
                     "tone_curve.gesture.end": 0,
                     "tone_curve.gesture.cancel": 0,
-                    "tone_curve.reset": 0
+                    "tone_curve.reset": 0,
+                    "tone_curve.refine_saturation.gesture.begin": 0,
+                    "tone_curve.refine_saturation.gesture.update": 0,
+                    "tone_curve.refine_saturation.gesture.end": 0,
+                    "tone_curve.refine_saturation.gesture.cancel": 0,
+                    "tone_curve.refine_saturation.reset": 0,
+                    "tone_curve.preset.set": 0
                 }
             }
         },
@@ -245,7 +251,13 @@ function testCoreMetrics() {
         "tone_curve.gesture.update": 0,
         "tone_curve.gesture.end": 0,
         "tone_curve.gesture.cancel": 0,
-        "tone_curve.reset": 0
+        "tone_curve.reset": 0,
+        "tone_curve.refine_saturation.gesture.begin": 0,
+        "tone_curve.refine_saturation.gesture.update": 0,
+        "tone_curve.refine_saturation.gesture.end": 0,
+        "tone_curve.refine_saturation.gesture.cancel": 0,
+        "tone_curve.refine_saturation.reset": 0,
+        "tone_curve.preset.set": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);
