@@ -52,8 +52,8 @@ const metadataToneCurveIds = [
     "ParametricShadowSplit", "ParametricMidtoneSplit", "ParametricHighlightSplit"
 ];
 const expectedToneCurveDisplayOrder = [
-    "ParametricHighlights", "ParametricLights", "ParametricDarks", "ParametricShadows",
-    "ParametricShadowSplit", "ParametricMidtoneSplit", "ParametricHighlightSplit"
+    "ParametricShadowSplit", "ParametricMidtoneSplit", "ParametricHighlightSplit",
+    "ParametricShadows", "ParametricDarks", "ParametricLights", "ParametricHighlights"
 ];
 assert.deepEqual(toneCurveDefinitions.map((item) => item.id), metadataToneCurveIds, "Tone Curve metadata group drifted");
 assert.equal(new Set(toneCurveDefinitions.map((item) => item.id)).size, 7, "Tone Curve slider ID duplicated");
@@ -712,16 +712,20 @@ const treatmentFeedbackBlock = feedback.match(
 assert.doesNotMatch(treatmentFeedbackBlock,
     /tostring\(settings\)|tostring\(photo\)|photo\.path|filename|getRawMetadata/i,
     "Treatment diagnostics must not expose photo or settings data");
-assert.match(toneCurveBlock, /title\.textContent = "Parametric Curve"/);
+assert.match(toneCurveBlock, /title\.textContent = "TONE CURVE"/);
+assert.match(toneCurveBlock, /color-mixer-view-tabs tone-curve-view-tabs/,
+    "Tone Curve must reuse the accepted compact Color Mixer tab design");
 assert.match(toneCurveBlock, /return definition\.group === "Tone Curve"/);
 assert.match(toneCurveBlock, /toneCurveDefinitionsById\.set\(definition\.id, definition\)/);
-assert.match(toneCurveBlock, /toneCurveDisplayOrder\.forEach\(function \(sliderId\)/);
+assert.match(toneCurveBlock, /toneCurveDisplayOrder\.forEach\(function \(sliderId, index\)/);
 assert.match(toneCurveBlock, /if \(!definition\) return;/, "Missing Tone Curve definitions must fail safely");
-assert.match(toneCurveBlock, /groupElement\.appendChild\(createDevelopSliderControl\(definition\)\)/,
-    "Tone Curve must reuse the production Develop control factory");
-assert.match(toneCurveBlock, /createDevelopSliderControl\(definition\)[\s\S]*requestLiveFeedbackSnapshot\(true\)/,
+assert.match(toneCurveBlock,
+    /sliderBlock\.appendChild\(createDevelopSliderControl\(Object\.assign\(\{\}, definition,[\s\S]*label: toneCurveLabels\[sliderId\]/,
+    "Tone Curve must reuse the production Develop control factory with concise presentation labels");
+assert.match(toneCurveBlock, /createDevelopSliderControl\([\s\S]*requestLiveFeedbackSnapshot\(true\)/,
     "Tone Curve must render cached controls before requesting fresh feedback");
-assert.doesNotMatch(toneCurveBlock, /svg|graph|histogram|Point Curve|ToneCurvePV2012/i);
+assert.match(toneCurveBlock, /parametricPanel\.appendChild\(createParametricCurveGraph\(\)\)/,
+    "The Parametric tab must render its authoritative graph before scalar controls");
 assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1,
     "Generic Develop feedback must retain exactly one snapshot timer");
 assert.match(controller, /Object\.keys\(developSliderControls\)\.filter\(function \(slider\) \{\s*return developSliderControls\[slider\]\.row\.isConnected;/,

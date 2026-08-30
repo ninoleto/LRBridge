@@ -1463,11 +1463,140 @@
 
         .angle-value:not(:empty) { visibility: visible; }
 
-        .point-curve-group {
+        .tone-curve-group {
             --point-curve-color: #eef4f8;
-            width: min(100%, 560px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .tone-curve-view-tabs { margin-bottom: 12px; }
+
+        .tone-curve-panel[hidden],
+        .point-curve-panel[hidden] { display: none; }
+
+        .point-curve-panel {
+            width: 100%;
             margin-inline: auto;
             box-sizing: border-box;
+        }
+
+        .parametric-curve-graph-workspace {
+            --parametric-curve-interaction-gutter: 36px;
+            position: relative;
+            width: min(100%, 560px);
+            margin: 0 auto var(--parametric-curve-interaction-gutter);
+        }
+
+        .parametric-curve-graph-shell { margin: 0; }
+        .parametric-curve-graph { touch-action: none; cursor: ns-resize; }
+
+        .parametric-curve-slider-block { margin-top: 12px; }
+
+        .parametric-curve-region-highlight {
+            fill: rgba(47, 158, 216, 0.13);
+            stroke: rgba(124, 199, 255, 0.52);
+            stroke-width: 0.8;
+            vector-effect: non-scaling-stroke;
+            pointer-events: none;
+        }
+
+        .parametric-curve-region-highlight[display="none"] { display: none; }
+
+        .parametric-curve-line,
+        .parametric-curve-preview-line {
+            fill: none;
+            stroke: #eef4f8;
+            stroke-width: 1.65;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
+            pointer-events: none;
+        }
+
+        .parametric-curve-line.previewing { opacity: 0.24; }
+        .parametric-curve-preview-line { stroke: #f7bf59; opacity: 0.98; }
+
+        .parametric-curve-split-line,
+        .parametric-curve-preview-split-line {
+            stroke: rgba(202, 214, 222, 0.55);
+            stroke-width: 0.75;
+            stroke-dasharray: 2 3;
+            vector-effect: non-scaling-stroke;
+            pointer-events: none;
+        }
+
+        .parametric-curve-split-marker,
+        .parametric-curve-preview-split-marker {
+            fill: #aebbc4;
+            stroke: #e2e9ed;
+            stroke-width: 0.7;
+            vector-effect: non-scaling-stroke;
+            pointer-events: none;
+        }
+
+        .parametric-curve-preview-split-line { stroke: rgba(247, 191, 89, 0.78); }
+        .parametric-curve-preview-split-marker { fill: #f7bf59; stroke: #fff3d1; }
+
+        .parametric-curve-split-target {
+            position: absolute;
+            z-index: 3;
+            bottom: -22px;
+            width: 44px;
+            min-width: 44px;
+            height: 44px;
+            min-height: 44px;
+            transform: translateX(-50%);
+            border: 0;
+            padding: 0;
+            background: transparent;
+            cursor: ew-resize;
+            touch-action: none;
+        }
+
+        .parametric-curve-split-target::after {
+            content: "";
+            position: absolute;
+            left: 19px;
+            top: 12px;
+            width: 6px;
+            height: 18px;
+            border-radius: 999px;
+            background: transparent;
+        }
+
+        .parametric-curve-split-target.active::after {
+            background: rgba(247, 191, 89, 0.34);
+        }
+
+        .parametric-curve-split-target:hover,
+        .parametric-curve-split-target:disabled:hover { background: transparent; }
+
+        .tone-curve-slider-block {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .parametric-curve-feedback {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: rgba(7, 10, 13, 0.74);
+            color: #dce8ef;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .parametric-curve-feedback[hidden] { display: none; }
+
+        .tone-curve-divider {
+            height: 1px;
+            margin: 18px 0 14px;
+            border: 0;
+            background: #405263;
         }
 
         .point-curve-toolbar {
@@ -1476,7 +1605,7 @@
             justify-content: flex-start;
             flex-wrap: wrap;
             gap: 6px;
-            width: 100%;
+            width: min(100%, 560px);
             margin: 0 auto 6px;
         }
 
@@ -1546,18 +1675,18 @@
         .point-curve-add-button {
             position: relative;
             isolation: isolate;
-            width: 44px;
+            width: auto;
             height: 44px;
-            min-width: 44px;
+            min-width: 104px;
             min-height: 44px;
             margin-left: auto;
             border: 0;
             border-radius: 50%;
-            padding: 0;
+            padding: 0 14px;
             background: transparent;
             color: #dce4e9;
-            font-size: 18px;
-            font-weight: 500;
+            font-size: 13px;
+            font-weight: 600;
             line-height: 44px;
             touch-action: manipulation;
         }
@@ -1594,7 +1723,7 @@
 
         .point-curve-graph-shell {
             position: relative;
-            width: 100%;
+            width: min(100%, 560px);
             aspect-ratio: 1 / 1;
             margin: 0 auto;
             overflow: hidden;
@@ -1692,12 +1821,15 @@
 
         .point-curve-values {
             display: flex;
-            justify-content: flex-end;
-            gap: 14px;
-            min-height: 20px;
-            margin: 4px 1px 0;
+            justify-content: center;
+            align-items: baseline;
+            gap: 32px;
+            width: min(100%, 560px);
+            min-height: 28px;
+            margin: 8px auto 0;
             color: #9eabb4;
-            font-size: 13px;
+            font-size: 16px;
+            font-weight: 600;
             font-variant-numeric: tabular-nums;
         }
 
@@ -1705,67 +1837,26 @@
             display: inline-block;
             min-width: 3ch;
             color: #e6edf2;
+            font-size: 18px;
             font-weight: 700;
-            text-align: right;
+            text-align: left;
         }
 
-        .point-curve-refine-row,
+        .point-curve-refine-row {
+            margin-top: 8px;
+        }
+
         .point-curve-preset-row {
             display: grid;
-            grid-template-columns: 82px minmax(120px, 1fr) 70px 58px;
+            grid-template-columns: 82px minmax(0, 1fr);
             gap: 6px;
             align-items: center;
-            width: 100%;
-            margin-top: 5px;
-        }
-
-        .point-curve-preset-row {
-            grid-template-columns: 82px minmax(0, 1fr);
-            margin-top: 7px;
+            width: min(100%, 560px);
+            margin: 7px auto 0;
         }
 
         .point-curve-refine-row[hidden] { display: none; }
 
-        .point-curve-refine-row input[type="range"] {
-            width: 100%;
-            min-width: 0;
-            height: 44px;
-            margin: 0;
-            appearance: none;
-            -webkit-appearance: none;
-            background: transparent;
-        }
-
-        .point-curve-refine-row input[type="range"]::-webkit-slider-runnable-track {
-            height: 4px;
-            border-radius: 999px;
-            background: linear-gradient(to right, #aeb7bd 0, #aeb7bd var(--slider-progress, 0%),
-                #3a444c var(--slider-progress, 0%), #3a444c 100%);
-        }
-
-        .point-curve-refine-row input[type="range"]::-webkit-slider-thumb {
-            width: 13px;
-            height: 13px;
-            margin-top: -4.5px;
-            border: 1px solid #dbe1e5;
-            border-radius: 50%;
-            appearance: none;
-            -webkit-appearance: none;
-            background: #aeb7bd;
-        }
-
-        .point-curve-refine-row input[type="range"]::-moz-range-track {
-            height: 4px;
-            border-radius: 999px;
-            background: #3a444c;
-        }
-
-        .point-curve-refine-row input[type="range"]::-moz-range-progress { height: 4px; background: #aeb7bd; }
-        .point-curve-refine-row input[type="range"]::-moz-range-thumb {
-            width: 13px; height: 13px; border: 1px solid #dbe1e5; border-radius: 50%; background: #aeb7bd;
-        }
-
-        .point-curve-refine-row input[type="text"],
         .point-curve-preset-select {
             width: 100%;
             min-width: 0;
@@ -1779,21 +1870,9 @@
             font-size: 12px;
         }
 
-        .point-curve-refine-row input[type="text"] {
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-
         .point-curve-refine-row input[type="text"].pending {
             border-color: #7d8d99;
             color: #aebbc4;
-        }
-
-        .point-curve-refine-reset {
-            min-height: 44px;
-            padding: 5px 7px;
-            border-radius: 3px;
-            font-size: 11px;
         }
 
         .point-curve-updating {
@@ -1816,7 +1895,8 @@
             display: grid;
             grid-template-columns: repeat(2, minmax(180px, 1fr));
             gap: 10px;
-            margin-top: 12px;
+            width: min(100%, 560px);
+            margin: 12px auto 0;
         }
 
         .point-curve-actions button {
@@ -1841,8 +1921,6 @@
             .point-curve-group { width: 100%; }
             .point-curve-toolbar { align-items: center; flex-direction: row; }
             .point-curve-actions { grid-template-columns: 1fr; }
-            .point-curve-refine-row { grid-template-columns: 76px minmax(90px, 1fr) 64px; }
-            .point-curve-refine-reset { grid-column: 2 / -1; justify-self: end; min-width: 64px; }
             .point-curve-preset-row { grid-template-columns: 76px minmax(0, 1fr); }
         }
 
@@ -3784,6 +3862,13 @@
                     lastHeartbeatAt: lastControllerHeartbeatAt
                 };
                 const classification = classifyControllerContextChange(previous, data);
+                if (parametricCurveGesture && (
+                    data.selectedPhotoUuid !== parametricCurveGesture.selectedPhotoUuid ||
+                    data.contextCounter !== parametricCurveGesture.contextCounter ||
+                    data.activeModule !== "develop"
+                )) {
+                    cancelParametricCurveGesture("Parametric Curve gesture cancelled because Lightroom context changed.");
+                }
                 const profileContextChanged = Number.isSafeInteger(data.contextCounter) && (
                     lastControllerContextCounter === null || data.contextCounter !== lastControllerContextCounter ||
                     data.selectedPhotoKey !== lastControllerSelectedPhotoKey ||
@@ -3895,6 +3980,7 @@
 
         function deactivateDevelopFeedbackPolling() {
             genericFeedbackActive = false;
+            cancelParametricCurveGesture("Parametric Curve gesture cancelled by navigation.");
             Array.from(activeSliderInteractions).forEach(function (slider) {
                 const control = developSliderControls[slider];
                 if (control && control.cancelInteraction) control.cancelInteraction();
@@ -4526,6 +4612,7 @@
         function notifyDevelopSliderPresentation(control) {
             if (control.compoundRange) updateCompoundDevelopRange(control.compoundRange);
             if (isParametricCurveSplitControl(control)) updateParametricCurveSplitConstraints();
+            if (isParametricCurveControl(control)) updateParametricCurveGraph();
             if (control.onPresentationChange) control.onPresentationChange(control);
         }
 
@@ -7110,6 +7197,10 @@
             return parametricCurveSplitConstraint(control) !== null;
         }
 
+        function isParametricCurveControl(control) {
+            return !!control && !!control.definition && control.definition.group === "Tone Curve";
+        }
+
         function parametricCurveSplitOuterBounds(control) {
             const constraint = parametricCurveSplitConstraint(control);
             if (constraint === null) return null;
@@ -7782,14 +7873,467 @@
         }
 
         const toneCurveDisplayOrder = Object.freeze([
-            "ParametricHighlights",
-            "ParametricLights",
-            "ParametricDarks",
-            "ParametricShadows",
             "ParametricShadowSplit",
             "ParametricMidtoneSplit",
-            "ParametricHighlightSplit"
+            "ParametricHighlightSplit",
+            "ParametricShadows",
+            "ParametricDarks",
+            "ParametricLights",
+            "ParametricHighlights"
         ]);
+        const toneCurveLabels = Object.freeze({
+            "ParametricShadowSplit": "Shadow Split",
+            "ParametricMidtoneSplit": "Midtone Split",
+            "ParametricHighlightSplit": "Highlight Split",
+            "ParametricShadows": "Shadows",
+            "ParametricDarks": "Darks",
+            "ParametricLights": "Lights",
+            "ParametricHighlights": "Highlights"
+        });
+        const toneCurveSplitCount = 3;
+        let toneCurveView = "parametric";
+        try {
+            if (["point", "parametric"].includes(sessionStorage.getItem("lrbridge.toneCurveView"))) {
+                toneCurveView = sessionStorage.getItem("lrbridge.toneCurveView");
+            }
+        } catch (err) {}
+        let parametricCurveGraphPath = null;
+        let parametricCurveGraphPreviewPath = null;
+        let parametricCurveGraphFeedback = null;
+        let parametricCurveGraphElement = null;
+        let parametricCurveRegionHighlight = null;
+        let parametricCurveSplitElements = [];
+        let parametricCurvePreviewSplitElements = [];
+        let parametricCurveSplitTargets = [];
+        let parametricCurveGesture = null;
+        let parametricCurveGestureTimer = null;
+
+        function createToneCurveSvgElement(tag, attributes) {
+            const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+            Object.keys(attributes || {}).forEach(function (name) {
+                element.setAttribute(name, String(attributes[name]));
+            });
+            return element;
+        }
+
+        function appendToneCurveGraphGrid(svg) {
+            const grid = createToneCurveSvgElement("g", { class: "point-curve-grid", "aria-hidden": "true" });
+            const coordinates = [];
+            for (let coordinate = 0; coordinate < 255; coordinate += 16) coordinates.push(coordinate);
+            coordinates.push(255);
+            coordinates.forEach(function (coordinate) {
+                const kind = coordinate === 0 || coordinate === 255 ? "boundary" :
+                    (coordinate % 64 === 0 ? "major" : "minor");
+                grid.appendChild(createToneCurveSvgElement("line", {
+                    class: "point-curve-grid-" + kind,
+                    x1: coordinate,
+                    y1: 0,
+                    x2: coordinate,
+                    y2: 255
+                }));
+                grid.appendChild(createToneCurveSvgElement("line", {
+                    class: "point-curve-grid-" + kind,
+                    x1: 0,
+                    y1: coordinate,
+                    x2: 255,
+                    y2: coordinate
+                }));
+            });
+            svg.appendChild(grid);
+        }
+
+        function createParametricCurveSplitElements(svg, preview) {
+            const elements = [];
+            const group = createToneCurveSvgElement("g", {
+                class: preview ? "parametric-curve-preview-splits" : "parametric-curve-splits",
+                "aria-hidden": "true"
+            });
+            for (let index = 0; index < toneCurveSplitCount; index += 1) {
+                const line = createToneCurveSvgElement("line", {
+                    class: preview ? "parametric-curve-preview-split-line" : "parametric-curve-split-line",
+                    x1: 0,
+                    y1: 0,
+                    x2: 0,
+                    y2: 255
+                });
+                const marker = createToneCurveSvgElement("path", {
+                    class: preview ? "parametric-curve-preview-split-marker" : "parametric-curve-split-marker",
+                    d: ""
+                });
+                group.appendChild(line);
+                group.appendChild(marker);
+                elements.push({ line: line, marker: marker });
+            }
+            svg.appendChild(group);
+            return elements;
+        }
+
+        function createParametricCurveGraph() {
+            const workspace = document.createElement("div");
+            workspace.className = "parametric-curve-graph-workspace";
+            const shell = document.createElement("div");
+            shell.className = "point-curve-graph-shell parametric-curve-graph-shell";
+            const svg = createToneCurveSvgElement("svg", {
+                class: "point-curve-graph parametric-curve-graph",
+                viewBox: "0 0 255 255",
+                role: "slider",
+                tabindex: "0",
+                "aria-label": "Parametric Curve. Drag vertically to adjust the region under the pointer.",
+                "aria-valuemin": "-100",
+                "aria-valuemax": "100"
+            });
+            appendToneCurveGraphGrid(svg);
+            const definitions = createToneCurveSvgElement("defs");
+            const clip = createToneCurveSvgElement("clipPath", {
+                id: "parametric-curve-domain-clip",
+                clipPathUnits: "userSpaceOnUse"
+            });
+            clip.appendChild(createToneCurveSvgElement("rect", { x: 0, y: 0, width: 255, height: 255 }));
+            definitions.appendChild(clip);
+            svg.appendChild(definitions);
+            svg.appendChild(createToneCurveSvgElement("line", {
+                class: "point-curve-reference",
+                x1: 0,
+                y1: 255,
+                x2: 255,
+                y2: 0,
+                "aria-hidden": "true"
+            }));
+            parametricCurveRegionHighlight = createToneCurveSvgElement("rect", {
+                class: "parametric-curve-region-highlight",
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 255,
+                display: "none",
+                "aria-hidden": "true"
+            });
+            svg.appendChild(parametricCurveRegionHighlight);
+            parametricCurveGraphPath = createToneCurveSvgElement("path", {
+                class: "parametric-curve-line",
+                d: "",
+                "clip-path": "url(#parametric-curve-domain-clip)"
+            });
+            svg.appendChild(parametricCurveGraphPath);
+            parametricCurveSplitElements = createParametricCurveSplitElements(svg, false);
+            parametricCurveGraphPreviewPath = createToneCurveSvgElement("path", {
+                class: "parametric-curve-preview-line",
+                d: "",
+                "clip-path": "url(#parametric-curve-domain-clip)",
+                "aria-hidden": "true"
+            });
+            parametricCurveGraphPreviewPath.setAttribute("display", "none");
+            svg.appendChild(parametricCurveGraphPreviewPath);
+            parametricCurvePreviewSplitElements = createParametricCurveSplitElements(svg, true);
+            svg.addEventListener("pointerdown", beginParametricCurveRegionPointer);
+            svg.addEventListener("pointermove", moveParametricCurvePointer);
+            svg.addEventListener("pointerup", function (event) { finishParametricCurvePointer(event, true); });
+            svg.addEventListener("pointercancel", function (event) { finishParametricCurvePointer(event, false); });
+            svg.addEventListener("lostpointercapture", function (event) { finishParametricCurvePointer(event, false); });
+            shell.appendChild(svg);
+            parametricCurveGraphFeedback = document.createElement("div");
+            parametricCurveGraphFeedback.className = "parametric-curve-feedback";
+            parametricCurveGraphFeedback.setAttribute("role", "status");
+            parametricCurveGraphFeedback.textContent = "Loading authoritative Lightroom values…";
+            shell.appendChild(parametricCurveGraphFeedback);
+            workspace.appendChild(shell);
+            parametricCurveSplitTargets = toneCurveDisplayOrder.slice(0, toneCurveSplitCount).map(function (field, index) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "parametric-curve-split-target";
+                button.dataset.parametricSplitField = field;
+                button.setAttribute("role", "slider");
+                button.setAttribute("aria-label", toneCurveLabels[field]);
+                button.addEventListener("pointerdown", function (event) {
+                    beginParametricCurveSplitPointer(event, field, index);
+                });
+                button.addEventListener("pointermove", moveParametricCurvePointer);
+                button.addEventListener("pointerup", function (event) { finishParametricCurvePointer(event, true); });
+                button.addEventListener("pointercancel", function (event) { finishParametricCurvePointer(event, false); });
+                button.addEventListener("lostpointercapture", function (event) { finishParametricCurvePointer(event, false); });
+                workspace.appendChild(button);
+                return { button: button, field: field, index: index };
+            });
+            parametricCurveGraphElement = svg;
+            updateParametricCurveGraph();
+            return workspace;
+        }
+
+        function collectParametricCurveValues(usePresentedValues) {
+            const values = {};
+            const fields = LRBridgeToneCurve.PARAMETRIC_CURVE_FIELDS;
+            for (const field of Object.values(fields)) {
+                const control = developSliderControls[field];
+                if (!control || control.feedbackState !== "available" ||
+                    control.authoritativeValue === null || !Number.isFinite(Number(control.authoritativeValue))) {
+                    return null;
+                }
+                const value = usePresentedValues && control.localValue !== null
+                    ? control.localValue
+                    : control.authoritativeValue;
+                if (!Number.isFinite(Number(value))) return null;
+                values[field] = Number(value);
+            }
+            return values;
+        }
+
+        function parametricCurveValuesEqual(left, right) {
+            if (!left || !right) return false;
+            return Object.values(LRBridgeToneCurve.PARAMETRIC_CURVE_FIELDS).every(function (field) {
+                return Number(left[field]) === Number(right[field]);
+            });
+        }
+
+        function parametricSplitMarkerPath(position) {
+            const left = Math.round((position - 4) * 1000) / 1000;
+            const center = Math.round(position * 1000) / 1000;
+            const right = Math.round((position + 4) * 1000) / 1000;
+            return "M " + left + " 255 L " + center + " 248 L " + right + " 255 Z";
+        }
+
+        function renderParametricCurveSplitElements(elements, positions, visible) {
+            elements.forEach(function (element, index) {
+                const position = positions && Number(positions[index]);
+                const show = visible && Number.isFinite(position);
+                element.line.setAttribute("display", show ? "inline" : "none");
+                element.marker.setAttribute("display", show ? "inline" : "none");
+                if (!show) return;
+                element.line.setAttribute("x1", String(position));
+                element.line.setAttribute("x2", String(position));
+                element.marker.setAttribute("d", parametricSplitMarkerPath(position));
+            });
+        }
+
+        function authoritativeParametricPointCurve() {
+            const state = pointCurveController.getState();
+            const pointCurve = state && state.authoritative;
+            return pointCurve && pointCurve.curves &&
+                LRBridgeToneCurve.validCurveArray(pointCurve.curves.rgb) ? {
+                    rgbCurve: pointCurve.curves.rgb.slice(),
+                    name: pointCurve.name
+                } : null;
+        }
+
+        function renderParametricCurveSplitTargets(values, positions, visible) {
+            parametricCurveSplitTargets.forEach(function (target, index) {
+                const position = positions && Number(positions[index]);
+                const control = developSliderControls[target.field];
+                const show = visible && Number.isFinite(position) && !!control;
+                target.button.hidden = !show;
+                target.button.disabled = !show;
+                if (!show) return;
+                target.button.style.left = (position / 2.55) + "%";
+                const bounds = parametricCurveSplitEffectiveBounds(control);
+                target.button.setAttribute("aria-valuemin", String(bounds.minimum));
+                target.button.setAttribute("aria-valuemax", String(bounds.maximum));
+                target.button.setAttribute("aria-valuenow", String(values[target.field]));
+            });
+        }
+
+        function renderParametricCurveRegionHighlight(values) {
+            if (!parametricCurveRegionHighlight || !parametricCurveGesture ||
+                parametricCurveGesture.kind !== "region" || !values) {
+                if (parametricCurveRegionHighlight) parametricCurveRegionHighlight.setAttribute("display", "none");
+                return;
+            }
+            const normalized = LRBridgeToneCurve.normalizeParametricCurveValues(values);
+            if (!normalized) {
+                parametricCurveRegionHighlight.setAttribute("display", "none");
+                return;
+            }
+            const boundaries = {
+                shadows: [0, normalized.shadowSplit],
+                darks: [normalized.shadowSplit, normalized.midtoneSplit],
+                lights: [normalized.midtoneSplit, normalized.highlightSplit],
+                highlights: [normalized.highlightSplit, 100]
+            }[parametricCurveGesture.region];
+            if (!boundaries) {
+                parametricCurveRegionHighlight.setAttribute("display", "none");
+                return;
+            }
+            parametricCurveRegionHighlight.setAttribute("x", String(boundaries[0] * 2.55));
+            parametricCurveRegionHighlight.setAttribute("width", String((boundaries[1] - boundaries[0]) * 2.55));
+            parametricCurveRegionHighlight.setAttribute("display", "inline");
+        }
+
+        function updateParametricCurveGraph() {
+            if (!parametricCurveGraphPath || !parametricCurveGraphPreviewPath || !parametricCurveGraphFeedback) return;
+            const authoritativeValues = collectParametricCurveValues(false);
+            const pointCurve = authoritativeParametricPointCurve();
+            const authoritativePath = authoritativeValues && pointCurve
+                ? LRBridgeToneCurve.parametricCurvePathData(authoritativeValues, pointCurve.rgbCurve)
+                : "";
+            const authoritativeSplits = authoritativeValues
+                ? LRBridgeToneCurve.parametricCurveSplitPositions(authoritativeValues)
+                : null;
+            if (!authoritativePath || !authoritativeSplits) {
+                parametricCurveGraphPath.setAttribute("d", "");
+                parametricCurveGraphPreviewPath.setAttribute("display", "none");
+                parametricCurveGraphPath.classList.remove("previewing");
+                renderParametricCurveSplitElements(parametricCurveSplitElements, null, false);
+                renderParametricCurveSplitElements(parametricCurvePreviewSplitElements, null, false);
+                renderParametricCurveSplitTargets(null, null, false);
+                renderParametricCurveRegionHighlight(null);
+                parametricCurveGraphFeedback.hidden = false;
+                if (parametricCurveGraphElement) parametricCurveGraphElement.dataset.feedbackState = "loading";
+                return;
+            }
+
+            const presentedValues = collectParametricCurveValues(true);
+            const previewing = !!presentedValues && !parametricCurveValuesEqual(authoritativeValues, presentedValues);
+            parametricCurveGraphPath.setAttribute("d", authoritativePath);
+            parametricCurveGraphPath.classList.toggle("previewing", previewing);
+            renderParametricCurveSplitElements(parametricCurveSplitElements, authoritativeSplits, true);
+            if (previewing) {
+                const previewPath = LRBridgeToneCurve.parametricCurvePathData(presentedValues, pointCurve.rgbCurve);
+                const previewSplits = LRBridgeToneCurve.parametricCurveSplitPositions(presentedValues);
+                parametricCurveGraphPreviewPath.setAttribute("d", previewPath);
+                parametricCurveGraphPreviewPath.setAttribute("display", "inline");
+                renderParametricCurveSplitElements(parametricCurvePreviewSplitElements, previewSplits, true);
+                renderParametricCurveSplitTargets(presentedValues, previewSplits, true);
+            } else {
+                parametricCurveGraphPreviewPath.setAttribute("display", "none");
+                renderParametricCurveSplitElements(parametricCurvePreviewSplitElements, null, false);
+                renderParametricCurveSplitTargets(authoritativeValues, authoritativeSplits, true);
+            }
+            renderParametricCurveRegionHighlight(presentedValues || authoritativeValues);
+            parametricCurveGraphFeedback.hidden = true;
+            if (parametricCurveGraphElement) {
+                parametricCurveGraphElement.dataset.feedbackState = previewing ? "preview" : "authoritative";
+                parametricCurveGraphElement.dataset.pointCurveName = pointCurve.name;
+            }
+        }
+
+        function parametricCurvePointerEligible(event) {
+            return event && event.isPrimary !== false &&
+                (event.pointerType !== "mouse" || event.button === 0);
+        }
+
+        function beginParametricCurveGesture(event, kind, field, region, markerTarget) {
+            const control = developSliderControls[field];
+            if (!parametricCurvePointerEligible(event) || parametricCurveGesture || !control ||
+                control.feedbackState !== "available" || !Number.isFinite(Number(control.authoritativeValue)) ||
+                !parametricCurveGraphElement) return false;
+            const bounds = parametricCurveGraphElement.getBoundingClientRect();
+            if (!bounds || bounds.width <= 0 || bounds.height <= 0) return false;
+            cancelDevelopSliderStep(control);
+            beginDevelopSliderInteraction(control, "parametric-" + kind);
+            control.pointerActive = true;
+            control.dragging = true;
+            parametricCurveGesture = {
+                kind: kind,
+                field: field,
+                region: region || null,
+                control: control,
+                pointerId: event.pointerId,
+                pointerType: event.pointerType,
+                captureTarget: event.currentTarget,
+                markerTarget: markerTarget || null,
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                graphWidth: bounds.width,
+                graphHeight: bounds.height,
+                baseline: Number(control.authoritativeValue),
+                lastValue: Number(control.authoritativeValue),
+                moved: false,
+                selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                contextCounter: lastControllerContextCounter
+            };
+            if (markerTarget) markerTarget.classList.add("active");
+            if (event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId);
+            if (parametricCurveGestureTimer !== null) clearTimeout(parametricCurveGestureTimer);
+            parametricCurveGestureTimer = setTimeout(function () {
+                cancelParametricCurveGesture("Parametric Curve gesture timed out; Lightroom authority was restored.");
+            }, LRBridgeToneCurve.PARAMETRIC_GESTURE_TIMEOUT_MS);
+            updateParametricCurveGraph();
+            event.preventDefault();
+            return true;
+        }
+
+        function beginParametricCurveRegionPointer(event) {
+            const values = collectParametricCurveValues(false);
+            if (!values || !parametricCurveGraphElement) return;
+            const bounds = parametricCurveGraphElement.getBoundingClientRect();
+            if (!bounds || bounds.width <= 0) return;
+            const input = Math.min(100, Math.max(0, (event.clientX - bounds.left) * 100 / bounds.width));
+            const region = LRBridgeToneCurve.parametricRegionKeyAtInput(input, values);
+            const field = LRBridgeToneCurve.parametricRegionFieldAtInput(input, values);
+            if (beginParametricCurveGesture(event, "region", field, region, null)) {
+                parametricCurveGraphElement.setAttribute("aria-valuenow", String(
+                    developSliderControls[field].authoritativeValue
+                ));
+                parametricCurveGraphElement.setAttribute("aria-valuetext", toneCurveLabels[field] + " " +
+                    String(developSliderControls[field].authoritativeValue));
+            }
+        }
+
+        function beginParametricCurveSplitPointer(event, field, index) {
+            event.stopPropagation();
+            const target = parametricCurveSplitTargets[index];
+            beginParametricCurveGesture(event, "split", field, null, target && target.button);
+        }
+
+        function moveParametricCurvePointer(event) {
+            const gesture = parametricCurveGesture;
+            if (!gesture || gesture.pointerId !== event.pointerId || gesture.captureTarget !== event.currentTarget) return;
+            const deltaX = event.clientX - gesture.startClientX;
+            const deltaY = event.clientY - gesture.startClientY;
+            if (!gesture.moved && !LRBridgeToneCurve.intentionalParametricDrag(
+                gesture.kind, deltaX, deltaY, LRBridgeToneCurve.POINTER_DRAG_THRESHOLD_PX
+            )) return;
+            gesture.moved = true;
+            let nextValue = gesture.kind === "region"
+                ? LRBridgeToneCurve.parametricRegionDragValue(gesture.baseline, deltaY, gesture.graphHeight)
+                : LRBridgeToneCurve.parametricSplitDragValue(gesture.baseline, deltaX, gesture.graphWidth);
+            if (nextValue === null) return;
+            if (gesture.kind === "split") {
+                nextValue = constrainParametricCurveSplitValue(gesture.control, nextValue);
+            }
+            if (nextValue !== gesture.lastValue) {
+                gesture.lastValue = nextValue;
+                stageDevelopSliderRangeValue(gesture.control, nextValue);
+            }
+            if (gesture.kind === "region" && parametricCurveGraphElement) {
+                parametricCurveGraphElement.setAttribute("aria-valuenow", String(nextValue));
+                parametricCurveGraphElement.setAttribute("aria-valuetext", toneCurveLabels[gesture.field] + " " +
+                    String(nextValue));
+            }
+            event.preventDefault();
+        }
+
+        function finishParametricCurvePointer(event, submitFinal) {
+            const gesture = parametricCurveGesture;
+            if (!gesture || (event && gesture.pointerId !== event.pointerId) ||
+                (event && gesture.captureTarget !== event.currentTarget)) return;
+            parametricCurveGesture = null;
+            if (parametricCurveGestureTimer !== null) clearTimeout(parametricCurveGestureTimer);
+            parametricCurveGestureTimer = null;
+            if (gesture.markerTarget) gesture.markerTarget.classList.remove("active");
+            gesture.control.pointerActive = false;
+            gesture.control.dragging = false;
+            const target = gesture.captureTarget;
+            if (target && target.hasPointerCapture && target.hasPointerCapture(gesture.pointerId)) {
+                target.releasePointerCapture(gesture.pointerId);
+            }
+            if (submitFinal && gesture.moved && !gesture.control.contextInvalidated) {
+                flushDevelopSliderValue(gesture.control, gesture.lastValue, "range");
+            } else {
+                cancelDevelopSliderThrottle(gesture.control);
+                gesture.control.deferredFeedbackResult = null;
+                if (Number.isFinite(Number(gesture.control.authoritativeValue))) {
+                    showDevelopSliderLocal(gesture.control, gesture.control.authoritativeValue);
+                }
+            }
+            endDevelopSliderInteraction(gesture.control);
+            updateParametricCurveGraph();
+        }
+
+        function cancelParametricCurveGesture(message) {
+            if (!parametricCurveGesture) return false;
+            finishParametricCurvePointer(null, false);
+            if (message) setStatus(message);
+            return true;
+        }
 
         const developSectionDisplayOrder = Object.freeze([
             { id: "white-balance", label: "White Balance", selectors: [{ group: "Color", ids: ["Temperature", "Tint"] }] },
@@ -9040,21 +9584,48 @@
                 hasReceivedAnyAuthoritativeDevelopValue
             ) ? "" : "Loading Lightroom values…";
             content.appendChild(developLoadingStatus);
-            content.appendChild(pointCurveController.element);
-            pointCurveController.activate({
-                activeModule: lastControllerActiveModule,
-                selectedPhotoUuid: lastControllerSelectedPhotoUuid,
-                contextCounter: lastControllerContextCounter,
-                developCounter: lastControllerDevelopCounter
-            });
 
             const groupElement = document.createElement("section");
-            groupElement.className = "group";
+            groupElement.className = "group tone-curve-group";
 
             const title = document.createElement("div");
             title.className = "group-title";
-            title.textContent = "Parametric Curve";
+            title.textContent = "TONE CURVE";
             groupElement.appendChild(title);
+
+            const tabs = document.createElement("div");
+            tabs.className = "color-mixer-view-tabs tone-curve-view-tabs";
+            tabs.setAttribute("role", "tablist");
+            tabs.setAttribute("aria-label", "Tone Curve type");
+            const buttons = {};
+            [
+                { id: "parametric", label: "Parametric Curve" },
+                { id: "point", label: "Point Curve" }
+            ].forEach(function (view) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "color-mixer-view-button tone-curve-view-button";
+                button.textContent = view.label;
+                button.setAttribute("role", "tab");
+                button.setAttribute("aria-controls", "tone-curve-" + view.id + "-panel");
+                buttons[view.id] = button;
+                tabs.appendChild(button);
+            });
+            groupElement.appendChild(tabs);
+
+            const pointPanel = pointCurveController.element;
+            pointPanel.id = "tone-curve-point-panel";
+            pointPanel.setAttribute("role", "tabpanel");
+            pointPanel.setAttribute("aria-label", "Point Curve");
+
+            const parametricPanel = document.createElement("div");
+            parametricPanel.id = "tone-curve-parametric-panel";
+            parametricPanel.className = "tone-curve-panel parametric-curve-panel";
+            parametricPanel.setAttribute("role", "tabpanel");
+            parametricPanel.setAttribute("aria-label", "Parametric Curve");
+            parametricPanel.appendChild(createParametricCurveGraph());
+            const sliderBlock = document.createElement("div");
+            sliderBlock.className = "tone-curve-slider-block parametric-curve-slider-block";
 
             const toneCurveDefinitionsById = new Map();
             developSliderDefinitions.filter(function (definition) {
@@ -9062,13 +9633,55 @@
             }).forEach(function (definition) {
                 toneCurveDefinitionsById.set(definition.id, definition);
             });
-            toneCurveDisplayOrder.forEach(function (sliderId) {
+            toneCurveDisplayOrder.forEach(function (sliderId, index) {
+                if (index === toneCurveSplitCount) {
+                    const divider = document.createElement("hr");
+                    divider.className = "tone-curve-divider";
+                    sliderBlock.appendChild(divider);
+                }
                 const definition = toneCurveDefinitionsById.get(sliderId);
                 if (!definition) return;
-                groupElement.appendChild(createDevelopSliderControl(definition));
+                sliderBlock.appendChild(createDevelopSliderControl(Object.assign({}, definition, {
+                    label: toneCurveLabels[sliderId]
+                })));
             });
+            parametricPanel.appendChild(sliderBlock);
             updateParametricCurveSplitConstraints();
+            updateParametricCurveGraph();
+            groupElement.appendChild(parametricPanel);
+            groupElement.appendChild(pointPanel);
             content.appendChild(groupElement);
+
+            function showToneCurveView(view) {
+                if (view !== "parametric") cancelParametricCurveGesture("Parametric Curve gesture cancelled by navigation.");
+                toneCurveView = view;
+                pointPanel.hidden = view !== "point";
+                parametricPanel.hidden = view !== "parametric";
+                ["parametric", "point"].forEach(function (id) {
+                    const selected = id === view;
+                    buttons[id].classList.toggle("active", selected);
+                    buttons[id].setAttribute("aria-selected", String(selected));
+                    buttons[id].tabIndex = selected ? 0 : -1;
+                });
+                if (view === "parametric") updateParametricCurveGraph();
+            }
+
+            ["parametric", "point"].forEach(function (view) {
+                buttons[view].addEventListener("click", function () {
+                    if (toneCurveView === view) return;
+                    showToneCurveView(view);
+                    try { sessionStorage.setItem("lrbridge.toneCurveView", view); } catch (err) {}
+                    if (view === "parametric") requestLiveFeedbackSnapshot(true);
+                });
+            });
+            showToneCurveView(toneCurveView);
+
+            pointCurveController.activate({
+                activeModule: lastControllerActiveModule,
+                selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                contextCounter: lastControllerContextCounter,
+                developCounter: lastControllerDevelopCounter
+            });
 
             setTimeout(function () {
                 requestLiveFeedbackSnapshot(true);

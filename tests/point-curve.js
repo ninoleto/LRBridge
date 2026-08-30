@@ -404,11 +404,16 @@ for (const field of ["channel", "gestureId", "expectedSelectedPhotoUuid", "expec
     assert.match(luaParser, new RegExp("\\b" + field + " = " + field + "\\b"));
 }
 
-assert.ok(controllerHtml.indexOf("pointCurveController.element") < controllerHtml.indexOf('title.textContent = "Parametric Curve"'),
-    "POINT CURVE must render before the accepted PARAMETRIC CURVE section");
+assert.match(controllerHtml, /title\.textContent = "TONE CURVE"/,
+    "Point and Parametric controls must share one unified TONE CURVE section");
+assert.ok(controllerHtml.indexOf("const pointPanel = pointCurveController.element") <
+    controllerHtml.indexOf("parametricPanel.appendChild(createParametricCurveGraph())"),
+    "The unified workspace must construct the accepted Point Curve panel before Parametric content");
 assert.match(controllerHtml, /\.point-curve-graph[\s\S]*aspect-ratio: 1 \/ 1|\.point-curve-graph-shell[\s\S]*aspect-ratio: 1 \/ 1/);
-assert.match(controllerHtml, /\.point-curve-group\s*\{[\s\S]*width: min\(100%, 560px\)/,
-    "The complete Point Curve workspace must stay compact on large screens and responsive below 560px");
+assert.match(controllerHtml, /\.point-curve-panel\s*\{[\s\S]*width: 100%;/,
+    "The Point Curve workspace must expose full row width for touch-friendly controls");
+assert.match(controllerHtml, /\.point-curve-graph-shell\s*\{[\s\S]*width: min\(100%, 560px\)/,
+    "The accepted Point Curve graph dimensions must remain compact while its controls use full width");
 assert.match(controllerHtml, /\.point-curve-channel\s*\{[\s\S]*width: 44px;[\s\S]*height: 44px;/,
     "Compact channel glyphs must retain 44px touch targets");
 assert.match(controllerHtml, /\.point-curve-channel::before\s*\{[\s\S]*inset: 9px;/,
@@ -416,6 +421,8 @@ assert.match(controllerHtml, /\.point-curve-channel::before\s*\{[\s\S]*inset: 9p
 assert.match(controllerHtml, /\.point-curve-grid-minor[\s\S]*\.point-curve-grid-major/,
     "The graph must provide subtle minor divisions and stronger quarter divisions");
 const pointCurveControllerSource = read("app/controller-tone-curve.js");
+assert.doesNotMatch(pointCurveControllerSource, /heading\.textContent = "POINT CURVE"/,
+    "The Point Curve controller must not create a second section heading inside the unified workspace");
 assert.match(pointCurveControllerSource, /addEventListener\("pointerdown"/);
 assert.match(pointCurveControllerSource, /addEventListener\("pointermove"/);
 assert.match(pointCurveControllerSource, /255 - segment\.y1/,
@@ -425,7 +432,8 @@ assert.match(pointCurveControllerSource, /svgElement\("line", \{\s*class: "point
 assert.match(pointCurveControllerSource,
     /function curveSegments\(points\) \{\s*const slopes = adobeSplineSlopes\(points\);[\s\S]*c1y: y0 \+ slopes\[index\] \* width \/ 3[\s\S]*c2y: y1 - slopes\[index \+ 1\] \* width \/ 3/,
     "Production segments must use raw Adobe slopes without mathematical limiting");
-assert.doesNotMatch(pointCurveControllerSource, /shapePreservingSlopes|boundPathCoordinate/,
+assert.doesNotMatch(controllerToneCurve.curveSegments.toString() + controllerToneCurve.curvePathData.toString(),
+    /shapePreservingSlopes|boundPathCoordinate/,
     "Production rendering must not flatten or bound Adobe's natural spline mathematics");
 assert.match(pointCurveControllerSource,
     /svgElement\("clipPath", \{[\s\S]*id: "point-curve-domain-clip"[\s\S]*svgElement\("rect", \{ x: 0, y: 0, width: 255, height: 255 \}\)/,
@@ -443,6 +451,15 @@ assert.match(controllerHtml, /\.point-curve-marker\s*\{[\s\S]*pointer-events: no
 assert.match(pointCurveControllerSource,
     /selectedPointValues\(points, selectedPointIndex\)[\s\S]*inputValueElement\.textContent = selectedValues[\s\S]*outputValueElement\.textContent = selectedValues/,
     "Displayed Input/Output values must be read from the selected authoritative point");
+assert.match(pointCurveControllerSource,
+    /rootElement\.appendChild\(graphShell\)[\s\S]*values\.className = "point-curve-values"[\s\S]*rootElement\.appendChild\(values\)[\s\S]*refineRow\.className/,
+    "Input and Output must remain in a dedicated row directly below the graph");
+assert.match(controllerHtml,
+    /\.point-curve-values\s*\{[\s\S]*justify-content: center;[\s\S]*width: min\(100%, 560px\);[\s\S]*font-size: 16px;/,
+    "Input and Output must be centered beneath the graph with readable labels");
+assert.match(controllerHtml,
+    /\.point-curve-value-number\s*\{[\s\S]*font-size: 18px;[\s\S]*font-weight: 700;/,
+    "Selected-point values must be visually prominent without overlaying the graph");
 assert.match(pointCurveControllerSource, /adjustLabel\.textContent = "Adjust:"/);
 assert.doesNotMatch(pointCurveControllerSource, /point-curve-name|nameElement/,
     "The authoritative curve name must no longer float at the right edge of the channel toolbar");
@@ -452,6 +469,24 @@ assert.match(pointCurveControllerSource,
 assert.match(pointCurveControllerSource,
     /refineRow\.hidden = selectedChannel !== "rgb"[\s\S]*const refineChannelAvailable = available && selectedChannel === "rgb"/,
     "Refine Saturation must be visible and enabled only for RGB");
+assert.match(pointCurveControllerSource,
+    /refineRow\.className = "develop-slider-row point-curve-refine-row"[\s\S]*refineLabel\.className = "slider-name"/,
+    "Refine Saturation must use the standard touch-friendly slider row");
+assert.match(controllerHtml,
+    /\.develop-slider-row,[\s\S]*grid-template-columns: minmax\(140px, 210px\) minmax\(180px, 1fr\) 92px 44px 44px auto;/,
+    "Refine Saturation must inherit the same long responsive slider grid as Parametric controls");
+assert.doesNotMatch(controllerHtml,
+    /\.point-curve-refine-row\s*\{[^}]*grid-template-columns|\.point-curve-refine-row\s*\{[^}]*max-width/,
+    "Refine Saturation must not collapse back to a compact track override");
+assert.match(pointCurveControllerSource,
+    /function stepRefineSaturation\(delta\)[\s\S]*Math\.min\(refine\.max, Math\.max\(refine\.min, refine\.value \+ delta\)\)/,
+    "Refine Saturation step buttons must clamp one-point authoritative changes to Lightroom's range");
+assert.match(pointCurveControllerSource,
+    /refineDecrementButton\.addEventListener\("click", function \(\) \{ stepRefineSaturation\(-1\); \}\)[\s\S]*refineIncrementButton\.addEventListener\("click", function \(\) \{ stepRefineSaturation\(1\); \}\)/,
+    "Refine Saturation minus and plus must use the tracked authoritative command path");
+assert.match(pointCurveControllerSource,
+    /refineRow\.appendChild\(refineLabel\)[\s\S]*refineRow\.appendChild\(refineRange\)[\s\S]*refineRow\.appendChild\(refineNumber\)[\s\S]*refineRow\.appendChild\(refineDecrementButton\)[\s\S]*refineRow\.appendChild\(refineIncrementButton\)[\s\S]*refineRow\.appendChild\(refineResetButton\)/,
+    "Refine Saturation controls must render in label, slider, editor, minus, plus, Reset order");
 assert.match(pointCurveControllerSource,
     /refineNumber\.type = "text";[\s\S]*refineNumber\.inputMode = "numeric";[\s\S]*setAttribute\("autocomplete", "off"\)[\s\S]*setAttribute\("autocapitalize", "off"\)[\s\S]*setAttribute\("spellcheck", "false"\)/,
     "Refine Saturation must use a numeric-keyboard text editor with autofill and text services disabled");
@@ -466,11 +501,11 @@ assert.match(pointCurveControllerSource,
     /event\.key === "Enter"[\s\S]*commitRefineEditor\(\)[\s\S]*event\.key === "Escape"[\s\S]*cancelRefineEditor\(\)[\s\S]*addEventListener\("blur", function \(\) \{ commitRefineEditor\(\); \}\)/,
     "Enter and blur must commit while Escape restores Lightroom authority");
 assert.match(pointCurveControllerSource,
-    /addPointButton\.textContent = "\+";[\s\S]*setAttribute\("aria-label", "Add point"\)[\s\S]*addPointArmed = !addPointArmed/,
-    "A compact accessible button must explicitly arm one-shot Add Point mode");
+    /addPointButton\.textContent = "\+ Add Point";[\s\S]*setAttribute\("aria-label", "Add point"\)[\s\S]*addPointArmed = !addPointArmed/,
+    "A clearly labelled accessible button must explicitly arm one-shot Add Point mode");
 assert.match(controllerHtml,
-    /\.point-curve-add-button\s*\{[\s\S]*width: 44px;[\s\S]*height: 44px;[\s\S]*\.point-curve-add-button\.active/,
-    "Add Point must have an independent 44px touch target and visible active state");
+    /\.point-curve-add-button\s*\{[\s\S]*width: auto;[\s\S]*height: 44px;[\s\S]*min-width: 104px;[\s\S]*min-height: 44px;[\s\S]*\.point-curve-add-button\.active/,
+    "Labelled Add Point must retain a touch-sized target and visible active state");
 assert.match(pointCurveControllerSource,
     /svg\.addEventListener\("pointerdown", function \(event\) \{\s*if \(!addPointArmed \|\| gesture\) return;/,
     "Empty graph space must be inert outside explicit Add Point mode and ignore secondary pointers");
@@ -833,13 +868,19 @@ async function controllerRefineAndPresetTests() {
     await flushController();
     const rootElement = controller.element;
     const refineRowElement = findElements(rootElement, function (element) {
-        return element.className === "point-curve-refine-row";
+        return element.className === "develop-slider-row point-curve-refine-row";
     })[0];
     const refineSlider = findElements(rootElement, function (element) {
         return element.getAttribute && element.getAttribute("aria-label") === "Refine Saturation";
     })[0];
     const refineEditor = findElements(rootElement, function (element) {
         return element.getAttribute && element.getAttribute("aria-label") === "Edit Refine Saturation value";
+    })[0];
+    const refineDecrement = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Decrease Refine Saturation";
+    })[0];
+    const refineIncrement = findElements(rootElement, function (element) {
+        return element.getAttribute && element.getAttribute("aria-label") === "Increase Refine Saturation";
     })[0];
     const presetSelect = findElements(rootElement, function (element) {
         return element.getAttribute && element.getAttribute("aria-label") === "Point Curve preset";
@@ -860,11 +901,79 @@ async function controllerRefineAndPresetTests() {
     assert.equal(refineEditor.getAttribute("spellcheck"), "false");
     assert.equal(refineEditor.getAttribute("name"), undefined,
         "The Refine editor must not expose a payment-like form name");
+    assert.equal(refineRowElement.className, "develop-slider-row point-curve-refine-row");
+    assert.equal(refineDecrement.className, "develop-slider-step");
+    assert.equal(refineIncrement.className, "develop-slider-step");
+    assert.deepEqual(refineRowElement.children.map(function (element) {
+        return element.getAttribute("aria-label") || element.textContent;
+    }), [
+        "Refine Sat.", "Refine Saturation", "Edit Refine Saturation value",
+        "Decrease Refine Saturation", "Increase Refine Saturation", "Reset"
+    ], "Refine Saturation must use the standard control order");
     assert.equal(findElements(rootElement, function (element) {
         return element.getAttribute && element.getAttribute("aria-label") ===
             "Authoritative Refine Saturation value";
     }).length, 0, "Refine Saturation must have one visible authoritative numeric field");
     assert.equal(refineRowElement.hidden, false);
+    const stepRequestStart = requests.length;
+    refineDecrement.dispatch("click");
+    await flushController();
+    assert.ok(controller.getState().awaitingRefine,
+        "Refine minus must wait for authoritative Lightroom feedback");
+    assert.equal(refineEditor.getAttribute("aria-busy"), "true",
+        "Refine minus must preserve pending-state presentation");
+    assert.ok(requests.slice(stepRequestStart).some(function (requestPath) {
+        return requestPath.includes("/refine-saturation/gesture/end?") &&
+            requestPath.includes("baseline=100") && requestPath.includes("value=99");
+    }), "Refine minus must submit exactly one authoritative decrement");
+    snapshot = Object.assign({}, snapshot, {
+        revision: 2,
+        updatedAt: currentTime + 1,
+        refineSaturation: { value: 99, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    await flushController();
+    assert.equal(controller.getState().awaitingRefine, null);
+    assert.equal(refineSlider.value, "99");
+    assert.equal(refineEditor.value, "99");
+
+    const incrementRequestStart = requests.length;
+    refineIncrement.dispatch("click");
+    await flushController();
+    assert.ok(requests.slice(incrementRequestStart).some(function (requestPath) {
+        return requestPath.includes("/refine-saturation/gesture/end?") &&
+            requestPath.includes("baseline=99") && requestPath.includes("value=100");
+    }), "Refine plus must submit exactly one authoritative increment");
+    snapshot = Object.assign({}, snapshot, {
+        revision: 3,
+        updatedAt: currentTime + 2,
+        refineSaturation: { value: 100, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    await flushController();
+    const upperBoundRequestCount = requests.length;
+    refineIncrement.dispatch("click");
+    await flushController();
+    assert.equal(requests.length, upperBoundRequestCount,
+        "Refine plus must clamp at Lightroom's authoritative maximum");
+
+    snapshot = Object.assign({}, snapshot, {
+        revision: 4,
+        updatedAt: currentTime + 3,
+        refineSaturation: { value: 0, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
+    const lowerBoundRequestCount = requests.length;
+    refineDecrement.dispatch("click");
+    await flushController();
+    assert.equal(requests.length, lowerBoundRequestCount,
+        "Refine minus must clamp at Lightroom's authoritative minimum");
+    snapshot = Object.assign({}, snapshot, {
+        revision: 5,
+        updatedAt: currentTime + 4,
+        refineSaturation: { value: 100, min: 0, max: 100 }
+    });
+    controller.applyAuthoritative(snapshot);
     redButton.dispatch("click");
     assert.equal(refineRowElement.hidden, true, "Refine Saturation must disappear on individual channels");
     assert.equal(refineSlider.disabled, true);
@@ -956,7 +1065,7 @@ async function controllerRefineAndPresetTests() {
         "An external Lightroom Refine Saturation change must update the controller without refresh");
 
     const refineReset = findElements(rootElement, function (element) {
-        return element.className === "point-curve-refine-reset";
+        return element.className === "reset" && element.textContent === "Reset";
     })[0];
     refineReset.dispatch("click");
     await flushController();
@@ -1096,6 +1205,10 @@ async function controllerAdditionTests() {
     const addButton = findElements(rootElement, function (element) {
         return element.getAttribute && element.getAttribute("aria-label") === "Add point";
     })[0];
+    assert.equal(addButton.textContent, "+ Add Point",
+        "The one-shot Point Curve insertion control must expose its action visibly");
+    assert.equal(addButton.getAttribute("aria-label"), "Add point",
+        "The labelled insertion control must retain its concise accessible name");
     const instruction = findElements(rootElement, function (element) {
         return element.className === "point-curve-add-instruction";
     })[0];

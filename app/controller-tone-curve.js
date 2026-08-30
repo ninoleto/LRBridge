@@ -21,6 +21,18 @@
     const POINTER_DRAG_THRESHOLD_PX = 2;
     const POINT_CURVE_REQUEST_TIMEOUT_MS = 15_000;
     const POINT_CURVE_FEEDBACK_TIMEOUT_MS = 15_000;
+    const PARAMETRIC_GESTURE_TIMEOUT_MS = 15_000;
+    const PARAMETRIC_DISPLAY_CONTROL_COUNT = 15;
+    const PARAMETRIC_DISPLAY_CURVATURE_WEIGHT = 0.2;
+    const PARAMETRIC_CURVE_FIELDS = Object.freeze({
+        shadows: "ParametricShadows",
+        darks: "ParametricDarks",
+        lights: "ParametricLights",
+        highlights: "ParametricHighlights",
+        shadowSplit: "ParametricShadowSplit",
+        midtoneSplit: "ParametricMidtoneSplit",
+        highlightSplit: "ParametricHighlightSplit"
+    });
 
     function isDenseArray(value) {
         if (!Array.isArray(value) || Object.keys(value).length !== value.length) return false;
@@ -67,8 +79,7 @@
     // cubic spline (C0/C1/C2 continuous, zero second derivative at both ends).
     // Point Curve metadata uses the same ordered tone-coordinate model, so the
     // solver is the closest public Adobe reference for rendering these points.
-    function adobeSplineSlopes(points) {
-        if (!validCurveArray(points)) return null;
+    function naturalSplineSlopes(points) {
         const count = points.length / 2;
         const x = [];
         const y = [];
@@ -120,6 +131,10 @@
         return slopes;
     }
 
+    function adobeSplineSlopes(points) {
+        return validCurveArray(points) ? naturalSplineSlopes(points) : null;
+    }
+
     function curveSegments(points) {
         const slopes = adobeSplineSlopes(points);
         if (!slopes) return null;
@@ -159,6 +174,554 @@
                 pathNumber(segment.x1) + " " + pathNumber(255 - segment.y1));
         });
         return commands.join(" ");
+    }
+
+    function normalizeParametricCurveValues(values) {
+        if (!values || typeof values !== "object" || Array.isArray(values)) return null;
+        const normalized = {};
+        Object.keys(PARAMETRIC_CURVE_FIELDS).forEach(function (key) {
+            const value = values[PARAMETRIC_CURVE_FIELDS[key]];
+            normalized[key] = typeof value === "number" ? value : NaN;
+        });
+        if (["shadows", "darks", "lights", "highlights"].some(function (key) {
+            return !Number.isFinite(normalized[key]) || normalized[key] < -100 || normalized[key] > 100;
+        })) return null;
+        if (
+            !Number.isFinite(normalized.shadowSplit) || normalized.shadowSplit < 10 || normalized.shadowSplit > 70 ||
+            !Number.isFinite(normalized.midtoneSplit) || normalized.midtoneSplit < 20 || normalized.midtoneSplit > 80 ||
+            !Number.isFinite(normalized.highlightSplit) || normalized.highlightSplit < 30 || normalized.highlightSplit > 90 ||
+            normalized.midtoneSplit - normalized.shadowSplit < 10 ||
+            normalized.highlightSplit - normalized.midtoneSplit < 10
+        ) return null;
+        return Object.freeze(normalized);
+    }
+
+    function evaluatePointCurve(points, input) {
+        const segments = curveSegments(points);
+        const coordinate = Number(input);
+        if (!segments || !Number.isFinite(coordinate) || coordinate < 0 || coordinate > 255) return null;
+        let segment = segments[segments.length - 1];
+        for (let index = 0; index < segments.length; index += 1) {
+            if (coordinate <= segments[index].x1) {
+                segment = segments[index];
+                break;
+            }
+        }
+        const width = segment.x1 - segment.x0;
+        const t = width === 0 ? 0 : (coordinate - segment.x0) / width;
+        const inverse = 1 - t;
+        return inverse * inverse * inverse * segment.y0 +
+            3 * inverse * inverse * t * segment.c1y +
+            3 * inverse * t * t * segment.c2y +
+            t * t * t * segment.y1;
+    }
+
+    // Adobe and the Lightroom SDK do not publish the Parametric display
+    // equation. Keep this pre-existing provisional visualization isolated
+    // from the accepted Point Curve renderer while Lightroom-observed,
+    // single-region calibration samples are collected. It is not parity
+    // evidence and must not be calibrated from implementation-generated data.
+    function parametricResponseAnchors(normalized) {
+        const centers = [
+            normalized.shadowSplit / 2,
+            (normalized.shadowSplit + normalized.midtoneSplit) / 2,
+            (normalized.midtoneSplit + normalized.highlightSplit) / 2,
+            (normalized.highlightSplit + 100) / 2
+        ];
+        const offsets = [
+            normalized.shadows * 0.14 + normalized.darks * 0.02,
+            normalized.darks * 0.16 + normalized.lights * 0.114,
+            normalized.darks * 0.114 + normalized.lights * 0.16,
+            normalized.lights * 0.02 + normalized.highlights * 0.14
+        ];
+        return Object.freeze({
+            x: Object.freeze([0].concat(centers, [100])),
+            y: Object.freeze([0].concat(centers.map(function (center, index) {
+                return center + offsets[index];
+            }), [100]))
+        });
+    }
+
+    function shapePreservingSlopes(x, y) {
+        const count = x.length;
+        const widths = new Array(count - 1);
+        const secants = new Array(count - 1);
+        const slopes = new Array(count);
+        for (let index = 0; index < count - 1; index += 1) {
+            widths[index] = x[index + 1] - x[index];
+            secants[index] = (y[index + 1] - y[index]) / widths[index];
+        }
+        function endpointSlope(width, neighborWidth, secant, neighborSecant) {
+            let slope = ((2 * width + neighborWidth) * secant - width * neighborSecant) /
+                (width + neighborWidth);
+            if (Math.sign(slope) !== Math.sign(secant)) return 0;
+            if (Math.sign(secant) !== Math.sign(neighborSecant) && Math.abs(slope) > 3 * Math.abs(secant)) {
+                slope = 3 * secant;
+            }
+            return slope;
+        }
+        slopes[0] = endpointSlope(widths[0], widths[1], secants[0], secants[1]);
+        slopes[count - 1] = endpointSlope(
+            widths[count - 2], widths[count - 3], secants[count - 2], secants[count - 3]
+        );
+        for (let index = 1; index < count - 1; index += 1) {
+            if (secants[index - 1] === 0 || secants[index] === 0 ||
+                Math.sign(secants[index - 1]) !== Math.sign(secants[index])) {
+                slopes[index] = 0;
+                continue;
+            }
+            const leftWeight = 2 * widths[index] + widths[index - 1];
+            const rightWeight = widths[index] + 2 * widths[index - 1];
+            slopes[index] = (leftWeight + rightWeight) /
+                (leftWeight / secants[index - 1] + rightWeight / secants[index]);
+        }
+        return slopes;
+    }
+
+    function evaluateShapePreservingCurve(x, y, input) {
+        const slopes = shapePreservingSlopes(x, y);
+        let index = x.length - 2;
+        for (let candidate = 0; candidate < x.length - 1; candidate += 1) {
+            if (input <= x[candidate + 1]) {
+                index = candidate;
+                break;
+            }
+        }
+        const width = x[index + 1] - x[index];
+        const t = (input - x[index]) / width;
+        const t2 = t * t;
+        const t3 = t2 * t;
+        return (2 * t3 - 3 * t2 + 1) * y[index] +
+            (t3 - 2 * t2 + t) * width * slopes[index] +
+            (-2 * t3 + 3 * t2) * y[index + 1] +
+            (t3 - t2) * width * slopes[index + 1];
+    }
+
+    // These tables are screenshot-observed Lightroom residuals relative to the
+    // retained baseline above, rounded to one decimal output unit. They are
+    // calibration evidence, not a claim about Lightroom's internal equation.
+    // Split-relative mapping lets the measured response move with authoritative
+    // region boundaries; signs without isolated evidence retain the baseline.
+    const PARAMETRIC_EMPIRICAL_CALIBRATION = Object.freeze({
+        lightsPositive40: Object.freeze({
+            amount: 40,
+            splits: Object.freeze([25, 44, 75]),
+            x: Object.freeze([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]),
+            correction: Object.freeze([0, 1.2, 0.7, 0.3, 1.7, 3.6, 6.6, 9.4, 9.8, 7.5, 0])
+        }),
+        lightsPositive81: Object.freeze({
+            amount: 81,
+            splits: Object.freeze([25, 44, 75]),
+            x: Object.freeze([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]),
+            correction: Object.freeze([0, 2.3, 0.5, 0.4, 4.2, 9.9, 14.2, 15.8, 13.7, 9, 0])
+        }),
+        lightsNegative40: Object.freeze({
+            amount: -40,
+            splits: Object.freeze([25, 44, 75]),
+            x: Object.freeze([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]),
+            correction: Object.freeze([0, -0.2, 0.3, 1.7, 1.3, -0.7, -1.6, -3.3, -4.8, -4.5, 0])
+        }),
+        darksPositive44: Object.freeze({
+            amount: 44,
+            splits: Object.freeze([33, 54, 79]),
+            x: Object.freeze([0, 10, 20, 33, 40, 50, 54, 60, 70, 79, 90, 100]),
+            correction: Object.freeze([0, 4.7, 5.5, 2.9, 2.3, 1, 0.3, 0, -0.4, -0.1, 0.1, 0])
+        }),
+        shadowsNegative49: Object.freeze({
+            amount: -49,
+            splits: Object.freeze([33, 54, 79]),
+            x: Object.freeze([0, 10, 20, 33, 40, 50, 54, 60, 70, 79, 90, 100]),
+            correction: Object.freeze([0, -2, -0.8, -2.7, -2.3, -0.4, -0.3, -0.1, 0, 0, 0, 0])
+        }),
+        highlightsNegative26: Object.freeze({
+            amount: -26,
+            splits: Object.freeze([25, 44, 75]),
+            x: Object.freeze([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]),
+            correction: Object.freeze([0, 0, 0, 0, -0.1, -0.2, -1, -0.4, 0.4, 1.3, 0])
+        }),
+        shadowsNegativeDarksPositive: Object.freeze({
+            splits: Object.freeze([33, 54, 79]),
+            x: Object.freeze([0, 10, 20, 33, 40, 100]),
+            correction: Object.freeze([0, -4, -3, 0, 0, 0])
+        })
+    });
+
+    function parametricCalibrationInput(normalized, input, calibrationSplits) {
+        const authoritative = [
+            0,
+            normalized.shadowSplit,
+            normalized.midtoneSplit,
+            normalized.highlightSplit,
+            100
+        ];
+        const calibration = [0].concat(calibrationSplits, [100]);
+        let index = authoritative.length - 2;
+        for (let candidate = 0; candidate < authoritative.length - 1; candidate += 1) {
+            if (input <= authoritative[candidate + 1]) {
+                index = candidate;
+                break;
+            }
+        }
+        const t = (input - authoritative[index]) /
+            (authoritative[index + 1] - authoritative[index]);
+        return calibration[index] + t * (calibration[index + 1] - calibration[index]);
+    }
+
+    function parametricCalibrationCorrection(calibration, normalized, input) {
+        const coordinate = parametricCalibrationInput(normalized, input, calibration.splits);
+        return evaluateShapePreservingCurve(calibration.x, calibration.correction, coordinate);
+    }
+
+    function scaledParametricCalibrationCorrection(calibration, normalized, input, amount) {
+        return parametricCalibrationCorrection(calibration, normalized, input) * amount / calibration.amount;
+    }
+
+    function positiveLightsCalibrationCorrection(normalized, input) {
+        const amount = normalized.lights;
+        const low = PARAMETRIC_EMPIRICAL_CALIBRATION.lightsPositive40;
+        const high = PARAMETRIC_EMPIRICAL_CALIBRATION.lightsPositive81;
+        if (amount <= low.amount) {
+            return scaledParametricCalibrationCorrection(low, normalized, input, amount);
+        }
+        const lowCorrection = parametricCalibrationCorrection(low, normalized, input);
+        const highCorrection = parametricCalibrationCorrection(high, normalized, input);
+        if (amount <= high.amount) {
+            const t = (amount - low.amount) / (high.amount - low.amount);
+            return lowCorrection + t * (highCorrection - lowCorrection);
+        }
+        return highCorrection * amount / high.amount;
+    }
+
+    function parametricEmpiricalCorrection(normalized, input) {
+        const calibration = PARAMETRIC_EMPIRICAL_CALIBRATION;
+        let correction = 0;
+        if (normalized.lights > 0) {
+            correction += positiveLightsCalibrationCorrection(normalized, input);
+        } else if (normalized.lights < 0) {
+            correction += scaledParametricCalibrationCorrection(
+                calibration.lightsNegative40, normalized, input, normalized.lights
+            );
+        }
+        if (normalized.darks > 0) {
+            correction += scaledParametricCalibrationCorrection(
+                calibration.darksPositive44, normalized, input, normalized.darks
+            );
+        }
+        if (normalized.shadows < 0) {
+            correction += scaledParametricCalibrationCorrection(
+                calibration.shadowsNegative49, normalized, input, normalized.shadows
+            );
+        }
+        if (normalized.highlights < 0) {
+            correction += scaledParametricCalibrationCorrection(
+                calibration.highlightsNegative26, normalized, input, normalized.highlights
+            );
+        }
+        if (normalized.shadows < 0 && normalized.darks > 0) {
+            const interaction = calibration.shadowsNegativeDarksPositive;
+            const shadowScale = Math.min(1, Math.abs(normalized.shadows) / 49);
+            const darkScale = Math.min(1, normalized.darks / 44);
+            correction += parametricCalibrationCorrection(interaction, normalized, input) *
+                shadowScale * darkScale;
+        }
+        return correction;
+    }
+
+    function parametricCurveOutputAt(values, rgbCurve, inputPercent) {
+        const normalized = normalizeParametricCurveValues(values);
+        const input = Number(inputPercent);
+        if (!normalized || !validCurveArray(rgbCurve) || !Number.isFinite(input) || input < 0 || input > 100) {
+            return null;
+        }
+        const anchors = parametricResponseAnchors(normalized);
+        const parametricOutput = evaluateShapePreservingCurve(anchors.x, anchors.y, input);
+        const pointOutput = evaluatePointCurve(rgbCurve, input * 2.55);
+        if (pointOutput === null) return null;
+        const output = pointOutput / 2.55 + (parametricOutput - input) +
+            parametricEmpiricalCorrection(normalized, input);
+        return Math.min(100, Math.max(0, output));
+    }
+
+    function parametricCurveSamples(values, rgbCurve, sampleCount) {
+        const count = sampleCount === undefined ? 128 : Number(sampleCount);
+        if (!Number.isSafeInteger(count) || count < 2 || count > 1024) return null;
+        if (!normalizeParametricCurveValues(values) || !validCurveArray(rgbCurve)) return null;
+        const samples = [];
+        for (let index = 0; index <= count; index += 1) {
+            const input = index * 100 / count;
+            const output = parametricCurveOutputAt(values, rgbCurve, input);
+            if (!Number.isFinite(output)) return null;
+            samples.push(Object.freeze({ x: input * 2.55, y: output * 2.55 }));
+        }
+        return Object.freeze(samples);
+    }
+
+    function parametricDisplayKnots(controlCount) {
+        const degree = 3;
+        const spanCount = controlCount - degree;
+        const knots = new Array(degree + 1).fill(0);
+        for (let index = 1; index < spanCount; index += 1) knots.push(index / spanCount);
+        for (let index = 0; index <= degree; index += 1) knots.push(1);
+        return Object.freeze(knots);
+    }
+
+    function parametricDisplayBasis(input, knots, controlCount) {
+        const coordinate = Number(input);
+        if (!Number.isFinite(coordinate) || coordinate < 0 || coordinate > 1) return null;
+        if (coordinate === 1) {
+            const endpoint = new Array(controlCount).fill(0);
+            endpoint[controlCount - 1] = 1;
+            return endpoint;
+        }
+        let basis = new Array(controlCount).fill(0);
+        for (let index = 0; index < controlCount; index += 1) {
+            if (knots[index] <= coordinate && coordinate < knots[index + 1]) basis[index] = 1;
+        }
+        for (let degree = 1; degree <= 3; degree += 1) {
+            const next = new Array(controlCount).fill(0);
+            for (let index = 0; index < controlCount; index += 1) {
+                const leftWidth = knots[index + degree] - knots[index];
+                const rightWidth = knots[index + degree + 1] - knots[index + 1];
+                if (leftWidth !== 0) {
+                    next[index] += (coordinate - knots[index]) / leftWidth * basis[index];
+                }
+                if (rightWidth !== 0 && index + 1 < controlCount) {
+                    next[index] += (knots[index + degree + 1] - coordinate) / rightWidth *
+                        basis[index + 1];
+                }
+            }
+            basis = next;
+        }
+        return basis;
+    }
+
+    function solveParametricDisplaySystem(matrix, vector) {
+        const size = vector.length;
+        for (let column = 0; column < size; column += 1) {
+            let pivot = column;
+            for (let row = column + 1; row < size; row += 1) {
+                if (Math.abs(matrix[row][column]) > Math.abs(matrix[pivot][column])) pivot = row;
+            }
+            if (Math.abs(matrix[pivot][column]) < 1e-12) return null;
+            if (pivot !== column) {
+                const matrixRow = matrix[column];
+                matrix[column] = matrix[pivot];
+                matrix[pivot] = matrixRow;
+                const vectorValue = vector[column];
+                vector[column] = vector[pivot];
+                vector[pivot] = vectorValue;
+            }
+            const divisor = matrix[column][column];
+            for (let index = column; index < size; index += 1) matrix[column][index] /= divisor;
+            vector[column] /= divisor;
+            for (let row = 0; row < size; row += 1) {
+                if (row === column || matrix[row][column] === 0) continue;
+                const factor = matrix[row][column];
+                for (let index = column; index < size; index += 1) {
+                    matrix[row][index] -= factor * matrix[column][index];
+                }
+                vector[row] -= factor * vector[column];
+            }
+        }
+        return vector;
+    }
+
+    function parametricSamplesAreMonotone(samples) {
+        for (let index = 1; index < samples.length; index += 1) {
+            if (samples[index].y + 1e-9 < samples[index - 1].y) return false;
+        }
+        return true;
+    }
+
+    function nondecreasingParametricControls(values) {
+        const blocks = values.map(function (value, index) {
+            return { start: index, end: index, sum: value, count: 1 };
+        });
+        for (let index = 0; index < blocks.length - 1;) {
+            const current = blocks[index];
+            const next = blocks[index + 1];
+            if (current.sum / current.count <= next.sum / next.count) {
+                index += 1;
+                continue;
+            }
+            blocks[index] = {
+                start: current.start,
+                end: next.end,
+                sum: current.sum + next.sum,
+                count: current.count + next.count
+            };
+            blocks.splice(index + 1, 1);
+            if (index > 0) index -= 1;
+        }
+        const projected = new Array(values.length);
+        blocks.forEach(function (block) {
+            const value = Math.min(MAX_COORDINATE, Math.max(MIN_COORDINATE, block.sum / block.count));
+            for (let index = block.start; index <= block.end; index += 1) projected[index] = value;
+        });
+        projected[0] = MIN_COORDINATE;
+        projected[projected.length - 1] = MAX_COORDINATE;
+        return projected;
+    }
+
+    function fitParametricDisplayControls(samples, knots, controlCount) {
+        const unknownCount = controlCount - 2;
+        const matrix = Array.from({ length: unknownCount }, function () {
+            return new Array(unknownCount).fill(0);
+        });
+        const vector = new Array(unknownCount).fill(0);
+        samples.forEach(function (sample) {
+            const basis = parametricDisplayBasis(sample.x / MAX_COORDINATE, knots, controlCount);
+            const target = sample.y - basis[controlCount - 1] * MAX_COORDINATE;
+            for (let row = 0; row < unknownCount; row += 1) {
+                const rowValue = basis[row + 1];
+                vector[row] += rowValue * target;
+                for (let column = 0; column < unknownCount; column += 1) {
+                    matrix[row][column] += rowValue * basis[column + 1];
+                }
+            }
+        });
+
+        // Penalize control-polygon second differences. This regularizes only
+        // the low-knot display fit; it does not alter calibrated output values.
+        for (let control = 0; control < controlCount - 2; control += 1) {
+            const row = new Array(unknownCount).fill(0);
+            let fixedContribution = 0;
+            [[control, 1], [control + 1, -2], [control + 2, 1]].forEach(function (term) {
+                if (term[0] === controlCount - 1) {
+                    fixedContribution += term[1] * MAX_COORDINATE;
+                } else if (term[0] > 0) {
+                    row[term[0] - 1] += term[1];
+                }
+            });
+            const target = -fixedContribution;
+            for (let matrixRow = 0; matrixRow < unknownCount; matrixRow += 1) {
+                vector[matrixRow] += PARAMETRIC_DISPLAY_CURVATURE_WEIGHT * row[matrixRow] * target;
+                for (let column = 0; column < unknownCount; column += 1) {
+                    matrix[matrixRow][column] += PARAMETRIC_DISPLAY_CURVATURE_WEIGHT *
+                        row[matrixRow] * row[column];
+                }
+            }
+        }
+
+        const solved = solveParametricDisplaySystem(matrix, vector);
+        if (!solved || solved.some(function (value) { return !Number.isFinite(value); })) return null;
+        let controls = [MIN_COORDINATE].concat(solved, [MAX_COORDINATE]);
+        if (parametricSamplesAreMonotone(samples)) {
+            controls = nondecreasingParametricControls(controls);
+        } else {
+            controls = controls.map(function (value) {
+                return Math.min(MAX_COORDINATE, Math.max(MIN_COORDINATE, value));
+            });
+            controls[0] = MIN_COORDINATE;
+            controls[controls.length - 1] = MAX_COORDINATE;
+        }
+        return Object.freeze(controls);
+    }
+
+    function evaluateParametricDisplaySpline(input, knots, controls) {
+        const basis = parametricDisplayBasis(input, knots, controls.length);
+        if (!basis) return null;
+        return basis.reduce(function (output, value, index) {
+            return output + value * controls[index];
+        }, 0);
+    }
+
+    function parametricDisplaySegments(values, rgbCurve) {
+        const samples = parametricCurveSamples(values, rgbCurve);
+        if (!samples) return null;
+        const controlCount = PARAMETRIC_DISPLAY_CONTROL_COUNT;
+        const knots = parametricDisplayKnots(controlCount);
+        const controls = fitParametricDisplayControls(samples, knots, controlCount);
+        if (!controls) return null;
+        const segments = [];
+        for (let knotIndex = 3; knotIndex < knots.length - 4; knotIndex += 1) {
+            const start = knots[knotIndex];
+            const end = knots[knotIndex + 1];
+            if (end <= start) continue;
+            const firstThird = start + (end - start) / 3;
+            const secondThird = start + 2 * (end - start) / 3;
+            const y0 = evaluateParametricDisplaySpline(start, knots, controls);
+            const yThird = evaluateParametricDisplaySpline(firstThird, knots, controls);
+            const yTwoThirds = evaluateParametricDisplaySpline(secondThird, knots, controls);
+            const y1 = evaluateParametricDisplaySpline(end, knots, controls);
+            const firstEquation = 27 * yThird - 8 * y0 - y1;
+            const secondEquation = 27 * yTwoThirds - y0 - 8 * y1;
+            const x0 = start * MAX_COORDINATE;
+            const x1 = end * MAX_COORDINATE;
+            const width = x1 - x0;
+            segments.push(Object.freeze({
+                x0: x0,
+                y0: segments.length === 0 ? MIN_COORDINATE : y0,
+                c1x: x0 + width / 3,
+                c1y: (2 * firstEquation - secondEquation) / 18,
+                c2x: x1 - width / 3,
+                c2y: (2 * secondEquation - firstEquation) / 18,
+                x1: x1,
+                y1: knotIndex === knots.length - 5 ? MAX_COORDINATE : y1
+            }));
+        }
+        return Object.freeze(segments);
+    }
+
+    function parametricCurvePathData(values, rgbCurve) {
+        const segments = parametricDisplaySegments(values, rgbCurve);
+        if (!segments || segments.length === 0) return "";
+        const commands = ["M " + pathNumber(segments[0].x0) + " " + pathNumber(255 - segments[0].y0)];
+        segments.forEach(function (segment) {
+            commands.push("C " + pathNumber(segment.c1x) + " " + pathNumber(255 - segment.c1y) + " " +
+                pathNumber(segment.c2x) + " " + pathNumber(255 - segment.c2y) + " " +
+                pathNumber(segment.x1) + " " + pathNumber(255 - segment.y1));
+        });
+        return commands.join(" ");
+    }
+
+    function parametricCurveSplitPositions(values) {
+        const normalized = normalizeParametricCurveValues(values);
+        return normalized ? Object.freeze([
+            normalized.shadowSplit * 2.55,
+            normalized.midtoneSplit * 2.55,
+            normalized.highlightSplit * 2.55
+        ]) : null;
+    }
+
+    function parametricRegionKeyAtInput(inputPercent, values) {
+        const normalized = normalizeParametricCurveValues(values);
+        const input = Number(inputPercent);
+        if (!normalized || !Number.isFinite(input) || input < 0 || input > 100) return null;
+        if (input < normalized.shadowSplit) return "shadows";
+        if (input < normalized.midtoneSplit) return "darks";
+        if (input < normalized.highlightSplit) return "lights";
+        return "highlights";
+    }
+
+    function parametricRegionFieldAtInput(inputPercent, values) {
+        const key = parametricRegionKeyAtInput(inputPercent, values);
+        return key ? PARAMETRIC_CURVE_FIELDS[key] : null;
+    }
+
+    function intentionalParametricDrag(kind, deltaX, deltaY, threshold) {
+        const minimum = Number.isFinite(Number(threshold)) ? Math.max(0, Number(threshold)) : POINTER_DRAG_THRESHOLD_PX;
+        if (kind === "split") return Math.abs(Number(deltaX)) >= minimum;
+        if (kind === "region") return Math.abs(Number(deltaY)) >= minimum;
+        return false;
+    }
+
+    function parametricRegionDragValue(baseline, deltaY, graphHeight) {
+        const value = Number(baseline);
+        const height = Number(graphHeight);
+        if (!Number.isFinite(value) || !Number.isFinite(Number(deltaY)) || !Number.isFinite(height) || height <= 0) {
+            return null;
+        }
+        return Math.min(100, Math.max(-100, Math.round(value - Number(deltaY) * 200 / height)));
+    }
+
+    function parametricSplitDragValue(baseline, deltaX, graphWidth) {
+        const value = Number(baseline);
+        const width = Number(graphWidth);
+        if (!Number.isFinite(value) || !Number.isFinite(Number(deltaX)) || !Number.isFinite(width) || width <= 0) {
+            return null;
+        }
+        return Math.round(value + Number(deltaX) * 100 / width);
     }
 
     function selectedPointValues(points, pointIndex) {
@@ -448,6 +1011,8 @@
         let refineRow = null;
         let refineRange = null;
         let refineNumber = null;
+        let refineDecrementButton = null;
+        let refineIncrementButton = null;
         let refineResetButton = null;
         let presetSelect = null;
         let addPointButton = null;
@@ -612,6 +1177,8 @@
                 outputValueElement.textContent = "—";
                 refineRange.disabled = true;
                 refineNumber.disabled = true;
+                refineDecrementButton.disabled = true;
+                refineIncrementButton.disabled = true;
                 refineResetButton.disabled = true;
                 updatePresetOptions("");
                 presetSelect.disabled = true;
@@ -713,6 +1280,8 @@
             refineNumber.disabled = !refineChannelAvailable || busy;
             refineNumber.classList.toggle("pending", !!(refineGesture || awaitingRefine || awaitingRefineReset));
             refineNumber.setAttribute("aria-busy", String(!!(refineGesture || awaitingRefine || awaitingRefineReset)));
+            refineDecrementButton.disabled = !refineChannelAvailable || busy;
+            refineIncrementButton.disabled = !refineChannelAvailable || busy;
             refineResetButton.disabled = !refineChannelAvailable || busy;
             presetSelect.disabled = !available || busy;
             const interiorSelected = available && Number.isSafeInteger(selectedPointIndex) && selectedPointIndex > 0 &&
@@ -1103,6 +1672,16 @@
             return true;
         }
 
+        function stepRefineSaturation(delta) {
+            if ((delta !== -1 && delta !== 1) || interactionBusy() || selectedChannel !== "rgb" ||
+                !authoritative || !bindingsEqual(authoritative, expectedBinding) ||
+                !validRefineSaturation(authoritative.refineSaturation)) return false;
+            const refine = authoritative.refineSaturation;
+            const nextValue = Math.min(refine.max, Math.max(refine.min, refine.value + delta));
+            if (nextValue === refine.value) return false;
+            return beginRefineGesture(null, nextValue, true);
+        }
+
         function commitRefineEditor() {
             if (!refineNumberEditing) return false;
             refineNumberEditing = false;
@@ -1411,12 +1990,8 @@
         }
 
         function createInterface() {
-            rootElement = documentObject.createElement("section");
-            rootElement.className = "group point-curve-group";
-            const heading = documentObject.createElement("div");
-            heading.className = "group-title";
-            heading.textContent = "POINT CURVE";
-            rootElement.appendChild(heading);
+            rootElement = documentObject.createElement("div");
+            rootElement.className = "point-curve-panel";
 
             const toolbar = documentObject.createElement("div");
             toolbar.className = "point-curve-toolbar";
@@ -1449,7 +2024,7 @@
             addPointButton = documentObject.createElement("button");
             addPointButton.type = "button";
             addPointButton.className = "point-curve-add-button";
-            addPointButton.textContent = "+";
+            addPointButton.textContent = "+ Add Point";
             addPointButton.setAttribute("aria-label", "Add point");
             addPointButton.setAttribute("aria-pressed", "false");
             addPointButton.addEventListener("click", function () {
@@ -1586,9 +2161,9 @@
             rootElement.appendChild(values);
 
             refineRow = documentObject.createElement("div");
-            refineRow.className = "point-curve-refine-row";
+            refineRow.className = "develop-slider-row point-curve-refine-row";
             const refineLabel = documentObject.createElement("label");
-            refineLabel.className = "point-curve-row-label";
+            refineLabel.className = "slider-name";
             refineLabel.textContent = "Refine Sat.";
             refineRange = documentObject.createElement("input");
             refineRange.type = "range";
@@ -1606,9 +2181,21 @@
             refineNumber.setAttribute("id", "lrbridge-tone-curve-refine-editor");
             refineNumber.setAttribute("aria-label", "Edit Refine Saturation value");
             refineNumber.disabled = true;
+            refineDecrementButton = documentObject.createElement("button");
+            refineDecrementButton.type = "button";
+            refineDecrementButton.className = "develop-slider-step";
+            refineDecrementButton.textContent = "−";
+            refineDecrementButton.setAttribute("aria-label", "Decrease Refine Saturation");
+            refineDecrementButton.addEventListener("click", function () { stepRefineSaturation(-1); });
+            refineIncrementButton = documentObject.createElement("button");
+            refineIncrementButton.type = "button";
+            refineIncrementButton.className = "develop-slider-step";
+            refineIncrementButton.textContent = "+";
+            refineIncrementButton.setAttribute("aria-label", "Increase Refine Saturation");
+            refineIncrementButton.addEventListener("click", function () { stepRefineSaturation(1); });
             refineResetButton = documentObject.createElement("button");
             refineResetButton.type = "button";
-            refineResetButton.className = "point-curve-refine-reset";
+            refineResetButton.className = "reset";
             refineResetButton.textContent = "Reset";
             refineResetButton.disabled = true;
             refineRange.addEventListener("pointerdown", function (event) {
@@ -1680,6 +2267,8 @@
             refineRow.appendChild(refineLabel);
             refineRow.appendChild(refineRange);
             refineRow.appendChild(refineNumber);
+            refineRow.appendChild(refineDecrementButton);
+            refineRow.appendChild(refineIncrementButton);
             refineRow.appendChild(refineResetButton);
             rootElement.appendChild(refineRow);
 
@@ -1909,12 +2498,27 @@
         POINTER_DRAG_THRESHOLD_PX,
         POINT_CURVE_REQUEST_TIMEOUT_MS,
         POINT_CURVE_FEEDBACK_TIMEOUT_MS,
+        PARAMETRIC_GESTURE_TIMEOUT_MS,
+        PARAMETRIC_CURVE_FIELDS,
         validCurveArray,
         serializeCurve,
         graphCoordinates,
         adobeSplineSlopes,
         curveSegments,
         curvePathData,
+        normalizeParametricCurveValues,
+        evaluatePointCurve,
+        parametricResponseAnchors,
+        parametricCurveOutputAt,
+        parametricCurveSamples,
+        parametricDisplaySegments,
+        parametricCurvePathData,
+        parametricCurveSplitPositions,
+        parametricRegionKeyAtInput,
+        parametricRegionFieldAtInput,
+        intentionalParametricDrag,
+        parametricRegionDragValue,
+        parametricSplitDragValue,
         selectedPointValues,
         addPoint,
         createInsertionIdentity,
