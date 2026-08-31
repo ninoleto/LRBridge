@@ -289,4 +289,4 @@ This section supersedes the preceding manual-acceptance and probe-preservation i
 - `config/settings.txt` remains the intentional unstaged user preference containing only added `minimize_behavior=normal`; SHA-256 `9ADBD48B3F4B42E32C2FA722F9A80313A7232A668BA40B0A7E44E11323D067E3`.
 - Protected files remain unchanged: `app/companion-cheatsheet.html` SHA-256 `FFE9E61A3AB6655F53762A13D07EEC0E4EA1C67FC56A22C60CD44F4866671BFC`; `docs/COMPANION_HTTP_CHEATSHEET.md` SHA-256 `C3B4019EBC588EC4D121252D3266A2B57CC110CB5EDD118ECA314B708CE82069`.
 - `stash@{0}` remains object `76bd3118f786b886a30dd81ce3b591f4e14f49fe`, subject `Preserve protected cheat-sheet WIP after Profile checkpoint`.
-- Implementation checkpoint commit: to be recorded by the immediate follow-up handoff metadata commit after this commit is created.
+- Implementation checkpoint commit: `f15531f60381f478431ff94e871c631beb8b9082` (`feat: add HDR and SDR rendition controls`).
