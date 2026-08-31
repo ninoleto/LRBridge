@@ -182,6 +182,12 @@ function validateCommand(command) {
         return false;
     }
 
+    const hasTarget = Object.prototype.hasOwnProperty.call(command, "target");
+    if (hasTarget &&
+        (command.command !== "develop.action" || command.action !== "selectCropTool")) {
+        return false;
+    }
+
     if (command.command === "tone_curve.gesture.begin" || command.command === "tone_curve.gesture.update" ||
         command.command === "tone_curve.gesture.end" || command.command === "tone_curve.gesture.cancel" ||
         command.command === "tone_curve.reset") {
@@ -462,7 +468,13 @@ function validateCommand(command) {
             return false;
         }
 
-        return true;
+        if (command.action === "selectCropTool") {
+            const keys = Object.keys(command);
+            if (!hasTarget) return keys.length === 2;
+            return keys.length === 3 && (command.target === "crop" || command.target === "loupe");
+        }
+
+        return Object.keys(command).length === 2;
     }
 
     if (!sliders.exists(command.slider)) {

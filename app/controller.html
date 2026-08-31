@@ -546,6 +546,40 @@
             min-height: 44px;
         }
 
+        .crop-sdk-limitations {
+            max-width: 920px;
+            margin: 4px 0 16px;
+            color: #9fb0bf;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .crop-action-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 920px;
+            margin-top: 24px;
+            padding-top: 14px;
+            border-top: 1px solid #2b3744;
+        }
+
+        .crop-action-bar button {
+            min-width: 150px;
+            min-height: 44px;
+        }
+
+        .crop-tool-status {
+            flex: 1 1 auto;
+            color: #9fb0bf;
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .crop-tool-action {
+            margin-left: auto;
+        }
+
         .row {
             display: grid;
             grid-template-columns: 240px repeat(5, 70px) minmax(180px, 1fr);
@@ -1365,6 +1399,25 @@
             .develop-slider-row .develop-slider-state,
             .angle-control .angle-value {
                 grid-column: 1 / -1;
+            }
+
+            .crop-action-bar {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+
+            .crop-action-bar button {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .crop-tool-status {
+                grid-column: 1 / -1;
+                grid-row: 1;
+            }
+
+            .crop-tool-action {
+                margin-left: 0;
             }
 
             .denoise-slider-row {
@@ -2488,11 +2541,18 @@
 
         const cropGroups = [
                 {
-                        "name": "Crop Tool",
-                        "note": "Open Lightroom’s Crop tool or reset the active photo’s complete crop state.",
+                        "name": "Aspect Ratio",
+                        "note": "Original Aspect changes only the crop aspect ratio. Camera Crop uses the ratio recorded by the camera when available and may match Original.",
                         "commands": [
-                                { "label": "Open Crop Tool", "command": "develop.action", "field": "action", "value": "selectCropTool", "className": "command-primary" },
-                                { "label": "Reset Crop", "command": "develop.action", "field": "action", "value": "resetCrop", "className": "command-neutral" }
+                                { "label": "Original Aspect", "command": "photo.crop_aspect", "field": "mode", "value": "original", "className": "command-primary" },
+                                { "label": "1:1", "command": "photo.crop_aspect", "field": "mode", "value": "1x1", "className": "command-primary" },
+                                { "label": "2:3", "command": "photo.crop_aspect", "field": "mode", "value": "2x3", "className": "command-primary" },
+                                { "label": "4:5", "command": "photo.crop_aspect", "field": "mode", "value": "4x5", "className": "command-primary" },
+                                { "label": "5:7", "command": "photo.crop_aspect", "field": "mode", "value": "5x7", "className": "command-primary" },
+                                { "label": "16:9", "command": "photo.crop_aspect", "field": "mode", "value": "16x9", "className": "command-primary" },
+                                { "label": "16:10", "command": "photo.crop_aspect", "field": "mode", "value": "16x10", "className": "command-primary" },
+                                { "label": "Custom…", "customCrop": true, "className": "command-primary" },
+                                { "label": "Camera Crop", "command": "photo.crop_aspect", "field": "mode", "value": "asshot", "className": "command-primary" }
                         ]
                 },
                 {
@@ -2502,27 +2562,16 @@
                         "commands": []
                 },
                 {
-                        "name": "Aspect Ratio",
-                        "note": "Original Aspect changes only the crop aspect ratio. Reset Crop resets the complete crop state.",
+                        "name": "Crop Actions",
+                        "actionBar": true,
                         "commands": [
-                                { "label": "Original Aspect", "command": "photo.crop_aspect", "field": "mode", "value": "original", "className": "command-primary" },
-                                { "label": "1:1", "command": "photo.crop_aspect", "field": "mode", "value": "1x1", "className": "command-primary" },
-                                { "label": "2:3", "command": "photo.crop_aspect", "field": "mode", "value": "2x3", "className": "command-primary" },
-                                { "label": "4:5", "command": "photo.crop_aspect", "field": "mode", "value": "4x5", "className": "command-primary" },
-                                { "label": "5:7", "command": "photo.crop_aspect", "field": "mode", "value": "5x7", "className": "command-primary" },
-                                { "label": "16:9", "command": "photo.crop_aspect", "field": "mode", "value": "16x9", "className": "command-primary" },
-                                { "label": "16:10", "command": "photo.crop_aspect", "field": "mode", "value": "16x10", "className": "command-primary" },
-                                { "label": "Custom…", "customCrop": true, "className": "command-primary" }
-                        ]
-                },
-                {
-                        "name": "Camera Crop",
-                        "note": "Uses the crop ratio recorded by the camera when available. It may match Original.",
-                        "commands": [
-                                { "label": "Camera Crop", "command": "photo.crop_aspect", "field": "mode", "value": "asshot", "className": "command-primary" }
+                                { "label": "Reset Crop", "command": "develop.action", "field": "action", "value": "resetCrop", "className": "command-neutral" },
+                                { "label": "Crop Tool", "command": "develop.action", "field": "action", "value": "selectCropTool", "className": "command-primary" }
                         ]
                 }
         ];
+
+        const cropSdkLimitations = "Auto Straighten, Constrain to Image, and Tool Overlay must be controlled manually in Lightroom because they are not exposed through the SDK.";
 
         const applicationGroups = [
                 {
@@ -2622,7 +2671,7 @@
         let activeTab = tabFromLocation();
 
         function isGenericDevelopFeedbackTab(tab) {
-            return tab === "sliders" || tab === "tone-curve";
+            return tab === "sliders" || tab === "tone-curve" || tab === "crop";
         }
 
         function setStatus(message) {
@@ -3824,7 +3873,7 @@
             if (activeTab === "sliders") requestTreatmentState();
             if (activeTab === "sliders") requestHistoryState();
             if (activeTab === "sliders") requestLensBlurState();
-            if (activeTab === "sliders") requestDevelopCategoricalState();
+            if (activeTab === "sliders" || activeTab === "crop") requestDevelopCategoricalState();
             if (activeTab === "sliders" && colorMixerView === "point-color") requestPointColorState();
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
@@ -3832,9 +3881,9 @@
             }
 
             const visibleSliders = forceAll === true
-                ? Object.keys(developSliderControls).filter(function (slider) {
+                ? (activeTab === "crop" ? ["CropAngle"] : Object.keys(developSliderControls).filter(function (slider) {
                     return developSliderControls[slider].row.isConnected;
-                })
+                }))
                 : getVisibleFeedbackSliders();
 
             if (visibleSliders.length === 0) {
@@ -4042,6 +4091,8 @@
 
         function clearContent() {
             content.innerHTML = "";
+            cropToolButton = null;
+            cropToolStatus = null;
         }
 
         function renderTabs() {
@@ -4134,6 +4185,8 @@
         let authoritativeAngleValue = 0;
         let angleEditing = false;
         let cancelNextAngleBlur = false;
+        let cropToolButton = null;
+        let cropToolStatus = null;
 
         function parseAngleValue(value) {
             if (typeof value !== "string") return null;
@@ -4359,6 +4412,7 @@
 
         function renderCommandGroups(groups) {
             for (const group of groups) {
+                if (group.actionBar) continue;
                 const groupElement = document.createElement("section");
                 groupElement.className = "group";
 
@@ -4393,9 +4447,76 @@
                     }));
                 }
 
-                groupElement.appendChild(grid);
+                if (group.commands.length > 0) groupElement.appendChild(grid);
                 content.appendChild(groupElement);
             }
+        }
+
+        function cropToolCommandPath(target) {
+            if (target !== "crop" && target !== "loupe") return null;
+            return "/api/command?command=develop.action&action=selectCropTool&target=" + encodeURIComponent(target);
+        }
+
+        function cropToolPresentation(state) {
+            const available = !!state && state.selectedToolAvailable === true &&
+                typeof state.selectedTool === "string" && state.selectedTool.length > 0;
+            const active = available && state.selectedTool === "crop";
+            return {
+                available: available,
+                active: active,
+                label: active ? "Close Crop Tool" : "Open Crop Tool",
+                status: available ? (active ? "Crop tool active" : "Crop tool inactive") : "Selected Lightroom tool unavailable"
+            };
+        }
+
+        function updateCropToolPresentation() {
+            if (!cropToolButton || !cropToolStatus) return;
+            const state = developCategoricalModel ? developCategoricalModel.getState() : null;
+            const presentation = cropToolPresentation(state);
+            cropToolButton.textContent = presentation.label;
+            cropToolButton.disabled = !presentation.available;
+            cropToolButton.classList.toggle("command-primary", !presentation.active);
+            cropToolButton.classList.toggle("command-danger", presentation.active);
+            cropToolStatus.textContent = presentation.status;
+        }
+
+        function submitCropToolAction() {
+            if (!developCategoricalModel) return;
+            const state = developCategoricalModel.getState();
+            if (!state || state.selectedToolAvailable !== true) return;
+            let path;
+            if (state.selectedTool === "crop") path = cropToolCommandPath("loupe");
+            else path = cropToolCommandPath("crop");
+            sendCommand(path).then(function (accepted) {
+                if (accepted) requestDevelopCategoricalState();
+            });
+        }
+
+        function renderCropTab() {
+            renderCommandGroups(cropGroups);
+            const actions = cropGroups.find(function (group) { return group.actionBar === true; });
+            const limitations = document.createElement("p");
+            limitations.className = "crop-sdk-limitations";
+            limitations.textContent = cropSdkLimitations;
+            content.appendChild(limitations);
+            const actionBar = document.createElement("section");
+            actionBar.className = "crop-action-bar";
+            actionBar.setAttribute("aria-label", "Crop actions");
+
+            const resetItem = actions.commands.find(function (item) { return item.value === "resetCrop"; });
+            const resetButton = makeButton(resetItem.label, resetItem.className, function () {
+                sendCommand(commandPath(resetItem));
+            });
+            cropToolStatus = document.createElement("div");
+            cropToolStatus.className = "crop-tool-status";
+            cropToolStatus.setAttribute("aria-live", "polite");
+            cropToolButton = makeButton("Open Crop Tool", "command-primary crop-tool-action", submitCropToolAction);
+
+            actionBar.appendChild(resetButton);
+            actionBar.appendChild(cropToolStatus);
+            actionBar.appendChild(cropToolButton);
+            content.appendChild(actionBar);
+            updateCropToolPresentation();
         }
 
         function addActionRow(groupElement, item) {
@@ -5890,6 +6011,7 @@
             if (developCategoricalModel) developCategoricalModel.reset();
             if (profileModel) profileModel.reset();
             updateDevelopCategoricalControls();
+            updateCropToolPresentation();
         }
 
         function whiteBalanceCommandInProgress() {
@@ -6192,6 +6314,7 @@
                     toolControl.status.textContent = presentation.available ? (active ? "Active" : "Inactive") : "Unavailable";
                 }
             }
+            updateCropToolPresentation();
 
             const updateControl = developCategoricalControls.transformUpdate;
             if (updateControl) {
@@ -6392,7 +6515,7 @@
         }
 
         async function requestDevelopCategoricalState(forceProfileRefresh) {
-            if (!developCategoricalModel || activeTab !== "sliders") return;
+            if (!developCategoricalModel || (activeTab !== "sliders" && activeTab !== "crop")) return;
             if (developCategoricalRequestInFlight) {
                 if (forceProfileRefresh === true) developCategoricalRefreshQueued = true;
                 return;
@@ -6404,7 +6527,7 @@
                 if (!response.ok || !data || !data.state || !Number.isSafeInteger(data.revision)) {
                     throw new Error("Develop categorical state unavailable");
                 }
-                if (activeTab !== "sliders") return;
+                if (activeTab !== "sliders" && activeTab !== "crop") return;
                 if (data.capabilities && data.capabilities.transformUpdate) {
                     developCategoricalCapabilities = data.capabilities;
                 }
@@ -10011,7 +10134,9 @@
             }
 
             if (activeTab === "crop") {
-                renderCommandGroups(cropGroups);
+                renderCropTab();
+                if (genericFeedbackActive) requestLiveFeedbackSnapshot(true);
+                else activateDevelopFeedbackPolling();
                 return;
             }
 

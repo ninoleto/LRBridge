@@ -353,12 +353,16 @@ assert.deepEqual(
 assert.equal(selectionItems.length, 33, "Selection tab must expose exactly 33 buttons");
 assert.equal(cropItems.length, 11, "Crop tab must expose exactly 11 controls");
 assert.equal(applicationItems.length, 34, "Application tab must expose exactly 34 buttons");
-assert.deepEqual(cropGroups.map((group) => group.name), ["Crop Tool", "Angle", "Aspect Ratio", "Camera Crop"]);
+assert.deepEqual(
+    cropGroups.filter((group) => !group.actionBar).map((group) => group.name),
+    ["Aspect Ratio", "Angle"],
+    "Visible Crop groups must follow Lightroom's order"
+);
+assert.equal(cropGroups.at(-1).name, "Crop Actions");
+assert.equal(cropGroups.at(-1).actionBar, true, "Crop actions must render only in the bottom action bar");
 assert.deepEqual(
     cropItems.map((item) => [item.label, item.customCrop ? "modal" : commandPath(item)]),
     [
-        ["Open Crop Tool", "/api/command?command=develop.action&action=selectCropTool"],
-        ["Reset Crop", "/api/command?command=develop.action&action=resetCrop"],
         ["Original Aspect", "/api/command?command=photo.crop_aspect&mode=original"],
         ["1:1", "/api/command?command=photo.crop_aspect&mode=1x1"],
         ["2:3", "/api/command?command=photo.crop_aspect&mode=2x3"],
@@ -367,13 +371,16 @@ assert.deepEqual(
         ["16:9", "/api/command?command=photo.crop_aspect&mode=16x9"],
         ["16:10", "/api/command?command=photo.crop_aspect&mode=16x10"],
         ["Custom…", "modal"],
-        ["Camera Crop", "/api/command?command=photo.crop_aspect&mode=asshot"]
+        ["Camera Crop", "/api/command?command=photo.crop_aspect&mode=asshot"],
+        ["Reset Crop", "/api/command?command=develop.action&action=resetCrop"],
+        ["Crop Tool", "/api/command?command=develop.action&action=selectCropTool"]
     ],
     "Crop tab controls drifted"
 );
 assert.equal(
-    cropGroups.find((group) => group.name === "Camera Crop").note,
-    "Uses the crop ratio recorded by the camera when available. It may match Original."
+    cropGroups.find((group) => group.name === "Aspect Ratio").commands.at(-1).value,
+    "asshot",
+    "Camera Crop must remain in the first Aspect Ratio block"
 );
 for (const cropValue of ["selectCropTool", "resetCrop", "original", "1x1", "2x3", "4x5", "5x7", "16x9", "16x10", "asshot"]) {
     assert.equal(allItems.filter((item) => item.value === cropValue).length, 1, cropValue + " must appear exactly once");
@@ -384,6 +391,29 @@ const angleGroup = cropGroups.find((group) => group.name === "Angle");
 assert.equal(angleGroup.angleControl, true);
 assert.deepEqual(angleGroup.commands, []);
 assert.equal(angleGroup.note, "Reset Angle resets only straightening. Reset Crop resets the entire crop state.");
+for (const unsupportedLabel of ["Auto", "Auto Straighten", "Constrain to Image", "Tool Overlay"]) {
+    assert.ok(!cropItems.some((item) => item.label === unsupportedLabel),
+        unsupportedLabel + " must not be exposed as a fake Crop control");
+}
+assert.ok(!cropGroups.some((group) => group.name === "Constrain to Image" || group.name === "Tool Overlay"),
+    "Unsupported Crop settings must not render as separate sections");
+const consolidatedCropLimitation =
+    "Auto Straighten, Constrain to Image, and Tool Overlay must be controlled manually in Lightroom because they are not exposed through the SDK.";
+assert.ok(source.includes("const cropSdkLimitations = " + JSON.stringify(consolidatedCropLimitation) + ";"),
+    "The consolidated Crop SDK limitation text drifted");
+const cropLimitationsCss = source.match(/\.crop-sdk-limitations\s*\{[\s\S]*?\}/)[0];
+assert.match(cropLimitationsCss, /color:\s*#9fb0bf/);
+assert.match(cropLimitationsCss, /font-size:\s*13px/);
+assert.doesNotMatch(cropLimitationsCss, /background|border/,
+    "The consolidated Crop limitation must remain subdued informational text");
+assert.doesNotMatch(source, /manualOnly|crop-manual-only/);
+assert.match(source, /if \(group\.actionBar\) continue;/, "The former top Crop Tool action group must not render");
+assert.match(source, /function renderCropTab\([\s\S]*renderCommandGroups\(cropGroups\);[\s\S]*createElement\("p"\)[\s\S]*limitations\.className = "crop-sdk-limitations"[\s\S]*content\.appendChild\(limitations\);[\s\S]*actionBar\.appendChild\(resetButton\);[\s\S]*actionBar\.appendChild\(cropToolButton\);[\s\S]*content\.appendChild\(actionBar\)/,
+    "The consolidated SDK note must render after Angle and before the bottom Crop action bar");
+assert.match(source, /\.crop-tool-action\s*\{\s*margin-left:\s*auto/,
+    "The Crop Tool action must align to the bottom-right on wide layouts");
+assert.match(source, /@media \(max-width: 760px\)[\s\S]*\.crop-action-bar\s*\{[\s\S]*grid-template-columns:[\s\S]*\.crop-action-bar button\s*\{[\s\S]*min-width:\s*0/,
+    "Crop actions must retain a touch-sized responsive layout");
 assert.match(source, /angleRange\.type = "range"/);
 assert.match(source, /angleRange\.min = "-45"/);
 assert.match(source, /angleRange\.max = "45"/);
@@ -419,6 +449,10 @@ const parseAngleValue = extractJavaScriptFunction("parseAngleValue", "angleComma
 const angleCommandPath = extractJavaScriptFunction("angleCommandPath", "showLocalAngle", {
     encodeURIComponent
 });
+const cropToolCommandPath = extractJavaScriptFunction("cropToolCommandPath", "cropToolPresentation", {
+    encodeURIComponent
+});
+const cropToolPresentation = extractJavaScriptFunction("cropToolPresentation", "updateCropToolPresentation", {});
 assert.equal(parseAngleValue("-2.5"), -2.5);
 assert.equal(parseAngleValue("12.25"), 12.25);
 assert.equal(parseAngleValue("12,25"), 12.25);
@@ -432,6 +466,47 @@ assert.match(source, /event\.key === "Escape"[\s\S]*showLocalAngle\(authoritativ
 assert.match(source, /angleNumber\.addEventListener\("blur"[\s\S]*if \(angleEditing\) commitNumericAngle\(\)/);
 assert.match(source, /if \(value === null\)[\s\S]*showLocalAngle\(authoritativeAngleValue\)/);
 assert.equal(angleCommandPath(-2.5), "/api/command?command=photo.crop_angle.set&value=-2.5");
+assert.equal(cropToolCommandPath("crop"),
+    "/api/command?command=develop.action&action=selectCropTool&target=crop");
+assert.equal(cropToolCommandPath("loupe"),
+    "/api/command?command=develop.action&action=selectCropTool&target=loupe");
+assert.equal(cropToolCommandPath("upright"), null);
+assert.deepEqual(Object.assign({}, cropToolPresentation({ selectedToolAvailable: true, selectedTool: "loupe" })), {
+    available: true, active: false, label: "Open Crop Tool", status: "Crop tool inactive"
+});
+assert.deepEqual(Object.assign({}, cropToolPresentation({ selectedToolAvailable: true, selectedTool: "crop" })), {
+    available: true, active: true, label: "Close Crop Tool", status: "Crop tool active"
+});
+assert.deepEqual(Object.assign({}, cropToolPresentation({ selectedToolAvailable: false, selectedTool: null })), {
+    available: false, active: false, label: "Open Crop Tool", status: "Selected Lightroom tool unavailable"
+});
+assert.match(source, /function submitCropToolAction\([\s\S]*selectedToolAvailable !== true[\s\S]*selectedTool === "crop"\) path = cropToolCommandPath\("loupe"\)[\s\S]*else path = cropToolCommandPath\("crop"\)/,
+    "Crop Tool action must choose explicit crop/loupe targets from authoritative selected-tool state");
+const cropToolSubmitBlock = source.match(/function submitCropToolAction\([\s\S]*?\n\s*}\n\n\s*function renderCropTab/)[0];
+assert.doesNotMatch(cropToolSubmitBlock, /textContent|classList|\.apply\(|selectedTool\s*=(?!=)/,
+    "Crop Tool submission must not optimistically change the selected-tool presentation");
+assert.match(source, /isGenericDevelopFeedbackTab\(tab\)[\s\S]*tab === "crop"/);
+assert.match(source, /activeTab === "sliders" \|\| activeTab === "crop"\) requestDevelopCategoricalState\(\)/);
+assert.match(source, /activeTab === "crop" \? \["CropAngle"\]/,
+    "Crop feedback polling must request authoritative Angle immediately");
+assert.match(source, /function updateDevelopCategoricalControls\([\s\S]*updateCropToolPresentation\(\)/,
+    "Authoritative selected-tool feedback must update the Crop Tool button");
+const cropToolPresentationUpdateBlock = source.match(
+    /function updateCropToolPresentation\([\s\S]*?\n\s*}\n\n\s*function submitCropToolAction/
+)[0];
+assert.doesNotMatch(cropToolPresentationUpdateBlock, /aria-pressed/,
+    "Open/Close Crop Tool must remain an explicit action rather than expose toggle semantics");
+assert.match(source, /activeTab === "crop"\)[\s\S]*renderCropTab\(\);\s*if \(genericFeedbackActive\) requestLiveFeedbackSnapshot\(true\);\s*else activateDevelopFeedbackPolling\(\)/,
+    "Crop must request one immediate snapshot whether polling is newly activated or already active");
+assert.equal(commands.validateCommand({ command: "develop.action", action: "selectCropTool" }), true,
+    "Legacy selectCropTool calls must remain valid");
+assert.equal(commands.validateCommand({ command: "develop.action", action: "selectCropTool", target: "crop" }), true);
+assert.equal(commands.validateCommand({ command: "develop.action", action: "selectCropTool", target: "loupe" }), true);
+assert.equal(commands.validateCommand({ command: "develop.action", action: "selectCropTool", target: "upright" }), false);
+assert.equal(commands.validateCommand({ command: "develop.action", action: "resetCrop", target: "loupe" }), false);
+assert.equal(commands.validateCommand({ command: "develop.action", action: "selectCropTool", target: "crop", extra: true }), false);
+assert.equal(commands.validateCommand({ command: "selection.navigate", direction: "next", target: "crop" }), false);
+assert.equal(commands.validateCommand({ command: "selection.navigate", direction: "next", target: undefined }), false);
 
 {
     let visibleValue = 0;

@@ -1507,8 +1507,17 @@ app.get("/command", function (req, res) {
 
     const command = { command: commandName };
 
-    for (const field of ["slider", "action", "direction", "flag", "label", "operation", "module", "view", "mode", "scope", "region", "control", "field", "range", "boundary", "LowerNone", "LowerFull", "UpperFull", "UpperNone"]) {
+    for (const field of ["slider", "action", "target", "direction", "flag", "label", "operation", "module", "view", "mode", "scope", "region", "control", "field", "range", "boundary", "LowerNone", "LowerFull", "UpperFull", "UpperNone"]) {
         if (req.query[field] !== undefined) command[field] = req.query[field];
+    }
+
+    if (commandName === "develop.action") {
+        const allowedQueryFields = new Set(["command", "action", "target"]);
+        const keys = Object.keys(req.query);
+        if (keys.some(function (field) { return !allowedQueryFields.has(field) || Array.isArray(req.query[field]); }) ||
+            (req.query.action !== "selectCropTool" && req.query.target !== undefined)) {
+            command.invalidQueryField = true;
+        }
     }
 
     const colorSchemas = {
@@ -1642,11 +1651,16 @@ app.get("/command", function (req, res) {
             !pointColorDefinition.rangeContainsMarker(proposed, marker) || !pointColorDefinition.safeFullRangeWidth(proposed)) return rejectInvalidCommand(res);
     }
 
-    queueOrReject(res, command, null, command.command === "develop.get"
-        ? commands.clearLatestResult
-        : (command.command === "lightroom.undo" || command.command === "lightroom.redo")
-            ? function () { history.invalidate(); history.requestRefresh(); pointColor.requestRefresh(Date.now(), true); }
-            : null);
+    let onAccepted = null;
+    if (command.command === "develop.get") onAccepted = commands.clearLatestResult;
+    else if (command.command === "lightroom.undo" || command.command === "lightroom.redo") {
+        onAccepted = function () { history.invalidate(); history.requestRefresh(); pointColor.requestRefresh(Date.now(), true); };
+    } else if (command.command === "develop.action" && command.action === "selectCropTool") {
+        onAccepted = function () {
+            developCategorical.requestRefresh(Date.now(), true);
+        };
+    }
+    queueOrReject(res, command, null, onAccepted);
 });
 
 app.get("/adjust", function (req, res) {

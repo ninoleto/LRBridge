@@ -49,6 +49,9 @@ const acceptedCommands = [
     { command: "photo.rotate", direction: "left" },
     { command: "selection.extend", direction: "right", amount: 3 },
     { command: "develop.action", action: "setAutoTone" },
+    { command: "develop.action", action: "selectCropTool" },
+    { command: "develop.action", action: "selectCropTool", target: "crop" },
+    { command: "develop.action", action: "selectCropTool", target: "loupe" },
     { command: "selection.rating.set", rating: 5 },
     { command: "enhance.denoise.set", enabled: true, amount: 50 },
     { command: "enhance.denoise.set", enabled: false, amount: 50 }
@@ -80,7 +83,7 @@ assert.deepEqual(executeLuaCommitIdParserContract(focalRangePollingJson), focalR
 assert.equal(executeLuaCommitIdParserContract(focalRangePollingJson.replace("focus-range-37", "bad value")).commitId, null);
 assert.equal(executeLuaCommitIdParserContract(focalRangePollingJson.replace("focus-range-37", "a".repeat(65))).commitId, null);
 
-const stringFields = ["action", "direction", "mode", "scope", "profile"];
+const stringFields = ["action", "target", "direction", "mode", "scope", "profile"];
 for (const field of stringFields) {
     assert.match(
         parser,
@@ -104,6 +107,8 @@ assert.match(parser, /\benabled = enabled\b/);
 assert.match(parser, /local commitId = string\.match\(json, \[\["commitId":"\(\[\^"\]\+\)"\]\]\)/);
 assert.match(parser, /string\.len\(commitId\) > 64[\s\S]*string\.match\(commitId, "\^\[A-Za-z0-9_-\]\+\$"\) == nil[\s\S]*commitId = nil/);
 assert.match(parser, /\bcommitId = commitId\b/);
+assert.match(parser, /local targetCount = 0[\s\S]*for _ in string\.gmatch\(json, \[\["target"%s\*:\]\]\)[\s\S]*targetCount = targetCount \+ 1/);
+assert.match(parser, /targetCount > 0[\s\S]*targetCount ~= 1[\s\S]*command ~= "develop\.action"[\s\S]*action ~= "selectCropTool"[\s\S]*target ~= "crop" and target ~= "loupe"[\s\S]*return nil/);
 assert.match(parser, /local rating = string\.match[\s\S]*rating = tonumber\(rating\)[\s\S]*\brating = rating\b/);
 for (const field of ["w", "h"]) {
     assert.match(parser, new RegExp("local " + field + " = string\\.match"));
@@ -128,6 +133,7 @@ assert.match(
 );
 assert.match(polling, /command\.command == "photo\.crop_angle\.set"[\s\S]*return command\.value/);
 assert.match(polling, /command\.command == "photo\.crop_angle\.reset"[\s\S]*return nil/);
+assert.match(polling, /command\.command == "develop\.action" and command\.action == "selectCropTool"[\s\S]*return command\.target or "crop"/);
 assert.match(polling, /if parameter ~= nil then[\s\S]*diagnostic = diagnostic \.\. " " \.\. tostring\(parameter\)/);
 
 console.log("Polling command serialization and Lua parser field contract tests passed.");

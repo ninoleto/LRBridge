@@ -277,7 +277,7 @@ local actionMap = {
     end,
 }
 
-function Driver.runAction(action)
+function Driver.runAction(action, target)
 
     local run = actionMap[action]
 
@@ -285,10 +285,20 @@ function Driver.runAction(action)
         return false
     end
 
+    if action == "selectCropTool" then
+        if target ~= nil and target ~= "crop" and target ~= "loupe" then return false end
+    elseif target ~= nil then
+        return false
+    end
+
     LrApplicationView.switchToModule("develop")
     LrTasks.sleep(0.2)
 
-    run()
+    if action == "selectCropTool" and target == "loupe" then
+        LrDevelopController.selectTool("loupe")
+    else
+        run()
+    end
 
     return true
 

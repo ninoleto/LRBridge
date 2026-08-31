@@ -184,7 +184,7 @@ assert.doesNotMatch(
     "Navigation classification must use identity only"
 );
 assert.match(controller, /lastControllerDevelopCounter = data\.developCounter/);
-assert.match(controller, /function isGenericDevelopFeedbackTab\(tab\) \{\s*return tab === "sliders" \|\| tab === "tone-curve";\s*\}/);
+assert.match(controller, /function isGenericDevelopFeedbackTab\(tab\) \{\s*return tab === "sliders" \|\| tab === "tone-curve" \|\| tab === "crop";\s*\}/);
 assert.match(controller, /if \(!genericFeedbackActive \|\| !isGenericDevelopFeedbackTab\(activeTab\)\) return/);
 assert.match(controller, /function deactivateDevelopFeedbackPolling\(\)[\s\S]*genericFeedbackAbortController\.abort\(\)/);
 assert.match(controller, /if \(activeTab === "sliders"\) \{\s*renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);/);

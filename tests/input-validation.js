@@ -215,7 +215,14 @@ async function main() {
             "/command?command=application.secondary_view",
             "/command?command=application.secondary_view&view=Live_loupe",
             "/command?command=application.secondary_view&view=unknown",
-            "/command?command=application.secondary_view&view=loupe&view=grid"
+            "/command?command=application.secondary_view&view=loupe&view=grid",
+            "/command?command=develop.action",
+            "/command?command=develop.action&action=selectCropTool&target=",
+            "/command?command=develop.action&action=selectCropTool&target=upright",
+            "/command?command=develop.action&action=selectCropTool&target=crop&target=loupe",
+            "/command?command=develop.action&action=selectCropTool&target=crop&extra=true",
+            "/command?command=develop.action&action=resetCrop&target=loupe",
+            "/command?command=selection.navigate&direction=next&target=crop"
         ]) {
             const before = commands.getStatus().queueLength;
             result = await getJson(httpPort, path);
@@ -240,6 +247,18 @@ async function main() {
             command: "develop.action",
             action: "resetAllDevelopAdjustments"
         });
+
+        for (const target of [undefined, "crop", "loupe"]) {
+            const suffix = target === undefined ? "" : "&target=" + target;
+            const queued = Object.assign(
+                { command: "develop.action", action: "selectCropTool" },
+                target === undefined ? {} : { target: target }
+            );
+            result = await getJson(httpPort,
+                "/command?command=develop.action&action=selectCropTool" + suffix);
+            assert.deepEqual(result, { statusCode: 200, body: { ok: true, queued: queued } });
+            assert.deepEqual(commands.getNextCommand(), queued);
+        }
 
         const adjustCases = [
             ["0", 0], ["1", 1], ["-1", -1], ["25", 25], ["-25", -25],

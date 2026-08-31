@@ -51,7 +51,7 @@ assert.match(selection, /error\("Unknown selection " \..*operation\)/);
 assert.doesNotMatch(selection, /LrSelection\.(?:firstPhoto|lastPhoto|removeColorLabel)\b/);
 assert.doesNotMatch(selection, /LrApplicationView|switchToModule|keyboard|AutoHotkey|shortcut|shell|menu|mouse|automation/i);
 
-for (const field of ["action", "direction", "flag", "rating", "label", "operation", "module", "view", "mode", "scope", "w", "h"]) {
+for (const field of ["action", "target", "direction", "flag", "rating", "label", "operation", "module", "view", "mode", "scope", "w", "h"]) {
     assert.match(parser, new RegExp("local " + field + " = string\\.match"));
     assert.match(parser, new RegExp(field + " = " + field));
 }
@@ -167,7 +167,7 @@ const developMappings = [
     /Driver\.adjustSlider\(\s*command\.slider,\s*command\.amount\s*\)/,
     /Driver\.setSlider\(\s*command\.slider,\s*command\.value\s*\)/,
     /Driver\.resetSlider\(\s*command\.slider\s*\)/,
-    /Driver\.runAction\(\s*command\.action\s*\)/,
+    /Driver\.runAction\(\s*command\.action,\s*command\.target\s*\)/,
     /Query\.getDevelopValue\(command\.slider\)/
 ];
 for (const mapping of developMappings) {
@@ -189,6 +189,22 @@ assert.equal(
     "Native Develop Reset SDK call must appear exactly once"
 );
 assert.doesNotMatch(resetAllAction[1], /resetToDefault|sliderMap|resetSlider|keyboard|menu|AppActivate|SendKeys/i);
+const selectCropAction = driver.match(
+    /selectCropTool\s*=\s*function\(\)([\s\S]*?)\n\s*end,/
+);
+assert.ok(selectCropAction, "The compatible selectCropTool action is missing");
+assert.match(selectCropAction[1], /LrDevelopController\.selectTool\("crop"\)/,
+    "Open Crop Tool must explicitly select crop");
+assert.match(driver, /function Driver\.runAction\(action, target\)[\s\S]*action == "selectCropTool" and target == "loupe"[\s\S]*LrDevelopController\.selectTool\("loupe"\)/,
+    "Close Crop Tool must explicitly select loupe");
+assert.match(driver, /target ~= nil and target ~= "crop" and target ~= "loupe"/,
+    "Crop Tool targets must fail closed outside crop/loupe");
+assert.doesNotMatch(selectCropAction[1], /getSelectedTool|toggle|keyboard|menu|mouse|automation/i,
+    "The Crop Tool command must be an explicit selection, not a toggle or UI automation");
+assert.match(parser, /local targetCount = 0[\s\S]*string\.gmatch\(json, \[\["target"%s\*:\]\]\)[\s\S]*targetCount = targetCount \+ 1/,
+    "The Lua parser must detect every supplied target field");
+assert.match(parser, /targetCount > 0[\s\S]*targetCount ~= 1[\s\S]*command ~= "develop\.action"[\s\S]*action ~= "selectCropTool"[\s\S]*target ~= "crop" and target ~= "loupe"[\s\S]*return nil/,
+    "The Lua parser must reject duplicate, foreign, or unsupported Crop Tool targets");
 assert.ok(contract.actions.includes("resetAllDevelopAdjustments"));
 assert.ok(!contract.actions.some((action) => /previous/i.test(action)), "Develop Previous must not be implemented");
 

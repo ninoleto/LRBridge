@@ -290,3 +290,27 @@ This section supersedes the preceding manual-acceptance and probe-preservation i
 - Protected files remain unchanged: `app/companion-cheatsheet.html` SHA-256 `FFE9E61A3AB6655F53762A13D07EEC0E4EA1C67FC56A22C60CD44F4866671BFC`; `docs/COMPANION_HTTP_CHEATSHEET.md` SHA-256 `C3B4019EBC588EC4D121252D3266A2B57CC110CB5EDD118ECA314B708CE82069`.
 - `stash@{0}` remains object `76bd3118f786b886a30dd81ce3b591f4e14f49fe`, subject `Preserve protected cheat-sheet WIP after Profile checkpoint`.
 - Implementation checkpoint commit: `f15531f60381f478431ff94e871c631beb8b9082` (`feat: add HDR and SDR rendition controls`).
+
+## Crop controller accepted checkpoint (2026-08-31)
+
+The user manually accepted the Crop controller after the required one-time LRBridge restart and Lightroom production plug-in reload. Do not request another reload for this checkpoint.
+
+### Accepted layout and behavior
+
+- Crop renders **Aspect Ratio** first and **Angle** second. Aspect retains Original, Camera Crop, all accepted fixed ratios, and Custom Aspect behavior. Angle retains authoritative feedback, text editing, slider, step controls, and Angle Reset.
+- One subdued informational line follows Angle and precedes the bottom action bar: `Auto Straighten, Constrain to Image, and Tool Overlay must be controlled manually in Lightroom because they are not exposed through the SDK.` There are no fake, disabled, or separate limitation controls/sections.
+- The bottom bar keeps **Reset Crop** on the left and an authoritative **Open Crop Tool** / **Close Crop Tool** action on the right. Open explicitly selects `crop`; Close explicitly selects `loupe`. Legacy `selectCropTool` without `target` explicitly selects `crop`.
+- `target` is strictly limited to `crop|loupe` through HTTP admission, server command validation, Lua parsing, and Lua dispatch. Other actions reject a target. Presentation changes only from authoritative `getSelectedTool()` feedback; missing feedback disables the action, and submission does not optimistically change state.
+- Crop Angle and categorical feedback poll while Crop is active and clean up on tab exit. Existing UUID/context/Develop-revision, queue, stale-response, accessibility, touch-size, keyboard-focus, and responsive-layout contracts remain intact.
+
+### Final SDK boundary
+
+- Lightroom Classic 15.3 documents no exact Crop Auto Straighten invocation, success/failure contract, or operation-specific completion signal. A manually produced result can still appear through authoritative `straightenAngle` feedback.
+- Crop-tool **Constrain to Image** has no documented authoritative readable/writeable SDK interface and is distinct from Transform's `CropConstrainToWarp` / Constrain Crop setting.
+- Crop Tool Overlay **Always / Auto / Never** has no documented authoritative SDK state or control. No keyboard, mouse, UI automation, optimistic state, presets, Upright, Angle Reset, or zero-angle substitute is used for any unsupported control.
+
+### Verification and preservation
+
+- All 16 focused Crop/controller/transport/validation/polling/HTTP Builder suites passed. Explicit JavaScript syntax checks passed for every modified `.js` source and the Controller inline script. Adobe Lightroom Classic 15.3 `luac.exe -p` passed for all four modified Lua files. `git diff --check` passed.
+- `npm test` exits `1` only at the unchanged protected `test:contract` gate: `Generated Companion document is missing slider LensBlurAmount`. Its eight preceding suites passed, and all 26 post-gate suites passed individually. The protected Companion files were not modified.
+- Preserve the intentional unstaged `config/settings.txt` line `minimize_behavior=normal`, protected hashes `FFE9E61A3AB6655F53762A13D07EEC0E4EA1C67FC56A22C60CD44F4866671BFC` and `C3B4019EBC588EC4D121252D3266A2B57CC110CB5EDD118ECA314B708CE82069`, and `stash@{0}` object `76bd3118f786b886a30dd81ce3b591f4e14f49fe`.

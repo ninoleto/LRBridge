@@ -106,7 +106,8 @@ function Commands.execute(command)
     if command.command == "develop.action" then
 
         Driver.runAction(
-            command.action
+            command.action,
+            command.target
         )
 
         return

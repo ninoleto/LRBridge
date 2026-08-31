@@ -353,6 +353,15 @@ async function runTransportTests() {
         assert.deepEqual(commands.getNextCommand(), { command: "develop_categorical.constrain_crop.set", value: 1 });
 
         await getJson(port, "/develop-categorical/result?whiteBalanceAvailable=true&whiteBalance=As%20Shot&processAvailable=true&process=Version%205&vignetteStyleAvailable=true&vignetteStyle=3&uprightModeAvailable=true&uprightMode=5&constrainCropAvailable=true&constrainCrop=1&selectedToolAvailable=true&selectedTool=loupe");
+        response = await getJson(port, "/command?command=develop.action&action=selectCropTool&target=crop");
+        assert.equal(response.statusCode, 200);
+        assert.deepEqual(commands.getNextCommand(), { command: "develop.action", action: "selectCropTool", target: "crop" });
+        response = await getJson(port, "/develop-categorical/state");
+        assert.equal(response.body.state.selectedToolAvailable, true,
+            "Crop Tool submission must preserve the last authoritative selected-tool availability");
+        assert.equal(response.body.state.selectedTool, "loupe",
+            "Crop Tool submission must not optimistically replace authoritative selected-tool feedback");
+
         response = await getJson(port, "/develop-categorical/upright-tool");
         assert.equal(response.statusCode, 200);
         assert.deepEqual(commands.getNextCommand(), { command: "develop_categorical.upright_tool.select" });

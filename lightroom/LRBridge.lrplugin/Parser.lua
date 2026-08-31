@@ -45,6 +45,9 @@ function Parser.parse(json)
     local command = string.match(json, [["command":"([^"]+)"]])
     local slider = string.match(json, [["slider":"([^"]+)"]])
     local action = string.match(json, [["action":"([^"]+)"]])
+    local target = string.match(json, [["target":"([^"]+)"]])
+    local targetCount = 0
+    for _ in string.gmatch(json, [["target"%s*:]]) do targetCount = targetCount + 1 end
     local direction = string.match(json, [["direction":"([^"]+)"]])
     local flag = string.match(json, [["flag":"([^"]+)"]])
     local label = string.match(json, [["label":"([^"]+)"]])
@@ -125,10 +128,16 @@ function Parser.parse(json)
         return nil
     end
 
+    if targetCount > 0 and (targetCount ~= 1 or command ~= "develop.action" or
+        action ~= "selectCropTool" or (target ~= "crop" and target ~= "loupe")) then
+        return nil
+    end
+
     return {
         command = command,
         slider = slider,
         action = action,
+        target = target,
         direction = direction,
         flag = flag,
         rating = rating,
