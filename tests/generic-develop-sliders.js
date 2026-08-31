@@ -18,7 +18,7 @@ const bridge = fs.readFileSync(path.join(root, "server/bridge.js"), "utf8");
 const historyLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/History.lua"), "utf8");
 const historyStateFactory = require("../server/history-state").createHistoryState;
 
-assert.equal(metadata.length, 102, "Slider registry count changed");
+assert.equal(metadata.length, 111, "Slider registry count changed");
 assert.equal(new Set(metadata.map((item) => item.id)).size, metadata.length, "Duplicate slider ID");
 
 for (const item of metadata) {
@@ -45,7 +45,29 @@ for (const item of metadata) {
 }
 
 const feedbackDefinitions = metadata.filter((item) => item.feedbackSupported === true);
-assert.equal(feedbackDefinitions.length, 101, "Authoritative feedback definition count changed");
+assert.equal(feedbackDefinitions.length, 110, "Authoritative feedback definition count changed");
+const hdrRenditionIds = [
+    "HDREditMode", "HDRMaxValue", "SDRBrightness", "SDRContrast", "SDRClarity",
+    "SDRHighlights", "SDRShadows", "SDRWhites", "SDRBlend"
+];
+const hdrRenditionDefinitions = feedbackDefinitions.filter((item) => item.group === "HDR / SDR Rendition");
+assert.deepEqual(hdrRenditionDefinitions.map((item) => item.id), hdrRenditionIds,
+    "HDR / SDR Rendition metadata order drifted");
+assert.equal(hdrRenditionDefinitions.find((item) => item.id === "SDRBlend").label, "Highlight Saturation");
+assert.equal(hdrRenditionDefinitions.find((item) => item.id === "HDREditMode").resetSupported, false);
+assert.deepEqual(Object.assign({}, hdrRenditionDefinitions.find((item) => item.id === "HDRMaxValue"), {
+    incrementDescription: undefined
+}), {
+    id: "HDRMaxValue", label: "HDR Limit", group: "HDR / SDR Rendition", min: 1, max: 8,
+    incrementDescription: undefined, rangeStep: 0.1, numericStep: 0.1, displayPrecision: 1,
+    visualScale: "log2",
+    adjustSupported: false, resetSupported: true, resetDefaultSource: "lightroom",
+    requireRuntimeRangeForAdmission: true, contextBoundRuntimeRange: true,
+    authoritativeUnavailableImmediate: true, retainAuthoritativeAcrossRender: false, feedbackSupported: true
+});
+assert.equal(hdrRenditionDefinitions.slice(1).every((item) =>
+    item.resetSupported === true && item.resetDefaultSource === "lightroom"), true,
+    "HDR Limit and every SDR rendition scalar must use Lightroom's native reset");
 const toneCurveDefinitions = feedbackDefinitions.filter((item) => item.group === "Tone Curve");
 const metadataToneCurveIds = [
     "ParametricDarks", "ParametricLights", "ParametricShadows", "ParametricHighlights",
@@ -71,12 +93,13 @@ assert.deepEqual(
 );
 const effectiveMetadata = sliders.getAll();
 assert.equal(effectiveMetadata.find((item) => item.id === "Temperature").visualScale, "temperature");
+assert.equal(effectiveMetadata.find((item) => item.id === "HDRMaxValue").visualScale, "log2");
 assert.equal(effectiveMetadata.find((item) => item.id === "Tint").visualScale || "linear", "linear");
 assert.equal(
-    effectiveMetadata.filter((item) => item.id !== "Temperature")
+    effectiveMetadata.filter((item) => item.id !== "Temperature" && item.id !== "HDRMaxValue")
         .every((item) => (item.visualScale || "linear") === "linear"),
     true,
-    "Only Temperature may use nonlinear visual scaling"
+    "Only Temperature and HDR Limit may use nonlinear visual scaling"
 );
 
 assert.match(controller, /function createDevelopSliderControl\(definition\)/);
@@ -229,15 +252,15 @@ const developSectionDisplayOrder = JSON.parse(JSON.stringify(
     require("node:vm").runInNewContext("(" + developSectionDisplayOrderMatch[1] + ")")
 ));
 const expectedDevelopSectionLabels = [
-    "White Balance", "Tone", "Presence", "Color Mixer", "Detail",
+    "White Balance", "Tone", "HDR / SDR Rendition", "Presence", "Color Mixer", "Detail",
     "Lens Corrections", "Transform", "Lens Blur", "Effects", "Calibration"
 ];
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), expectedDevelopSectionLabels);
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.id), [
-    "white-balance", "tone", "presence", "color-mixer", "detail",
+    "white-balance", "tone", "hdr-sdr-rendition", "presence", "color-mixer", "detail",
     "lens-corrections", "transform", "lens-blur", "effects", "calibration"
 ]);
-assert.equal(new Set(developSectionDisplayOrder.map((section) => section.id)).size, 10,
+assert.equal(new Set(developSectionDisplayOrder.map((section) => section.id)).size, 11,
     "Every main Develop section must render exactly once");
 const developHeaderCss = controller.match(/\.group\[data-develop-section\] > \.group-title \{[\s\S]*?\n        \}/)[0];
 assert.match(developHeaderCss, /width: 100%/);
@@ -379,12 +402,12 @@ assert.deepEqual(new Set(mappedDevelopIds), new Set(expectedDevelopIds),
 assert.doesNotMatch(JSON.stringify(developSectionDisplayOrder), /Tone Curve|Color Grading/);
 assert.match(controller, /function getSliderJumpSections\(\) \{\s*return developSectionDisplayOrder\.map/,
     "Jump menu and rendered sections must share the presentation specification");
-assert.equal(developSectionDisplayOrder.length, 10, "Jump-to must source exactly ten Develop sections");
+assert.equal(developSectionDisplayOrder.length, 11, "Jump-to must source exactly eleven Develop sections");
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), [
-    "White Balance", "Tone", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Transform", "Lens Blur", "Effects", "Calibration"
+    "White Balance", "Tone", "HDR / SDR Rendition", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Transform", "Lens Blur", "Effects", "Calibration"
 ], "Jump-to section ordering must match the rendered Lightroom panel order");
-assert.equal(developSectionDisplayOrder[3].id, "color-mixer",
-    "Color Mixer/B&W must remain fourth between Presence and Detail");
+assert.equal(developSectionDisplayOrder[4].id, "color-mixer",
+    "Color Mixer/B&W must remain between Presence and Detail");
 assert.match(controller, /function getSliderJumpSections[\s\S]*label: getDevelopSectionDisplayLabel\(section\)/,
     "Jump labels must use the shared conditional section-label helper");
 const jumpHeadingLookup = controller.match(/function findSliderJumpHeading\(content, sectionId\) \{[\s\S]*?\n        \}/)[0];
@@ -438,8 +461,13 @@ assert.doesNotMatch(controller + bridge + luaCommands + historyLua, /SendKeys|ke
     "History commands must remain SDK-driven throughout production");
 assert.doesNotMatch(controller + bridge + luaCommands + historyLua, /undoStack|redoStack/i,
     "LRBridge must not maintain a synthetic history stack");
-assert.doesNotMatch(driver + historyLua, /stopTracking|setTrackingDelay|setMultipleAdjustmentThreshold/,
-    "History cooldown must not manipulate Lightroom tracking or grouping");
+assert.equal((driver.match(/stopTracking\(false\)/g) || []).length, 1,
+    "Only the probed HDR Limit tracked write may explicitly close generic Driver tracking");
+assert.match(driver, /if slider == "HDRMaxValue" then[\s\S]*startTracking\(developSlider\)[\s\S]*setValue\(developSlider, value\)[\s\S]*stopTracking\(false\)/);
+assert.doesNotMatch(driver + historyLua, /setTrackingDelay|setMultipleAdjustmentThreshold/,
+    "History cooldown must not manipulate Lightroom tracking delays or grouping thresholds");
+assert.doesNotMatch(historyLua, /stopTracking/,
+    "History cooldown must not terminate Lightroom tracking");
 assert.doesNotMatch(historyLua, /LrTasks\.sleep/,
     "Native Undo and Redo must not sleep");
 assert.doesNotMatch(controller + bridge + luaCommands + historyLua,
@@ -604,7 +632,24 @@ assert.match(controller, /rerenderColorMixerSection\(\)[\s\S]*requestLiveFeedbac
 assert.match(controller, /if \(activeTab === "sliders"\) requestTreatmentState\(\)/,
     "Treatment reads must reuse the existing Develop feedback cadence");
 assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1);
-assert.doesNotMatch(controller + bridge + mainProcess + photo + feedback, /HDREditMode|HDRMaxValue|SDRBlend|ToneCurvePV2012/);
+assert.doesNotMatch(controller + bridge + mainProcess + photo + feedback, /ToneCurvePV2012/);
+const hdrModeControlBlock = controller.match(
+    /function createHDRModeControl\(definition\)[\s\S]*?function createDevelopSliderControl\(definition\)/
+)[0];
+const hdrModeSubmitBlock = hdrModeControlBlock.match(/function submit\(value\) \{[\s\S]*?const offButton/)[0];
+assert.match(hdrModeSubmitBlock, /control\.pending = true;[\s\S]*control\.desiredValue = value/,
+    "HDR mode must track explicit intent until authoritative readback");
+assert.match(hdrModeSubmitBlock, /\/api\/set\?slider=HDREditMode&value=/,
+    "HDR mode must send only explicit absolute values");
+assert.doesNotMatch(hdrModeSubmitBlock, /authoritativeValue\s*=(?!=)|classList\.toggle\("active"/,
+    "HDR mode submission must not fabricate authoritative or active state");
+assert.match(hdrModeControlBlock,
+    /classList\.toggle\("active", available && control\.authoritativeValue === 0\)[\s\S]*classList\.toggle\("active", available && control\.authoritativeValue === 1\)/,
+    "HDR mode active buttons must render only authoritative feedback");
+assert.doesNotMatch(hdrModeControlBlock, /\/api\/reset\?slider=HDREditMode/,
+    "HDR mode must expose no Reset action");
+assert.match(controller,
+    /Preview for SDR Display must be enabled manually in Lightroom\. LRBridge cannot observe or control that preview setting\./);
 assert.match(feedback, /photo:getDevelopSettings\(\)[\s\S]*settings\.ConvertToGrayscale/);
 assert.doesNotMatch(feedback, /json.*DevelopSettings|getDevelopSettings.*url/i,
     "Full Develop settings must never be serialized");
@@ -1062,8 +1107,13 @@ assert.match(builder, /copyBuilderFull"\)\.disabled = !valid/);
 assert.match(builder, /fetch\("\/api\/sliders"\)/);
 
 for (const item of feedbackDefinitions) {
-    assert.equal(sliders.parseAbsoluteValue(item.id, String(item.min)), item.min);
-    assert.equal(sliders.parseAbsoluteValue(item.id, String(item.max)), item.max);
+    if (item.requireRuntimeRangeForAdmission === true) {
+        assert.equal(sliders.parseAbsoluteValue(item.id, String(item.min)), null,
+            item.id + " must fail closed before current-context runtime feedback");
+    } else {
+        assert.equal(sliders.parseAbsoluteValue(item.id, String(item.min)), item.min);
+        assert.equal(sliders.parseAbsoluteValue(item.id, String(item.max)), item.max);
+    }
 }
 assert.equal(sliders.parseAbsoluteValue("Exposure", "1.25"), 1.25);
 assert.equal(sliders.parseAbsoluteValue("Exposure", "1.234"), null);
@@ -1085,4 +1135,4 @@ assert.match(parser, /value = string\.match\(json, \[\["value":\(\[%\-\]\?%d\+%\
 assert.match(luaCommands, /Driver\.setSlider\(\s*command\.slider,\s*command\.value\s*\)/);
 
 console.log("Generic Develop slider metadata, controller, Builder, and feedback contracts passed.");
-console.log("Validated 102 definitions and 101 authoritative-feedback definitions.");
+console.log("Validated 111 definitions and 110 authoritative-feedback definitions.");

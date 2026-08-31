@@ -49,6 +49,15 @@ local watchedSliders = {
     "Shadows",
     "Whites",
     "Blacks",
+    "HDREditMode",
+    "HDRMaxValue",
+    "SDRBrightness",
+    "SDRContrast",
+    "SDRClarity",
+    "SDRHighlights",
+    "SDRShadows",
+    "SDRWhites",
+    "SDRBlend",
     "Texture",
     "Clarity",
     "Dehaze",
@@ -143,6 +152,18 @@ local watchedSliders = {
     "LensBlurAmount",
     "LensBlurCatEye",
     "LensBlurHighlightsBoost"
+}
+
+local contextBoundSliders = {
+    HDREditMode = true,
+    HDRMaxValue = true,
+    SDRBrightness = true,
+    SDRContrast = true,
+    SDRClarity = true,
+    SDRHighlights = true,
+    SDRShadows = true,
+    SDRWhites = true,
+    SDRBlend = true
 }
 
 local lastSentValues = {}
@@ -518,7 +539,7 @@ local function sendValue(id, slider, value, minValue, maxValue, identity)
             "&max=" .. tostring(maxValue)
     end
 
-    if slider == "ProfileAmount" and identity ~= nil then
+    if (slider == "ProfileAmount" or contextBoundSliders[slider] == true) and identity ~= nil then
         url = url ..
             "&selectedPhotoKey=" .. urlEncode(identity.key) ..
             "&selectedPhotoUuid=" .. urlEncode(identity.uuid)
@@ -541,6 +562,29 @@ local function readFeedbackValue(slider)
             value = nil
         end
         return value, 0, 200, before
+    end
+    if contextBoundSliders[slider] == true then
+        local beforeModule = getActiveModule()
+        local before = getSelectedPhotoIdentity()
+        if beforeModule ~= "develop" or before.photo == nil or before.key == "" then
+            return nil, nil, nil, before
+        end
+        local value = Query.getDevelopValue(slider)
+        local minValue, maxValue = Query.getDevelopRange(slider)
+        local afterModule = getActiveModule()
+        local after = getSelectedPhotoIdentity()
+        if afterModule ~= "develop" or after.photo ~= before.photo or after.key ~= before.key or
+            after.uuid ~= before.uuid then
+            return nil, nil, nil, after
+        end
+        if type(value) ~= "number" or type(minValue) ~= "number" or type(maxValue) ~= "number" or
+            minValue >= maxValue or value < minValue or value > maxValue then
+            return nil, nil, nil, before
+        end
+        if slider == "HDREditMode" and (value ~= 0 and value ~= 1) then
+            return nil, nil, nil, before
+        end
+        return value, minValue, maxValue, before
     end
     if slider == "CropConstrainToWarp" then
         local ok, value = LrTasks.pcall(function()

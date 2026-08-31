@@ -2,16 +2,15 @@ const assert = require("node:assert/strict");
 const WebSocket = require("ws");
 
 const commands = require("../server/commands");
-const sliders = require("../server/sliders");
 const { createBridge } = require("../server/bridge");
 
 const ordinary = (index) => ({
     command: "selection.navigate",
     direction: index % 2 === 0 ? "next" : "previous"
 });
-const reset = (index) => ({
+const reset = () => ({
     command: "develop.reset",
-    slider: sliders.getIds()[index % sliders.getIds().length]
+    slider: "Exposure"
 });
 const protectedCommand = () => ({
     command: "develop.action",

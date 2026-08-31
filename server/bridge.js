@@ -116,6 +116,7 @@ const treatmentSnapshots = {};
 let feedbackRequestId = 0;
 let focalRangeCommitCounter = 0;
 const dedicatedFeedbackParameters = new Set(["CropAngle", "CropConstrainToWarp"]);
+const contextBoundFeedbackParameters = new Set(sliders.getContextBoundIds());
 
 function isFeedbackParameter(value) {
     return sliders.exists(value) || dedicatedFeedbackParameters.has(value);
@@ -132,6 +133,7 @@ function createFeedbackSnapshot(id, requestedSliders) {
         completedAt: null
     };
     feedbackSnapshotContexts[id] = {
+        activeModule: contextFields.activeModule,
         contextCounter: contextFields.contextCounter,
         selectedPhotoKey: contextFields.selectedPhotoKey,
         selectedPhotoUuid: contextFields.selectedPhotoUuid
@@ -148,6 +150,24 @@ function createFeedbackSnapshot(id, requestedSliders) {
             }
         }
     }
+}
+
+function invalidateContextBoundFeedback() {
+    sliders.clearContextBoundRuntimeRanges();
+    contextBoundFeedbackParameters.forEach(function (slider) {
+        delete feedbackValues[slider];
+    });
+    Object.keys(feedbackSnapshots).forEach(function (id) {
+        const snapshot = feedbackSnapshots[id];
+        if (!snapshot || !snapshot.requestedSliders.some(function (slider) {
+            return contextBoundFeedbackParameters.has(slider);
+        })) return;
+        delete feedbackSnapshots[id];
+        delete feedbackSnapshotContexts[id];
+        for (let index = feedbackRequests.length - 1; index >= 0; index -= 1) {
+            if (feedbackRequests[index].id === Number(id)) feedbackRequests.splice(index, 1);
+        }
+    });
 }
 
 function queueCommand(command) {
@@ -346,6 +366,7 @@ app.get("/context/update", function (req, res) {
         });
         colorGrading.clearRuntimeRanges();
         Object.keys(colorGradingSnapshots).forEach(function (id) { delete colorGradingSnapshots[id]; });
+        invalidateContextBoundFeedback();
     }
 
     const status = commands.getStatus();
@@ -1964,13 +1985,14 @@ app.get("/feedback/result", function (req, res) {
     const slider = req.query.slider;
     const rawValue = req.query.value;
     const unavailable = req.query.available === "0" && rawValue === undefined;
-    const profileAmountFields = slider === "ProfileAmount"
+    const identityBoundFeedback = slider === "ProfileAmount" || contextBoundFeedbackParameters.has(slider);
+    const identityFields = identityBoundFeedback
         ? ["selectedPhotoKey", "selectedPhotoUuid"]
         : [];
     const allowedFields = new Set(unavailable
         ? ["id", "slider", "available"]
         : ["id", "slider", "value", "min", "max"]);
-    profileAmountFields.forEach(function (field) { allowedFields.add(field); });
+    identityFields.forEach(function (field) { allowedFields.add(field); });
     const hasExtraField = Object.keys(req.query).some(function (field) {
         return !allowedFields.has(field);
     });
@@ -1995,6 +2017,36 @@ app.get("/feedback/result", function (req, res) {
             slider: slider
         });
         return;
+    }
+
+    if (contextBoundFeedbackParameters.has(slider)) {
+        const snapshot = feedbackSnapshots[requestId];
+        const snapshotContext = feedbackSnapshotContexts[requestId];
+        const currentContext = context.getContextFields();
+        const rawSelectedPhotoKey = typeof req.query.selectedPhotoKey === "string" &&
+            !Array.isArray(req.query.selectedPhotoKey) ? req.query.selectedPhotoKey : undefined;
+        const rawSelectedPhotoUuid = typeof req.query.selectedPhotoUuid === "string" &&
+            !Array.isArray(req.query.selectedPhotoUuid) ? req.query.selectedPhotoUuid : undefined;
+        const selectedPhotoKey = rawSelectedPhotoKey === undefined ? undefined : (rawSelectedPhotoKey || null);
+        const selectedPhotoUuid = rawSelectedPhotoUuid === undefined ? undefined : (rawSelectedPhotoUuid || null);
+        if (selectedPhotoKey === undefined || selectedPhotoUuid === undefined ||
+            (selectedPhotoKey !== null && selectedPhotoKey.length > 1024) ||
+            (selectedPhotoUuid !== null && selectedPhotoUuid.length > 160) ||
+            (!unavailable && selectedPhotoKey === null)) {
+            return res.status(400).json({ ok: false, error: "Invalid context-bound feedback", slider: slider });
+        }
+        if (!snapshot || !snapshot.requestedSliders.includes(slider) || !snapshotContext ||
+            snapshotContext.activeModule !== currentContext.activeModule ||
+            (!unavailable && currentContext.activeModule !== "develop") ||
+            snapshotContext.contextCounter !== currentContext.contextCounter ||
+            snapshotContext.selectedPhotoKey !== currentContext.selectedPhotoKey ||
+            snapshotContext.selectedPhotoUuid !== currentContext.selectedPhotoUuid ||
+            selectedPhotoKey !== currentContext.selectedPhotoKey ||
+            selectedPhotoUuid !== currentContext.selectedPhotoUuid) {
+            sliders.clearRuntimeRange(slider);
+            delete feedbackValues[slider];
+            return res.status(409).json({ ok: false, error: "Stale context-bound feedback", slider: slider });
+        }
     }
 
     if (slider === "ProfileAmount") {
@@ -2033,6 +2085,12 @@ app.get("/feedback/result", function (req, res) {
             rangeMin === null ||
             rangeMax === null ||
             rangeMin >= rangeMax ||
+            (contextBoundFeedbackParameters.has(slider) && (
+                numericValue < rangeMin || numericValue > rangeMax ||
+                (slider === "HDREditMode" && (
+                    (numericValue !== 0 && numericValue !== 1) || rangeMin !== 0 || rangeMax !== 1
+                ))
+            )) ||
             (slider === "ProfileAmount" && (
                 rangeMin !== 0 || rangeMax !== 200 || !Number.isInteger(numericValue) ||
                 numericValue < 0 || numericValue > 200
@@ -2058,6 +2116,8 @@ app.get("/feedback/result", function (req, res) {
 
     if (!unavailable) {
         sliders.setRuntimeRange(slider, rangeMin, rangeMax);
+    } else if (contextBoundFeedbackParameters.has(slider)) {
+        sliders.clearRuntimeRange(slider);
     }
 
     feedbackValues[slider] = result;

@@ -511,6 +511,30 @@
             line-height: 1.45;
         }
 
+        .group[data-develop-section="hdr-sdr-rendition"] .hdr-section-divider {
+            width: 100%;
+            max-width: 920px;
+            box-sizing: border-box;
+            margin: 16px 0;
+            border-top: 1px solid #2b3744;
+        }
+
+        .group[data-develop-section="hdr-sdr-rendition"] .hdr-sdr-rendition-subheading {
+            margin: 0 0 6px;
+            color: #b8c6d2;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+        }
+
+        .group[data-develop-section="hdr-sdr-rendition"] .hdr-sdr-rendition-note {
+            margin: 0 0 12px;
+        }
+
+        .group[data-develop-section="hdr-sdr-rendition"] .hdr-visualize-note {
+            margin: -2px 0 0;
+        }
+
         .command-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -1975,6 +1999,20 @@
                 ]
         },
         {
+                "name": "HDR / SDR Rendition",
+                "sliders": [
+                        "HDREditMode",
+                        "HDRMaxValue",
+                        "SDRBrightness",
+                        "SDRContrast",
+                        "SDRClarity",
+                        "SDRHighlights",
+                        "SDRShadows",
+                        "SDRWhites",
+                        "SDRBlend"
+                ]
+        },
+        {
                 "name": "Basic",
                 "sliders": [
                         "Exposure",
@@ -3105,6 +3143,15 @@
             "Shadows",
             "Whites",
             "Blacks",
+            "HDREditMode",
+            "HDRMaxValue",
+            "SDRBrightness",
+            "SDRContrast",
+            "SDRClarity",
+            "SDRHighlights",
+            "SDRShadows",
+            "SDRWhites",
+            "SDRBlend",
             "Texture",
             "Clarity",
             "Dehaze",
@@ -3879,6 +3926,7 @@
                 }
                 if (classification === "navigation") {
                     invalidatePointColorState();
+                    invalidateHDRRenditionControls();
                     lensBlurModel.applyAuthoritative(null);
                     lensBlurSubjectPresentation.reset();
                     updateLensBlurPresentation();
@@ -4509,8 +4557,20 @@
             return definition.visualScale === "temperature" && definition.min > 0 && definition.max > 0;
         }
 
+        function usesBaseTwoLogarithmicVisualScale(definition) {
+            return definition.visualScale === "log2" && definition.min > 0 && definition.max > definition.min;
+        }
+
         function actualToDevelopSliderPosition(definition, value) {
             const actual = clampDevelopSliderValue(definition, Number(value));
+            if (usesBaseTwoLogarithmicVisualScale(definition)) {
+                if (actual === definition.min) return 0;
+                if (actual === definition.max) return 1000;
+                return 1000 * (
+                    (Math.log2(actual) - Math.log2(definition.min)) /
+                    (Math.log2(definition.max) - Math.log2(definition.min))
+                );
+            }
             if (!usesTemperatureVisualScale(definition)) return actual;
             if (actual === definition.min) return 0;
             if (actual === definition.max) return 1000;
@@ -4521,16 +4581,21 @@
         }
 
         function developSliderPositionToActual(definition, position) {
-            if (!usesTemperatureVisualScale(definition)) {
+            if (!usesTemperatureVisualScale(definition) && !usesBaseTwoLogarithmicVisualScale(definition)) {
                 return roundDevelopSliderValue(definition, Number(position), definition.rangeStep);
             }
             const normalized = Math.min(1, Math.max(0, Number(position) / 1000));
             if (normalized === 0) return definition.min;
             if (normalized === 1) return definition.max;
-            const actual = Math.exp(
-                Math.log(definition.min) +
-                normalized * (Math.log(definition.max) - Math.log(definition.min))
-            );
+            const actual = usesBaseTwoLogarithmicVisualScale(definition)
+                ? 2 ** (
+                    Math.log2(definition.min) +
+                    normalized * (Math.log2(definition.max) - Math.log2(definition.min))
+                )
+                : Math.exp(
+                    Math.log(definition.min) +
+                    normalized * (Math.log(definition.max) - Math.log(definition.min))
+                );
             return roundDevelopSliderValue(definition, actual, definition.rangeStep);
         }
 
@@ -4569,7 +4634,8 @@
                 control.range.step = "1";
                 return;
             }
-            if (usesTemperatureVisualScale(control.definition)) {
+            if (usesTemperatureVisualScale(control.definition) ||
+                usesBaseTwoLogarithmicVisualScale(control.definition)) {
                 control.range.min = "0";
                 control.range.max = "1000";
                 control.range.step = "1";
@@ -4809,6 +4875,10 @@
         }
 
         function markDevelopSliderError(control) {
+            if (control.markFeedbackError) {
+                control.markFeedbackError();
+                return;
+            }
             if (isDevelopSliderInteracting(control) || control.confirmationPending || control.authoritativeValue !== null) return;
             cancelDevelopSliderStep(control);
             if (control.feedbackState === "error") return;
@@ -5078,6 +5148,155 @@
             control.confirmationPending = true;
             control.stepConfirmationExpired = false;
             return 100;
+        }
+
+        function hdrModeBindingMatches(binding) {
+            return binding.generation === genericFeedbackGeneration &&
+                binding.contextCounter === lastControllerContextCounter &&
+                binding.activeModule === lastControllerActiveModule &&
+                binding.selectedPhotoKey === lastControllerSelectedPhotoKey;
+        }
+
+        async function requestHDRModeFeedback(control, adoptMismatch) {
+            if (!control || control.feedbackRequestInFlight || !control.row.isConnected) return;
+            const binding = {
+                generation: genericFeedbackGeneration,
+                contextCounter: lastControllerContextCounter,
+                activeModule: lastControllerActiveModule,
+                selectedPhotoKey: lastControllerSelectedPhotoKey
+            };
+            control.feedbackRequestInFlight = true;
+            try {
+                const response = await fetch("/api/feedback/request?slider=HDREditMode", { cache: "no-store" });
+                const data = await response.json();
+                const request = data && data.request;
+                if (!response.ok || !request || request.id === undefined) throw new Error("HDR mode feedback request failed");
+                const outcome = await pollFeedbackSnapshot(request.id, 1900);
+                if (!control.row.isConnected || !hdrModeBindingMatches(binding)) return;
+                const result = outcome.snapshot && outcome.snapshot.results && outcome.snapshot.results.HDREditMode;
+                if (!result) {
+                    if (adoptMismatch) control.finishPending(false, "Confirmation timed out");
+                    return;
+                }
+                control.applySwitchFeedback(result.available === true ? Number(result.value) : null);
+                if (adoptMismatch && control.pending) {
+                    control.finishPending(false, "Lightroom reported " +
+                        (control.authoritativeValue === 1 ? "On" : "Off"));
+                }
+            } catch (err) {
+                if (control.row.isConnected && hdrModeBindingMatches(binding) && adoptMismatch) {
+                    control.finishPending(false, "Confirmation failed");
+                }
+            } finally {
+                control.feedbackRequestInFlight = false;
+            }
+        }
+
+        function createHDRModeControl(definition) {
+            const row = document.createElement("div");
+            row.className = "switch-row hdr-edit-mode-row";
+            row.dataset.sliderId = definition.id;
+            const name = document.createElement("div");
+            name.className = "slider-name";
+            name.textContent = definition.label;
+            const status = document.createElement("div");
+            status.className = "switch-status";
+            status.setAttribute("role", "status");
+            status.setAttribute("aria-live", "polite");
+            status.textContent = "Loading…";
+            let control = null;
+
+            function submit(value) {
+                if (!control || control.pending || control.authoritativeValue === null ||
+                    value === control.authoritativeValue) return;
+                control.pending = true;
+                control.desiredValue = value;
+                control.render();
+                markSliderCommandSent();
+                const binding = {
+                    generation: genericFeedbackGeneration,
+                    contextCounter: lastControllerContextCounter,
+                    activeModule: lastControllerActiveModule,
+                    selectedPhotoKey: lastControllerSelectedPhotoKey
+                };
+                sendCommand("/api/set?slider=HDREditMode&value=" + String(value)).then(function (accepted) {
+                    if (!control.row.isConnected || !hdrModeBindingMatches(binding)) return;
+                    if (!accepted) {
+                        control.finishPending(false, "Set request rejected");
+                        requestLiveFeedbackSnapshot(true);
+                        return;
+                    }
+                    requestHDRModeFeedback(control, false);
+                    if (!control.pending) return;
+                    control.pendingTimer = setTimeout(function () {
+                        control.pendingTimer = null;
+                        if (control.pending) requestHDRModeFeedback(control, true);
+                    }, 2000);
+                });
+            }
+
+            const offButton = makeButton("Off", "negative", function () { submit(0); });
+            const onButton = makeButton("On", "positive", function () { submit(1); });
+            offButton.setAttribute("aria-pressed", "false");
+            onButton.setAttribute("aria-pressed", "false");
+            offButton.disabled = true;
+            onButton.disabled = true;
+
+            control = {
+                row: row,
+                definition: definition,
+                off: offButton,
+                on: onButton,
+                status: status,
+                authoritativeValue: null,
+                desiredValue: null,
+                pending: false,
+                pendingTimer: null,
+                feedbackRequestInFlight: false,
+                lastSubmittedValue: null,
+                render: function () {
+                    const available = control.authoritativeValue === 0 || control.authoritativeValue === 1;
+                    offButton.classList.toggle("active", available && control.authoritativeValue === 0);
+                    onButton.classList.toggle("active", available && control.authoritativeValue === 1);
+                    offButton.setAttribute("aria-pressed", String(available && control.authoritativeValue === 0));
+                    onButton.setAttribute("aria-pressed", String(available && control.authoritativeValue === 1));
+                    offButton.disabled = !available || control.pending || control.authoritativeValue === 0;
+                    onButton.disabled = !available || control.pending || control.authoritativeValue === 1;
+                    status.textContent = !available ? "Unavailable" : control.pending ? "Updating…" :
+                        (control.authoritativeValue === 1 ? "On" : "Off");
+                },
+                finishPending: function (confirmed, message) {
+                    if (control.pendingTimer !== null) clearTimeout(control.pendingTimer);
+                    control.pendingTimer = null;
+                    control.pending = false;
+                    control.desiredValue = null;
+                    control.render();
+                    if (!confirmed && message) status.textContent = message;
+                },
+                applySwitchFeedback: function (value) {
+                    if (value !== 0 && value !== 1) {
+                        if (control.pendingTimer !== null) clearTimeout(control.pendingTimer);
+                        control.pendingTimer = null;
+                        control.pending = false;
+                        control.desiredValue = null;
+                        control.authoritativeValue = null;
+                        control.render();
+                        return;
+                    }
+                    control.authoritativeValue = value;
+                    hasReceivedAnyAuthoritativeDevelopValue = true;
+                    if (control.pending && value === control.desiredValue) control.finishPending(true);
+                    else control.render();
+                },
+                markFeedbackError: function () {
+                    if (control.authoritativeValue === null) status.textContent = "Feedback error";
+                }
+            };
+
+            row.append(name, offButton, onButton, status);
+            developSliderControls[definition.id] = control;
+            sliderFeedbackElements[definition.id] = row;
+            return row;
         }
 
         function createDevelopSliderControl(definition) {
@@ -8338,6 +8557,7 @@
         const developSectionDisplayOrder = Object.freeze([
             { id: "white-balance", label: "White Balance", selectors: [{ group: "Color", ids: ["Temperature", "Tint"] }] },
             { id: "tone", label: "Tone", selectors: [{ group: "Basic" }] },
+            { id: "hdr-sdr-rendition", label: "HDR / SDR Rendition", selectors: [{ group: "HDR / SDR Rendition" }] },
             { id: "presence", label: "Presence", selectors: [{ group: "Presence" }, { group: "Color", ids: ["Vibrance", "Saturation"] }] },
             { id: "color-mixer", label: "Color Mixer", selectors: [{ group: "Color Mixer / HSL" }, { group: "B&W Mixer" }] },
             { id: "detail", label: "Detail", selectors: [{ group: "Detail" }] },
@@ -9179,6 +9399,24 @@
             }
             let currentSubheading = null;
             section.items.forEach(function (item, itemIndex) {
+                if (section.id === "hdr-sdr-rendition" && item.definition.id === "HDRMaxValue") {
+                    const divider = document.createElement("div");
+                    divider.className = "hdr-section-divider";
+                    divider.setAttribute("aria-hidden", "true");
+                    groupElement.appendChild(divider);
+                }
+                if (section.id === "hdr-sdr-rendition" && item.definition.id === "SDRBrightness") {
+                    const divider = document.createElement("div");
+                    divider.className = "hdr-section-divider";
+                    divider.setAttribute("aria-hidden", "true");
+                    const subheading = document.createElement("div");
+                    subheading.className = "hdr-sdr-rendition-subheading";
+                    subheading.textContent = "SDR RENDITION SETTINGS";
+                    const previewNote = document.createElement("p");
+                    previewNote.className = "command-group-note hdr-sdr-rendition-note";
+                    previewNote.textContent = "Preview for SDR Display must be enabled manually in Lightroom. LRBridge cannot observe or control that preview setting.";
+                    groupElement.append(divider, subheading, previewNote);
+                }
                 if (item.subheading && item.subheading !== currentSubheading) {
                     const subheading = document.createElement("div");
                     subheading.className = "section-title";
@@ -9186,16 +9424,34 @@
                     groupElement.appendChild(subheading);
                     currentSubheading = item.subheading;
                 }
-                const sliderControl = createDevelopSliderControl(item.definition);
+                let sliderControl = null;
+                if (item.definition.id === "HDREditMode") sliderControl = createHDRModeControl(item.definition);
+                else sliderControl = createDevelopSliderControl(item.definition);
                 if (section.id === "transform" && itemIndex === section.items.length - 1) {
                     sliderControl.classList.add("touch-group-gap");
                 }
                 groupElement.appendChild(sliderControl);
+                if (section.id === "hdr-sdr-rendition" && item.definition.id === "HDRMaxValue") {
+                    const visualizeNote = document.createElement("p");
+                    visualizeNote.className = "command-group-note hdr-visualize-note";
+                    visualizeNote.textContent = "Visualize HDR must be enabled manually in Lightroom; LRBridge cannot observe or control it.";
+                    groupElement.appendChild(visualizeNote);
+                }
             });
             if (section.id === "transform") appendTransformConstrainCropControl(groupElement);
             const trailingControls = createSectionControls(section, "trailing");
             if (trailingControls) groupElement.appendChild(trailingControls);
             return groupElement;
+        }
+
+        function invalidateHDRRenditionControls() {
+            ["HDREditMode", "HDRMaxValue", "SDRBrightness", "SDRContrast", "SDRClarity", "SDRHighlights", "SDRShadows", "SDRWhites", "SDRBlend"]
+                .forEach(function (slider) {
+                    const control = developSliderControls[slider];
+                    if (!control) return;
+                    if (control.applySwitchFeedback) control.applySwitchFeedback(null);
+                    else markDevelopSliderUnavailable(control, true);
+                });
         }
 
         function rerenderColorMixerSection() {

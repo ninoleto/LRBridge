@@ -7,6 +7,15 @@ local Driver = {}
 
 local sliderMap = {
     ProfileAmount = "ProfileAmount",
+    HDREditMode = "HDREditMode",
+    HDRMaxValue = "HDRMaxValue",
+    SDRBrightness = "SDRBrightness",
+    SDRContrast = "SDRContrast",
+    SDRClarity = "SDRClarity",
+    SDRHighlights = "SDRHighlights",
+    SDRShadows = "SDRShadows",
+    SDRWhites = "SDRWhites",
+    SDRBlend = "SDRBlend",
     Exposure = "Exposure",
     Contrast = "Contrast",
     Highlights = "Highlights",
@@ -115,7 +124,10 @@ local function prepareDevelopSlider(developSlider)
     LrApplicationView.switchToModule("develop")
     LrTasks.sleep(0.2)
 
-    if string.sub(developSlider, 1, 8) == "LensBlur" then
+    if developSlider == "HDREditMode" or developSlider == "HDRMaxValue" or
+        string.sub(developSlider, 1, 3) == "SDR" then
+        LrDevelopController.revealPanel("adjustPanel")
+    elseif string.sub(developSlider, 1, 8) == "LensBlur" then
         LrDevelopController.revealPanel("lensBlurPanel")
     else
         LrDevelopController.revealPanel(developSlider)
@@ -160,9 +172,31 @@ function Driver.setSlider(slider, value)
         return false
     end
 
+    if slider == "HDREditMode" and value ~= 0 and value ~= 1 then
+        return false
+    end
+
     prepareDevelopSlider(developSlider)
 
-    LrDevelopController.startTracking(developSlider)
+    if slider == "HDRMaxValue" then
+        local startOk = LrTasks.pcall(function()
+            LrDevelopController.startTracking(developSlider)
+        end)
+        if startOk ~= true then
+            return false
+        end
+        local setOk = LrTasks.pcall(function()
+            LrDevelopController.setValue(developSlider, value)
+        end)
+        local stopOk = LrTasks.pcall(function()
+            LrDevelopController.stopTracking(false)
+        end)
+        return setOk == true and stopOk == true
+    end
+
+    if slider ~= "HDREditMode" then
+        LrDevelopController.startTracking(developSlider)
+    end
     LrDevelopController.setValue(developSlider, value)
 
     return true
@@ -170,6 +204,10 @@ function Driver.setSlider(slider, value)
 end
 
 function Driver.resetSlider(slider)
+
+    if slider == "HDREditMode" then
+        return false
+    end
 
     if slider == "ProfileAmount" then
         return Driver.setSlider(slider, 100)

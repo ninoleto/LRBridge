@@ -88,7 +88,12 @@ assert.equal((profileAmountResetDriver.match(/Driver\.setSlider\(slider, 100\)/g
     "Profile Amount Reset must delegate exactly once");
 assert.doesNotMatch(profileAmountResetDriver, /resetToDefault/,
     "Profile Amount Reset must not use Lightroom's ineffective generic reset operation");
-assert.equal((setSliderDriver.match(/LrDevelopController\.setValue\(developSlider, value\)/g) || []).length, 1,
+const sharedAbsoluteWriter = sourceBlock(
+    setSliderDriver,
+    'if slider ~= "HDREditMode" then',
+    "return true"
+);
+assert.equal((sharedAbsoluteWriter.match(/LrDevelopController\.setValue\(developSlider, value\)/g) || []).length, 1,
     "The shared absolute SDK writer must issue exactly one setValue call");
 assert.match(resetSliderDriver, /LrDevelopController\.resetToDefault\(developSlider\)/,
     "Other slider resets must retain the generic Lightroom reset behavior");
@@ -209,6 +214,7 @@ assert.equal(ordinaryResetControl.confirmationPending, false);
         valuesMatchDevelopSlider(_definition, left, right) { return Number(left) === Number(right); },
         configureDevelopSliderRange() {},
         isParametricCurveSplitControl() { return false; },
+        isParametricCurveControl() { return false; },
         updateParametricCurveSplitConstraints() {},
         updateCompoundDevelopRange() {},
         cancelDevelopSliderStep(control) {

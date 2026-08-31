@@ -524,10 +524,30 @@ function enqueueCommand(command) {
     return tryEnqueueCommand(command).accepted;
 }
 
+function isContextBoundDevelopCommand(command) {
+    if (!command || (command.command !== "develop.set" && command.command !== "develop.reset")) return false;
+    const definition = sliders.getById(command.slider);
+    return definition !== null && definition.contextBoundRuntimeRange === true;
+}
+
+function bindContextBoundDevelopCommand(command) {
+    if (!isContextBoundDevelopCommand(command)) return command;
+    const fields = context.getContextFields();
+    if (fields.activeModule !== "develop" || fields.selectedPhotoKey === null ||
+        sliders.getRuntimeRange(command.slider) === null) return null;
+    return Object.assign({}, command, {
+        expectedContextCounter: fields.contextCounter,
+        expectedSelectedPhotoKey: fields.selectedPhotoKey,
+        expectedSelectedPhotoUuid: fields.selectedPhotoUuid
+    });
+}
+
 function tryEnqueueCommand(command) {
     if (!validateCommand(command)) {
         return admissionResult(ADMISSION_INVALID);
     }
+    command = bindContextBoundDevelopCommand(command);
+    if (command === null) return admissionResult(ADMISSION_INVALID);
     if ((command.command === "point_color.value.set" && Object.keys(command).length === 3) ||
         (command.command === "point_color.range.set" && Object.keys(command).length === 4)) {
         const admissionContext = pointColorAdmissionContextProvider && pointColorAdmissionContextProvider();
@@ -706,7 +726,8 @@ function tryEnqueueCommand(command) {
 
             if (
                 pending.slider === command.slider &&
-                (pending.command === "develop.set" || pending.command === "develop.reset")
+                (pending.command === "develop.set" || pending.command === "develop.reset") &&
+                pending.expectedContextCounter === command.expectedContextCounter
             ) {
                 commandQueue.splice(index, 1);
                 queueEntryMetadata.splice(index, 1);
@@ -848,6 +869,16 @@ function pointCurveCommandBindingMatches(command) {
         fields.contextCounter === command.expectedContextCounter && fields.developCounter === command.expectedDevelopCounter;
 }
 
+function contextBoundDevelopCommandMatches(command) {
+    if (!isContextBoundDevelopCommand(command)) return true;
+    const fields = context.getContextFields();
+    return fields.activeModule === "develop" &&
+        fields.contextCounter === command.expectedContextCounter &&
+        fields.selectedPhotoKey === command.expectedSelectedPhotoKey &&
+        fields.selectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+        sliders.getRuntimeRange(command.slider) !== null;
+}
+
 function admissionResult(status) {
     return {
         accepted: status === ADMISSION_ACCEPTED || status === ADMISSION_COALESCED,
@@ -865,6 +896,7 @@ function getNextCommand() {
         lastDequeuedAt = Date.now();
         if ((command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate" ||
             command.command === "develop_categorical.profile.set") && command.expectedContextCounter !== context.getContextFields().contextCounter) continue;
+        if (!contextBoundDevelopCommandMatches(command)) continue;
         if ((command.command === "tone_curve.gesture.begin" || command.command === "tone_curve.gesture.update" ||
             command.command === "tone_curve.reset") && !pointCurveCommandBindingMatches(command)) continue;
         if ((command.command === "tone_curve.refine_saturation.gesture.begin" ||

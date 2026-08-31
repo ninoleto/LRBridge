@@ -88,7 +88,7 @@ assert.equal(
         sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale" && slider.adjustSupported !== false).length +
         sliders.getAll().filter((slider) => slider.id !== "LensProfileChromaticAberrationScale" && slider.resetSupported !== false).length +
         developTypes.action.options.length,
-    311,
+    328,
     "Develop concrete Builder combination count changed"
 );
 assert.match(builderSource, /id="builderFamily"/);
@@ -232,6 +232,9 @@ for (const slider of sliders.getAll()) {
 }
 
 for (const slider of sliders.getAll().filter((item) => item.id !== "LensProfileChromaticAberrationScale")) {
+    if (slider.requireRuntimeRangeForAdmission === true) {
+        assert.equal(sliders.setRuntimeRange(slider.id, slider.min, slider.max), true);
+    }
     const validExample = Number.isFinite(slider.default) ? slider.default : slider.min;
     const rawValue = String(validExample);
     const pathname = buildCommandPath(developTypes.set, slider.id, rawValue);
@@ -242,6 +245,7 @@ for (const slider of sliders.getAll().filter((item) => item.id !== "LensProfileC
         slider: slider.id,
         value: validExample
     }), true, "Invalid absolute Builder command: " + pathname);
+    if (slider.requireRuntimeRangeForAdmission === true) sliders.clearRuntimeRange(slider.id);
 }
 
 for (const option of developTypes.action.options) {

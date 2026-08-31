@@ -248,6 +248,7 @@
   ],
   "groups": [
     "Profile",
+    "HDR / SDR Rendition",
     "Basic",
     "Color",
     "Presence",
@@ -261,9 +262,9 @@
     "Tone Curve",
     "Lens Blur"
   ],
-  "sliderCount": 102,
-  "sliderIdsSha256": "310e4d75c40f9c373fc882745ca8db9f6d896f766c09ca2657325a67819575fe",
-  "groupsSha256": "4af41d2bc2a182d3e0d99e674f8cb4a79024fa6f3ab09fd0db99966c789314f5",
+  "sliderCount": 111,
+  "sliderIdsSha256": "723db0c791590c6ed778e7223381e8bee3c183de16d53174d1d56c417c1e7a99",
+  "groupsSha256": "c2bb4528ddebfd163df4f42c53bc521306af2120efdc5d011ad13b5eb96a27fe",
   "nonReadableSliders": [
     "LensProfileChromaticAberrationScale"
   ],
@@ -271,7 +272,16 @@
     "LensProfileChromaticAberrationScale"
   ],
   "protectedCheatsheetExcludedSliders": [
-    "ProfileAmount"
+    "ProfileAmount",
+    "HDREditMode",
+    "HDRMaxValue",
+    "SDRBrightness",
+    "SDRContrast",
+    "SDRClarity",
+    "SDRHighlights",
+    "SDRShadows",
+    "SDRWhites",
+    "SDRBlend"
   ],
   "settings": {
     "field": "poll_interval_ms",

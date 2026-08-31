@@ -81,7 +81,8 @@ function loadControllerServer(backendPort) {
 }
 
 async function supplyResult(backendPort, id, slider, definition, unavailable) {
-    const photoIdentity = slider === "ProfileAmount"
+    const photoIdentity = slider === "ProfileAmount" ||
+        (definition && definition.contextBoundRuntimeRange === true)
         ? "&selectedPhotoKey=feedback-proxy-photo&selectedPhotoUuid=feedback-proxy-photo"
         : "";
     const resultPath = (unavailable

@@ -56,6 +56,30 @@ function setRuntimeRange(sliderId, min, max) {
     return true;
 }
 
+function getRuntimeRange(sliderId) {
+    return runtimeRanges[sliderId] || null;
+}
+
+function clearRuntimeRange(sliderId) {
+    if (!exists(sliderId)) return false;
+    delete runtimeRanges[sliderId];
+    return true;
+}
+
+function clearContextBoundRuntimeRanges() {
+    for (const slider of sliderMetadata) {
+        if (slider.contextBoundRuntimeRange === true) delete runtimeRanges[slider.id];
+    }
+}
+
+function getContextBoundIds() {
+    return sliderMetadata.filter(function (slider) {
+        return slider.contextBoundRuntimeRange === true;
+    }).map(function (slider) {
+        return slider.id;
+    });
+}
+
 function getEffectiveRange(sliderId) {
     const slider = getById(sliderId);
     if (slider === null) return null;
@@ -67,6 +91,9 @@ function getAdmissionRange(sliderId) {
     if (slider === null) return null;
     if (slider.useRuntimeRangeForAdmission === false) {
         return { min: slider.min, max: slider.max };
+    }
+    if (slider.requireRuntimeRangeForAdmission === true) {
+        return getRuntimeRange(sliderId);
     }
     return getEffectiveRange(sliderId);
 }
@@ -96,6 +123,7 @@ function isValidAbsoluteValue(sliderId, value) {
     const range = getAdmissionRange(sliderId);
     if (
         slider === null ||
+        range === null ||
         typeof value !== "number" ||
         !Number.isFinite(value) ||
         value < range.min ||
@@ -116,6 +144,10 @@ module.exports = {
     getById,
     getDefaultValue,
     setRuntimeRange,
+    getRuntimeRange,
+    clearRuntimeRange,
+    clearContextBoundRuntimeRanges,
+    getContextBoundIds,
     getEffectiveRange,
     getAdmissionRange,
     parseAbsoluteValue,

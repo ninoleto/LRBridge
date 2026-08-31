@@ -11,6 +11,15 @@ local developControllerMap = {
     Shadows = "Shadows",
     Whites = "Whites",
     Blacks = "Blacks",
+    HDREditMode = "HDREditMode",
+    HDRMaxValue = "HDRMaxValue",
+    SDRBrightness = "SDRBrightness",
+    SDRContrast = "SDRContrast",
+    SDRClarity = "SDRClarity",
+    SDRHighlights = "SDRHighlights",
+    SDRShadows = "SDRShadows",
+    SDRWhites = "SDRWhites",
+    SDRBlend = "SDRBlend",
     Texture = "Texture",
     Clarity = "Clarity",
     Dehaze = "Dehaze",
@@ -137,6 +146,10 @@ function Query.getDevelopRange(slider)
 
     if slider == "ProfileAmount" then
         return 0, 200
+    end
+
+    if slider == "HDREditMode" then
+        return 0, 1
     end
 
     local ok, minValue, maxValue = pcall(function()

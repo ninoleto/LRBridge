@@ -25,7 +25,7 @@ assert.match(bridge, /current\[specification\.availableField\] !== true[\s\S]*?s
 
 const transformRenderer = controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0];
 assert.match(transformRenderer,
-    /section\.items\.forEach[\s\S]*?const sliderControl = createDevelopSliderControl\(item\.definition\);[\s\S]*?groupElement\.appendChild\(sliderControl\);[\s\S]*?if \(section\.id === "transform"\) appendTransformConstrainCropControl\(groupElement\)/,
+    /section\.items\.forEach[\s\S]*?groupElement\.appendChild\(sliderControl\);[\s\S]*?\}\);[\s\S]*?if \(section\.id === "transform"\) appendTransformConstrainCropControl\(groupElement\)/,
     "Constrain Crop must render after the final Transform slider");
 assert.doesNotMatch(controller, /appendSwitch\(manualPanel, "CropConstrainToWarp"\)/,
     "Constrain Crop must not remain in Lens Corrections");
