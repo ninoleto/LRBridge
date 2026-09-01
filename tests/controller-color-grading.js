@@ -24,7 +24,7 @@ assert.deepEqual(tabIds.map(id => tabLabels[id]), expectedTabLabels, "Flattened 
 assert.match(html, /id: "sliders",\s*label: "Develop Sliders"\s*},\s*{\s*id: "color-grading",\s*label: "Color Grading"/);
 assert.match(html, /window\.addEventListener\("hashchange"/);
 assert.match(html, /hash === "develop" \? "sliders"/);
-assert.match(html, /if \(colorGradingActive\) \{\s*deactivateDevelopFeedbackPolling\(\);\s*colorGradingController\.activate\(\);\s*return;/);
+assert.match(html, /if \(colorGradingActive\) \{\s*deactivateDevelopFeedbackPolling\(\);\s*colorGradingController\.activate\(\);\s*installSliderJumpMenu\(\);\s*return;/);
 assert.match(html, /colorGradingController\.deactivate\(\);[\s\S]*if \(!isGenericDevelopFeedbackTab\(activeTab\)\) deactivateDevelopFeedbackPolling\(\);/);
 assert.match(html, /if \(activeTab === "sliders"\) \{\s*renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
 assert.match(html, /if \(activeTab === "tone-curve"\) \{\s*renderToneCurveTab\(\);\s*activateDevelopFeedbackPolling\(\);/);

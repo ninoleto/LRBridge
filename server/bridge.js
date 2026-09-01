@@ -265,7 +265,7 @@ app.get("/help", function (req, res) {
             requestColorGradingSnapshot: "/color-grading/request",
             setLensBlurApply: "/lens-blur/apply?enabled=true",
             setLensBlurBokeh: "/lens-blur/bokeh?value=Circle",
-            setLensBlurDepthVisualization: "/lens-blur/visualize-depth?enabled=true",
+            setLensBlurDepthVisualization: "/lens-blur/visualize-depth?enabled=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1",
             setLensBlurAutoMask: "/lens-blur/auto-mask?enabled=true",
             setLensBlurRefinementMode: "/lens-blur/refinement-mode?value=focus",
             setLensBlurRefinementDisclosure: "/lens-blur/refinement-disclosure?open=true",
@@ -299,8 +299,8 @@ app.get("/help", function (req, res) {
             "Color Grading view selection requires Process Version 3 or newer.",
             "Lens Blur Amount, Cat Eye, and Boost are available only when Lightroom reports numeric values and runtime ranges; nil is unavailable.",
             "Lens Blur Bokeh selection is authoritative only after getSelectedLensBlurBokeh reports it; the getter can lag a successful setter.",
-            "On Windows, Brush Refinement controls and Lens Blur checkboxes use dynamically discovered native controls and fail closed when identity is ambiguous.",
-            "Visualize Depth and Auto Mask require explicit targets and authoritative BM_GETCHECK readback; blind toggles are not accepted.",
+            "On Windows, Brush Refinement controls and Auto Mask use dynamically discovered native controls and fail closed when identity is ambiguous.",
+            "Visualize Depth uses the documented Lightroom SDK toggle only after exact Develop/photo/context admission; its result and Auto Mask remain authoritative through native BM_GETCHECK readback.",
             "LensBlurFocalRange is a strict four-integer compound value and uses authoritative Lightroom SDK readback after writes.",
             "Selection operations and application controls are ordinary FIFO queue commands; they do not consume the protected reset/action reserve.",
             "Context heartbeats report Lightroom state and do not enqueue commands or switch modules.",
@@ -773,14 +773,28 @@ app.get("/point-color/state", function (req, res) {
 app.get("/lens-blur/state", async function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     lensBlur.requestRefresh();
+    const contextBeforeRead = context.getContextFields();
     let windowsNative;
     try { windowsNative = await windowsNativeBackend.readState(); }
     catch (error) { windowsNative = windowsNativeDefinition.unavailableNativeState(error.message); }
+    const contextFields = context.getContextFields();
+    if (contextBeforeRead.activeModule !== contextFields.activeModule ||
+        contextBeforeRead.selectedPhotoUuid !== contextFields.selectedPhotoUuid ||
+        contextBeforeRead.contextCounter !== contextFields.contextCounter ||
+        contextBeforeRead.developCounter !== contextFields.developCounter) {
+        windowsNative = windowsNativeDefinition.unavailableNativeState("Lightroom context changed during Lens Blur state read");
+    }
     res.set("Cache-Control", "no-store").json({
         ok: true,
         state: Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) }),
         revision: lensBlur.getRevision(),
-        focalRangeCommitId: lensBlur.getFocalRangeCommitId()
+        focalRangeCommitId: lensBlur.getFocalRangeCommitId(),
+        context: {
+            activeModule: contextFields.activeModule,
+            selectedPhotoUuid: contextFields.selectedPhotoUuid,
+            contextCounter: contextFields.contextCounter,
+            developCounter: contextFields.developCounter
+        }
     });
 });
 
@@ -1092,6 +1106,12 @@ function validExplicitBooleanQuery(req) {
         (req.query.enabled === "true" || req.query.enabled === "false");
 }
 
+function lensBlurDepthVisualizationBindingMatches(binding) {
+    const current = context.getContextFields();
+    return current.activeModule === "develop" && current.selectedPhotoUuid === binding.selectedPhotoUuid &&
+        current.contextCounter === binding.contextCounter && current.developCounter === binding.developCounter;
+}
+
 function sendNativeFailure(res, error) {
     const unavailable = !error || error.code !== "LIGHTROOM_NATIVE_REJECTED";
     res.status(unavailable ? 503 : 400).json({
@@ -1145,11 +1165,50 @@ app.get("/lens-blur/brush/:control/reset", async function (req, res) {
 });
 
 app.get("/lens-blur/visualize-depth", async function (req, res) {
-    if (!validExplicitBooleanQuery(req)) return rejectInvalidCommand(res);
+    const binding = pointCurveBindingFromQuery(req.query);
+    if (!hasExactPointCurveQuery(req.query, ["enabled", "selectedPhotoUuid", "contextCounter", "developCounter"]) ||
+        (req.query.enabled !== "true" && req.query.enabled !== "false") || binding === null) {
+        return rejectInvalidCommand(res);
+    }
+    if (!lensBlurDepthVisualizationBindingMatches(binding)) {
+        return res.status(409).json({ ok: false, error: "Lens Blur Visualize Depth context is stale" });
+    }
+    let state;
     try {
-        const state = await windowsNativeBackend.setCheckbox("visualizeDepth", req.query.enabled === "true");
-        res.set("Cache-Control", "no-store").json({ ok: true, windowsNative: windowsNativeDefinition.sanitizeNativeState(state) });
+        state = windowsNativeDefinition.sanitizeNativeState(await windowsNativeBackend.readState());
     } catch (error) { sendNativeFailure(res, error); }
+    if (res.headersSent) return;
+    if (!lensBlurDepthVisualizationBindingMatches(binding)) {
+        return res.status(409).json({ ok: false, error: "Lens Blur Visualize Depth context changed during admission" });
+    }
+    if (!state.visualizeDepth || state.visualizeDepth.available !== true ||
+        typeof state.visualizeDepth.value !== "boolean") {
+        return res.status(503).json({
+            ok: false,
+            available: false,
+            error: state.reason || "Lens Blur Visualize Depth state unavailable"
+        });
+    }
+    const enabled = req.query.enabled === "true";
+    if (state.visualizeDepth.value === enabled) {
+        return res.set("Cache-Control", "no-store").json({
+            ok: true,
+            changed: false,
+            windowsNative: state
+        });
+    }
+    queueOrReject(res, {
+        command: "lens_blur.depth_visualization.toggle",
+        enabled: enabled,
+        expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
+        expectedContextCounter: binding.contextCounter,
+        expectedDevelopCounter: binding.developCounter
+    }, {
+        changed: true,
+        windowsNative: state
+    }, function () {
+        lensBlur.requestRefresh(Date.now(), true);
+    });
 });
 
 app.get("/lens-blur/auto-mask", async function (req, res) {

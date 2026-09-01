@@ -314,3 +314,39 @@ The user manually accepted the Crop controller after the required one-time LRBri
 - All 16 focused Crop/controller/transport/validation/polling/HTTP Builder suites passed. Explicit JavaScript syntax checks passed for every modified `.js` source and the Controller inline script. Adobe Lightroom Classic 15.3 `luac.exe -p` passed for all four modified Lua files. `git diff --check` passed.
 - `npm test` exits `1` only at the unchanged protected `test:contract` gate: `Generated Companion document is missing slider LensBlurAmount`. Its eight preceding suites passed, and all 26 post-gate suites passed individually. The protected Companion files were not modified.
 - Preserve the intentional unstaged `config/settings.txt` line `minimize_behavior=normal`, protected hashes `FFE9E61A3AB6655F53762A13D07EEC0E4EA1C67FC56A22C60CD44F4866671BFC` and `C3B4019EBC588EC4D121252D3266A2B57CC110CB5EDD118ECA314B708CE82069`, and `stash@{0}` object `76bd3118f786b886a30dd81ce3b591f4e14f49fe`.
+
+## Develop navigation and safe Lens Blur depth checkpoint (2026-09-01)
+
+This checkpoint is manually accepted. It is based on `95ed0f180bc902f576acc403cfe58cc3329b84ba` and is the commit containing this section with message `feat: add develop navigation and safe lens blur depth control`.
+
+### Accepted Develop collapse and Jump-to behavior
+
+- Persisted, accessible collapse controls exist only for these eleven top-level Develop Sliders sections: White Balance, Tone, HDR / SDR Rendition, Presence, Color Mixer, Detail, Lens Corrections, Transform, Lens Blur, Effects, and Calibration. Collapse state is filtered through that exact allowlist before restore or persistence.
+- Dedicated Tone Curve and Color Grading tabs, Selection, Crop, Application, Retouching, individual sliders, and nested subsections have no collapse control or collapse identity. Collapsing an allowed Develop section first cancels active local slider, Point Color, Enhance Amount, and Lens Blur gestures; authoritative feedback polling continues for controls inside a collapsed body.
+- Develop Sliders, Tone Curve, and Color Grading expose the identical thirteen-entry Jump-to menu in exact Lightroom order: White Balance, Tone, HDR / SDR Rendition, Presence, Tone Curve, Color Mixer, Color Grading, Detail, Lens Corrections, Transform, Lens Blur, Effects, Calibration. The two dedicated entries use the existing tab-selection path; Develop entries retain heading-scroll navigation and existing collapse state.
+- The menu uses two column-major columns while width permits and switches to sequential one-column order only at `520px` or narrower. Width controls column count independently from height.
+- On open and window/visual-viewport resize, the menu measures the real usable height below its top edge with a small bottom margin. It expands naturally when all entries fit and uses contained `overflow-y: auto` only for genuine overflow. There is no arbitrary height cap, reserved scrollbar gutter, scroll-state listener, fade, or `More items` indicator.
+- The Jump-to menu is absent from Selection, Crop, Application, and Retouching. No dedicated-tab content was duplicated, moved, or re-rendered into Develop.
+
+### Accepted Lens Blur Visualize Depth path
+
+- Visualize Depth mutation uses the documented `LrDevelopController.toggleLensBlurDepthVisualization()` SDK call. The legacy Windows-native checkbox writer is not used for this control.
+- The Web request and queued command carry an explicit target plus selected-photo UUID, context counter, and Develop counter. Admission reads fresh authoritative native state, avoids a toggle when the target is already satisfied, and fails closed on stale or unavailable context.
+- The queue drops a command whose photo/context/Develop binding changes before dequeue. Lua rechecks Develop, target photo identity, and server context before the SDK call and verifies photo/module identity again afterward.
+- The Web Controller has no optimistic Visualize Depth state. It disables the switch while pending and settles only after authoritative native readback confirms the requested state in the same current context, with timeout and context-change cancellation.
+
+### Unsupported SDK boundary
+
+- A true Lightroom panel-eye preview switch remains unsupported: there is no accepted authoritative SDK state/mutation path, and LRBridge does not substitute UI automation, keyboard/mouse injection, coordinates, pixels, or optimistic browser state.
+- Lens Blur **+ New Refinement** remains unsupported for the same boundary: no accepted documented authoritative SDK command and feedback contract exists. Existing accepted Brush/Depth Refinement behavior is unchanged.
+
+### Verification and lifecycle
+
+- PASS: `test:section-collapse`, `test:controller-commands`, `test:sliders`, `test:controller-color-grading`, `test:color-grading`, `test:color-grading-transport`, `test:tone-curve`, `test:point-curve`, `test:develop-categorical`, `test:lens-blur`, `test:controller-feedback`, `test:controller-http`, `test:controller-proxy`, `test:input`, `test:transport`, and `test:http-transport`.
+- Explicit syntax validation passed for the focused changed tests and the Controller's single inline script. `git diff --check` passed. The exclusion audit found no `applyDevelopSettings`, persistent `Enable*` switch, New Refinement implementation, input injection, cursor movement, coordinate/pixel clicking, or native Visualize Depth checkbox writing.
+- Manual responsive, collapse, navigation, and Visualize Depth acceptance is complete. The running Web Controller serves `controller.html` and the collapse helper dynamically; the final responsive refinements required only browser refreshes. Do not repeat an LRBridge source restart or Lightroom plug-in reload for this checkpoint. No reload is currently required.
+
+### Preservation
+
+- Keep `config/settings.txt` local and unstaged with only `minimize_behavior=normal`; expected SHA-256 is `9ADBD48B3F4B42E32C2FA722F9A80313A7232A668BA40B0A7E44E11323D067E3`.
+- Keep protected hashes `FFE9E61A3AB6655F53762A13D07EEC0E4EA1C67FC56A22C60CD44F4866671BFC` and `C3B4019EBC588EC4D121252D3266A2B57CC110CB5EDD118ECA314B708CE82069`, and preserve `stash@{0}` object `76bd3118f786b886a30dd81ce3b591f4e14f49fe`.

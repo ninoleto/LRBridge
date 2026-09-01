@@ -322,7 +322,12 @@ const sectionContext = {
     createDevelopSliderControl: function (definition) {
         const row = fakeElement("control"); row.dataset.sliderId = definition.id; return row;
     },
-    appendTransformConstrainCropControl: function () {}
+    appendTransformConstrainCropControl: function () {},
+    decorateCollapsibleWhole: function () {},
+    developSectionCollapseIds: {
+        "hdr-sdr-rendition": "develop.hdr-sdr-rendition",
+        presence: "develop.presence"
+    }
 };
 const sectionRenderBlock = sourceBlock(controller, "function createDevelopSectionElement", "function invalidateHDRRenditionControls");
 vm.runInNewContext(sectionRenderBlock + "\nthis.createDevelopSectionElement = createDevelopSectionElement;", sectionContext);

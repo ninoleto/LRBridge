@@ -24,6 +24,41 @@ local function prepareDevelop()
     end
 end
 
+local function selectedPhoto()
+    local catalog = LrApplication.activeCatalog()
+    if catalog == nil then return nil end
+    local ok, photo = LrTasks.pcall(function() return catalog:getTargetPhoto() end)
+    if ok == true then return photo end
+    return nil
+end
+
+local function photoUuid(photo)
+    if photo == nil then return "" end
+    local ok, uuid = LrTasks.pcall(function() return photo:getRawMetadata("uuid") end)
+    if ok == true and uuid ~= nil then return tostring(uuid) end
+    return ""
+end
+
+local function jsonInteger(json, field)
+    if type(json) ~= "string" then return nil end
+    local value = string.match(json, '"' .. field .. '"%s*:%s*(%d+)')
+    return value and tonumber(value) or nil
+end
+
+local function jsonString(json, field)
+    if type(json) ~= "string" then return nil end
+    return string.match(json, '"' .. field .. '"%s*:%s*"([^"]*)"')
+end
+
+local function serverContextMatches(expectedSelectedPhotoUuid, expectedContextCounter, expectedDevelopCounter)
+    local ok, result = LrTasks.pcall(function() return LrHttp.get("http://127.0.0.1:17891/context") end)
+    if ok ~= true or type(result) ~= "string" then return false end
+    return jsonString(result, "activeModule") == "develop" and
+        jsonString(result, "selectedPhotoUuid") == expectedSelectedPhotoUuid and
+        jsonInteger(result, "contextCounter") == expectedContextCounter and
+        jsonInteger(result, "developCounter") == expectedDevelopCounter
+end
+
 local function urlEncode(value)
     return string.gsub(tostring(value), "([^%w%-_%.~])", function(character)
         return string.format("%%%02X", string.byte(character))
@@ -41,6 +76,28 @@ function LensBlur.setActive(enabled)
     if type(enabled) ~= "boolean" then error("Invalid Lens Blur Apply value") end
     prepareDevelop()
     LrDevelopController.setValue("LensBlurActive", enabled)
+    return true
+end
+
+function LensBlur.toggleDepthVisualization(enabled, expectedSelectedPhotoUuid, expectedContextCounter, expectedDevelopCounter)
+    if type(enabled) ~= "boolean" or type(expectedSelectedPhotoUuid) ~= "string" or expectedSelectedPhotoUuid == "" or
+        type(expectedContextCounter) ~= "number" or expectedContextCounter < 0 or expectedContextCounter ~= math.floor(expectedContextCounter) or
+        type(expectedDevelopCounter) ~= "number" or expectedDevelopCounter < 0 or expectedDevelopCounter ~= math.floor(expectedDevelopCounter) then
+        error("Invalid Lens Blur Visualize Depth command")
+    end
+    if not inDevelop() then error("Lens Blur Visualize Depth requires Develop") end
+    local beforePhoto = selectedPhoto()
+    if beforePhoto == nil or photoUuid(beforePhoto) ~= expectedSelectedPhotoUuid then
+        error("Lens Blur Visualize Depth photo changed")
+    end
+    if not serverContextMatches(expectedSelectedPhotoUuid, expectedContextCounter, expectedDevelopCounter) then
+        error("Lens Blur Visualize Depth context changed")
+    end
+    LrDevelopController.toggleLensBlurDepthVisualization()
+    local afterPhoto = selectedPhoto()
+    if not inDevelop() or afterPhoto ~= beforePhoto or photoUuid(afterPhoto) ~= expectedSelectedPhotoUuid then
+        error("Lens Blur Visualize Depth context changed during command")
+    end
     return true
 end
 

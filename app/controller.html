@@ -99,6 +99,72 @@
             margin-bottom: 8px;
         }
 
+        .collapsible-section-heading {
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+
+        .collapsible-section-label {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .collapsible-section-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 44px;
+            width: 44px;
+            min-width: 44px;
+            height: 44px;
+            min-height: 44px;
+            margin: -8px -8px -8px 0;
+            padding: 0;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .collapsible-section-toggle:hover {
+            border-color: #526678;
+            background: rgba(113, 198, 245, 0.1);
+        }
+
+        .collapsible-section-toggle:focus-visible {
+            outline: 3px solid #71c6f5;
+            outline-offset: 2px;
+        }
+
+        .collapsible-section-toggle svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transform: rotate(90deg);
+            transition: transform 140ms ease;
+        }
+
+        .collapsible-section-toggle[aria-expanded="false"] svg {
+            transform: rotate(0deg);
+        }
+
+        .collapsible-section-body[hidden] {
+            display: none !important;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .collapsible-section-toggle svg { transition: none; }
+        }
+
         .group[data-develop-section] {
             margin-top: 30px;
         }
@@ -1275,13 +1341,17 @@
 
         .slider-jump-popover {
             position: absolute;
+            box-sizing: border-box;
             left: 0;
             top: calc(100% - 2px);
             width: min(620px, calc(100vw - 42px));
-            max-height: min(70vh, 620px);
+            max-height: var(--slider-jump-available-height);
             overflow-y: auto;
+            overscroll-behavior: contain;
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: repeat(7, auto);
+            grid-auto-flow: column;
             gap: 10px;
             padding: 14px;
             border: 2px solid #d18a36;
@@ -1337,9 +1407,33 @@
                 flex-basis: 210px;
             }
 
+        }
+
+        @media (max-width: 520px) {
             .slider-jump-popover {
                 width: calc(100vw - 42px);
                 grid-template-columns: 1fr;
+                grid-template-rows: none;
+                grid-auto-flow: row;
+                padding-right: 10px;
+                scrollbar-color: #ffc066 #241508;
+                scrollbar-width: auto;
+            }
+
+            .slider-jump-popover::-webkit-scrollbar {
+                width: 14px;
+            }
+
+            .slider-jump-popover::-webkit-scrollbar-track {
+                background: #241508;
+                border-left: 1px solid #d18a36;
+            }
+
+            .slider-jump-popover::-webkit-scrollbar-thumb {
+                min-height: 42px;
+                border: 3px solid #241508;
+                border-radius: 999px;
+                background: #ffc066;
             }
         }
 
@@ -2043,6 +2137,7 @@
     <script src="/controller-develop-categorical.js"></script>
     <script src="/controller-lens-blur.js"></script>
     <script src="/controller-tone-curve.js"></script>
+    <script src="/controller-section-collapse.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -2651,6 +2746,30 @@
 
         const controllerTabStorageKey = "lrbridge.controller.activeTab";
         const controllerTabIds = ["sliders", "color-grading", "tone-curve", "selection", "crop", "application", "retouching"];
+        const sectionCollapseDefinitions = Object.freeze({
+            "develop.white-balance": "White Balance",
+            "develop.tone": "Tone",
+            "develop.hdr-sdr-rendition": "HDR / SDR Rendition",
+            "develop.presence": "Presence",
+            "develop.color-mixer": "Color Mixer",
+            "develop.detail": "Detail",
+            "develop.lens-corrections": "Lens Corrections",
+            "develop.transform": "Transform",
+            "develop.lens-blur": "Lens Blur",
+            "develop.effects": "Effects",
+            "develop.calibration": "Calibration"
+        });
+        const sectionCollapseManager = window.LRBridgeSectionCollapse &&
+            typeof window.LRBridgeSectionCollapse.createManager === "function"
+            ? window.LRBridgeSectionCollapse.createManager({
+                document: document,
+                storage: window.localStorage,
+                definitions: sectionCollapseDefinitions,
+                onBeforeCollapse: function (sectionId, sectionName) {
+                    cancelActiveControllerGestures("Collapsing " + sectionName + " cancelled the active adjustment gesture.");
+                }
+            })
+            : null;
 
         function normalizeControllerTab(tab) {
             if (tab === "healing" || tab === "redEye" || tab === "masking") return "retouching";
@@ -2676,6 +2795,11 @@
 
         function setStatus(message) {
             statusBox.textContent = message;
+        }
+
+        function decorateCollapsibleWhole(parent, heading, sectionId, sectionName) {
+            if (!sectionCollapseManager || !sectionId) return null;
+            return sectionCollapseManager.decorateWhole(parent, heading, sectionId, sectionName);
         }
 
         function formatResponseText(text) {
@@ -2886,12 +3010,20 @@
         }
 
         function getSliderJumpSections() {
-            return developSectionDisplayOrder.map(function (section) {
-                return {
+            const sections = [];
+            developSectionDisplayOrder.forEach(function (section) {
+                sections.push({
                     id: section.id,
-                    label: getDevelopSectionDisplayLabel(section)
-                };
+                    label: section.label
+                });
+                if (section.id === "presence") {
+                    sections.push({ tab: "tone-curve", label: "Tone Curve" });
+                }
+                if (section.id === "color-mixer") {
+                    sections.push({ tab: "color-grading", label: "Color Grading" });
+                }
             });
+            return sections;
         }
 
         function findSliderJumpHeading(content, sectionId) {
@@ -2900,8 +3032,23 @@
             );
         }
 
+        function isSliderJumpMenuTab(tab) {
+            return tab === "sliders" || tab === "tone-curve" || tab === "color-grading";
+        }
+
+        function getSliderJumpMenuSections(tab) {
+            return isSliderJumpMenuTab(tab) ? getSliderJumpSections() : [];
+        }
+
+        function getSliderJumpMenuHost() {
+            if (!isSliderJumpMenuTab(activeTab)) return null;
+            if (activeTab === "color-grading") return document.getElementById("colorGradingWorkspace");
+            return document.getElementById("content");
+        }
+
         let sliderJumpDockObserver = null;
         let sliderJumpDockSentinel = null;
+        let sliderJumpViewportResizeHandler = null;
         let sliderJumpUndoButton = null;
         let sliderJumpRedoButton = null;
         const historyActionCooldownMs = 3000;
@@ -2975,8 +3122,13 @@
         function disconnectSliderJumpDockObserver() {
             if (sliderJumpDockObserver) sliderJumpDockObserver.disconnect();
             if (sliderJumpDockSentinel) sliderJumpDockSentinel.remove();
+            if (sliderJumpViewportResizeHandler) {
+                window.removeEventListener("resize", sliderJumpViewportResizeHandler);
+                if (window.visualViewport) window.visualViewport.removeEventListener("resize", sliderJumpViewportResizeHandler);
+            }
             sliderJumpDockObserver = null;
             sliderJumpDockSentinel = null;
+            sliderJumpViewportResizeHandler = null;
         }
 
         function observeSliderJumpDocking(control, sentinel) {
@@ -2992,24 +3144,51 @@
             sliderJumpDockObserver.observe(sentinel);
         }
 
+        function calculateSliderJumpAvailableHeight(popoverTop, viewportHeight, viewportOffsetTop) {
+            const viewportBottom = viewportOffsetTop + viewportHeight;
+            return Math.max(0, Math.floor(viewportBottom - popoverTop - 12));
+        }
+
+        function removeSliderJumpMenus() {
+            disconnectSliderJumpDockObserver();
+            [
+                document.getElementById("content"),
+                document.getElementById("colorGradingWorkspace")
+            ].filter(Boolean).forEach(function (host) {
+                const control = host.querySelector(".slider-jump-control");
+                const sentinel = host.querySelector(".slider-jump-sentinel");
+                if (control) control.remove();
+                if (sentinel) sentinel.remove();
+            });
+            sliderJumpUndoButton = null;
+            sliderJumpRedoButton = null;
+        }
+
         function installSliderJumpMenu() {
-            const contentHost = document.getElementById("content");
+            const contentHost = getSliderJumpMenuHost();
+            const possibleHosts = [
+                document.getElementById("content"),
+                document.getElementById("colorGradingWorkspace")
+            ].filter(Boolean);
+            const hasStaleMenu = possibleHosts.some(function (host) {
+                return host !== contentHost && !!host.querySelector(".slider-jump-control");
+            });
+
+            if (hasStaleMenu) disconnectSliderJumpDockObserver();
+            possibleHosts.forEach(function (host) {
+                if (host === contentHost) return;
+                const staleControl = host.querySelector(".slider-jump-control");
+                const staleSentinel = host.querySelector(".slider-jump-sentinel");
+                if (staleControl) staleControl.remove();
+                if (staleSentinel) staleSentinel.remove();
+            });
 
             if (!contentHost) {
+                removeSliderJumpMenus();
                 return;
             }
 
             const existing = contentHost.querySelector(".slider-jump-control");
-
-            if (!contentHost.querySelector(".develop-slider-row")) {
-                disconnectSliderJumpDockObserver();
-                sliderJumpUndoButton = null; sliderJumpRedoButton = null;
-                if (existing) {
-                    existing.remove();
-                }
-
-                return;
-            }
 
             if (existing) {
                 return;
@@ -3017,21 +3196,25 @@
 
             disconnectSliderJumpDockObserver();
 
-            const sections = getSliderJumpSections()
+            const sections = getSliderJumpMenuSections(activeTab)
                 .map(function (section) {
-                    const heading = findSliderJumpHeading(contentHost, section.id);
-
-                    if (!heading) {
-                        return null;
+                    if (section.tab) {
+                        return {
+                            tab: section.tab,
+                            name: section.label
+                        };
                     }
-
+                    const heading = findSliderJumpHeading(contentHost, section.id);
                     const id = "slider-jump-section-" + section.id;
 
-                    heading.id = id;
-                    heading.classList.add("slider-jump-target");
+                    if (heading) {
+                        heading.id = id;
+                        heading.classList.add("slider-jump-target");
+                    }
 
                     return {
                         id: id,
+                        developSectionId: section.id,
                         name: section.label
                     };
                 })
@@ -3079,6 +3262,23 @@
             popover.className = "slider-jump-popover";
             popover.hidden = true;
 
+            function updateSliderJumpPopoverLayout() {
+                if (popover.hidden) return;
+                const visualViewport = window.visualViewport;
+                const viewportHeight = visualViewport && Number.isFinite(visualViewport.height)
+                    ? visualViewport.height
+                    : window.innerHeight;
+                const viewportOffsetTop = visualViewport && Number.isFinite(visualViewport.offsetTop)
+                    ? visualViewport.offsetTop
+                    : 0;
+                const availableHeight = calculateSliderJumpAvailableHeight(
+                    popover.getBoundingClientRect().top,
+                    viewportHeight,
+                    viewportOffsetTop
+                );
+                popover.style.setProperty("--slider-jump-available-height", availableHeight + "px");
+            }
+
             function closeMenu() {
                 popover.hidden = true;
                 mainButton.classList.remove("active");
@@ -3089,6 +3289,7 @@
                 popover.hidden = false;
                 mainButton.classList.add("active");
                 mainButton.setAttribute("aria-expanded", "true");
+                updateSliderJumpPopoverLayout();
             }
 
             mainButton.addEventListener("click", function () {
@@ -3099,6 +3300,23 @@
                 }
             });
 
+            function activateSliderJumpEntry(section) {
+                if (!section) return false;
+                if (section.tab) {
+                    selectControllerTab(section.tab, true);
+                    return true;
+                }
+                if (!section.developSectionId || !section.id) return false;
+                if (activeTab !== "sliders") selectControllerTab("sliders", true);
+                const target = document.getElementById(section.id);
+                if (!target) return false;
+                target.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+                return true;
+            }
+
             sections.forEach(function (section) {
                 const option = document.createElement("button");
                 option.type = "button";
@@ -3106,17 +3324,10 @@
                 option.textContent = section.name;
 
                 option.addEventListener("click", function () {
-                    const target = document.getElementById(section.id);
-
                     mainButton.textContent = section.name + " ▾";
                     closeMenu();
 
-                    if (target) {
-                        target.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start"
-                        });
-                    }
+                    activateSliderJumpEntry(section);
                 });
 
                 popover.appendChild(option);
@@ -3155,6 +3366,9 @@
             contentHost.insertBefore(sentinel, insertionPoint);
             contentHost.insertBefore(control, insertionPoint);
             observeSliderJumpDocking(control, sentinel);
+            sliderJumpViewportResizeHandler = updateSliderJumpPopoverLayout;
+            window.addEventListener("resize", sliderJumpViewportResizeHandler);
+            if (window.visualViewport) window.visualViewport.addEventListener("resize", sliderJumpViewportResizeHandler);
             requestHistoryState();
         }
 
@@ -3367,6 +3581,8 @@
         let lensBlurNativeControls = {};
         let lensBlurVisualizeButtons = null;
         let lensBlurAutoMaskButtons = null;
+        let lensBlurVisualizePending = null;
+        const LENS_BLUR_VISUALIZE_CONFIRMATION_TIMEOUT_MS = 7000;
         let lensBlurModeButtons = null;
         let lensBlurRefinementResetButton = null;
         let lensBlurFocusRangeView = null;
@@ -3853,6 +4069,14 @@
                     return;
                 }
 
+                const collapsedBody = typeof element.closest === "function"
+                    ? element.closest(".collapsible-section-body[hidden]")
+                    : null;
+                if (collapsedBody) {
+                    visibleSliders.push(slider);
+                    return;
+                }
+
                 const rect = element.getBoundingClientRect();
 
                 if (
@@ -3958,6 +4182,10 @@
                     lastHeartbeatAt: lastControllerHeartbeatAt
                 };
                 const classification = classifyControllerContextChange(previous, data);
+                if (lensBlurVisualizePending &&
+                    !lensBlurVisualizeBindingMatches(lensBlurVisualizePending.binding, data)) {
+                    clearLensBlurVisualizePending("Visualize Depth context changed before confirmation", true);
+                }
                 if (parametricCurveGesture && (
                     data.selectedPhotoUuid !== parametricCurveGesture.selectedPhotoUuid ||
                     data.contextCounter !== parametricCurveGesture.contextCounter ||
@@ -5691,16 +5919,19 @@
             return row;
         }
 
-        function updateLensBlurExplicitSwitch(control, state) {
+        function updateLensBlurExplicitSwitch(control, state, pending) {
             if (!control) return;
             const available = state && state.available === true && typeof state.value === "boolean";
-            control.off.disabled = !available;
-            control.on.disabled = !available;
+            const busy = !!pending;
+            control.off.disabled = !available || busy;
+            control.on.disabled = !available || busy;
             control.off.classList.toggle("active", available && state.value === false);
             control.on.classList.toggle("active", available && state.value === true);
             control.off.setAttribute("aria-pressed", String(available && state.value === false));
             control.on.setAttribute("aria-pressed", String(available && state.value === true));
-            control.status.textContent = available ? (state.value ? "On" : "Off") : "Unavailable";
+            control.status.textContent = busy
+                ? (pending.target ? "Turning On…" : "Turning Off…")
+                : (available ? (state.value ? "On" : "Off") : "Unavailable");
         }
 
         function syncLensBlurNumberEditor(input, editorState) {
@@ -5965,7 +6196,7 @@
             Object.keys(lensBlurNativeControls).forEach(function (name) {
                 updateLensBlurNativeSlider(lensBlurNativeControls[name], presentation.brush[name]);
             });
-            updateLensBlurExplicitSwitch(lensBlurVisualizeButtons, presentation.visualizeDepth);
+            updateLensBlurExplicitSwitch(lensBlurVisualizeButtons, presentation.visualizeDepth, lensBlurVisualizePending);
             updateLensBlurExplicitSwitch(lensBlurAutoMaskButtons, presentation.autoMask);
             if (lensBlurModeButtons) {
                 const focusSelected = presentation.refinementMode === "focus";
@@ -6587,6 +6818,109 @@
             return accepted;
         }
 
+        function lensBlurVisualizeBindingFromCurrentContext() {
+            if (lastControllerActiveModule !== "develop" ||
+                typeof lastControllerSelectedPhotoUuid !== "string" || lastControllerSelectedPhotoUuid === "" ||
+                !Number.isSafeInteger(lastControllerContextCounter) || lastControllerContextCounter < 0 ||
+                !Number.isSafeInteger(lastControllerDevelopCounter) || lastControllerDevelopCounter < 0) return null;
+            return {
+                activeModule: "develop",
+                selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                contextCounter: lastControllerContextCounter,
+                developCounter: lastControllerDevelopCounter
+            };
+        }
+
+        function lensBlurVisualizeBindingMatches(binding, contextFields) {
+            return !!binding && !!contextFields && contextFields.activeModule === "develop" &&
+                contextFields.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                contextFields.contextCounter === binding.contextCounter &&
+                contextFields.developCounter === binding.developCounter;
+        }
+
+        function lensBlurResponseContextMatchesCurrent(contextFields) {
+            return !!contextFields && contextFields.activeModule === lastControllerActiveModule &&
+                contextFields.selectedPhotoUuid === lastControllerSelectedPhotoUuid &&
+                contextFields.contextCounter === lastControllerContextCounter &&
+                contextFields.developCounter === lastControllerDevelopCounter;
+        }
+
+        function clearLensBlurVisualizePending(message, error) {
+            if (!lensBlurVisualizePending) return;
+            if (lensBlurVisualizePending.timer !== null) clearTimeout(lensBlurVisualizePending.timer);
+            lensBlurVisualizePending = null;
+            if (message) setStatus((error ? "ERROR: " : "OK: ") + message);
+            updateLensBlurPresentation();
+        }
+
+        function observeLensBlurVisualizeFeedback(responseContext) {
+            if (!lensBlurVisualizePending) return;
+            if (!lensBlurVisualizeBindingMatches(lensBlurVisualizePending.binding, responseContext)) {
+                clearLensBlurVisualizePending("Visualize Depth context changed before confirmation", true);
+                return;
+            }
+            const presentation = lensBlurHelper.presentationFor(lensBlurModel.get());
+            const state = presentation && presentation.visualizeDepth;
+            if (state && state.available === true && typeof state.value === "boolean" &&
+                state.value === lensBlurVisualizePending.target) {
+                clearLensBlurVisualizePending("Lightroom Visualize Depth state verified", false);
+            }
+        }
+
+        async function setLensBlurVisualizeDepth(enabled) {
+            if (!lensBlurHelper || typeof enabled !== "boolean" || lensBlurVisualizePending) return false;
+            const presentation = lensBlurHelper.presentationFor(lensBlurModel.get());
+            const current = presentation && presentation.visualizeDepth;
+            const binding = lensBlurVisualizeBindingFromCurrentContext();
+            if (!binding || !current || current.available !== true || typeof current.value !== "boolean") return false;
+            if (current.value === enabled) return true;
+
+            lensBlurVisualizePending = { target: enabled, binding: binding, timer: null };
+            updateLensBlurPresentation();
+            const query = [
+                "enabled=" + String(enabled),
+                "selectedPhotoUuid=" + encodeURIComponent(binding.selectedPhotoUuid),
+                "contextCounter=" + encodeURIComponent(String(binding.contextCounter)),
+                "developCounter=" + encodeURIComponent(String(binding.developCounter))
+            ].join("&");
+            const path = "/api/lens-blur/visualize-depth?" + query;
+            setStatus("Sending: " + path);
+            try {
+                const response = await fetch(path, { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data || data.ok !== true || !data.windowsNative) {
+                    throw new Error(data && data.error ? data.error : "Visualize Depth unavailable");
+                }
+                if (!lensBlurVisualizePending || !lensBlurVisualizeBindingMatches(binding, {
+                    activeModule: lastControllerActiveModule,
+                    selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter,
+                    developCounter: lastControllerDevelopCounter
+                })) return false;
+                lensBlurModel.applyWindowsNative(data.windowsNative);
+                if (data.changed === false) {
+                    clearLensBlurVisualizePending("Lightroom Visualize Depth state verified", false);
+                    updateLensBlurPresentation();
+                    return true;
+                }
+                lensBlurVisualizePending.timer = setTimeout(function () {
+                    if (!lensBlurVisualizePending || lensBlurVisualizePending.binding !== binding) return;
+                    clearLensBlurVisualizePending("Lightroom did not confirm Visualize Depth", true);
+                    updateLensBlurPresentation();
+                    requestLensBlurState();
+                }, LENS_BLUR_VISUALIZE_CONFIRMATION_TIMEOUT_MS);
+                setStatus("OK: Visualize Depth command accepted; awaiting authoritative Lightroom state");
+                updateLensBlurPresentation();
+                requestLensBlurState();
+                return true;
+            } catch (error) {
+                clearLensBlurVisualizePending(error.message || "Visualize Depth unavailable", true);
+                updateLensBlurPresentation();
+                requestLensBlurState();
+                return false;
+            }
+        }
+
         async function requestLensBlurState() {
             if (!lensBlurHelper || activeTab !== "sliders" || lensBlurStateRequestInFlight) return;
             lensBlurStateRequestInFlight = true;
@@ -6595,9 +6929,17 @@
                 const data = await response.json();
                 if (!response.ok || !data || !data.state) throw new Error("Lens Blur state unavailable");
                 if (activeTab !== "sliders") return;
+                const responseContext = data.context;
+                if (!lensBlurResponseContextMatchesCurrent(responseContext)) {
+                    if (lensBlurVisualizePending) {
+                        clearLensBlurVisualizePending("Visualize Depth context changed before confirmation", true);
+                    }
+                    return;
+                }
                 if (Number.isSafeInteger(data.revision)) lensBlurStateRevision = data.revision;
                 lensBlurFocalRangeCommitId = typeof data.focalRangeCommitId === "string" ? data.focalRangeCommitId : null;
                 lensBlurModel.applyAuthoritative(data.state);
+                observeLensBlurVisualizeFeedback(responseContext);
             } catch (err) {
                 lensBlurModel.applyAuthoritative(null);
             } finally {
@@ -7270,6 +7612,8 @@
                 finishEvent.preventDefault();
             }
 
+            drag.cancel = cancelDrag;
+
             target.addEventListener("pointermove", move);
             target.addEventListener("pointerup", finish);
             target.addEventListener("pointercancel", finish);
@@ -7428,7 +7772,7 @@
             groupElement.appendChild(lensBlurFocusRangeView.root);
 
             lensBlurVisualizeButtons = createLensBlurExplicitSwitch("Visualize Depth", function (enabled) {
-                sendLensBlurNativeRequest("/api/lens-blur/visualize-depth?enabled=" + String(enabled));
+                setLensBlurVisualizeDepth(enabled);
             });
             groupElement.appendChild(lensBlurVisualizeButtons.row);
 
@@ -8110,6 +8454,88 @@
             });
         });
 
+        function cancelPointColorLocalGestures() {
+            let cancelled = false;
+            Object.keys(pointColorControls).forEach(function (field) {
+                const control = pointColorControls[field];
+                if (control.timer !== null) {
+                    clearTimeout(control.timer);
+                    control.timer = null;
+                    cancelled = true;
+                }
+                if (control.editing || control.dirty) cancelled = true;
+                control.editing = false;
+                control.dirty = false;
+                const authoritative = pointColorState && pointColorState[field];
+                if (typeof authoritative === "number" && Number.isFinite(authoritative)) {
+                    const ui = pointColorSdkToUi(authoritative);
+                    control.committed = ui;
+                    control.range.value = String(ui);
+                    control.number.value = String(ui);
+                }
+            });
+            Object.keys(pointColorRangeControls).forEach(function (rangeName) {
+                const control = pointColorRangeControls[rangeName];
+                if (control.cancel()) cancelled = true;
+                const range = pointColorState && pointColorState[rangeName];
+                if (range && typeof control.applyAuthoritative === "function") {
+                    control.applyAuthoritative(range, getPointColorRangeMarker(rangeName, pointColorState));
+                }
+            });
+            return cancelled;
+        }
+
+        function cancelEnhanceAmountGesture() {
+            const cancelled = enhanceAmountDebounceTimer !== null || enhanceAmountModel.editing ||
+                enhanceAmountModel.debouncePending;
+            if (enhanceAmountDebounceTimer !== null) clearTimeout(enhanceAmountDebounceTimer);
+            enhanceAmountDebounceTimer = null;
+            if (typeof enhanceAmountModel.cancelLocal === "function") enhanceAmountModel.cancelLocal();
+            if (enhanceAmountInput && enhanceAmountRange) {
+                displayDenoiseAmount(enhanceAmountModel.displayedAmount, true);
+                updateEnhanceControls();
+            }
+            return cancelled;
+        }
+
+        function cancelLensBlurLocalGestures() {
+            let cancelled = false;
+            Object.keys(lensBlurNativeControls).forEach(function (name) {
+                const control = lensBlurNativeControls[name];
+                if (control.dragging) {
+                    finishLensBlurNativeRange(control, null, false);
+                    cancelled = true;
+                }
+                const editorState = control.editor && control.editor.get ? control.editor.get() : null;
+                if (editorState && editorState.editing) {
+                    syncLensBlurNumberEditor(control.number, control.editor.cancel());
+                    cancelled = true;
+                }
+            });
+            const view = lensBlurFocusRangeView;
+            if (view && view.drag && typeof view.drag.cancel === "function") {
+                view.drag.cancel();
+                cancelled = true;
+            }
+            return cancelled;
+        }
+
+        function cancelActiveControllerGestures(message) {
+            let cancelled = false;
+            Array.from(activeSliderInteractions).forEach(function (slider) {
+                const control = developSliderControls[slider];
+                if (control && control.cancelInteraction) {
+                    control.cancelInteraction();
+                    cancelled = true;
+                }
+            });
+            if (cancelPointColorLocalGestures()) cancelled = true;
+            if (cancelEnhanceAmountGesture()) cancelled = true;
+            if (cancelLensBlurLocalGestures()) cancelled = true;
+            if (cancelled && message) setStatus(message);
+            return cancelled;
+        }
+
         function visibleWebControllerActions(group) {
             return (group && Array.isArray(group.actions) ? group.actions : []).filter(function (item) {
                 return item.hiddenInWebController !== true;
@@ -8690,6 +9116,19 @@
             { id: "effects", label: "Effects", selectors: [{ group: "Effects" }] },
             { id: "calibration", label: "Calibration", selectors: [{ group: "Calibration" }] }
         ]);
+        const developSectionCollapseIds = Object.freeze({
+            "white-balance": "develop.white-balance",
+            tone: "develop.tone",
+            "hdr-sdr-rendition": "develop.hdr-sdr-rendition",
+            presence: "develop.presence",
+            "color-mixer": "develop.color-mixer",
+            detail: "develop.detail",
+            "lens-corrections": "develop.lens-corrections",
+            transform: "develop.transform",
+            "lens-blur": "develop.lens-blur",
+            effects: "develop.effects",
+            calibration: "develop.calibration"
+        });
 
         const colorMixerDefinitions = Object.freeze([
             { key: "red", label: "Red", hue: "HueAdjustmentRed", saturation: "SaturationAdjustmentRed", luminance: "LuminanceAdjustmentRed" },
@@ -8855,11 +9294,11 @@
             const fullBox = document.createElement("button"); fullBox.type = "button"; fullBox.className = "point-color-range-full-box";
             fullBox.setAttribute("role", "slider"); fullBox.setAttribute("aria-label", label + " full range translation");
             const markerElement = document.createElement("div"); markerElement.className = "point-color-range-marker";
-            const values = {}; const handles = {}; const timers = {}; const active = {};
+            const values = {}; const handles = {}; const timers = {}; const active = {}; const pointerIds = {};
             let markerSdkExact = sdkMarker; let markerLimits = pointColorMarkerIntegerLimits(markerSdkExact);
             let markerUiExact = markerLimits.markerUiExact; let lowerFullMaxUi = markerLimits.lowerFullMaxUi; let upperFullMinUi = markerLimits.upperFullMinUi;
             const dirtyBoundaries = {};
-            let groupActive = false; let groupStartX = 0; let groupStartValues = null;
+            let groupActive = false; let groupPointerId = null; let groupStartX = 0; let groupStartValues = null;
             pointColorRangeBoundaries.forEach(function (boundary) { values[boundary] = pointColorSdkToUi(sdkRange[boundary]); timers[boundary] = null; active[boundary] = false; });
             function clampBoundary(boundary, value) {
                 value = Math.max(0, Math.min(100, Math.round(value)));
@@ -8909,9 +9348,9 @@
                 handle.setAttribute("role", "slider"); handle.setAttribute("aria-valuemin", "0"); handle.setAttribute("aria-valuemax", "100");
                 handle.setAttribute("aria-label", label + " " + boundary.replace(/([A-Z])/g, " $1").trim()); handles[boundary] = handle;
                 if (boundary === "LowerFull" || boundary === "UpperFull") fullBox.appendChild(handle); else track.appendChild(handle);
-                handle.addEventListener("pointerdown", function (event) { active[boundary] = true; handle.setPointerCapture(event.pointerId); event.preventDefault(); });
+                handle.addEventListener("pointerdown", function (event) { active[boundary] = true; pointerIds[boundary] = event.pointerId; handle.setPointerCapture(event.pointerId); event.preventDefault(); });
                 handle.addEventListener("pointermove", function (event) { if (!active[boundary]) return; const rect = track.getBoundingClientRect(); queue(boundary, ((event.clientX - rect.left) / rect.width) * 100, false); });
-                function finish(event, commit) { if (!active[boundary]) return; active[boundary] = false; if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId); if (commit) queue(boundary, values[boundary], true); }
+                function finish(event, commit) { if (!active[boundary]) return; active[boundary] = false; pointerIds[boundary] = null; if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId); if (commit) queue(boundary, values[boundary], true); }
                 handle.addEventListener("pointerup", function (event) { finish(event, true); });
                 handle.addEventListener("pointercancel", function (event) { finish(event, true); });
                 handle.addEventListener("lostpointercapture", function (event) { finish(event, true); });
@@ -8922,7 +9361,7 @@
             });
             fullBox.addEventListener("pointerdown", function (event) {
                 if (event.target !== fullBox) return;
-                groupActive = true; groupStartX = event.clientX; groupStartValues = Object.assign({}, values); fullBox.setPointerCapture(event.pointerId); event.preventDefault();
+                groupActive = true; groupPointerId = event.pointerId; groupStartX = event.clientX; groupStartValues = Object.assign({}, values); fullBox.setPointerCapture(event.pointerId); event.preventDefault();
             });
             fullBox.addEventListener("pointermove", function (event) {
                 if (!groupActive) return;
@@ -8930,7 +9369,7 @@
                 Object.assign(values, next); pointColorRangeBoundaries.forEach(function (boundary) { dirtyBoundaries[boundary] = true; }); paint();
             });
             function finishGroup(event, commit) {
-                if (!groupActive) return; groupActive = false;
+                if (!groupActive) return; groupActive = false; groupPointerId = null;
                 if (fullBox.hasPointerCapture(event.pointerId)) fullBox.releasePointerCapture(event.pointerId);
                 if (commit) enqueuePointColorRangeTranslation(rangeName, values, pointColorState.selectedIndex, pointColorEditGeneration);
             }
@@ -8957,7 +9396,28 @@
                     }); paint();
                 },
                 markerSdkExact: function () { return markerSdkExact; }, markerUiExact: function () { return markerUiExact; }, translatedRange: translatedRange,
-                cancel: function () { groupActive = false; pointColorRangeBoundaries.forEach(function (boundary) { if (timers[boundary] !== null) clearTimeout(timers[boundary]); timers[boundary] = null; active[boundary] = false; }); }
+                cancel: function () {
+                    const wasActive = groupActive || pointColorRangeBoundaries.some(function (boundary) {
+                        return active[boundary] || timers[boundary] !== null;
+                    });
+                    if (groupActive && groupPointerId !== null && fullBox.hasPointerCapture && fullBox.hasPointerCapture(groupPointerId)) {
+                        fullBox.releasePointerCapture(groupPointerId);
+                    }
+                    groupActive = false;
+                    groupPointerId = null;
+                    pointColorRangeBoundaries.forEach(function (boundary) {
+                        const pointerId = pointerIds[boundary];
+                        if (active[boundary] && pointerId !== null && pointerId !== undefined &&
+                            handles[boundary].hasPointerCapture && handles[boundary].hasPointerCapture(pointerId)) {
+                            handles[boundary].releasePointerCapture(pointerId);
+                        }
+                        pointerIds[boundary] = null;
+                        if (timers[boundary] !== null) clearTimeout(timers[boundary]);
+                        timers[boundary] = null;
+                        active[boundary] = false;
+                    });
+                    return wasActive;
+                }
             };
         }
 
@@ -9504,10 +9964,12 @@
             groupElement.appendChild(title);
             if (section.id === "lens-corrections") {
                 renderLensCorrectionsSection(groupElement, section);
+                finalizeDevelopSectionCollapsing(groupElement, section, title);
                 return groupElement;
             }
             if (section.id === "lens-blur") {
                 renderLensBlurSection(groupElement, section);
+                finalizeDevelopSectionCollapsing(groupElement, section, title);
                 return groupElement;
             }
             appendSectionCategoricalControls(groupElement, section.id);
@@ -9518,6 +9980,7 @@
             }
             if (section.id === "color-mixer" && !treatmentAuthoritativeState) {
                 createColorMixerPresentation(groupElement, section);
+                finalizeDevelopSectionCollapsing(groupElement, section, title);
                 return groupElement;
             }
             let currentSubheading = null;
@@ -9564,7 +10027,33 @@
             if (section.id === "transform") appendTransformConstrainCropControl(groupElement);
             const trailingControls = createSectionControls(section, "trailing");
             if (trailingControls) groupElement.appendChild(trailingControls);
+            finalizeDevelopSectionCollapsing(groupElement, section, title);
             return groupElement;
+        }
+
+        function finalizeDevelopSectionCollapsing(groupElement, section, title) {
+            if (!groupElement || !section) return;
+            const directChildren = Array.from(groupElement.children || []);
+            function hasClass(child, className) {
+                if (child.classList && typeof child.classList.contains === "function") {
+                    return child.classList.contains(className);
+                }
+                return String(child.className || "").split(/\s+/).includes(className);
+            }
+            if (section.id === "white-balance") {
+                const whiteBalanceHeading = directChildren.find(function (child) {
+                    return hasClass(child, "develop-white-balance-title");
+                });
+                if (whiteBalanceHeading) {
+                    title = whiteBalanceHeading;
+                }
+            }
+            decorateCollapsibleWhole(
+                groupElement,
+                title,
+                developSectionCollapseIds[section.id],
+                section.label
+            );
         }
 
         function invalidateHDRRenditionControls() {
@@ -10103,6 +10592,7 @@
             if (colorGradingActive) {
                 deactivateDevelopFeedbackPolling();
                 colorGradingController.activate();
+                installSliderJumpMenu();
                 return;
             }
 
@@ -10119,17 +10609,20 @@
             if (activeTab === "sliders") {
                 renderSlidersTab();
                 activateDevelopFeedbackPolling();
+                installSliderJumpMenu();
                 return;
             }
 
             if (activeTab === "tone-curve") {
                 renderToneCurveTab();
                 activateDevelopFeedbackPolling();
+                installSliderJumpMenu();
                 return;
             }
 
             if (activeTab === "selection") {
                 renderCommandGroups(selectionGroups);
+                removeSliderJumpMenus();
                 return;
             }
 
@@ -10137,16 +10630,19 @@
                 renderCropTab();
                 if (genericFeedbackActive) requestLiveFeedbackSnapshot(true);
                 else activateDevelopFeedbackPolling();
+                removeSliderJumpMenus();
                 return;
             }
 
             if (activeTab === "application") {
                 renderCommandGroups(applicationGroups);
+                removeSliderJumpMenus();
                 return;
             }
 
             if (activeTab === "retouching") {
                 renderRetouchingTab();
+                removeSliderJumpMenus();
                 return;
             }
         }

@@ -154,6 +154,7 @@ function validateCommand(command) {
         ,"lightroom.redo"
         ,"lens_blur.active.set"
         ,"lens_blur.bokeh.set"
+        ,"lens_blur.depth_visualization.toggle"
         ,"lens_blur.depth_refinement.select"
         ,"lens_blur.depth_refinement.close"
         ,"lens_blur.focal_range.set"
@@ -272,6 +273,13 @@ function validateCommand(command) {
     }
     if (command.command === "lens_blur.bokeh.set") {
         return Object.keys(command).length === 2 && lensBlur.bokehValues.includes(command.value);
+    }
+    if (command.command === "lens_blur.depth_visualization.toggle") {
+        return Object.keys(command).length === 5 && typeof command.enabled === "boolean" &&
+            typeof command.expectedSelectedPhotoUuid === "string" && command.expectedSelectedPhotoUuid.length >= 1 &&
+            command.expectedSelectedPhotoUuid.length <= 160 &&
+            Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
+            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0;
     }
     if (command.command === "lens_blur.depth_refinement.select" || command.command === "lens_blur.depth_refinement.close") {
         return Object.keys(command).length === 1;
@@ -881,6 +889,12 @@ function pointCurveCommandBindingMatches(command) {
         fields.contextCounter === command.expectedContextCounter && fields.developCounter === command.expectedDevelopCounter;
 }
 
+function lensBlurDepthVisualizationBindingMatches(command) {
+    const fields = context.getContextFields();
+    return fields.activeModule === "develop" && fields.selectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+        fields.contextCounter === command.expectedContextCounter && fields.developCounter === command.expectedDevelopCounter;
+}
+
 function contextBoundDevelopCommandMatches(command) {
     if (!isContextBoundDevelopCommand(command)) return true;
     const fields = context.getContextFields();
@@ -915,6 +929,8 @@ function getNextCommand() {
             command.command === "tone_curve.refine_saturation.gesture.update" ||
             command.command === "tone_curve.refine_saturation.reset" ||
             command.command === "tone_curve.preset.set") && !pointCurveCommandBindingMatches(command)) continue;
+        if (command.command === "lens_blur.depth_visualization.toggle" &&
+            !lensBlurDepthVisualizationBindingMatches(command)) continue;
         return command;
     }
     return null;
@@ -960,6 +976,7 @@ function getQueueDiagnostics(nowMs) {
         ,"lightroom.redo": 0
         ,"lens_blur.active.set": 0
         ,"lens_blur.bokeh.set": 0
+        ,"lens_blur.depth_visualization.toggle": 0
         ,"lens_blur.depth_refinement.select": 0
         ,"lens_blur.depth_refinement.close": 0
         ,"lens_blur.focal_range.set": 0
@@ -1035,6 +1052,7 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["point_color.tool.select"] +
                     pendingByCommand["lens_blur.active.set"] +
                     pendingByCommand["lens_blur.bokeh.set"] +
+                    pendingByCommand["lens_blur.depth_visualization.toggle"] +
                     pendingByCommand["lens_blur.depth_refinement.select"] +
                     pendingByCommand["lens_blur.depth_refinement.close"] +
                     pendingByCommand["lens_blur.focal_range.set"] +

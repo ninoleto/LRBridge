@@ -52,6 +52,7 @@ function Commands.execute(command)
     if command.command == "lightroom.redo" then History.redo(); return end
     if command.command == "lens_blur.active.set" then LensBlur.setActive(command.enabled); return end
     if command.command == "lens_blur.bokeh.set" then LensBlur.setBokeh(command.value); return end
+    if command.command == "lens_blur.depth_visualization.toggle" then LensBlur.toggleDepthVisualization(command.enabled, command.expectedSelectedPhotoUuid, command.expectedContextCounter, command.expectedDevelopCounter); return end
     if command.command == "lens_blur.depth_refinement.select" then LensBlur.selectDepthRefinement(); return end
     if command.command == "lens_blur.depth_refinement.close" then LensBlur.closeDepthRefinement(); LensBlur.sendCurrentState(); return end
     if command.command == "lens_blur.focal_range.set" then LensBlur.setFocalRange(command.value); LensBlur.sendCurrentState(command.commitId); return end

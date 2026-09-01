@@ -167,9 +167,12 @@ assert.deepEqual(
 );
 assert.match(
     source,
-    /function getSliderJumpSections\(\)\s*\{\s*return developSectionDisplayOrder\.map/,
-    "Jump To must derive its entries from the corrected Develop section order"
+    /function getSliderJumpSections\(\)[\s\S]*developSectionDisplayOrder\.forEach/,
+    "Jump To must derive its Develop entries from the corrected section order"
 );
+assert.match(source,
+    /section\.id === "presence"[\s\S]*tab: "tone-curve", label: "Tone Curve"[\s\S]*section\.id === "color-mixer"[\s\S]*tab: "color-grading", label: "Color Grading"/,
+    "Jump To must insert the two dedicated navigation links at their requested positions");
 const sliderRenderContext = {
     developSliderDefinitions: [{ id: "Exposure", group: "Basic" }],
     developSectionDisplayOrder,

@@ -135,6 +135,7 @@
     ,"lightroom.redo"
     ,"lens_blur.active.set"
     ,"lens_blur.bokeh.set"
+    ,"lens_blur.depth_visualization.toggle"
     ,"lens_blur.depth_refinement.select"
     ,"lens_blur.depth_refinement.close"
     ,"lens_blur.focal_range.set"

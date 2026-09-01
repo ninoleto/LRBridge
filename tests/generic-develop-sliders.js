@@ -356,7 +356,7 @@ assert.equal((controller.match(/name\.textContent = "Constrain Crop"/g) || []).l
     "Constrain Crop must have one dedicated control in Transform");
 const developSectionRenderer = controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0];
 assert.match(developSectionRenderer,
-    /groupElement\.appendChild\(title\);\s*if \(section\.id === "lens-corrections"\) \{\s*renderLensCorrectionsSection\(groupElement, section\);\s*return groupElement;/,
+    /groupElement\.appendChild\(title\);\s*if \(section\.id === "lens-corrections"\) \{\s*renderLensCorrectionsSection\(groupElement, section\);\s*finalizeDevelopSectionCollapsing\(groupElement, section, title\);\s*return groupElement;/,
     "Lens Corrections must use its dedicated local-tab renderer after the shared section title");
 assert.match(developSectionRenderer,
     /section\.items\.forEach[\s\S]*const trailingControls = createSectionControls\(section, "trailing"\);\s*if \(trailingControls\) groupElement\.appendChild\(trailingControls\)/,
@@ -390,7 +390,7 @@ assert.match(controller, /"label": "Reset Transform",\s*"action": "resetTransfor
 assert.ok(lensCorrectionsSection.selectors.some((selector) => selector.group === "Lens / Defringe"),
     "All Lens / Defringe sliders must remain in Lens Corrections");
 assert.match(controller,
-    /const id = "slider-jump-section-" \+ section\.id;\s*heading\.id = id;\s*heading\.classList\.add\("slider-jump-target"\)/,
+    /const id = "slider-jump-section-" \+ section\.id;\s*if \(heading\) \{\s*heading\.id = id;\s*heading\.classList\.add\("slider-jump-target"\)/,
     "The Lens Corrections jump target must remain the shared main section heading");
 const mappedDevelopIds = mappedSections.flatMap((section) => section.ids);
 const expectedDevelopIds = feedbackDefinitions.filter((definition) =>
@@ -400,16 +400,16 @@ assert.equal(new Set(mappedDevelopIds).size, mappedDevelopIds.length, "Develop p
 assert.deepEqual(new Set(mappedDevelopIds), new Set(expectedDevelopIds),
     "Develop presentation omitted or unexpectedly selected a slider ID");
 assert.doesNotMatch(JSON.stringify(developSectionDisplayOrder), /Tone Curve|Color Grading/);
-assert.match(controller, /function getSliderJumpSections\(\) \{\s*return developSectionDisplayOrder\.map/,
-    "Jump menu and rendered sections must share the presentation specification");
+assert.match(controller, /function getSliderJumpSections\(\)[\s\S]*developSectionDisplayOrder\.forEach/,
+    "Jump menu Develop entries and rendered sections must share the presentation specification");
 assert.equal(developSectionDisplayOrder.length, 11, "Jump-to must source exactly eleven Develop sections");
 assert.deepEqual(developSectionDisplayOrder.map((section) => section.label), [
     "White Balance", "Tone", "HDR / SDR Rendition", "Presence", "Color Mixer", "Detail", "Lens Corrections", "Transform", "Lens Blur", "Effects", "Calibration"
 ], "Jump-to section ordering must match the rendered Lightroom panel order");
 assert.equal(developSectionDisplayOrder[4].id, "color-mixer",
     "Color Mixer/B&W must remain between Presence and Detail");
-assert.match(controller, /function getSliderJumpSections[\s\S]*label: getDevelopSectionDisplayLabel\(section\)/,
-    "Jump labels must use the shared conditional section-label helper");
+assert.match(controller, /function getSliderJumpSections[\s\S]*label: section\.label/,
+    "Jump menu must retain the canonical Color Mixer label in its exact navigation order");
 const jumpHeadingLookup = controller.match(/function findSliderJumpHeading\(content, sectionId\) \{[\s\S]*?\n        \}/)[0];
 assert.match(jumpHeadingLookup, /data-develop-section/);
 assert.match(jumpHeadingLookup, /> \.group-title/,

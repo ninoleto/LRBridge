@@ -242,8 +242,19 @@ assert.equal(commands.validateCommand({ command: "lens_blur.active.set", enabled
 for (const value of lensBlurDefinition.bokehValues) {
     assert.equal(commands.validateCommand({ command: "lens_blur.bokeh.set", value: value }), true);
 }
+const boundVisualizeCommand = {
+    command: "lens_blur.depth_visualization.toggle",
+    enabled: true,
+    expectedSelectedPhotoUuid: "photo-visualize",
+    expectedContextCounter: 7,
+    expectedDevelopCounter: 11
+};
+assert.equal(commands.validateCommand(boundVisualizeCommand), true,
+    "The SDK Visualize Depth command must require an exact photo/context binding and explicit target");
 assert.equal(commands.validateCommand({ command: "lens_blur.depth_visualization.toggle" }), false,
     "The production command surface must not admit blind Visualize Depth toggles");
+assert.equal(commands.validateCommand(Object.assign({}, boundVisualizeCommand, { enabled: 1 })), false);
+assert.equal(commands.validateCommand(Object.assign({}, boundVisualizeCommand, { expectedDevelopCounter: -1 })), false);
 assert.equal(commands.validateCommand({ command: "lens_blur.depth_refinement.close" }), true);
 assert.equal(commands.validateCommand({ command: "lens_blur.depth_refinement.close", target: "loupe" }), false);
 
@@ -494,7 +505,15 @@ assert.match(lensBlurLua, /focalRangeCommitId[\s\S]*urlEncode\(focalRangeCommitI
 assert.match(lensBlurLua, /function LensBlur\.closeDepthRefinement\(\)[\s\S]*getSelectedTool\(\)[\s\S]*selectTool\("loupe"\)[\s\S]*settled ~= "loupe"/,
     "The proposed Close writer must be target-aware and self-verify with authoritative selected-tool readback");
 assert.match(luaCommands, /lens_blur\.depth_refinement\.close[\s\S]*LensBlur\.closeDepthRefinement\(\)[\s\S]*LensBlur\.sendCurrentState\(\)/);
-assert.doesNotMatch(lensBlurLua + luaCommands, /toggleLensBlurDepthVisualization|depth_visualization\.toggle/);
+assert.match(luaCommands, /lens_blur\.depth_visualization\.toggle[\s\S]*LensBlur\.toggleDepthVisualization\(command\.enabled, command\.expectedSelectedPhotoUuid, command\.expectedContextCounter, command\.expectedDevelopCounter\)/);
+const visualizeLuaFunction = lensBlurLua.match(/function LensBlur\.toggleDepthVisualization[\s\S]*?^end/m)?.[0] || "";
+assert.match(visualizeLuaFunction, /not inDevelop\(\)/,
+    "Visualize Depth must fail closed outside Develop instead of switching modules");
+assert.match(visualizeLuaFunction, /photoUuid\(beforePhoto\) ~= expectedSelectedPhotoUuid/);
+assert.match(visualizeLuaFunction, /serverContextMatches\(expectedSelectedPhotoUuid, expectedContextCounter, expectedDevelopCounter\)/);
+assert.match(visualizeLuaFunction, /LrDevelopController\.toggleLensBlurDepthVisualization\(\)/);
+assert.match(visualizeLuaFunction, /afterPhoto ~= beforePhoto/);
+assert.doesNotMatch(visualizeLuaFunction, /prepareDevelop|switchToModule|setCheckbox|BM_CLICK/);
 assert.doesNotMatch(lensBlurLua, /getRange\("LensBlurFocalRange"\)/);
 
 assert.match(nativeSource, /TBM_SETPOS/);
@@ -606,9 +625,23 @@ assert.match(controller, /Visualize Depth/);
 assert.match(controller, /modeFocus = makeButton\("Focus"[\s\S]*modeBlur = makeButton\("Blur"/);
 assert.match(controller, /Auto Mask/);
 assert.match(controller, /\[\["amount", "Amount"[\s\S]*\["size", "Size"[\s\S]*\["feather", "Feather"[\s\S]*\["flow", "Flow"/);
-assert.match(controller, /\/api\/lens-blur\/visualize-depth\?enabled=/);
+assert.match(controller, /\/api\/lens-blur\/visualize-depth\?" \+ query/);
 assert.match(controller, /\/api\/lens-blur\/auto-mask\?enabled=/);
 assert.doesNotMatch(controller, /\/api\/lens-blur\/depth-visualization\/toggle/);
+assert.match(controller, /function setLensBlurVisualizeDepth\(enabled\)[\s\S]*?selectedPhotoUuid=[\s\S]*?contextCounter=[\s\S]*?developCounter=/,
+    "Visualize Depth Web admission must carry the exact current Develop context");
+assert.match(controller, /observeLensBlurVisualizeFeedback[\s\S]*?state\.value === lensBlurVisualizePending\.target/,
+    "Visualize Depth must settle only from authoritative native state feedback");
+assert.doesNotMatch(controller.match(/async function setLensBlurVisualizeDepth[\s\S]*?async function requestLensBlurState/)[0],
+    /visualizeDepth\s*:\s*\{[^}]*value\s*:\s*enabled|state\.value\s*=\s*enabled/,
+    "Visualize Depth must not write an optimistic Web state");
+const visualizeRoute = bridgeSource.match(/app\.get\("\/lens-blur\/visualize-depth"[\s\S]*?^}\);/m)?.[0] || "";
+assert.match(visualizeRoute, /windowsNativeBackend\.readState\(\)/,
+    "Visualize Depth admission must begin from fresh authoritative native state");
+assert.match(visualizeRoute, /lensBlurDepthVisualizationBindingMatches\(binding\)/);
+assert.match(visualizeRoute, /queueOrReject[\s\S]*?lens_blur\.depth_visualization\.toggle/);
+assert.doesNotMatch(visualizeRoute, /setCheckbox|BM_CLICK|SendInput|SetCursorPos/,
+    "Visualize Depth mutation must not use the Windows native writer or input automation");
 const lensBlurUiBlock = controller.match(/function renderLensBlurSection[\s\S]*?let lensCorrectionsView/)[0];
 const lensBlurControllerBlock = controller.match(/function updateLensBlurExplicitSwitch[\s\S]*?let lensCorrectionsView/)[0];
 const experimentalWarningHtml = "<strong>Experimental:</strong> When switching focus modes from the Web Controller, Lightroom may occasionally leave the previous Subject Focus or Point / Area Focus button highlighted. Hovering over the button in Lightroom updates the highlight. This is only a visual issue and does not occur when switching focus modes directly in Lightroom. The Web Controller always shows the correct active mode.";
@@ -814,6 +847,7 @@ function createFakeNativeBackend() {
     return {
         calls: calls,
         setFocusPaintBehavior: function (behavior) { paintBehavior = behavior; },
+        setVisualizeDepthForTest: function (enabled) { state.visualizeDepth.value = enabled; },
         readState: async function () { calls.push(["readState"]); return clone(state); },
         setBrushValue: async function (control, value, options) {
             calls.push(["setBrushValue", control, value, options]); state.brush[control].value = value; return clone(state);
@@ -910,10 +944,43 @@ async function requestWithin(base, pathname, timeoutMs) {
         result = await request(base, "/lens-blur/brush/reset/reset");
         assert.equal(result.response.status, 400);
 
-        result = await request(base, "/lens-blur/visualize-depth?enabled=true");
+        const visualizationContext = (await request(base,
+            "/context/update?activeModule=develop&selectedPhotoUuid=photo-visualize&developFingerprint=visualize-1")).body;
+        const visualizationQuery = "selectedPhotoUuid=" + encodeURIComponent(visualizationContext.selectedPhotoUuid) +
+            "&contextCounter=" + visualizationContext.contextCounter +
+            "&developCounter=" + visualizationContext.developCounter;
+        result = await request(base, "/lens-blur/visualize-depth?enabled=true&" + visualizationQuery);
         assert.equal(result.response.status, 200);
-        assert.deepEqual(fakeNative.calls.at(-1), ["setCheckbox", "visualizeDepth", true]);
-        assert.equal(result.body.windowsNative.visualizeDepth.value, true);
+        assert.equal(result.body.changed, true);
+        assert.deepEqual(fakeNative.calls.at(-1), ["readState"],
+            "Visualize Depth admission must read native state and never call the native checkbox writer");
+        assert.deepEqual(commands.getNextCommand(), {
+            command: "lens_blur.depth_visualization.toggle",
+            enabled: true,
+            expectedSelectedPhotoUuid: visualizationContext.selectedPhotoUuid,
+            expectedContextCounter: visualizationContext.contextCounter,
+            expectedDevelopCounter: visualizationContext.developCounter
+        });
+        fakeNative.setVisualizeDepthForTest(true);
+        result = await request(base, "/lens-blur/state");
+        assert.equal(result.body.state.windowsNative.visualizeDepth.value, true,
+            "the existing native readback path must authoritatively confirm the SDK result");
+        assert.deepEqual(result.body.context, {
+            activeModule: "develop",
+            selectedPhotoUuid: visualizationContext.selectedPhotoUuid,
+            contextCounter: visualizationContext.contextCounter,
+            developCounter: visualizationContext.developCounter
+        });
+        result = await request(base, "/lens-blur/visualize-depth?enabled=true&" + visualizationQuery);
+        assert.equal(result.response.status, 200);
+        assert.equal(result.body.changed, false, "an already-satisfied explicit target must not toggle");
+        assert.equal(commands.getNextCommand(), null);
+        result = await request(base, "/lens-blur/visualize-depth?enabled=false");
+        assert.equal(result.response.status, 400, "legacy unbound Visualize Depth writes must fail closed");
+        result = await request(base, "/lens-blur/visualize-depth?enabled=false&selectedPhotoUuid=wrong&contextCounter=" +
+            visualizationContext.contextCounter + "&developCounter=" + visualizationContext.developCounter);
+        assert.equal(result.response.status, 409);
+        assert.equal(commands.getNextCommand(), null);
         result = await request(base, "/lens-blur/auto-mask?enabled=true");
         assert.equal(result.response.status, 200);
         assert.deepEqual(fakeNative.calls.at(-1), ["setCheckbox", "autoMask", true]);
@@ -1045,6 +1112,13 @@ async function requestWithin(base, pathname, timeoutMs) {
         result = await request(base, "/lens-blur/depth-refinement/close");
         assert.equal(result.response.status, 200);
         assert.deepEqual(commands.getNextCommand(), { command: "lens_blur.depth_refinement.close" });
+
+        result = await request(base, "/lens-blur/visualize-depth?enabled=false&" + visualizationQuery);
+        assert.equal(result.response.status, 200);
+        assert.equal(result.body.changed, true);
+        await request(base, "/context/update?activeModule=develop&selectedPhotoUuid=photo-changed&developFingerprint=visualize-2");
+        assert.equal(commands.getNextCommand(), null,
+            "a queued Visualize Depth command must be dropped if photo/context/revision changes before dequeue");
     } finally {
         await bridge.stop();
     }

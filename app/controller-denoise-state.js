@@ -102,13 +102,21 @@
         }
 
         function sendFailed() { inFlight = false; inFlightAmount = null; }
+        function cancelLocal() {
+            editing = false;
+            editBuffer = null;
+            editStartAmount = null;
+            debouncePending = false;
+            if (!inFlight) desired = null;
+            return displayedAmount();
+        }
         function reset() {
             authoritative = null; desired = null; editBuffer = null; editing = false;
             editStartAmount = null; debouncePending = false; inFlight = false; inFlightAmount = null; isOn = false;
         }
 
         return {
-            valid, parse, feedback, focus, input, commit, cancel, setDesired, step, markSent, sendFailed, reset,
+            valid, parse, feedback, focus, input, commit, cancel, setDesired, step, markSent, sendFailed, cancelLocal, reset,
             setDebouncePending: function (value) { debouncePending = value === true; },
             get authoritative() { return authoritative; },
             get desired() { return desired; },
