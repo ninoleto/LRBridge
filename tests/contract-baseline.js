@@ -275,6 +275,9 @@ async function captureBridge() {
         get(route, handler) {
             routes.set(route, handler);
         },
+        post(route, handler) {
+            routes.set(route, handler);
+        },
         listen(port, callback) {
             httpListenPort = port;
             const server = new (require("events").EventEmitter)();
@@ -291,6 +294,9 @@ async function captureBridge() {
     function expressMock() {
         return fakeApp;
     }
+    expressMock.json = function () {
+        return function (_request, _response, next) { next(); };
+    };
 
     class FakeWebSocketServer extends (require("events").EventEmitter) {
         constructor(options) {

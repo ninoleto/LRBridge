@@ -312,7 +312,11 @@ function testSourceIntegration() {
     assert.equal(proxy.DEFAULT_UPSTREAM_HOST, "127.0.0.1");
     assert.equal(proxy.DEFAULT_UPSTREAM_PORT, 17891);
     assert.equal(proxy.DEFAULT_TIMEOUT_MS, 10000);
-    assert.match(fs.readFileSync(path.join(root, "app", "controller-proxy.js"), "utf8"), /method: "GET"/);
+    assert.match(
+        fs.readFileSync(path.join(root, "app", "controller-proxy.js"), "utf8"),
+        /const method = options\.method === undefined \? "GET" : options\.method/,
+        "Controller proxy must retain GET as its default upstream method"
+    );
 }
 
 async function main() {

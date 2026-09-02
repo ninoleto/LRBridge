@@ -18,6 +18,7 @@ const focalRangeDefinition = require("./lens-blur-focal-range");
 const windowsNativeDefinition = require("./windows-lightroom-native");
 const developCategoricalDefinition = require("./develop-categorical-state");
 const profileNativeDefinition = require("./profile-native-state");
+const developPresetsDefinition = require("./develop-presets");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -84,11 +85,15 @@ if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
 }
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
 const app = express();
+const parseDevelopPresetConfiguration = express.json({ limit: "64kb", strict: true });
 const developCategorical = developCategoricalDefinition.createDevelopCategoricalState();
 const profileBackend = typeof windowsNativeBackend.readProfileSnapshot === "function"
     ? windowsNativeBackend
     : windowsNativeDefinition.createUnavailableWindowsBackend("Profile native backend was not configured");
 const profileNative = profileNativeDefinition.createProfileNativeState(profileBackend, options.profileStateOptions);
+const developPresets = developPresetsDefinition.createDevelopPresetState({
+    configPath: options.developPresetConfigPath
+});
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -105,6 +110,14 @@ function profileContextBinding(fields, previousDevelopCounter) {
 commands.setPointColorAdmissionContextProvider(function () {
     const current = pointColor.get();
     return { selectedIndex: current.available ? current.selectedIndex : 0, contextCounter: context.getContextFields().contextCounter };
+});
+commands.setDevelopPresetAdmissionProvider({
+    matches: function (command, fields) {
+        return developPresets.applicationBindingMatches(command, fields);
+    },
+    onRejected: function (command, detail) {
+        developPresets.rejectApplication(command, detail);
+    }
 });
 
 const feedbackRequests = [];
@@ -209,6 +222,91 @@ function rejectQueueFull(res, queueLength) {
         queueLength: queueLength,
         queueLimit: commands.HARD_QUEUE_CAPACITY,
         retryable: true
+    });
+}
+
+function requestDevelopPresetInventory() {
+    const requestId = developPresets.beginInventoryRefresh();
+    const admission = queueCommand({
+        command: "develop_presets.inventory.request",
+        requestId: requestId
+    });
+    if (!admission.accepted) {
+        developPresets.cancelInventoryRefresh(requestId,
+            admission.status === commands.ADMISSION_QUEUE_FULL
+                ? "The command queue is full. Develop preset inventory refresh was not queued."
+                : "Develop preset inventory refresh was rejected.");
+        const error = new Error(admission.status === commands.ADMISSION_QUEUE_FULL
+            ? "Command queue full" : "Develop preset inventory refresh was rejected");
+        error.admission = admission;
+        throw error;
+    }
+    return developPresets.getPublicState();
+}
+
+function saveDevelopPresetConfiguration(configuration) {
+    return developPresets.saveConfiguration(configuration);
+}
+
+function exactQueryFields(req, expected) {
+    const actual = Object.keys(req.query).sort();
+    const wanted = expected.slice().sort();
+    return actual.length === wanted.length && actual.every(function (field, index) {
+        return field === wanted[index] && typeof req.query[field] === "string";
+    });
+}
+
+function presetBindingFromRequest(req) {
+    if (!exactQueryFields(req, ["uuid", "selectedPhotoUuid", "contextCounter", "developCounter"])) return null;
+    if (!/^(?:0|[1-9]\d*)$/.test(req.query.contextCounter) ||
+        !/^(?:0|[1-9]\d*)$/.test(req.query.developCounter)) return null;
+    const contextCounter = numbers.parseFiniteInteger(req.query.contextCounter);
+    const developCounter = numbers.parseFiniteInteger(req.query.developCounter);
+    if (!Number.isSafeInteger(contextCounter) || !Number.isSafeInteger(developCounter)) return null;
+    const current = context.getContextFields();
+    if (current.activeModule !== "develop" || !current.selectedPhotoUuid ||
+        current.selectedPhotoUuid !== req.query.selectedPhotoUuid ||
+        current.contextCounter !== contextCounter || current.developCounter !== developCounter) return null;
+    return {
+        activeModule: current.activeModule,
+        selectedPhotoUuid: current.selectedPhotoUuid,
+        contextCounter: current.contextCounter,
+        developCounter: current.developCounter
+    };
+}
+
+function queueDevelopPresetApplication(res, uuid, binding, presetAmount) {
+    let operation;
+    try {
+        operation = developPresets.beginApplication(uuid, binding, presetAmount);
+    } catch (err) {
+        res.status(409).set("Cache-Control", "no-store").json({ ok: false, error: err.message });
+        return;
+    }
+    const command = {
+        command: "develop_preset.apply",
+        operationId: operation.operationId,
+        uuid: operation.uuid,
+        presetAmount: operation.presetAmount,
+        updateAISettings: operation.updateAISettings,
+        expectedActiveModule: operation.expectedActiveModule,
+        expectedSelectedPhotoUuid: operation.expectedSelectedPhotoUuid,
+        expectedContextCounter: operation.expectedContextCounter,
+        expectedDevelopCounter: operation.expectedDevelopCounter
+    };
+    const admission = queueCommand(command);
+    if (!admission.accepted) {
+        developPresets.cancelApplication(operation.operationId);
+        if (admission.status === commands.ADMISSION_QUEUE_FULL) return rejectQueueFull(res, admission.queueLength);
+        return res.status(409).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Develop preset application was rejected during queue admission"
+        });
+    }
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        queued: command,
+        operationId: operation.operationId
     });
 }
 
@@ -345,6 +443,7 @@ app.get("/context/update", function (req, res) {
         selectedPhotoPath: req.query.selectedPhotoPath,
         developFingerprint: req.query.developFingerprint
     });
+    developPresets.rejectMismatchedApplications(updated);
     const pointCurveNavigationChanged = previousContext.selectedPhotoUuid !== updated.selectedPhotoUuid ||
         previousContext.contextCounter !== updated.contextCounter || updated.activeModule !== "develop";
     const abandonedPointCurveGestures = pointCurveNavigationChanged ? pointCurve.drainGestures() : [];
@@ -751,6 +850,162 @@ app.get("/groups", function (req, res) {
     res.json({
         groups: sliders.getGroups()
     });
+});
+
+app.get("/develop-presets/state", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
+});
+
+app.post("/develop-presets/config", function (req, res) {
+    if (Object.keys(req.query).length !== 0) {
+        return res.status(400).set("Cache-Control", "no-store").json({ ok: false, error: "Invalid request" });
+    }
+    parseDevelopPresetConfiguration(req, res, function (parseError) {
+        if (parseError) {
+            const status = parseError.type === "entity.too.large" ? 413 : 400;
+            return res.status(status).set("Cache-Control", "no-store").json({
+                ok: false,
+                error: status === 413 ? "Develop preset configuration is too large" : "Invalid JSON configuration"
+            });
+        }
+        try {
+            res.set("Cache-Control", "no-store").json(saveDevelopPresetConfiguration(req.body));
+        } catch (err) {
+            res.status(400).set("Cache-Control", "no-store").json({ ok: false, error: err.message });
+        }
+    });
+});
+
+app.get("/develop-presets/inventory/refresh", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    try {
+        res.set("Cache-Control", "no-store").json(requestDevelopPresetInventory());
+    } catch (err) {
+        if (err.admission && err.admission.status === commands.ADMISSION_QUEUE_FULL) {
+            return rejectQueueFull(res, err.admission.queueLength);
+        }
+        res.status(409).set("Cache-Control", "no-store").json({ ok: false, error: err.message });
+    }
+});
+
+app.get("/develop-presets/inventory/item", function (req, res) {
+    if (!exactQueryFields(req, ["requestId", "uuid", "folder", "name"]) ||
+        !developPresetsDefinition.validRequestId(req.query.requestId)) {
+        return res.status(400).json({ ok: false, error: "Invalid Develop preset inventory item" });
+    }
+    try {
+        if (!developPresets.acceptInventoryItem(req.query.requestId, {
+            uuid: req.query.uuid,
+            folder: req.query.folder,
+            name: req.query.name
+        })) return res.status(409).json({ ok: false, error: "Stale or duplicate Develop preset inventory item" });
+        res.set("Cache-Control", "no-store").json({ ok: true });
+    } catch (err) {
+        res.status(400).set("Cache-Control", "no-store").json({ ok: false, error: err.message });
+    }
+});
+
+app.get("/develop-presets/inventory/complete", function (req, res) {
+    if (!exactQueryFields(req, ["requestId"]) || !developPresetsDefinition.validRequestId(req.query.requestId)) {
+        return res.status(400).json({ ok: false, error: "Invalid Develop preset inventory completion" });
+    }
+    if (!developPresets.completeInventoryRefresh(req.query.requestId)) {
+        return res.status(409).json({ ok: false, error: "Stale Develop preset inventory completion" });
+    }
+    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
+});
+
+app.get("/develop-presets/inventory/fail", function (req, res) {
+    if (!exactQueryFields(req, ["requestId", "error"]) ||
+        !developPresetsDefinition.validRequestId(req.query.requestId)) {
+        return res.status(400).json({ ok: false, error: "Invalid Develop preset inventory failure" });
+    }
+    if (!developPresets.failInventoryRefresh(req.query.requestId, req.query.error)) {
+        return res.status(409).json({ ok: false, error: "Stale Develop preset inventory failure" });
+    }
+    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
+});
+
+app.get("/develop-presets/apply", function (req, res) {
+    const binding = presetBindingFromRequest(req);
+    if (!binding) return res.status(409).set("Cache-Control", "no-store").json({
+        ok: false,
+        error: "Develop preset photo, module, context, or Develop revision changed during submission"
+    });
+    queueDevelopPresetApplication(res, req.query.uuid, binding, developPresetsDefinition.DEFAULT_PRESET_AMOUNT);
+});
+
+app.get("/develop-presets/navigate", function (req, res) {
+    if (!exactQueryFields(req, ["direction", "selectedPhotoUuid", "contextCounter", "developCounter"]) ||
+        (req.query.direction !== "previous" && req.query.direction !== "next")) {
+        return res.status(400).json({ ok: false, error: "Invalid Develop preset navigation request" });
+    }
+    const synthetic = { query: {
+        uuid: "placeholder",
+        selectedPhotoUuid: req.query.selectedPhotoUuid,
+        contextCounter: req.query.contextCounter,
+        developCounter: req.query.developCounter
+    } };
+    const binding = presetBindingFromRequest(synthetic);
+    if (!binding) return res.status(409).set("Cache-Control", "no-store").json({
+        ok: false,
+        error: "Develop preset photo, module, context, or Develop revision changed during submission"
+    });
+    const uuid = developPresets.navigationTarget(req.query.direction);
+    if (!uuid) return res.status(409).set("Cache-Control", "no-store").json({
+        ok: false,
+        error: "No configured Develop preset is currently available"
+    });
+    queueDevelopPresetApplication(res, uuid, binding, developPresetsDefinition.DEFAULT_PRESET_AMOUNT);
+});
+
+app.get("/develop-presets/amount", function (req, res) {
+    if (!exactQueryFields(req, ["presetAmount", "selectedPhotoUuid", "contextCounter", "developCounter"]) ||
+        !/^(?:0|[1-9]\d*)$/.test(req.query.presetAmount)) {
+        return res.status(400).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Develop preset Amount must be an integer from 0 through 200"
+        });
+    }
+    const presetAmount = numbers.parseFiniteInteger(req.query.presetAmount);
+    if (!developPresetsDefinition.validPresetAmount(presetAmount)) {
+        return res.status(400).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Develop preset Amount must be an integer from 0 through 200"
+        });
+    }
+    const synthetic = { query: {
+        uuid: "placeholder",
+        selectedPhotoUuid: req.query.selectedPhotoUuid,
+        contextCounter: req.query.contextCounter,
+        developCounter: req.query.developCounter
+    } };
+    const binding = presetBindingFromRequest(synthetic);
+    if (!binding) return res.status(409).set("Cache-Control", "no-store").json({
+        ok: false,
+        error: "Develop preset photo, module, context, or Develop revision changed during submission"
+    });
+    const state = developPresets.getPublicState();
+    if (!state.cursorUuid || !developPresetsDefinition.validPresetAmount(state.presetAmount)) {
+        return res.status(409).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Apply a configured Develop preset successfully before adjusting Amount"
+        });
+    }
+    queueDevelopPresetApplication(res, state.cursorUuid, binding, presetAmount);
+});
+
+app.get("/develop-presets/apply-result", function (req, res) {
+    if (!exactQueryFields(req, ["operationId", "uuid", "outcome", "detail"]) ||
+        !developPresetsDefinition.validRequestId(req.query.operationId) ||
+        !developPresetsDefinition.TERMINAL_OUTCOMES.has(req.query.outcome)) {
+        return res.status(400).json({ ok: false, error: "Invalid Develop preset application result" });
+    }
+    if (!developPresets.finishApplication(
+        req.query.operationId, req.query.uuid, req.query.outcome, req.query.detail
+    )) return res.status(409).json({ ok: false, error: "Stale Develop preset application result" });
+    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
 });
 
 app.get("/next", function (req, res) {
@@ -2492,6 +2747,9 @@ const api = {
     app: app,
     start: start,
     stop: stop,
+    getDevelopPresetState: function () { return developPresets.getPublicState(); },
+    requestDevelopPresetInventory: requestDevelopPresetInventory,
+    saveDevelopPresetConfiguration: saveDevelopPresetConfiguration,
     getState: function () { return lifecycleState; },
     getHttpServer: function () { return httpServer; },
     getWebSocketServer: function () { return wsServer; }

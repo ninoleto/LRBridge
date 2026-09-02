@@ -1,5 +1,13 @@
 local Parser = {}
 
+local function parseStringField(json, fieldName)
+    local keyPattern = '"' .. fieldName .. '"%s*:'
+    local count = 0
+    for _ in string.gmatch(json, keyPattern) do count = count + 1 end
+    if count ~= 1 then return nil end
+    return string.match(json, keyPattern .. '%s*"([^"%c]+)"')
+end
+
 local function parseBooleanField(json, fieldName)
     local keyPattern = '"' .. fieldName .. '"%s*:'
     local count = 0
@@ -21,6 +29,16 @@ local function parseBooleanField(json, fieldName)
     end
 
     return nil
+end
+
+local function parseIntegerField(json, fieldName)
+    local keyPattern = '"' .. fieldName .. '"%s*:'
+    local count = 0
+    for _ in string.gmatch(json, keyPattern) do count = count + 1 end
+    if count ~= 1 then return nil end
+    local value = string.match(json, keyPattern .. '%s*([%-]?%d+)%s*[,}]')
+    if value == nil then return nil end
+    return tonumber(value)
 end
 
 local function parseIntegerArrayField(json, fieldName)
@@ -66,6 +84,11 @@ function Parser.parse(json)
     local channel = string.match(json, [["channel":"([^"]+)"]])
     local gestureId = string.match(json, [["gestureId":"([^"]+)"]])
     local preset = string.match(json, [["preset":"([^"]+)"]])
+    local requestId = parseStringField(json, "requestId")
+    local operationId = parseStringField(json, "operationId")
+    local uuid = parseStringField(json, "uuid")
+    local presetAmount = parseIntegerField(json, "presetAmount")
+    local expectedActiveModule = parseStringField(json, "expectedActiveModule")
     local expectedSelectedPhotoUuid = string.match(json, [["expectedSelectedPhotoUuid":"([^"]+)"]])
     local expectedSelectedIndex = string.match(json, [["expectedSelectedIndex":([%-]?%d+)]])
     local expectedContextCounter = string.match(json, [["expectedContextCounter":([%-]?%d+)]])
@@ -81,6 +104,7 @@ function Parser.parse(json)
     local rating = string.match(json, [["rating":([%-]?%d+)]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
     local enabled = parseBooleanField(json, "enabled")
+    local updateAISettings = parseBooleanField(json, "updateAISettings")
     local w = string.match(json, [["w":([%-]?%d+)]])
     local h = string.match(json, [["h":([%-]?%d+)]])
     local value = string.match(json, [["value":"([^"]+)"]])
@@ -171,6 +195,12 @@ function Parser.parse(json)
         ,channel = channel
         ,gestureId = gestureId
         ,preset = preset
+        ,requestId = requestId
+        ,operationId = operationId
+        ,uuid = uuid
+        ,presetAmount = presetAmount
+        ,updateAISettings = updateAISettings
+        ,expectedActiveModule = expectedActiveModule
         ,expectedSelectedPhotoUuid = expectedSelectedPhotoUuid
         ,expectedDevelopCounter = expectedDevelopCounter
         ,expectedValue = expectedValue

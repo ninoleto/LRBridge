@@ -145,7 +145,7 @@ Stable enough for normal use:
 * Lightroom Develop actions.
 * Command queue.
 * Repeated slider adjustment coalescing.
-* Configurable polling interval.
+* Advanced command queue check interval configuration.
 * Smoke test.
 * Human Web Controller Help page.
 * Companion Generic HTTP support.
@@ -191,7 +191,9 @@ LRBridge/
     tray.png                 Tray/app icon
 
   config/
-    settings.txt             Polling interval configuration
+    settings.txt             Advanced command queue timing and desktop preferences
+    develop-presets.example.json  Develop preset configuration schema/example
+    develop-presets.json     Generated local ordered preset configuration (ignored by Git)
     sliders.json             Slider metadata registry
 
   docs/
@@ -444,7 +446,7 @@ If polling is already running, Lightroom should show:
 Polling is already running.
 ```
 
-Polling interval is stored in:
+The advanced **Command queue check interval** is stored in:
 
 ```text
 config/settings.txt
@@ -456,7 +458,7 @@ Example:
 poll_interval_ms=100
 ```
 
-The Electron app can edit this value. Lightroom reloads the polling setting automatically.
+The default is `100` ms. Lightroom clamps manually edited values to `10–1000` ms and reloads the setting automatically, normally within about one second. This setting controls only how often the Lightroom plug-in checks LRBridge's command queue. It does **not** control Web Controller feedback cadence. Edit it manually in `config/settings.txt` only when advanced troubleshooting requires it; it is intentionally not shown as a normal setting in the Electron app.
 
 Context heartbeats confirm that Lightroom plug-in polling is active and update LRBridge's reported Lightroom state. They do not enqueue commands or switch modules. Starting or restarting LRBridge leaves Lightroom in its currently selected module until an explicit `application.module` command is requested.
 
@@ -497,10 +499,15 @@ The Web Controller provides:
 * an individual Reset button for each numeric Develop parameter
 * authoritative Lightroom values, with distinct Loading, Unavailable, and feedback-error states
 * Lightroom action buttons
-* a dedicated Crop tab with crop tools and validated aspect-ratio presets
-* healing, red-eye, and masking tool tabs
+* top-level tabs in this order: Develop Sliders, Color Grading, Tone Curve, Presets, Selection, Application, Tools
+* a unified Tools tab containing Crop & Straighten, Healing, Red Eye, and Masking sections with a section-only Jump-to menu and persisted top-level collapse state
 * human help page
 * visible slider feedback values
+* an ordered Develop Presets row whose cursor means only “preset to apply,” never Lightroom active-preset state
+
+Configure Develop presets from the collapsed **Manage Presets** panel in the Web Controller's dedicated Presets tab; the Electron launcher has no preset controls. **+ Add Presets** refreshes Lightroom's ordinary Develop preset inventory and opens a searchable multi-select touch picker, shown in deterministic folder/name order for configuration only; that order is not claimed to match Lightroom's Presets panel. The manager's Add and Save actions remain together in a sticky top toolbar while the unsaved draft is edited. The shared Lightroom-style Jump-to menu is also available in Presets, with Presets as its final navigation-only destination and no draft/card entries. The server remains authoritative and saves the explicit controller order, preset UUIDs, optional aliases, and `updateAISettings` booleans in local `config/develop-presets.json`. That file is generated locally and ignored by Git. Missing UUIDs remain visible as unavailable errors until corrected or removed. Selection retains its selection/photo operations without a Treatment section; the Develop Sliders B&W control and treatment HTTP compatibility remain available.
+
+Previous and Next wrap through configured presets while skipping unavailable UUIDs. Selecting the currently displayed preset applies it again. Selecting, Previous, and Next apply at Amount 100. The Preset Amount control accepts whole numbers from 0 through 200 and reapplies the current configured preset; its displayed committed value changes only after Lightroom reports a successful SDK application. This is LRBridge-owned last-successful application state, not native Lightroom current-preset or current-amount readback. Failed calls preserve the prior cursor and committed Amount. Presets configured with `updateAISettings=true` preview Amount locally during a drag and submit only at release/change or another explicit commit, avoiding continuous AI-mask recomputation. Applying a preset affects exactly the captured single photo and does not automatically invoke Undo.
 
 The Help button opens:
 
@@ -508,7 +515,7 @@ The Help button opens:
 http://127.0.0.1:17892/help
 ```
 
-The Crop tab uses the existing validated Develop action contracts:
+The Tools tab's Crop & Straighten section uses the existing validated Develop action contracts:
 
 ```text
 /api/command?command=develop.action&action=selectCropTool
@@ -519,7 +526,7 @@ Original Aspect changes only the crop aspect ratio. Camera Crop uses Lightroom's
 
 Custom Crop accepts whole-number Width and Height values from 1 to 10000 and passes the exact pair through the documented SDK table form. The Web Controller opens its own Custom Crop modal; LRBridge does not open Lightroom's native Enter Custom dialog. Reset Crop remains the separate complete-crop reset workflow.
 
-Crop Angle uses Lightroom's documented `straightenAngle` Develop parameter from -45° to +45°. The Crop tab provides synchronized range and numeric inputs, real Lightroom polling feedback, and a Reset Angle control that resets only straightening. Rapid pending angle updates coalesce so the latest requested state wins. Controlled Lightroom runtime verification passed for both inputs and Reset Angle.
+Crop Angle uses Lightroom's documented `straightenAngle` Develop parameter from -45° to +45°. The Tools tab provides synchronized range and numeric inputs, real Lightroom polling feedback, and a Reset Angle control that resets only straightening. Rapid pending angle updates coalesce so the latest requested state wins. Controlled Lightroom runtime verification passed for both inputs and Reset Angle.
 
 Raw API help is still available through:
 
@@ -1569,6 +1576,8 @@ LRBridge/
   config/
     settings.txt
     sliders.json
+    develop-presets.example.json
+    develop-presets.json     Generated locally after saving preset configuration
   lightroom/
     LRBridge.lrplugin/
       color-grading.properties

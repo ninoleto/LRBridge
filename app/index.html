@@ -128,16 +128,6 @@
             margin-top: 10px;
         }
 
-        input[type="number"] {
-            background: #050708;
-            color: #d7e1ea;
-            border: 1px solid #2b3744;
-            border-radius: 7px;
-            padding: 9px 10px;
-            font-size: 14px;
-            width: 110px;
-        }
-
         .minimize-description {
             color: #778895;
             font-size: 12px;
@@ -208,13 +198,6 @@
 
         #minimizeMessage:empty {
             display: none;
-        }
-
-        .polling-guide {
-            margin-top: 10px;
-            color: #9fb0bf;
-            font-size: 13px;
-            line-height: 1.45;
         }
 
         .settings-message {
@@ -420,27 +403,6 @@
     </section>
 
     <section class="dashboard">
-        <div class="card">
-            <div class="label">Polling</div>
-            <div class="value">Current: <strong><span id="polling">Loading...</span></strong></div>
-
-            <div class="settings-row">
-                <span>Polling interval</span>
-                <input id="pollingInput" type="number" min="10" max="1000" step="1">
-                <span>ms</span>
-                <button id="saveSettings">Save</button>
-                <button id="defaultSettings" class="warning">Default</button>
-            </div>
-
-            <div class="polling-guide">
-                Default: <strong>100 ms</strong>. Use <strong>50 ms or lower</strong> if Lightroom feels too slow to react.
-                Use <strong>200 ms or higher</strong> if Lightroom stalls, skips, or feels overloaded.
-                Changes apply automatically within about 1 second.
-            </div>
-
-            <div class="settings-message" id="settingsMessage"></div>
-        </div>
-
         <div class="card wide">
             <div class="label">Web Controller</div>
 

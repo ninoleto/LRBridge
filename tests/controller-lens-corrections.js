@@ -55,7 +55,15 @@ for (const id of [
     assert.ok(!profileBuild.includes('"' + id + '"'), id + " must not render under Profile");
 }
 assert.ok(!lensBlock.includes('"CropConstrainToWarp"'),
-    "Constrain Crop must move from Lens Corrections to Transform");
+    "Lens Manual must reuse the established categorical presentation rather than create a second parameter");
+const manualDistortionPosition = manualBuild.indexOf('appendSlider(manualPanel, "LensManualDistortionAmount", "Amount")');
+const constrainCropPosition = manualBuild.indexOf("appendConstrainCropControl(manualPanel)");
+const defringePosition = manualBuild.indexOf('manualPanel.appendChild(createLensSubheading("Defringe"))');
+assert.ok(manualDistortionPosition >= 0 && manualDistortionPosition < constrainCropPosition &&
+    constrainCropPosition < defringePosition,
+"Lens Manual Constrain Crop must render after Distortion Amount and before Defringe");
+assert.match(controller, /developCategoricalControls\.constrainCrop\.push\(\{ row: row, buttons: buttons, status: status \}\)/,
+    "Both Constrain Crop presentations must register against the shared categorical state");
 
 assert.match(lensBlock, /createCompoundDevelopRangeControl\("Purple Hue", purpleLow, purpleHigh\)/);
 assert.match(lensBlock, /createCompoundDevelopRangeControl\("Green Hue", greenLow, greenHigh\)/);
@@ -572,6 +580,8 @@ for (const unsupported of ["LensProfileSetup", "LensProfileMake", "LensProfileMo
 }
 assert.doesNotMatch(lensBlock, /createElement\("select"\)|Built-in Lens Profile applied|eyedropper/i);
 assert.match(audit, /do not expose Lens Profile Setup, Make, Model, or Profile selection/);
+assert.match(audit, /no dedicated authoritative built-in-lens-profile status getter or reliable lens-profile inventory/);
+assert.match(audit, /Specific lens profiles can be applied through ordinary configured Develop presets/);
 assert.match(audit, /No Defringe eyedropper\/tool-selection value is documented/);
 
 console.log("Lens Corrections Profile/Manual, authoritative feedback, and compound hue contracts passed.");

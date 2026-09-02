@@ -15,11 +15,11 @@ assert.equal((html.match(/<nav class="tabs"/g) || []).length, 1, "Controller mus
 assert.doesNotMatch(html, /data-workspace|workspace-tabs|workspace-tab-button|developWorkspace/);
 assert.match(html, /id="colorGradingWorkspace"/);
 assert.match(html, /const controllerTabStorageKey = "lrbridge\.controller\.activeTab"/);
-assert.match(html, /const controllerTabIds = \["sliders", "color-grading", "tone-curve", "selection", "crop", "application", "retouching"\]/);
+assert.match(html, /const controllerTabIds = \["sliders", "color-grading", "tone-curve", "presets", "selection", "application", "tools"\]/);
 const tabIds = JSON.parse(html.match(/const controllerTabIds = (\[[^;]+\]);/)[1]);
-assert.deepEqual(tabIds, ["sliders", "color-grading", "tone-curve", "selection", "crop", "application", "retouching"]);
-const expectedTabLabels = ["Develop Sliders", "Color Grading", "Tone Curve", "Selection", "Crop", "Application", "Retouching"];
-const tabLabels = { sliders: "Develop Sliders", "color-grading": "Color Grading", "tone-curve": "Tone Curve", selection: "Selection", crop: "Crop", application: "Application", retouching: "Retouching" };
+assert.deepEqual(tabIds, ["sliders", "color-grading", "tone-curve", "presets", "selection", "application", "tools"]);
+const expectedTabLabels = ["Develop Sliders", "Color Grading", "Tone Curve", "Presets", "Selection", "Application", "Tools"];
+const tabLabels = { sliders: "Develop Sliders", "color-grading": "Color Grading", "tone-curve": "Tone Curve", presets: "Presets", selection: "Selection", application: "Application", tools: "Tools" };
 assert.deepEqual(tabIds.map(id => tabLabels[id]), expectedTabLabels, "Flattened controller tab order drifted");
 assert.match(html, /id: "sliders",\s*label: "Develop Sliders"\s*},\s*{\s*id: "color-grading",\s*label: "Color Grading"/);
 assert.match(html, /window\.addEventListener\("hashchange"/);

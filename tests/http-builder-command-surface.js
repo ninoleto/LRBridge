@@ -427,11 +427,15 @@ const controllerCrop = extractValue(controllerSource, "const cropGroups =")
     .flatMap((group) => group.commands);
 const controllerApplication = extractValue(controllerSource, "const applicationGroups =")
     .flatMap((group) => group.commands);
-assert.equal(controllerSelection.length, 33, "Main Web Controller Selection count changed");
+assert.equal(controllerSelection.length, 31, "Main Web Controller Selection count changed");
 assert.equal(controllerCrop.length, 11, "Main Web Controller Crop count changed");
 assert.equal(controllerApplication.length, 34, "Main Web Controller Application count changed");
 assert.ok(!controllerSelection.some((item) => item.command === "selection.label.toggle"), "Main controller must continue hiding label toggle");
+assert.ok(!controllerSelection.some((item) => item.command === "photo.treatment"),
+    "Main Selection UI must continue hiding the removed Treatment section");
 assert.equal(commands.validateCommand({ command: "selection.label.toggle", label: "red" }), true, "Backend label toggle support was removed");
+assert.equal(commands.validateCommand({ command: "photo.treatment", value: "grayscale" }), true,
+    "Treatment backend compatibility must remain available");
 
 assert.ok(packageJson.scripts.test.includes("test:http-builder"), "Focused HTTP Builder test is not in npm test");
 assert.ok(packageJson.scripts.test.includes("test:controller-commands"), "Controller prohibition tests must remain active");

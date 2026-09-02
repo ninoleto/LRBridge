@@ -38,7 +38,20 @@ const expectedJumpEntries = [
     { id: "transform", label: "Transform" },
     { id: "lens-blur", label: "Lens Blur" },
     { id: "effects", label: "Effects" },
-    { id: "calibration", label: "Calibration" }
+    { id: "calibration", label: "Calibration" },
+    { tab: "presets", label: "Presets", presetTab: true }
+];
+const allowedToolsCollapseDefinitions = Object.freeze({
+    "tools.crop-straighten": "Crop & Straighten",
+    "tools.healing": "Healing",
+    "tools.red-eye": "Red Eye",
+    "tools.masking": "Masking"
+});
+const expectedToolsJumpEntries = [
+    { id: "crop-straighten", label: "Crop & Straighten", toolsSection: true },
+    { id: "healing", label: "Healing", toolsSection: true },
+    { id: "red-eye", label: "Red Eye", toolsSection: true },
+    { id: "masking", label: "Masking", toolsSection: true }
 ];
 
 class FakeClassList {
@@ -227,6 +240,13 @@ const productionCollapseDefinitions = JSON.parse(JSON.stringify(evaluateConstRan
 )));
 assert.deepEqual(productionCollapseDefinitions, allowedCollapseDefinitions,
     "persisted identities must be limited to the exact Jump-to Develop sections");
+const productionToolsCollapseDefinitions = JSON.parse(JSON.stringify(evaluateConstRange(
+    "const toolsSectionCollapseDefinitions", "const toolsSectionCollapseManager",
+    "this.result = toolsSectionCollapseDefinitions;"
+)));
+assert.deepEqual(productionToolsCollapseDefinitions, allowedToolsCollapseDefinitions,
+    "Tools persisted identities must be limited to its four actual top-level sections");
+assert.match(controller, /storageKey: "lrbridge\.controller\.collapsedToolsSections\.v1"/);
 
 const sectionRegistry = JSON.parse(JSON.stringify(evaluateConstRange(
     "const developSectionDisplayOrder", "const colorMixerDefinitions",
@@ -244,15 +264,25 @@ assert.notEqual(jumpModelStart, -1);
 assert.notEqual(jumpModelEnd, -1);
 const jumpModelContext = { developSectionDisplayOrder: sectionRegistry.order };
 vm.runInNewContext(controller.slice(jumpModelStart, jumpModelEnd) +
-    "\nthis.getSliderJumpSections = getSliderJumpSections;", jumpModelContext);
+    "\nthis.getSliderJumpSections = getSliderJumpSections;" +
+    "\nthis.getToolsJumpSections = getToolsJumpSections;", jumpModelContext);
 assert.deepEqual(JSON.parse(JSON.stringify(jumpModelContext.getSliderJumpSections())), expectedJumpEntries,
     "Jump-to entries must retain the exact requested Lightroom-style order");
+assert.equal(expectedJumpEntries.length, 14, "the shared Jump-to model must contain exactly fourteen entries");
+assert.equal(expectedJumpEntries[13].label, "Presets", "Presets must be the final shared Jump-to entry");
+assert.doesNotMatch(controller.slice(jumpModelStart, jumpModelEnd), /developPresetController|draft|uuid|alias|Preset Controls|Manage Presets/,
+    "the shared Jump-to model must never reflect the configured preset draft or manager");
+assert.deepEqual(JSON.parse(JSON.stringify(jumpModelContext.getToolsJumpSections())), expectedToolsJumpEntries,
+    "Tools Jump-to entries must contain only actual Tools sections in page order");
 
 const menuTabsStart = controller.indexOf("function isSliderJumpMenuTab(");
 const menuTabsEnd = controller.indexOf("function getSliderJumpMenuHost(", menuTabsStart);
 assert.notEqual(menuTabsStart, -1);
 assert.notEqual(menuTabsEnd, -1);
-const menuTabsContext = { getSliderJumpSections: jumpModelContext.getSliderJumpSections };
+const menuTabsContext = {
+    getSliderJumpSections: jumpModelContext.getSliderJumpSections,
+    getToolsJumpSections: jumpModelContext.getToolsJumpSections
+};
 vm.runInNewContext(controller.slice(menuTabsStart, menuTabsEnd) +
     "\nthis.isSliderJumpMenuTab = isSliderJumpMenuTab;" +
     "\nthis.getSliderJumpMenuSections = getSliderJumpMenuSections;", menuTabsContext);
@@ -261,22 +291,35 @@ vm.runInNewContext(controller.slice(menuTabsStart, menuTabsEnd) +
     assert.deepEqual(JSON.parse(JSON.stringify(menuTabsContext.getSliderJumpMenuSections(tab))), expectedJumpEntries,
         tab + " must render the same complete Jump-to menu");
 });
-["selection", "crop", "application", "retouching"].forEach(function (tab) {
+assert.equal(menuTabsContext.isSliderJumpMenuTab("tools"), true);
+assert.deepEqual(JSON.parse(JSON.stringify(menuTabsContext.getSliderJumpMenuSections("tools"))), expectedToolsJumpEntries);
+assert.equal(menuTabsContext.isSliderJumpMenuTab("presets"), true, "Presets must render Jump-to");
+assert.deepEqual(JSON.parse(JSON.stringify(menuTabsContext.getSliderJumpMenuSections("presets"))), expectedJumpEntries,
+    "Presets must use the exact shared 14-entry Jump-to menu");
+["selection", "application", "crop", "retouching"].forEach(function (tab) {
     assert.equal(menuTabsContext.isSliderJumpMenuTab(tab), false, tab + " must not render Jump-to");
     assert.deepEqual(JSON.parse(JSON.stringify(menuTabsContext.getSliderJumpMenuSections(tab))), [],
         tab + " must not receive Jump-to entries");
 });
 assert.match(controller,
     /function getSliderJumpMenuHost\(\)[\s\S]*activeTab === "color-grading"[\s\S]*getElementById\("colorGradingWorkspace"\)[\s\S]*getElementById\("content"\)/,
-    "the three related tabs must mount Jump-to in their existing workspace without moving tab content");
+    "the Develop-related and Tools tabs must mount Jump-to in their existing workspace without moving tab content");
 const renderBlock = controller.slice(controller.indexOf("function render()"), controller.indexOf("async function loadDevelopSliderDefinitions"));
 assert.match(renderBlock, /colorGradingController\.activate\(\);\s*installSliderJumpMenu\(\);/);
 assert.match(renderBlock, /renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);\s*installSliderJumpMenu\(\);/);
 assert.match(renderBlock, /renderToneCurveTab\(\);\s*activateDevelopFeedbackPolling\(\);\s*installSliderJumpMenu\(\);/);
-assert.equal((renderBlock.match(/installSliderJumpMenu\(\)/g) || []).length, 3,
-    "only the three related tabs may install Jump-to");
-assert.equal((renderBlock.match(/removeSliderJumpMenus\(\)/g) || []).length, 4,
-    "Selection, Crop, Application, and Retouching must explicitly remove Jump-to");
+assert.match(renderBlock, /renderPresetsTab\(\);\s*installSliderJumpMenu\(\);/);
+assert.equal((renderBlock.match(/installSliderJumpMenu\(\)/g) || []).length, 5,
+    "only the three Develop-related tabs, Presets, and Tools may install Jump-to");
+assert.equal((renderBlock.match(/removeSliderJumpMenus\(\)/g) || []).length, 2,
+    "Selection and Application must explicitly remove Jump-to");
+assert.match(controller, /slider-jump-option" \+ \(section\.presetTab \? " preset-tab-entry" : ""\)/,
+    "Only the final Presets navigation entry receives the alternate accent class");
+assert.match(controller, /if \(section\.tab\) \{[\s\S]*selectControllerTab\(section\.tab, true\)/,
+    "Presets navigation must use the existing authoritative tab-selection path");
+assert.doesNotMatch(controller.slice(controller.indexOf("function activateSliderJumpEntry"), controller.indexOf("sections.forEach", controller.indexOf("function activateSliderJumpEntry"))),
+    /submitPreset|applyDevelopPreset|develop_preset\.apply|developPresetController|Manage Presets/,
+    "Presets Jump-to navigation must not invoke preset or manager actions");
 
 const expectedDesktopRows = [
     ["White Balance", "Detail"],
@@ -285,7 +328,7 @@ const expectedDesktopRows = [
     ["Presence", "Lens Blur"],
     ["Tone Curve", "Effects"],
     ["Color Mixer", "Calibration"],
-    ["Color Grading", null]
+    ["Color Grading", "Presets"]
 ];
 assert.deepEqual(Array.from({ length: 7 }, function (_unused, index) {
     return [expectedJumpEntries[index].label, expectedJumpEntries[index + 7] ? expectedJumpEntries[index + 7].label : null];
@@ -326,7 +369,7 @@ const narrowJumpCss = controller.slice(
 assert.match(narrowJumpCss, /\.slider-jump-popover[\s\S]*grid-template-columns:\s*1fr/);
 assert.match(narrowJumpCss, /grid-template-rows:\s*none/);
 assert.match(narrowJumpCss, /grid-auto-flow:\s*row/,
-    "narrow Jump-to must follow the sequential 1-13 DOM order");
+    "narrow Jump-to must follow the sequential 1-14 DOM order");
 assert.match(narrowJumpCss, /scrollbar-color:\s*#ffc066 #241508/);
 assert.match(narrowJumpCss, /::-webkit-scrollbar[\s\S]*width:\s*14px/);
 assert.doesNotMatch(narrowJumpCss, /overflow-y:\s*scroll|scrollbar-gutter/,
@@ -339,11 +382,11 @@ assert.notEqual(heightCalculationEnd, -1);
 const heightCalculationContext = {};
 vm.runInNewContext(controller.slice(heightCalculationStart, heightCalculationEnd) +
     "\nthis.calculateSliderJumpAvailableHeight = calculateSliderJumpAvailableHeight;", heightCalculationContext);
-const naturalSingleColumnHeight = (13 * 54) + (12 * 10) + 28 + 4;
+const naturalSingleColumnHeight = (14 * 54) + (13 * 10) + 28 + 4;
 const tallNarrowAvailableHeight = heightCalculationContext.calculateSliderJumpAvailableHeight(100, 1100, 0);
 const shortNarrowAvailableHeight = heightCalculationContext.calculateSliderJumpAvailableHeight(210, 640, 0);
 assert.ok(tallNarrowAvailableHeight >= naturalSingleColumnHeight,
-    "a tall narrow viewport must fit all 13 natural-height entries without overflow");
+    "a tall narrow viewport must fit all 14 natural-height entries without overflow");
 assert.ok(shortNarrowAvailableHeight < naturalSingleColumnHeight,
     "a genuinely short narrow viewport must constrain the menu and overflow internally");
 assert.equal(heightCalculationContext.calculateSliderJumpAvailableHeight(90, 700, 45), 643,
@@ -388,6 +431,7 @@ vm.runInNewContext(controller.slice(activationStart, activationEnd) +
     "\nthis.activateSliderJumpEntry = activateSliderJumpEntry;", activationContext);
 assert.equal(activationContext.activateSliderJumpEntry({ tab: "tone-curve" }), true);
 assert.equal(activationContext.activateSliderJumpEntry({ tab: "color-grading" }), true);
+assert.equal(activationContext.activateSliderJumpEntry({ tab: "presets", presetTab: true }), true);
 expectedJumpEntries.filter(function (entryDefinition) { return entryDefinition.id; }).forEach(function (entryDefinition) {
     assert.equal(activationContext.activateSliderJumpEntry({
         id: "slider-jump-section-" + entryDefinition.id,
@@ -395,12 +439,22 @@ expectedJumpEntries.filter(function (entryDefinition) { return entryDefinition.i
         name: entryDefinition.label
     }), true, entryDefinition.label + " must retain Develop-section navigation");
 });
-assert.deepEqual(selectedTabs, [["tone-curve", true], ["color-grading", true], ["sliders", true]],
+expectedToolsJumpEntries.forEach(function (entryDefinition) {
+    assert.equal(activationContext.activateSliderJumpEntry({
+        id: "slider-jump-section-" + entryDefinition.id,
+        toolsSectionId: entryDefinition.id,
+        name: entryDefinition.label
+    }), true, entryDefinition.label + " must retain Tools-section navigation");
+});
+assert.deepEqual(selectedTabs, [["tone-curve", true], ["color-grading", true], ["presets", true], ["sliders", true], ["tools", true]],
     "all cross-tab Jump-to navigation must use the existing authoritative tab-selection path");
 assert.deepEqual(scrolledTargets.map(function (entry) { return entry[0]; }),
     expectedJumpEntries.filter(function (entryDefinition) { return entryDefinition.id; })
-        .map(function (entryDefinition) { return "slider-jump-section-" + entryDefinition.id; }),
-    "every Develop navigation target must retain its heading-scroll path");
+        .map(function (entryDefinition) { return "slider-jump-section-" + entryDefinition.id; })
+        .concat(expectedToolsJumpEntries.map(function (entryDefinition) {
+            return "slider-jump-section-" + entryDefinition.id;
+        })),
+    "every Develop and Tools navigation target must retain its heading-scroll path");
 scrolledTargets.forEach(function (entry) {
     assert.deepEqual(entry[1], { behavior: "smooth", block: "start" });
 });
@@ -456,16 +510,24 @@ const toneCurveTabBlock = controller.slice(
     controller.indexOf("function renderToneCurveTab("),
     controller.indexOf("function renderToolTab(")
 );
-const retouchingBlock = controller.slice(
+const toolsBlock = controller.slice(
     controller.indexOf("function renderToolTab("),
-    controller.indexOf("function renderTabs(")
+    controller.indexOf("function renderSelectionTab(")
 );
-[colorGrading, commandTabsBlock, toneCurveTabBlock, retouchingBlock].forEach(function (sourceBlock) {
+const fixedTabBlock = controller.slice(
+    controller.indexOf("function renderSelectionTab("),
+    controller.indexOf("function render()")
+);
+[colorGrading, commandTabsBlock, toneCurveTabBlock, fixedTabBlock].forEach(function (sourceBlock) {
     assert.doesNotMatch(sourceBlock, /collapseManager|decorateCollapsible|collapsible-section|collapseToggle/,
         "dedicated tabs must retain fixed layouts without collapse behavior");
 });
+assert.match(toolsBlock, /decorateToolsCollapsibleWhole\(groupElement, title, "tools\." \+ sectionSlug, tab\.title\)/);
+assert.match(controller, /decorateToolsCollapsibleWhole\(section, heading, "tools\.crop-straighten", "Crop & Straighten"\)/);
+assert.equal((controller.match(/decorateToolsCollapsibleWhole\(/g) || []).length, 3,
+    "only the Tools decorator definition, Crop section, and shared Retouching renderer may reference Tools collapse decoration");
 [
-    "color-grading.", "tone-curve", "selection.", "crop.", "application.", "retouching.",
+    "color-grading.", "tone-curve", "presets.", "selection.", "crop.", "application.", "retouching.", "tools.",
     "develop.color-mixer.hsl.", "develop.color-mixer.color.", "develop.color-mixer.point-color",
     "develop.lens-corrections.", "develop.lens-blur."
 ].forEach(function (forbiddenId) {
@@ -482,9 +544,9 @@ assert.doesNotMatch(jumpFunction, /setCollapsed|localStorage|collapseToggle/,
 const cancellationFunction = controller.match(/function cancelActiveControllerGestures\(message\)[\s\S]*?function visibleWebControllerActions/)[0];
 [
     "activeSliderInteractions", "cancelPointColorLocalGestures", "cancelEnhanceAmountGesture",
-    "cancelLensBlurLocalGestures"
+    "cancelLensBlurLocalGestures", "cancelCropAngleGesture"
 ].forEach((token) => assert.ok(cancellationFunction.includes(token), "missing collapse gesture cancellation: " + token));
-["cancelParametricCurveGesture", "pointCurveController", "colorGradingController", "cancelAngleGesture"]
+["cancelParametricCurveGesture", "pointCurveController", "colorGradingController"]
     .forEach((token) => assert.ok(!cancellationFunction.includes(token), "dedicated-tab cancellation leaked into Develop collapse: " + token));
 assert.match(controller, /onBeforeCollapse:[\s\S]*?cancelActiveControllerGestures/);
 

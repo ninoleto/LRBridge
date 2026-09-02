@@ -14,6 +14,7 @@ let latestResult = null;
 let enhanceOperationPending = false;
 let enhanceAmountOperationPending = false;
 let pointColorAdmissionContextProvider = null;
+let developPresetAdmissionProvider = null;
 
 const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
@@ -176,6 +177,8 @@ function validateCommand(command) {
         ,"tone_curve.refine_saturation.gesture.cancel"
         ,"tone_curve.refine_saturation.reset"
         ,"tone_curve.preset.set"
+        ,"develop_presets.inventory.request"
+        ,"develop_preset.apply"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -242,6 +245,25 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0 &&
             pointCurve.validCurveArray(command.expectedPoints) && pointCurve.validCurveArray(command.points) &&
             pointCurve.serializeCurve(command.points) === pointCurve.serializeCurve(target);
+    }
+
+    if (command.command === "develop_presets.inventory.request") {
+        return Object.keys(command).length === 2 &&
+            typeof command.requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(command.requestId);
+    }
+
+    if (command.command === "develop_preset.apply") {
+        return Object.keys(command).length === 9 &&
+            typeof command.operationId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(command.operationId) &&
+            typeof command.uuid === "string" && command.uuid.length >= 1 && command.uuid.length <= 200 &&
+            !/[\u0000-\u001f\u007f]/.test(command.uuid) &&
+            Number.isSafeInteger(command.presetAmount) && command.presetAmount >= 0 && command.presetAmount <= 200 &&
+            typeof command.updateAISettings === "boolean" &&
+            command.expectedActiveModule === "develop" &&
+            typeof command.expectedSelectedPhotoUuid === "string" && command.expectedSelectedPhotoUuid.length >= 1 &&
+            command.expectedSelectedPhotoUuid.length <= 200 &&
+            Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
+            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0;
     }
 
     if (command.command === "point_color.value.set") {
@@ -568,6 +590,13 @@ function tryEnqueueCommand(command) {
     }
     command = bindContextBoundDevelopCommand(command);
     if (command === null) return admissionResult(ADMISSION_INVALID);
+    if (command.command === "develop_preset.apply" &&
+        (!developPresetAdmissionProvider || !developPresetAdmissionProvider.matches(command, context.getContextFields()))) {
+        if (developPresetAdmissionProvider && typeof developPresetAdmissionProvider.onRejected === "function") {
+            developPresetAdmissionProvider.onRejected(command, "Develop preset context changed during queue admission.");
+        }
+        return admissionResult(ADMISSION_INVALID);
+    }
     if ((command.command === "point_color.value.set" && Object.keys(command).length === 3) ||
         (command.command === "point_color.range.set" && Object.keys(command).length === 4)) {
         const admissionContext = pointColorAdmissionContextProvider && pointColorAdmissionContextProvider();
@@ -931,6 +960,13 @@ function getNextCommand() {
             command.command === "tone_curve.preset.set") && !pointCurveCommandBindingMatches(command)) continue;
         if (command.command === "lens_blur.depth_visualization.toggle" &&
             !lensBlurDepthVisualizationBindingMatches(command)) continue;
+        if (command.command === "develop_preset.apply" &&
+            (!developPresetAdmissionProvider || !developPresetAdmissionProvider.matches(command, context.getContextFields()))) {
+            if (developPresetAdmissionProvider && typeof developPresetAdmissionProvider.onRejected === "function") {
+                developPresetAdmissionProvider.onRejected(command, "Develop preset context changed before dequeue.");
+            }
+            continue;
+        }
         return command;
     }
     return null;
@@ -991,6 +1027,8 @@ function getQueueDiagnostics(nowMs) {
         ,"tone_curve.refine_saturation.gesture.cancel": 0
         ,"tone_curve.refine_saturation.reset": 0
         ,"tone_curve.preset.set": 0
+        ,"develop_presets.inventory.request": 0
+        ,"develop_preset.apply": 0
     };
 
     for (const command of commandQueue) {
@@ -1062,7 +1100,9 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.refine_saturation.gesture.begin"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.update"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.end"] +
-                    pendingByCommand["tone_curve.preset.set"],
+                    pendingByCommand["tone_curve.preset.set"] +
+                    pendingByCommand["develop_presets.inventory.request"] +
+                    pendingByCommand["develop_preset.apply"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
                     pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"] +
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
@@ -1143,6 +1183,10 @@ function setPointColorAdmissionContextProvider(provider) {
     pointColorAdmissionContextProvider = typeof provider === "function" ? provider : null;
 }
 
+function setDevelopPresetAdmissionProvider(provider) {
+    developPresetAdmissionProvider = provider && typeof provider.matches === "function" ? provider : null;
+}
+
 module.exports = {
     HARD_QUEUE_CAPACITY,
     ORDINARY_ADMISSION_CEILING,
@@ -1167,5 +1211,6 @@ module.exports = {
     resetQueueForTests
     ,finishEnhanceOperation
     ,setPointColorAdmissionContextProvider
+    ,setDevelopPresetAdmissionProvider
     ,finishEnhanceAmountOperation: function () { enhanceAmountOperationPending = false; }
 };

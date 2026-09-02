@@ -12,6 +12,7 @@ local LensBlur = require "LensBlur"
 local DevelopCategorical = require "DevelopCategorical"
 local ToneCurve = require "ToneCurve"
 local Profile = require "Profile"
+local DevelopPresets = require "DevelopPresets"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -74,6 +75,8 @@ function Commands.execute(command)
     if command.command == "tone_curve.refine_saturation.gesture.cancel" then ToneCurve.cancelRefineSaturationGesture(command); return end
     if command.command == "tone_curve.refine_saturation.reset" then ToneCurve.resetRefineSaturation(command); return end
     if command.command == "tone_curve.preset.set" then ToneCurve.setPreset(command); return end
+    if command.command == "develop_presets.inventory.request" then DevelopPresets.refreshInventory(command.requestId); return end
+    if command.command == "develop_preset.apply" then DevelopPresets.apply(command); return end
 
     if command.command == "develop.adjust" then
 

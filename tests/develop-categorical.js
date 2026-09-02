@@ -247,7 +247,7 @@ assert.match(html, /developCategoricalHelper\.syncUprightButtons\(uprightControl
     "Every categorical presentation refresh must synchronize Upright buttons directly");
 assert.match(html, /\.develop-categorical-options button\.active:hover[\s\S]*?background:\s*#2a6f97/,
     "Sticky touch hover must not hide an authoritative active Upright button");
-const transformCategoricalBlock = html.match(/function appendTransformCategoricalControls[\s\S]*?function appendTransformConstrainCropControl/)[0];
+const transformCategoricalBlock = html.match(/function appendTransformCategoricalControls[\s\S]*?function appendConstrainCropControl/)[0];
 assert.match(transformCategoricalBlock, /modeRow\.className = "develop-categorical-upright touch-group-gap"/);
 assert.doesNotMatch(transformCategoricalBlock, /modeName|textContent = "Mode"/,
     "Upright must not render the redundant boxed Mode label");
@@ -290,7 +290,7 @@ assert.ok(sectionFunction.indexOf("appendSectionCategoricalControls") < sectionF
     "Upright Tool, Update, and modes must render before Reset Transform");
 assert.ok(sectionFunction.indexOf("createSectionControls(section, \"leading\")") < sectionFunction.indexOf("section.items.forEach"),
     "Reset Transform must render before the Transform sliders");
-assert.ok(sectionFunction.indexOf("section.items.forEach") < sectionFunction.indexOf("appendTransformConstrainCropControl"),
+assert.ok(sectionFunction.indexOf("section.items.forEach") < sectionFunction.indexOf("appendConstrainCropControl"),
     "Constrain Crop must remain after the final Transform slider");
 assert.match(sectionFunction, /section\.id === "transform"\) leadingControls\.classList\.add\("transform-reset-subsection-gap"\)/,
     "Reset Transform must have the larger subsection separation from the first Transform slider");

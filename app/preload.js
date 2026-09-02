@@ -7,12 +7,6 @@ contextBridge.exposeInMainWorld("lrbridge", {
     startLightroom: function () {
         return ipcRenderer.invoke("start-lightroom");
     },
-    saveSettings: function (settings) {
-        return ipcRenderer.invoke("save-settings", settings);
-    },
-    resetSettings: function () {
-        return ipcRenderer.invoke("reset-settings");
-    },
     setMinimizeBehavior: function (behavior) {
         return ipcRenderer.invoke("set-minimize-behavior", behavior);
     },

@@ -3,8 +3,32 @@
 ## Accepted checkpoint
 
 - Branch: `feature/v0.6-more-sdk-and-web-controller`.
-- Accepted production checkpoint: `d1e803318672fcb1901105919c8e2fe6e22ee1ee` (`Point Curve polish and explicit add mode`).
-- Point Curve behavior is accepted through that commit. Git history, current production source, and current tests override stale or conflicting handoff text.
+- The Develop Presets and Web Controller reorganization phase is manually accepted for checkpointing from base `7d02c06efb1ac051304993e7794aaaf98b6b8be0` with commit message `feat: add develop presets and reorganize web controller`.
+- Preset Amount is included as implemented but experimental and known-incomplete. The two defects below are the first task for the next session; do not reinterpret this checkpoint as manual acceptance of Amount compatibility or rapid-input reconciliation.
+- Git history, current production source, and current tests override stale or conflicting historical handoff text below.
+
+## First next-session priority: Preset Amount follow-up
+
+1. **Compatibility / fail-closed behavior.** Some presets do not react correctly to Amount; confirmed example AR01 causes Lightroom to change the selected preset to None and disable Lightroom's native Amount control. LRBridge incorrectly leaves its Amount control enabled and movable even though it has no effect. Research a reliable capability or application-success signal and fail closed when Amount is unsupported. Never infer compatibility from preset name, folder, alias, or missing settings.
+2. **Rapid minus/plus monotonicity.** Repeated rapid Amount minus/plus presses are not reliably monotonic. The displayed desired value can advance and then roll back when polling or an earlier completion settles. Correct desired/submitted/committed reconciliation so stale feedback cannot overwrite newer queued intent.
+
+The automated Preset Amount serial/coalescing tests pass, including the five-rapid-plus case, but manual Lightroom integration exposed behavior those tests do not cover. Preserve the current implementation until this follow-up is deliberately researched and corrected.
+
+## Accepted Develop Presets and Web Controller scope (2026-09-02)
+
+- The top-level order is Develop Sliders, Color Grading, Tone Curve, Presets, Selection, Application, Tools. Presets owns the touch-friendly configured/inventory pickers, ordered UUID configuration, Previous/Next controls, Preset Amount, and per-preset Update AI Settings behavior.
+- Preset configuration keeps exactly one sticky `+ Add Presets` and one `Save Configuration` action. Alias drafts remain local and focused across authoritative polling and tab deactivation until Save.
+- Develop Sliders, Color Grading, Tone Curve, and Presets share the identical 14-entry Jump-to model. Presets is last, navigation-only, and uniquely blue; configured preset names, folders, aliases, UUIDs, and cards never enter Jump-to.
+- Develop Sliders and Presets share one authoritative B&W/Color treatment model, command path, feedback state, and polling lifecycle. Preset application never forces treatment.
+- Tools contains Crop & Straighten, Healing, Red Eye, and Masking. Only those four stable top-level identities participate in its scoped collapse and Jump-to model; the eleven Develop collapse identities remain unchanged.
+- Lens Corrections Manual and Transform reuse the authoritative `CropConstrainToWarp` Constrain Crop state. Ordinary polling controls were removed from the Electron UI while advanced file configuration remains supported.
+- Lightroom's SDK exposes no reliable Make/Model/Lens Profile inventory. LRBridge does not implement a picker; specific lens profiles can be applied through ordinary configured Develop presets.
+
+## Checkpoint verification and lifecycle
+
+- Current checkpoint verification evidence is recorded by the final checkpoint run and in `CODEX_HANDOFF.local.md`.
+- The known protected-document `test:contract` mismatch remains `Generated Companion document is missing slider LensBlurAmount`; do not modify the protected Companion files to hide it.
+- Manual Lightroom/Web Controller acceptance already included the required Node/server restart, production plug-in reload, and browser refresh for this phase. Checkpoint documentation, staging, commit, and push do not require another restart, plug-in reload, or browser refresh.
 
 ## Accepted Point Curve behavior
 

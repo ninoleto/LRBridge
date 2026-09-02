@@ -15,6 +15,9 @@ files:
 extraFiles:
   - from: config
     to: config
+    filter:
+      - "**/*"
+      - "!develop-presets.json"
   - from: lightroom
     to: lightroom
   - from: README.md

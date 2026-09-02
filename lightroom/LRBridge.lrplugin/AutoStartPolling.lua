@@ -107,6 +107,8 @@ local function commandParameter(command)
     if command.command == "enhance.denoise.amount.set" then return "amount=" .. tostring(command.amount) end
     if command.command == "develop_categorical.profile.set" then return command.profile end
     if command.command == "tone_curve.preset.set" then return "RGB preset=" .. tostring(command.preset) end
+    if command.command == "develop_presets.inventory.request" then return "request=" .. tostring(command.requestId) end
+    if command.command == "develop_preset.apply" then return "uuid=" .. tostring(command.uuid) .. " operation=" .. tostring(command.operationId) end
     if string.sub(command.command or "", 1, string.len("tone_curve.refine_saturation.")) == "tone_curve.refine_saturation." then
         return "CurveRefineSaturation gesture=" .. tostring(command.gestureId or "reset")
     end

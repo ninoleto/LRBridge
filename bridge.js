@@ -1,8 +1,11 @@
 const bridgeModule = require("./server/bridge");
 const windowsNative = require("./server/windows-lightroom-native");
+const path = require("node:path");
 
 const defaultBridge = bridgeModule.createBridge({
-    windowsNativeBackend: windowsNative.createWindowsLightroomNativeBackend()
+    windowsNativeBackend: windowsNative.createWindowsLightroomNativeBackend(),
+    developPresetConfigPath: process.env.LRBRIDGE_DEVELOP_PRESETS_CONFIG_PATH ||
+        path.join(__dirname, "config", "develop-presets.json")
 });
 const startPromise = defaultBridge.start();
 

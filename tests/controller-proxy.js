@@ -75,7 +75,10 @@ function createProxyServer(upstreamPort, options = {}) {
             upstreamHost: "127.0.0.1",
             upstreamPort,
             timeoutMs: options.timeoutMs || 1000,
-            httpRequest: options.httpRequest
+            httpRequest: options.httpRequest,
+            method: options.method,
+            body: options.body,
+            headers: options.headers
         });
         if (options.onProxyOperation) options.onProxyOperation(operation);
     });
@@ -208,7 +211,8 @@ function request(port, requestPath, options = {}) {
             hostname: "127.0.0.1",
             port,
             path: requestPath,
-            method: options.method || "GET"
+            method: options.method || "GET",
+            headers: options.headers
         }, function (response) {
             let body = "";
             response.setEncoding("utf8");
@@ -218,6 +222,7 @@ function request(port, requestPath, options = {}) {
             });
         });
         outgoing.once("error", reject);
+        if (options.body !== undefined) outgoing.write(options.body);
         outgoing.end();
     });
 }
@@ -280,6 +285,41 @@ async function testNormalForwarding() {
         assert.equal(result.headers["x-upstream"], undefined);
         assert.equal(result.body, '{"ok":true,"value":7}');
         assert.deepEqual(stats, { writeHead: 1, end: 1 });
+    });
+}
+
+async function testExplicitPostBodyForwarding() {
+    const body = JSON.stringify({ version: 1, presets: [{ uuid: "preset-a", updateAISettings: false }] });
+    let received = null;
+    await withServers(function (request, response) {
+        let receivedBody = "";
+        request.setEncoding("utf8");
+        request.on("data", function (chunk) { receivedBody += chunk; });
+        request.on("end", function () {
+            received = {
+                method: request.method,
+                url: request.url,
+                contentType: request.headers["content-type"],
+                body: receivedBody
+            };
+            response.end('{"ok":true}');
+        });
+    }, async function ({ proxyPort }) {
+        const result = await request(proxyPort, "/develop-presets/config");
+        assert.equal(result.statusCode, 200);
+        assert.deepEqual(received, {
+            method: "POST",
+            url: "/develop-presets/config",
+            contentType: "application/json",
+            body: body
+        });
+    }, {
+        method: "POST",
+        body: body,
+        headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(body)
+        }
     });
 }
 
@@ -456,6 +496,7 @@ async function main() {
         await testPrematureUpstreamCloseSettles();
         await testRepeatedUpstreamFailureAfterHeadersDestroysOnce();
         await testNormalForwarding();
+        await testExplicitPostBodyForwarding();
         await testDisconnectBeforeUpstreamResponse();
         await testDisconnectAfterUpstreamHeaders();
         await testUpstreamErrorsAndTimeout();

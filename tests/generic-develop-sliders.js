@@ -184,7 +184,7 @@ assert.doesNotMatch(
     "Navigation classification must use identity only"
 );
 assert.match(controller, /lastControllerDevelopCounter = data\.developCounter/);
-assert.match(controller, /function isGenericDevelopFeedbackTab\(tab\) \{\s*return tab === "sliders" \|\| tab === "tone-curve" \|\| tab === "crop";\s*\}/);
+assert.match(controller, /function isGenericDevelopFeedbackTab\(tab\) \{\s*return tab === "sliders" \|\| tab === "tone-curve" \|\| tab === "tools";\s*\}/);
 assert.match(controller, /if \(!genericFeedbackActive \|\| !isGenericDevelopFeedbackTab\(activeTab\)\) return/);
 assert.match(controller, /function deactivateDevelopFeedbackPolling\(\)[\s\S]*genericFeedbackAbortController\.abort\(\)/);
 assert.match(controller, /if \(activeTab === "sliders"\) \{\s*renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
@@ -353,7 +353,9 @@ assert.equal((controller.match(/"label": "Remove Chromatic Aberration"/g) || [])
 assert.equal((controller.match(/"label": "Enable Profile Corrections"/g) || []).length, 1,
     "Enable Profile Corrections must have one existing switch definition");
 assert.equal((controller.match(/name\.textContent = "Constrain Crop"/g) || []).length, 1,
-    "Constrain Crop must have one dedicated control in Transform");
+    "Both Constrain Crop presentations must reuse one dedicated control renderer");
+assert.match(controller, /appendConstrainCropControl\(manualPanel\)/,
+    "Lens Corrections Manual must reuse the shared Constrain Crop renderer");
 const developSectionRenderer = controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0];
 assert.match(developSectionRenderer,
     /groupElement\.appendChild\(title\);\s*if \(section\.id === "lens-corrections"\) \{\s*renderLensCorrectionsSection\(groupElement, section\);\s*finalizeDevelopSectionCollapsing\(groupElement, section, title\);\s*return groupElement;/,
@@ -362,7 +364,7 @@ assert.match(developSectionRenderer,
     /section\.items\.forEach[\s\S]*const trailingControls = createSectionControls\(section, "trailing"\);\s*if \(trailingControls\) groupElement\.appendChild\(trailingControls\)/,
     "Other Develop sections must retain the generic leading/slider/trailing renderer");
 assert.match(developSectionRenderer,
-    /section\.items\.forEach[\s\S]*if \(section\.id === "transform"\) appendTransformConstrainCropControl\(groupElement\);\s*const trailingControls/,
+    /section\.items\.forEach[\s\S]*if \(section\.id === "transform"\) appendConstrainCropControl\(groupElement\);\s*const trailingControls/,
     "Transform Constrain Crop must render after its final slider");
 assert.match(controller,
     /includesDetailControls[\s\S]*controls\.appendChild\(renderEnhanceSection\(\)\)[\s\S]*controls\.appendChild\(renderRawDetailsControl\(\)\)[\s\S]*controls\.appendChild\(renderSuperResolutionControl\(\)\)/,
@@ -410,13 +412,13 @@ assert.equal(developSectionDisplayOrder[4].id, "color-mixer",
     "Color Mixer/B&W must remain between Presence and Detail");
 assert.match(controller, /function getSliderJumpSections[\s\S]*label: section\.label/,
     "Jump menu must retain the canonical Color Mixer label in its exact navigation order");
-const jumpHeadingLookup = controller.match(/function findSliderJumpHeading\(content, sectionId\) \{[\s\S]*?\n        \}/)[0];
+const jumpHeadingLookup = controller.match(/function findSliderJumpHeading\(content, section\) \{[\s\S]*?\n        \}/)[0];
 assert.match(jumpHeadingLookup, /data-develop-section/);
 assert.match(jumpHeadingLookup, /> \.group-title/,
     "Every Jump-to option must resolve the main direct-child section title");
 assert.doesNotMatch(jumpHeadingLookup, /textContent|\.trim\(\)|name/,
     "Jump-to heading discovery must not depend on visible title text");
-assert.match(controller, /findSliderJumpHeading\(contentHost, section\.id\)/,
+assert.match(controller, /findSliderJumpHeading\(contentHost, section\)/,
     "Jump-to must resolve headings by stable section identity");
 assert.match(controller, /title\.textContent = section\.id === "color-mixer"[\s\S]*"COLOR MIXER" : section\.label/,
     "Rendered headings must consume the shared presentation label");
@@ -624,13 +626,15 @@ assert.match(slidersOnlyBlock, /setStatus\("ERROR: " \+ mappingError\)/,
 assert.match(controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0],
     /createDevelopSliderControl\(item\.definition\)/,
     "Develop presentation must reuse the production slider factory");
-assert.match(controller, /row\.appendChild\(autoButton\)[\s\S]*row\.appendChild\(treatmentButton\)/);
+assert.match(controller, /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPresentation = createTreatmentPresentation\(row\)/);
 assert.match(controller, /autoTone\.action === "setAutoTone"|item\.action === "setAutoTone"/);
 assert.match(controller, /command=photo\.treatment&value=/);
 assert.match(controller, /if \(section\.id === "color-mixer"\)[\s\S]*treatmentAuthoritativeState[\s\S]*"B&W Mixer"[\s\S]*"Color Mixer \/ HSL"/);
 assert.match(controller, /rerenderColorMixerSection\(\)[\s\S]*requestLiveFeedbackSnapshot\(true\)/);
-assert.match(controller, /if \(activeTab === "sliders"\) requestTreatmentState\(\)/,
-    "Treatment reads must reuse the existing Develop feedback cadence");
+assert.match(controller, /function isTreatmentControllerTab\(tab\) \{\s*return tab === "sliders" \|\| tab === "presets";\s*\}/,
+    "Treatment UI must be scoped to Develop Sliders and Presets only");
+assert.match(controller, /if \(isTreatmentControllerTab\(activeTab\)\) requestTreatmentState\(\)/,
+    "Both treatment presentations must reuse the existing Develop feedback cadence");
 assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1);
 assert.doesNotMatch(controller + bridge + mainProcess + photo + feedback, /ToneCurvePV2012/);
 const hdrModeControlBlock = controller.match(
@@ -658,17 +662,29 @@ assert.match(photo, /quickDevelopSetTreatment\("color"\)/);
 assert.match(bridge, /grayscale: status === "available" \? req\.query\.grayscale === "true" : null/);
 assert.match(mainProcess, /"\/api\/treatment\/request"[\s\S]*"\/treatment\/request"/);
 assert.match(controller, /const authoritativeBlackAndWhite = treatmentHasAuthoritativeState &&\s*treatmentAuthoritativeState === true/);
-assert.match(controller, /treatmentButton\.setAttribute\("aria-pressed", String\(authoritativeBlackAndWhite\)\)/);
-assert.match(controller, /treatmentButton\.classList\.toggle\("bw-treatment-active", authoritativeBlackAndWhite\)/);
-assert.match(controller, /treatmentButton\.disabled = treatmentPending \|\| !treatmentHasAuthoritativeState/);
-assert.match(controller, /treatmentButton\.title = authoritativeBlackAndWhite \? "Black & White mode" : "Color mode"/);
+assert.match(controller, /treatmentPresentations\.forEach\(updateTreatmentPresentation\)/,
+    "Develop Sliders and Presets must share one authoritative treatment presentation update");
+assert.equal((controller.match(/let treatmentAuthoritativeState =/g) || []).length, 1,
+    "Both treatment presentations must share one authoritative state");
+assert.equal((controller.match(/let treatmentHasAuthoritativeState =/g) || []).length, 1,
+    "Both treatment presentations must share one feedback-availability state");
+const treatmentFactoryBlock = controller.slice(
+    controller.indexOf("function createTreatmentPresentation("),
+    controller.indexOf("function disposeDevelopTreatmentPresentation(")
+);
+assert.doesNotMatch(treatmentFactoryBlock, /\.id\s*=|setAttribute\("id"/,
+    "Shared treatment presentations must not introduce duplicate DOM IDs");
+assert.match(controller, /presentation\.button\.setAttribute\("aria-pressed", String\(authoritativeBlackAndWhite\)\)/);
+assert.match(controller, /presentation\.button\.classList\.toggle\("bw-treatment-active", authoritativeBlackAndWhite\)/);
+assert.match(controller, /presentation\.button\.disabled = treatmentPending \|\| !treatmentHasAuthoritativeState/);
+assert.match(controller, /presentation\.button\.title = authoritativeBlackAndWhite \? "Black & White mode" : "Color mode"/);
 assert.match(controller,
     /treatmentStateFresh \? \(authoritativeBlackAndWhite \? "Black & White" : "Color"\)/,
     "B&W button and adjacent status must use the same authoritative treatment boolean");
 assert.match(controller,
     /\.basic-controls-row button\.bw-treatment-active,[\s\S]*background:\s*#178447;[\s\S]*border-color:\s*#65e08c;/,
     "Authoritative B&W treatment must use a dedicated strong-green background and border");
-assert.doesNotMatch(controller, /treatmentButton\.classList\.toggle\("active"/,
+assert.doesNotMatch(controller, /presentation\.button\.classList\.toggle\("active"/,
     "B&W treatment must not reuse another control's generic active style");
 assert.match(controller, /const mode = treatmentAuthoritativeState \? "color" : "grayscale"/);
 assert.match(controller, /treatmentPending && treatmentDesiredState !== snapshot\.grayscale/,

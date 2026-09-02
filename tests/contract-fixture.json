@@ -17,6 +17,16 @@
     "/color-grading",
     "/color-grading/metadata",
     "/groups",
+    "/develop-presets/state",
+    "/develop-presets/config",
+    "/develop-presets/inventory/refresh",
+    "/develop-presets/inventory/item",
+    "/develop-presets/inventory/complete",
+    "/develop-presets/inventory/fail",
+    "/develop-presets/apply",
+    "/develop-presets/navigate",
+    "/develop-presets/amount",
+    "/develop-presets/apply-result",
     "/next",
     "/enhance/state",
     "/point-color/state",
@@ -157,6 +167,8 @@
     ,"tone_curve.refine_saturation.gesture.cancel"
     ,"tone_curve.refine_saturation.reset"
     ,"tone_curve.preset.set"
+    ,"develop_presets.inventory.request"
+    ,"develop_preset.apply"
   ],
   "selectionOperations": [
     "select_all",

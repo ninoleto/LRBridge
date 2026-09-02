@@ -593,6 +593,52 @@
             letter-spacing: 0.09em;
         }
 
+        .group[data-tools-section] {
+            box-sizing: border-box;
+            min-width: 0;
+            max-width: 100%;
+            margin-top: 30px;
+        }
+
+        .group[data-tools-section]:first-of-type {
+            margin-top: 4px;
+        }
+
+        .group[data-tools-section] > .group-title {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0 0 20px;
+            padding: 11px 14px;
+            border-top: 1px solid #d18a36;
+            border-bottom: 1px solid #d18a36;
+            background: #101010;
+            color: #f4f4f4;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+        }
+
+        .tools-section .collapsible-section-body {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .tools-subsection {
+            box-sizing: border-box;
+            min-width: 0;
+            max-width: 100%;
+            margin: 0 0 22px;
+        }
+
+        .tools-subsection > .group-title {
+            margin-bottom: 8px;
+            color: #8fa2b3;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
         .group[data-develop-section="hdr-sdr-rendition"] .hdr-sdr-rendition-note {
             margin: 0 0 12px;
         }
@@ -1360,6 +1406,657 @@
             box-shadow: 0 20px 55px rgba(0, 0, 0, 0.68), 0 0 0 2px rgba(209, 138, 54, 0.22);
         }
 
+        .develop-presets-controller {
+            box-sizing: border-box;
+            width: 100%;
+            min-width: 0;
+            margin-bottom: 14px;
+            padding: 12px;
+            background: #18212a;
+            border: 1px solid #2b3744;
+            border-radius: 9px;
+            overflow-wrap: anywhere;
+        }
+
+        .develop-presets-controller-title {
+            margin: 0 0 10px;
+            color: #9fb0bf;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+        }
+
+        .develop-presets-controller-row {
+            display: grid;
+            grid-template-columns: minmax(130px, auto) minmax(220px, 1fr) minmax(110px, auto);
+            gap: 9px;
+            align-items: end;
+            min-width: 0;
+        }
+
+        .develop-preset-amount-row {
+            display: grid;
+            grid-template-columns: minmax(90px, 130px) minmax(180px, 1fr) 82px 48px 48px auto;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+            margin-top: 12px;
+        }
+
+        .develop-preset-amount-label {
+            color: #d7e1ea;
+            font-weight: 600;
+        }
+
+        .develop-preset-amount-range {
+            min-width: 0;
+            min-height: 48px;
+        }
+
+        .develop-preset-amount-range::-webkit-slider-runnable-track {
+            background: linear-gradient(
+                to right,
+                #2f9ed8 0,
+                #2f9ed8 var(--slider-progress, 50%),
+                #405263 var(--slider-progress, 50%),
+                #405263 100%
+            );
+        }
+
+        .develop-preset-amount-range::-moz-range-progress {
+            height: 6px;
+            border-radius: 999px;
+            background: #2f9ed8;
+        }
+
+        .develop-preset-amount-number {
+            box-sizing: border-box;
+            width: 100%;
+            min-width: 0;
+            min-height: 48px;
+            padding: 8px;
+            border: 1px solid #405263;
+            border-radius: 6px;
+            background: #080c10;
+            color: #f4f7fa;
+            font-size: 16px;
+            text-align: right;
+        }
+
+        .develop-preset-amount-number[aria-invalid="true"] {
+            border-color: #db6b78;
+        }
+
+        .develop-preset-amount-step,
+        .develop-preset-amount-reset {
+            min-width: 48px;
+            min-height: 48px;
+        }
+
+        .develop-preset-amount-step {
+            padding: 0;
+            font-size: 20px;
+        }
+
+        .develop-preset-treatment {
+            margin-top: 10px;
+        }
+
+        .develop-preset-treatment .basic-controls-row {
+            margin-bottom: 6px;
+        }
+
+        .develop-preset-treatment-note {
+            margin: 0;
+            color: #9fb0bf;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .develop-preset-navigation {
+            min-height: 48px;
+            box-sizing: border-box;
+        }
+
+        .develop-preset-current {
+            display: grid;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .develop-preset-current-label {
+            color: #9fb0bf;
+            font-size: 12px;
+        }
+
+        .develop-preset-config-field input[type="text"] {
+            box-sizing: border-box;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            min-height: 48px;
+        }
+
+        .develop-preset-current-button {
+            box-sizing: border-box;
+            display: grid;
+            gap: 3px;
+            width: 100%;
+            min-width: 0;
+            min-height: 56px;
+            padding: 8px 12px;
+            text-align: left;
+            background: #21465d;
+            border-color: #57a6d1;
+        }
+
+        .develop-preset-current-primary,
+        .develop-preset-current-secondary {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .develop-preset-current-primary {
+            color: #f4f9fc;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .develop-preset-current-secondary {
+            color: #b8cbd7;
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .develop-presets-controller-status,
+        .develop-preset-manager-status,
+        .develop-preset-manager-description,
+        .develop-preset-config-empty {
+            color: #9fb0bf;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .develop-presets-controller-status {
+            margin-top: 8px;
+        }
+
+        .develop-preset-manage-toggle {
+            min-height: 44px;
+            margin-top: 10px;
+        }
+
+        .develop-preset-manager[hidden] {
+            display: none;
+        }
+
+        .develop-preset-manager {
+            box-sizing: border-box;
+            min-width: 0;
+            max-width: 100%;
+            margin-top: 10px;
+            padding: 12px;
+            border: 1px solid #344353;
+            border-radius: 8px;
+            background: #101820;
+        }
+
+        .develop-preset-manager-description {
+            margin: 0 0 10px;
+        }
+
+        .develop-preset-manager-toolbar {
+            position: sticky;
+            top: 76px;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            min-width: 0;
+            gap: 8px;
+            margin: 0 -4px 10px;
+            padding: 8px 4px;
+            background: #101820;
+            border-bottom: 1px solid #344353;
+        }
+
+        .develop-preset-manager-toolbar > button {
+            box-sizing: border-box;
+            width: 100%;
+            min-width: 0;
+            height: 52px;
+            min-height: 52px;
+            padding: 10px 14px;
+            border-radius: 7px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .develop-preset-config-actions button {
+            min-height: 48px;
+        }
+
+        .develop-preset-add-open {
+            background: #21465d;
+            border-color: #57a6d1;
+        }
+
+        .develop-preset-save.dirty:not(:disabled) {
+            background: #1f7651;
+            border-color: #65d69d;
+        }
+
+        .develop-preset-save.dirty:not(:disabled):hover {
+            background: #278963;
+        }
+
+        .develop-preset-config-list {
+            display: grid;
+            gap: 8px;
+            min-width: 0;
+            margin: 12px 0;
+        }
+
+        .develop-preset-config-row {
+            display: grid;
+            grid-template-columns: minmax(100px, 0.8fr) minmax(130px, 1fr) minmax(150px, 1fr) minmax(145px, auto) minmax(235px, auto);
+            gap: 8px;
+            align-items: end;
+            min-width: 0;
+            padding: 10px;
+            border: 1px solid #2b3744;
+            border-radius: 7px;
+            background: #18212a;
+        }
+
+        .develop-preset-config-row.unavailable {
+            border-color: #8d4d53;
+            background: #27191c;
+        }
+
+        .develop-preset-config-field {
+            display: grid;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .develop-preset-config-field-label {
+            color: #9fb0bf;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .develop-preset-config-field-value {
+            min-width: 0;
+            color: #d7e1ea;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .develop-preset-config-field.ai {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+            color: #d7e1ea;
+        }
+
+        .develop-preset-config-field.ai input {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 auto;
+            accent-color: #46c4b5;
+        }
+
+        .develop-preset-config-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .develop-preset-config-error {
+            grid-column: 1 / -1;
+            color: #ff9b9b;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .develop-preset-config-empty {
+            padding: 10px;
+            border: 1px dashed #344353;
+            border-radius: 7px;
+        }
+
+        .develop-preset-manager-status {
+            min-height: 18px;
+            grid-column: 1 / -1;
+            margin-top: 0;
+        }
+
+        .develop-preset-manager-status[data-kind="error"],
+        .develop-preset-manager-status[data-kind="state-error"] {
+            color: #ff9b9b;
+        }
+
+        .develop-preset-manager-status[data-kind="success"] {
+            color: #78d8ab;
+        }
+
+        dialog.develop-preset-picker {
+            box-sizing: border-box;
+            width: min(720px, calc(100vw - 32px));
+            max-width: 100%;
+            max-height: calc(100dvh - 32px);
+            margin: auto;
+            padding: 0;
+            overflow: hidden;
+            color: #e8eef3;
+            background: #111a22;
+            border: 1px solid #4a6578;
+            border-radius: 14px;
+            box-shadow: 0 22px 72px rgba(0, 0, 0, 0.72);
+        }
+
+        dialog.develop-preset-picker[hidden] {
+            display: none;
+        }
+
+        dialog.develop-preset-picker::backdrop {
+            background: rgba(3, 7, 10, 0.78);
+            backdrop-filter: blur(2px);
+        }
+
+        .develop-preset-picker-shell {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 100%;
+            max-height: calc(100dvh - 32px);
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .develop-preset-picker-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 14px 8px;
+        }
+
+        .develop-preset-picker-header h3 {
+            min-width: 0;
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .develop-preset-picker-close {
+            flex: 0 0 auto;
+            min-height: 48px;
+        }
+
+        .develop-preset-picker-description {
+            margin: 0;
+            padding: 0 14px 10px;
+            color: #aebdc8;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .develop-preset-picker-search {
+            box-sizing: border-box;
+            flex: 0 0 auto;
+            width: calc(100% - 28px);
+            min-width: 0;
+            min-height: 48px;
+            margin: 0 14px 10px;
+            padding: 9px 12px;
+            color: #f4f7fa;
+            background: #080c10;
+            border: 1px solid #526a7c;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .develop-preset-picker-list {
+            box-sizing: border-box;
+            flex: 0 1 auto;
+            min-height: 0;
+            max-width: 100%;
+            padding: 0 14px 12px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
+        }
+
+        .develop-preset-picker-folder {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            padding: 9px 4px 6px;
+            color: #9fb0bf;
+            background: #111a22;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .develop-preset-picker-option {
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            min-width: 0;
+            min-height: 52px;
+            margin: 0 0 7px;
+            padding: 8px 11px;
+            color: #e8eef3;
+            background: #1a252e;
+            border: 1px solid #334654;
+            border-radius: 9px;
+            text-align: left;
+        }
+
+        .develop-preset-picker-option.current,
+        .develop-preset-picker-option.selected {
+            background: #21465d;
+            border-color: #67b5df;
+        }
+
+        .develop-preset-picker-option.unavailable,
+        .develop-preset-picker-option.configured {
+            opacity: 0.58;
+            cursor: not-allowed;
+        }
+
+        .develop-preset-picker-option-labels {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .develop-preset-picker-option-primary,
+        .develop-preset-picker-option-secondary,
+        .develop-preset-picker-option-mark {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .develop-preset-picker-option-primary {
+            font-size: 15px;
+            font-weight: 650;
+        }
+
+        .develop-preset-picker-option-secondary {
+            color: #aebdc8;
+            font-size: 12px;
+        }
+
+        .develop-preset-picker-option-mark {
+            color: #8de0bb;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .develop-preset-picker-empty {
+            box-sizing: border-box;
+            min-height: 52px;
+            padding: 14px 10px;
+            color: #aebdc8;
+            border: 1px dashed #3b4d5b;
+            border-radius: 9px;
+        }
+
+        .develop-preset-picker-footer {
+            position: sticky;
+            bottom: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px 14px;
+            background: #111a22;
+            border-top: 1px solid #2e3f4c;
+        }
+
+        .develop-preset-picker-footer button {
+            min-height: 48px;
+        }
+
+        .develop-preset-picker-add-selected {
+            background: #1f7651;
+            border-color: #65d69d;
+        }
+
+        .develop-preset-picker-selection-count {
+            color: #aebdc8;
+            font-size: 12px;
+        }
+
+        .develop-preset-current-button:focus-visible,
+        .develop-preset-add-open:focus-visible,
+        .develop-preset-picker button:focus-visible,
+        .develop-preset-picker input:focus-visible {
+            outline: 3px solid #f0c45b;
+            outline-offset: 2px;
+        }
+
+        @media (max-width: 980px) {
+            .develop-preset-config-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .develop-preset-config-actions,
+            .develop-preset-config-error {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .develop-presets-controller-row {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .develop-preset-current {
+                grid-column: 1 / -1;
+                grid-row: 1;
+            }
+
+            .develop-preset-navigation {
+                width: 100%;
+            }
+
+            .develop-preset-amount-row {
+                grid-template-columns: minmax(0, 1fr) 48px 48px minmax(74px, auto);
+                padding: 10px;
+                border: 1px solid #2b3744;
+                border-radius: 8px;
+                background: #101820;
+            }
+
+            .develop-preset-amount-label,
+            .develop-preset-amount-range {
+                grid-column: 1 / -1;
+            }
+
+            .develop-preset-amount-number {
+                grid-column: 1;
+            }
+
+            .develop-preset-config-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .develop-preset-add-open,
+            .develop-preset-save {
+                width: 100%;
+            }
+
+            .develop-preset-config-actions,
+            .develop-preset-config-error {
+                grid-column: auto;
+            }
+
+            .develop-preset-config-actions button {
+                flex: 1 1 110px;
+            }
+
+            dialog.develop-preset-picker {
+                width: calc(100vw - 12px);
+                max-height: calc(100dvh - 12px);
+                border-radius: 14px 14px 8px 8px;
+            }
+
+            .develop-preset-picker-shell {
+                max-height: calc(100dvh - 12px);
+            }
+
+            .develop-preset-picker-header,
+            .develop-preset-picker-footer {
+                gap: 7px;
+                padding-inline: 10px;
+            }
+
+            .develop-preset-picker-description {
+                padding-inline: 10px;
+            }
+
+            .develop-preset-picker-search {
+                width: calc(100% - 20px);
+                margin-inline: 10px;
+            }
+
+            .develop-preset-picker-list {
+                padding-inline: 10px;
+            }
+
+            .develop-preset-picker-footer {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .develop-preset-picker-selection-count {
+                grid-column: 1 / -1;
+            }
+
+            .develop-preset-picker-footer button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .develop-preset-manager-toolbar {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .slider-jump-popover[hidden] {
             display: none;
         }
@@ -1381,6 +2078,17 @@
         .slider-jump-option:focus {
             background: #1a1a1a;
             border-color: #f0a64a;
+        }
+
+        .slider-jump-option.preset-tab-entry {
+            border-color: #2f9ed8;
+            background: #123b52;
+        }
+
+        .slider-jump-option.preset-tab-entry:hover,
+        .slider-jump-option.preset-tab-entry:focus {
+            border-color: #65c4e8;
+            background: #194d67;
         }
 
         .slider-jump-target {
@@ -2138,6 +2846,7 @@
     <script src="/controller-lens-blur.js"></script>
     <script src="/controller-tone-curve.js"></script>
     <script src="/controller-section-collapse.js"></script>
+    <script src="/controller-develop-presets.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -2567,14 +3276,6 @@
                         ]
                 },
                 {
-                        "name": "Treatment",
-                        "note": "Changes the treatment of Lightroom's active photo only.",
-                        "commands": [
-                                { "label": "Black & White", "command": "photo.treatment", "field": "value", "value": "grayscale", "className": "command-neutral" },
-                                { "label": "Color", "command": "photo.treatment", "field": "value", "value": "color", "className": "command-primary" }
-                        ]
-                },
-                {
                         "name": "Photo",
                         "note": "Acts on Lightroom's active photo only.",
                         "commands": [
@@ -2745,7 +3446,7 @@
         const statusBox = document.getElementById("status");
 
         const controllerTabStorageKey = "lrbridge.controller.activeTab";
-        const controllerTabIds = ["sliders", "color-grading", "tone-curve", "selection", "crop", "application", "retouching"];
+        const controllerTabIds = ["sliders", "color-grading", "tone-curve", "presets", "selection", "application", "tools"];
         const sectionCollapseDefinitions = Object.freeze({
             "develop.white-balance": "White Balance",
             "develop.tone": "Tone",
@@ -2770,9 +3471,29 @@
                 }
             })
             : null;
+        const toolsSectionCollapseDefinitions = Object.freeze({
+            "tools.crop-straighten": "Crop & Straighten",
+            "tools.healing": "Healing",
+            "tools.red-eye": "Red Eye",
+            "tools.masking": "Masking"
+        });
+        const toolsSectionCollapseManager = window.LRBridgeSectionCollapse &&
+            typeof window.LRBridgeSectionCollapse.createManager === "function"
+            ? window.LRBridgeSectionCollapse.createManager({
+                document: document,
+                storage: window.localStorage,
+                storageKey: "lrbridge.controller.collapsedToolsSections.v1",
+                definitions: toolsSectionCollapseDefinitions,
+                onBeforeCollapse: function (sectionId, sectionName) {
+                    cancelActiveControllerGestures("Collapsing " + sectionName + " cancelled the active adjustment gesture.");
+                }
+            })
+            : null;
 
         function normalizeControllerTab(tab) {
-            if (tab === "healing" || tab === "redEye" || tab === "masking") return "retouching";
+            if (tab === "crop" || tab === "retouching" || tab === "healing" || tab === "redEye" || tab === "masking") {
+                return "tools";
+            }
             return tab;
         }
 
@@ -2790,7 +3511,11 @@
         let activeTab = tabFromLocation();
 
         function isGenericDevelopFeedbackTab(tab) {
-            return tab === "sliders" || tab === "tone-curve" || tab === "crop";
+            return tab === "sliders" || tab === "tone-curve" || tab === "tools";
+        }
+
+        function isTreatmentControllerTab(tab) {
+            return tab === "sliders" || tab === "presets";
         }
 
         function setStatus(message) {
@@ -2800,6 +3525,11 @@
         function decorateCollapsibleWhole(parent, heading, sectionId, sectionName) {
             if (!sectionCollapseManager || !sectionId) return null;
             return sectionCollapseManager.decorateWhole(parent, heading, sectionId, sectionName);
+        }
+
+        function decorateToolsCollapsibleWhole(parent, heading, sectionId, sectionName) {
+            if (!toolsSectionCollapseManager || !sectionId) return null;
+            return toolsSectionCollapseManager.decorateWhole(parent, heading, sectionId, sectionName);
         }
 
         function formatResponseText(text) {
@@ -3023,20 +3753,36 @@
                     sections.push({ tab: "color-grading", label: "Color Grading" });
                 }
             });
+            sections.push({ tab: "presets", label: "Presets", presetTab: true });
             return sections;
         }
 
-        function findSliderJumpHeading(content, sectionId) {
+        function getToolsJumpSections() {
+            return [
+                { id: "crop-straighten", label: "Crop & Straighten", toolsSection: true },
+                { id: "healing", label: "Healing", toolsSection: true },
+                { id: "red-eye", label: "Red Eye", toolsSection: true },
+                { id: "masking", label: "Masking", toolsSection: true }
+            ];
+        }
+
+        function findSliderJumpHeading(content, section) {
+            if (section.toolsSection) {
+                return content.querySelector(
+                    '.group[data-tools-section="' + section.id + '"] > .group-title'
+                );
+            }
             return content.querySelector(
-                '.group[data-develop-section="' + sectionId + '"] > .group-title'
+                '.group[data-develop-section="' + section.id + '"] > .group-title'
             );
         }
 
         function isSliderJumpMenuTab(tab) {
-            return tab === "sliders" || tab === "tone-curve" || tab === "color-grading";
+            return tab === "sliders" || tab === "tone-curve" || tab === "color-grading" || tab === "tools" || tab === "presets";
         }
 
         function getSliderJumpMenuSections(tab) {
+            if (tab === "tools") return getToolsJumpSections();
             return isSliderJumpMenuTab(tab) ? getSliderJumpSections() : [];
         }
 
@@ -3201,10 +3947,11 @@
                     if (section.tab) {
                         return {
                             tab: section.tab,
-                            name: section.label
+                            name: section.label,
+                            presetTab: section.presetTab === true
                         };
                     }
-                    const heading = findSliderJumpHeading(contentHost, section.id);
+                    const heading = findSliderJumpHeading(contentHost, section);
                     const id = "slider-jump-section-" + section.id;
 
                     if (heading) {
@@ -3214,7 +3961,8 @@
 
                     return {
                         id: id,
-                        developSectionId: section.id,
+                        developSectionId: section.toolsSection ? null : section.id,
+                        toolsSectionId: section.toolsSection ? section.id : null,
                         name: section.label
                     };
                 })
@@ -3234,7 +3982,7 @@
             const mainButton = document.createElement("button");
             mainButton.type = "button";
             mainButton.className = "slider-jump-main-button";
-            mainButton.textContent = "Slider Group ▾";
+            mainButton.textContent = activeTab === "tools" ? "Tool Section ▾" : "Slider Group ▾";
             mainButton.setAttribute("aria-expanded", "false");
 
             const topButton = document.createElement("button");
@@ -3306,8 +4054,9 @@
                     selectControllerTab(section.tab, true);
                     return true;
                 }
-                if (!section.developSectionId || !section.id) return false;
-                if (activeTab !== "sliders") selectControllerTab("sliders", true);
+                if ((!section.developSectionId && !section.toolsSectionId) || !section.id) return false;
+                if (section.toolsSectionId && activeTab !== "tools") selectControllerTab("tools", true);
+                else if (!section.toolsSectionId && activeTab !== "sliders") selectControllerTab("sliders", true);
                 const target = document.getElementById(section.id);
                 if (!target) return false;
                 target.scrollIntoView({
@@ -3320,7 +4069,7 @@
             sections.forEach(function (section) {
                 const option = document.createElement("button");
                 option.type = "button";
-                option.className = "slider-jump-option";
+                option.className = "slider-jump-option" + (section.presetTab ? " preset-tab-entry" : "");
                 option.textContent = section.name;
 
                 option.addEventListener("click", function () {
@@ -3861,8 +4610,8 @@
         let treatmentStateFresh = false;
         let treatmentPending = false;
         let treatmentDesiredState = null;
-        let treatmentButton = null;
-        let treatmentStatus = null;
+        const treatmentPresentations = new Set();
+        let developTreatmentPresentation = null;
         let pointColorState = { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false };
         let pointColorRequestInFlight = false;
         let pointColorHost = null;
@@ -3906,6 +4655,22 @@
             document: document,
             fetch: fetch.bind(window),
             setStatus: setStatus
+        });
+        const developPresetController = LRBridgeControllerDevelopPresets.createController({
+            document: document,
+            fetch: fetch.bind(window),
+            setStatus: setStatus,
+            getContext: function () {
+                return {
+                    activeModule: lastControllerActiveModule,
+                    selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter,
+                    developCounter: lastControllerDevelopCounter
+                };
+            },
+            createTreatmentPresentation: function () {
+                return createTreatmentPresentation(null, "develop-preset-treatment-row");
+            }
         });
 
         function classifyControllerContextChange(previous, next) {
@@ -4093,11 +4858,11 @@
         }
 
         async function requestLiveFeedbackSnapshot(forceAll) {
+            if (isTreatmentControllerTab(activeTab)) requestTreatmentState();
             if (!genericFeedbackActive || !isGenericDevelopFeedbackTab(activeTab)) return;
-            if (activeTab === "sliders") requestTreatmentState();
             if (activeTab === "sliders") requestHistoryState();
             if (activeTab === "sliders") requestLensBlurState();
-            if (activeTab === "sliders" || activeTab === "crop") requestDevelopCategoricalState();
+            if (activeTab === "sliders" || activeTab === "tools") requestDevelopCategoricalState();
             if (activeTab === "sliders" && colorMixerView === "point-color") requestPointColorState();
             if (liveFeedbackSnapshotInFlight) {
                 pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
@@ -4105,7 +4870,7 @@
             }
 
             const visibleSliders = forceAll === true
-                ? (activeTab === "crop" ? ["CropAngle"] : Object.keys(developSliderControls).filter(function (slider) {
+                ? (activeTab === "tools" ? ["CropAngle"] : Object.keys(developSliderControls).filter(function (slider) {
                     return developSliderControls[slider].row.isConnected;
                 }))
                 : getVisibleFeedbackSliders();
@@ -4225,6 +4990,7 @@
                 lastControllerActiveModule = data.activeModule;
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
                 lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;
+                developPresetController.updateContext();
                 pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
@@ -4306,6 +5072,7 @@
         function deactivateDevelopFeedbackPolling() {
             genericFeedbackActive = false;
             cancelParametricCurveGesture("Parametric Curve gesture cancelled by navigation.");
+            cancelCropAngleGesture();
             Array.from(activeSliderInteractions).forEach(function (slider) {
                 const control = developSliderControls[slider];
                 if (control && control.cancelInteraction) control.cancelInteraction();
@@ -4318,6 +5085,7 @@
         }
 
         function clearContent() {
+            disposeDevelopTreatmentPresentation();
             content.innerHTML = "";
             cropToolButton = null;
             cropToolStatus = null;
@@ -4340,20 +5108,20 @@
                     label: "Tone Curve"
                 },
                 {
-                    id: "selection",
-                    label: "Selection"
+                    id: "presets",
+                    label: "Presets"
                 },
                 {
-                    id: "crop",
-                    label: "Crop"
+                    id: "selection",
+                    label: "Selection"
                 },
                 {
                     id: "application",
                     label: "Application"
                 },
                 {
-                    id: "retouching",
-                    label: "Retouching"
+                    id: "tools",
+                    label: "Tools"
                 }
             ];
 
@@ -4511,6 +5279,21 @@
             submitAngleValue(value);
         }
 
+        function cancelCropAngleGesture() {
+            const cancelled = angleDragging || angleEditing || angleThrottleTimer !== null || pendingAngleValue !== null;
+            if (angleThrottleTimer !== null) clearTimeout(angleThrottleTimer);
+            angleThrottleTimer = null;
+            pendingAngleValue = null;
+            angleDragging = false;
+            angleEditing = false;
+            cancelNextAngleBlur = true;
+            if (cancelled) {
+                showLocalAngle(authoritativeAngleValue);
+                numericAngleCommittedValue = authoritativeAngleValue;
+            }
+            return cancelled;
+        }
+
         function renderAngleControls(groupElement) {
             const row = document.createElement("div");
             row.className = "angle-control";
@@ -4638,11 +5421,12 @@
             showLocalAngle(0);
         }
 
-        function renderCommandGroups(groups) {
+        function renderCommandGroups(groups, hostElement, groupClassName) {
+            const host = hostElement || content;
             for (const group of groups) {
                 if (group.actionBar) continue;
                 const groupElement = document.createElement("section");
-                groupElement.className = "group";
+                groupElement.className = groupClassName || "group";
 
                 const title = document.createElement("div");
                 title.className = "group-title";
@@ -4661,7 +5445,7 @@
 
                 if (group.angleControl) {
                     renderAngleControls(groupElement);
-                    content.appendChild(groupElement);
+                    host.appendChild(groupElement);
                     continue;
                 }
 
@@ -4676,7 +5460,7 @@
                 }
 
                 if (group.commands.length > 0) groupElement.appendChild(grid);
-                content.appendChild(groupElement);
+                host.appendChild(groupElement);
             }
         }
 
@@ -4720,13 +5504,20 @@
             });
         }
 
-        function renderCropTab() {
-            renderCommandGroups(cropGroups);
+        function renderCropSection() {
+            const section = document.createElement("section");
+            section.className = "group tools-section";
+            section.dataset.toolsSection = "crop-straighten";
+            const heading = document.createElement("div");
+            heading.className = "group-title";
+            heading.textContent = "Crop & Straighten";
+            section.appendChild(heading);
+            renderCommandGroups(cropGroups, section, "tools-subsection");
             const actions = cropGroups.find(function (group) { return group.actionBar === true; });
             const limitations = document.createElement("p");
             limitations.className = "crop-sdk-limitations";
             limitations.textContent = cropSdkLimitations;
-            content.appendChild(limitations);
+            section.appendChild(limitations);
             const actionBar = document.createElement("section");
             actionBar.className = "crop-action-bar";
             actionBar.setAttribute("aria-label", "Crop actions");
@@ -4743,7 +5534,9 @@
             actionBar.appendChild(resetButton);
             actionBar.appendChild(cropToolStatus);
             actionBar.appendChild(cropToolButton);
-            content.appendChild(actionBar);
+            section.appendChild(actionBar);
+            decorateToolsCollapsibleWhole(section, heading, "tools.crop-straighten", "Crop & Straighten");
+            content.appendChild(section);
             updateCropToolPresentation();
         }
 
@@ -6499,8 +7292,10 @@
                 }
             }
 
-            const constrainControl = developCategoricalControls.constrainCrop;
-            if (constrainControl) {
+            const constrainControls = Array.isArray(developCategoricalControls.constrainCrop)
+                ? developCategoricalControls.constrainCrop
+                : (developCategoricalControls.constrainCrop ? [developCategoricalControls.constrainCrop] : []);
+            constrainControls.forEach(function (constrainControl) {
                 const presentation = developCategoricalModel.presentation("constrainCrop");
                 const busy = presentation.pending || developCategoricalSubmitting.has("constrainCrop");
                 developCategoricalHelper.syncBinaryButtons(constrainControl.buttons, presentation, busy);
@@ -6519,7 +7314,7 @@
                         ? (presentation.authoritativeValue === 1 ? "On" : "Off")
                         : "Unavailable";
                 }
-            }
+            });
 
             const toolControl = developCategoricalControls.uprightTool;
             if (toolControl) {
@@ -6746,7 +7541,7 @@
         }
 
         async function requestDevelopCategoricalState(forceProfileRefresh) {
-            if (!developCategoricalModel || (activeTab !== "sliders" && activeTab !== "crop")) return;
+            if (!developCategoricalModel || (activeTab !== "sliders" && activeTab !== "tools")) return;
             if (developCategoricalRequestInFlight) {
                 if (forceProfileRefresh === true) developCategoricalRefreshQueued = true;
                 return;
@@ -6758,7 +7553,7 @@
                 if (!response.ok || !data || !data.state || !Number.isSafeInteger(data.revision)) {
                     throw new Error("Develop categorical state unavailable");
                 }
-                if (activeTab !== "sliders" && activeTab !== "crop") return;
+                if (activeTab !== "sliders" && activeTab !== "tools") return;
                 if (data.capabilities && data.capabilities.transformUpdate) {
                     developCategoricalCapabilities = data.capabilities;
                 }
@@ -8420,6 +9215,7 @@
 
             manualPanel.appendChild(createLensSubheading("Distortion"));
             appendSlider(manualPanel, "LensManualDistortionAmount", "Amount");
+            appendConstrainCropControl(manualPanel);
 
             manualPanel.appendChild(createLensSubheading("Defringe"));
             manualPanel.appendChild(createLensColorHeading("Purple"));
@@ -8532,6 +9328,7 @@
             if (cancelPointColorLocalGestures()) cancelled = true;
             if (cancelEnhanceAmountGesture()) cancelled = true;
             if (cancelLensBlurLocalGestures()) cancelled = true;
+            if (cancelCropAngleGesture()) cancelled = true;
             if (cancelled && message) setStatus(message);
             return cancelled;
         }
@@ -9587,20 +10384,51 @@
             return selected;
         }
 
-        function updateTreatmentButton() {
-            if (!treatmentButton) return;
+        function updateTreatmentPresentation(presentation) {
+            if (!presentation || !presentation.button || !presentation.status) return;
             const authoritativeBlackAndWhite = treatmentHasAuthoritativeState &&
                 treatmentAuthoritativeState === true;
-            treatmentButton.disabled = treatmentPending || !treatmentHasAuthoritativeState;
-            treatmentButton.setAttribute("aria-pressed", String(authoritativeBlackAndWhite));
-            treatmentButton.classList.toggle("bw-treatment-active", authoritativeBlackAndWhite);
-            treatmentButton.classList.toggle("pending", treatmentPending);
-            treatmentButton.title = authoritativeBlackAndWhite ? "Black & White mode" : "Color mode";
-            if (treatmentStatus) {
-                treatmentStatus.textContent = treatmentPending ? "Applying…" :
-                    (!treatmentHasAuthoritativeState ? "Loading treatment…" :
-                        (treatmentStateFresh ? (authoritativeBlackAndWhite ? "Black & White" : "Color") : "Treatment unavailable"));
+            presentation.button.disabled = treatmentPending || !treatmentHasAuthoritativeState;
+            presentation.button.setAttribute("aria-pressed", String(authoritativeBlackAndWhite));
+            presentation.button.classList.toggle("bw-treatment-active", authoritativeBlackAndWhite);
+            presentation.button.classList.toggle("pending", treatmentPending);
+            presentation.button.title = authoritativeBlackAndWhite ? "Black & White mode" : "Color mode";
+            presentation.status.textContent = treatmentPending ? "Applying…" :
+                (!treatmentHasAuthoritativeState ? "Loading treatment…" :
+                    (treatmentStateFresh ? (authoritativeBlackAndWhite ? "Black & White" : "Color") : "Treatment unavailable"));
+        }
+
+        function updateTreatmentButton() {
+            treatmentPresentations.forEach(updateTreatmentPresentation);
+        }
+
+        function createTreatmentPresentation(existingRow, additionalClassName) {
+            const row = existingRow || document.createElement("div");
+            if (!existingRow) row.className = "basic-controls-row";
+            if (additionalClassName) row.classList.add(additionalClassName);
+            const button = makeButton("B&W", "command-neutral", toggleTreatment);
+            const status = document.createElement("span");
+            status.className = "basic-controls-status";
+            row.appendChild(button);
+            row.appendChild(status);
+            const presentation = {
+                element: row,
+                button: button,
+                status: status,
+                dispose: function () {
+                    treatmentPresentations.delete(presentation);
+                }
+            };
+            treatmentPresentations.add(presentation);
+            updateTreatmentPresentation(presentation);
+            return presentation;
+        }
+
+        function disposeDevelopTreatmentPresentation() {
+            if (developTreatmentPresentation && typeof developTreatmentPresentation.dispose === "function") {
+                developTreatmentPresentation.dispose();
             }
+            developTreatmentPresentation = null;
         }
 
         function invalidateTreatmentState() {
@@ -9615,7 +10443,7 @@
         }
 
         async function requestTreatmentState() {
-            if (activeTab !== "sliders" || treatmentRequestInFlight) return;
+            if (!isTreatmentControllerTab(activeTab) || treatmentRequestInFlight) return;
             treatmentRequestInFlight = true;
             const generation = treatmentGeneration;
             const abortController = new AbortController();
@@ -9635,7 +10463,8 @@
                     if (snapshot.status !== "pending") break;
                     await sleep(120);
                 }
-                if (generation !== treatmentGeneration || abortController.signal.aborted || activeTab !== "sliders") return;
+                if (generation !== treatmentGeneration || abortController.signal.aborted ||
+                    !isTreatmentControllerTab(activeTab)) return;
                 if (!snapshot || snapshot.status !== "available" || typeof snapshot.grayscale !== "boolean") {
                     throw new Error("Treatment unavailable");
                 }
@@ -9891,7 +10720,7 @@
             developCategoricalControls.uprightMode = { row: modeRow, buttons: buttons, status: modeStatus };
         }
 
-        function appendTransformConstrainCropControl(groupElement) {
+        function appendConstrainCropControl(groupElement) {
             if (!developCategoricalHelper) return;
             const row = document.createElement("div");
             row.className = "switch-row develop-categorical-binary";
@@ -9918,7 +10747,10 @@
             status.setAttribute("aria-live", "polite");
             row.append(name, buttons["0"], buttons["1"], status);
             groupElement.appendChild(row);
-            developCategoricalControls.constrainCrop = { row: row, buttons: buttons, status: status };
+            if (!Array.isArray(developCategoricalControls.constrainCrop)) {
+                developCategoricalControls.constrainCrop = [];
+            }
+            developCategoricalControls.constrainCrop.push({ row: row, buttons: buttons, status: status });
         }
 
         function appendSectionCategoricalControls(groupElement, sectionId) {
@@ -10024,7 +10856,7 @@
                     groupElement.appendChild(visualizeNote);
                 }
             });
-            if (section.id === "transform") appendTransformConstrainCropControl(groupElement);
+            if (section.id === "transform") appendConstrainCropControl(groupElement);
             const trailingControls = createSectionControls(section, "trailing");
             if (trailingControls) groupElement.appendChild(trailingControls);
             finalizeDevelopSectionCollapsing(groupElement, section, title);
@@ -10358,12 +11190,7 @@
                 registerAutoActionButton(autoTone.action, autoButton);
                 row.appendChild(autoButton);
             }
-            treatmentButton = makeButton("B&W", "command-neutral", toggleTreatment);
-            treatmentStatus = document.createElement("span");
-            treatmentStatus.className = "basic-controls-status";
-            row.appendChild(treatmentButton);
-            row.appendChild(treatmentStatus);
-            updateTreatmentButton();
+            developTreatmentPresentation = createTreatmentPresentation(row);
             content.appendChild(row);
         }
 
@@ -10559,7 +11386,9 @@
 
         function renderToolTab(tab) {
             const groupElement = document.createElement("section");
-            groupElement.className = "group";
+            groupElement.className = "group tools-section";
+            const sectionSlug = tab.id === "redEye" ? "red-eye" : tab.id;
+            groupElement.dataset.toolsSection = sectionSlug;
 
             const title = document.createElement("div");
             title.className = "group-title";
@@ -10571,10 +11400,12 @@
                 addActionRow(groupElement, item);
             }
 
+            decorateToolsCollapsibleWhole(groupElement, title, "tools." + sectionSlug, tab.title);
             content.appendChild(groupElement);
         }
 
-        function renderRetouchingTab() {
+        function renderToolsTab() {
+            renderCropSection();
             ["healing", "redEye", "masking"].forEach(function (tabId) {
                 const tab = toolTabs.find(function (item) {
                     return item.id === tabId;
@@ -10583,10 +11414,19 @@
             });
         }
 
+        function renderSelectionTab() {
+            renderCommandGroups(selectionGroups);
+        }
+
+        function renderPresetsTab() {
+            developPresetController.activate(content);
+        }
+
         function render() {
             renderTabs();
 
             const colorGradingActive = activeTab === "color-grading";
+            if (activeTab !== "presets") developPresetController.deactivate();
             content.hidden = colorGradingActive;
             document.getElementById("colorGradingWorkspace").hidden = !colorGradingActive;
             if (colorGradingActive) {
@@ -10598,7 +11438,7 @@
 
             colorGradingController.deactivate();
             if (activeTab !== "tone-curve") pointCurveController.deactivate();
-            if (activeTab !== "sliders") invalidateTreatmentState();
+            if (!isTreatmentControllerTab(activeTab)) invalidateTreatmentState();
             if (activeTab !== "sliders") {
                 lensBlurModel.applyAuthoritative(null);
                 updateLensBlurPresentation();
@@ -10620,17 +11460,23 @@
                 return;
             }
 
+            if (activeTab === "presets") {
+                renderPresetsTab();
+                installSliderJumpMenu();
+                return;
+            }
+
             if (activeTab === "selection") {
-                renderCommandGroups(selectionGroups);
+                renderSelectionTab();
                 removeSliderJumpMenus();
                 return;
             }
 
-            if (activeTab === "crop") {
-                renderCropTab();
+            if (activeTab === "tools") {
+                renderToolsTab();
                 if (genericFeedbackActive) requestLiveFeedbackSnapshot(true);
                 else activateDevelopFeedbackPolling();
-                removeSliderJumpMenus();
+                installSliderJumpMenu();
                 return;
             }
 
@@ -10640,11 +11486,6 @@
                 return;
             }
 
-            if (activeTab === "retouching") {
-                renderRetouchingTab();
-                removeSliderJumpMenus();
-                return;
-            }
         }
 
         async function loadDevelopSliderDefinitions() {

@@ -21,6 +21,7 @@ const projectRoot = path.join(__dirname, "..");
 const portableRoot = app.isPackaged ? path.dirname(process.execPath) : projectRoot;
 const bridgePath = path.join(projectRoot, "bridge.js");
 const settingsPath = path.join(portableRoot, "config", "settings.txt");
+const developPresetConfigPath = path.join(portableRoot, "config", "develop-presets.json");
 const trayIconPath = path.join(__dirname, "tray.png");
 const controllerPath = path.join(__dirname, "controller.html");
 const controllerColorGradingPath = path.join(__dirname, "controller-color-grading.js");
@@ -29,6 +30,7 @@ const controllerDenoiseStatePath = path.join(__dirname, "controller-denoise-stat
 const controllerDevelopCategoricalPath = path.join(__dirname, "controller-develop-categorical.js");
 const controllerToneCurvePath = path.join(__dirname, "controller-tone-curve.js");
 const controllerSectionCollapsePath = path.join(__dirname, "controller-section-collapse.js");
+const controllerDevelopPresetsPath = path.join(__dirname, "controller-develop-presets.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
@@ -40,6 +42,7 @@ const bridgeHttpPort = 17891;
 const controllerPort = 17892;
 const controllerListenHost = "0.0.0.0";
 const controllerLocalUrl = "http://127.0.0.1:" + controllerPort + "/";
+const controllerJsonBodyLimitBytes = 64 * 1024;
 
 function isLikelyLanAddress(address) {
     if (address.startsWith("192.168.")) {
@@ -229,8 +232,8 @@ function writePollingMs(value) {
     const pollingMs = clampPollingMs(value);
     writeSettingValue("poll_interval_ms", pollingMs);
 
-    console.log("Saved polling interval:", pollingMs + " ms");
-    console.log("Lightroom polling will apply this change automatically within about 1 second.");
+    console.log("Saved advanced command queue check interval:", pollingMs + " ms");
+    console.log("Lightroom command polling will apply this change automatically within about 1 second.");
 
     return pollingMs;
 }
@@ -249,18 +252,6 @@ function writeMinimizeBehavior(value) {
     return value;
 }
 
-function resetSettings() {
-    const pollingMs = writePollingMs(defaultPollingMs);
-
-    console.log("Restored default settings.");
-
-    return {
-        ok: true,
-        pollingMs: pollingMs,
-        settingsPath: settingsPath
-    };
-}
-
 async function startBridge() {
     if (bridgeStarted) {
         return;
@@ -271,16 +262,18 @@ async function startBridge() {
     console.log("Starting LRBridge app...");
     console.log("Project root:", projectRoot);
     console.log("Portable root:", portableRoot);
-    console.log("Polling interval:", readPollingMs() + " ms");
+    console.log("Command queue check interval:", readPollingMs() + " ms (advanced setting)");
+    console.log("The command queue check interval does not control Web Controller feedback cadence.");
     console.log("Loading bridge:", bridgePath);
 
     try {
+        process.env.LRBRIDGE_DEVELOP_PRESETS_CONFIG_PATH = developPresetConfigPath;
         const bridge = require(bridgePath);
         bridgeRuntime = bridge.defaultBridge;
         await bridge.startPromise;
         console.log("LRBridge is active.");
         console.log("You can use Lightroom Classic through the LRBridge HTTP API.");
-        console.log("If controls feel slow, edit polling settings in this app. Changes apply automatically.");
+        console.log("Advanced command queue timing can be edited manually in config/settings.txt and reloads automatically.");
     } catch (err) {
         bridgeStarted = false;
         console.error("Failed to start LRBridge:", err.message);
@@ -318,6 +311,54 @@ function handleControllerRequestError(response) {
             }
         }
     }
+}
+
+function readControllerRequestBody(request, maximumBytes) {
+    return new Promise(function (resolve, reject) {
+        const chunks = [];
+        let receivedBytes = 0;
+        let settled = false;
+
+        function finish(err, body) {
+            if (settled) return;
+            settled = true;
+            request.removeListener("data", onData);
+            request.removeListener("end", onEnd);
+            request.removeListener("error", onError);
+            request.removeListener("aborted", onAborted);
+            if (err) reject(err);
+            else resolve(body);
+        }
+
+        function onData(chunk) {
+            receivedBytes += chunk.length;
+            if (receivedBytes > maximumBytes) {
+                const err = new Error("Request body is too large");
+                err.statusCode = 413;
+                finish(err);
+                request.resume();
+                return;
+            }
+            chunks.push(chunk);
+        }
+
+        function onEnd() {
+            finish(null, Buffer.concat(chunks).toString("utf8"));
+        }
+
+        function onError(err) {
+            finish(err);
+        }
+
+        function onAborted() {
+            finish(new Error("Request was aborted"));
+        }
+
+        request.on("data", onData);
+        request.once("end", onEnd);
+        request.once("error", onError);
+        request.once("aborted", onAborted);
+    });
 }
 
 async function handleControllerRequest(request, response) {
@@ -374,6 +415,12 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/controller-section-collapse.js") {
         const script = fs.readFileSync(controllerSectionCollapsePath, "utf8");
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-develop-presets.js") {
+        const script = fs.readFileSync(controllerDevelopPresetsPath, "utf8");
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
         return;
     }
@@ -440,6 +487,40 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/api/groups") {
         await proxyControllerRequest(request, response, "/groups");
+        return;
+    }
+
+    if (requestUrl.pathname === "/api/develop-presets/config") {
+        if (request.method !== "POST") {
+            response.setHeader("Allow", "POST");
+            sendControllerResponse(
+                response,
+                405,
+                "application/json; charset=utf-8",
+                JSON.stringify({ ok: false, error: "Method not allowed" })
+            );
+            return;
+        }
+        let body;
+        try {
+            body = await readControllerRequestBody(request, controllerJsonBodyLimitBytes);
+        } catch (err) {
+            sendControllerResponse(
+                response,
+                err.statusCode || 400,
+                "application/json; charset=utf-8",
+                JSON.stringify({ ok: false, error: err.message })
+            );
+            return;
+        }
+        await proxyControllerRequest(request, response, "/develop-presets/config", {
+            method: "POST",
+            body: body,
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Content-Length": Buffer.byteLength(body)
+            }
+        });
         return;
     }
 
@@ -753,10 +834,6 @@ if (!gotLock) {
 ipcMain.handle("get-initial-state", function () {
     return {
         projectRoot: projectRoot,
-        pollingMs: readPollingMs(),
-        defaultPollingMs: defaultPollingMs,
-        minPollingMs: minPollingMs,
-        maxPollingMs: maxPollingMs,
         minimizeBehavior: desktopMinimizeController
             ? desktopMinimizeController.getBehavior()
             : NORMAL_MINIMIZE_BEHAVIOR,
@@ -770,20 +847,6 @@ ipcMain.handle("get-initial-state", function () {
 
 ipcMain.handle("start-lightroom", function () {
     return startLightroom();
-});
-
-ipcMain.handle("save-settings", function (_event, settings) {
-    const pollingMs = writePollingMs(settings.pollingMs);
-
-    return {
-        ok: true,
-        pollingMs: pollingMs,
-        settingsPath: settingsPath
-    };
-});
-
-ipcMain.handle("reset-settings", function () {
-    return resetSettings();
 });
 
 ipcMain.handle("set-minimize-behavior", function (_event, behavior) {

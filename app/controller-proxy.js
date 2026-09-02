@@ -19,8 +19,17 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
     const upstreamPort = options.upstreamPort === undefined ? DEFAULT_UPSTREAM_PORT : options.upstreamPort;
     const timeoutMs = options.timeoutMs === undefined ? DEFAULT_TIMEOUT_MS : options.timeoutMs;
     const httpRequest = options.httpRequest || http.request;
+    const method = options.method === undefined ? "GET" : options.method;
+    const body = options.body === undefined ? null : options.body;
+    const headers = options.headers === undefined ? undefined : options.headers;
 
     validateTimeoutMs(timeoutMs);
+    if (method !== "GET" && method !== "POST") {
+        throw new TypeError("method must be GET or POST");
+    }
+    if (body !== null && typeof body !== "string" && !Buffer.isBuffer(body)) {
+        throw new TypeError("body must be a string or Buffer");
+    }
 
     return new Promise(function (resolve) {
         let terminal = false;
@@ -118,7 +127,8 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
                 hostname: upstreamHost,
                 port: upstreamPort,
                 path: pathAndQuery,
-                method: "GET",
+                method: method,
+                headers: headers,
                 timeout: timeoutMs
             },
             function (response) {
@@ -179,7 +189,7 @@ function proxyControllerRequest(incomingRequest, downstreamResponse, pathAndQuer
             return;
         }
 
-        upstreamRequest.end();
+        upstreamRequest.end(body);
     });
 }
 

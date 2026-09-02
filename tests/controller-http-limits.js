@@ -100,8 +100,8 @@ function loadControllerServerForTest(onUpstreamRequest) {
             if (requestName === "electron") return electron;
             if (requestName === "./controller-proxy") {
                 return {
-                    proxyControllerRequest(_request, response) {
-                        onUpstreamRequest();
+                    proxyControllerRequest(incoming, response, pathAndQuery, options) {
+                        onUpstreamRequest({ incoming, pathAndQuery, options });
                         response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
                         response.end('{"ok":true}');
                         return Promise.resolve();
@@ -209,6 +209,46 @@ async function testMalformedControllerTargetBoundary() {
     } finally {
         process.removeListener("unhandledRejection", onUnhandled);
         process.removeListener("uncaughtException", onUncaught);
+        if (server.listening) await closeServer(server);
+    }
+}
+
+async function testDevelopPresetConfigurationPostBoundary() {
+    const forwarded = [];
+    const controller = loadControllerServerForTest(function (entry) { forwarded.push(entry); });
+    controller.startControllerServer();
+    const server = controller.getControllerServer();
+    try {
+        if (!server.listening) await new Promise(function (resolve) { server.once("listening", resolve); });
+        const port = server.address().port;
+        let result = await request(port, { path: "/api/develop-presets/config" });
+        assert.equal(result.statusCode, 405);
+        assert.equal(result.headers.allow, "POST");
+        assert.equal(forwarded.length, 0);
+
+        const body = JSON.stringify({ version: 1, presets: [{ uuid: "preset-a", updateAISettings: false }] });
+        result = await request(port, {
+            path: "/api/develop-presets/config",
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: body
+        });
+        assert.equal(result.statusCode, 200);
+        assert.equal(forwarded.length, 1);
+        assert.equal(forwarded[0].pathAndQuery, "/develop-presets/config");
+        assert.equal(forwarded[0].options.method, "POST");
+        assert.equal(forwarded[0].options.body, body);
+        assert.equal(forwarded[0].options.headers["Content-Type"], "application/json; charset=utf-8");
+        assert.equal(forwarded[0].options.headers["Content-Length"], Buffer.byteLength(body));
+
+        result = await request(port, {
+            path: "/api/develop-presets/config",
+            method: "POST",
+            body: "x".repeat(64 * 1024 + 1)
+        });
+        assert.equal(result.statusCode, 413);
+        assert.equal(forwarded.length, 1, "Oversized configuration must not reach the bridge server");
+    } finally {
         if (server.listening) await closeServer(server);
     }
 }
@@ -402,7 +442,10 @@ function testSourceIntegrationAndProductionCompatibility() {
     assert.equal(DEFAULT_UPSTREAM_HOST, "127.0.0.1");
     assert.equal(DEFAULT_UPSTREAM_PORT, 17891);
     assert.equal(DEFAULT_TIMEOUT_MS, 10000);
-    assert.match(proxySource, /method: "GET"/);
+    assert.match(proxySource, /const method = options\.method === undefined \? "GET" : options\.method/,
+        "Legacy Web Controller proxy requests must continue to default to GET");
+    assert.match(proxySource, /method !== "GET" && method !== "POST"/,
+        "The narrow configuration transport must not enable arbitrary upstream methods");
 }
 
 async function testHumanHelpRouteThroughControllerServer() {
@@ -458,6 +501,7 @@ async function main() {
     testSourceIntegrationAndProductionCompatibility();
     testControllerErrorResponseStates();
     await testMalformedControllerTargetBoundary();
+    await testDevelopPresetConfigurationPostBoundary();
     await testHttpCompatibilityAndVolume();
     await testHumanHelpRouteThroughControllerServer();
     console.log("Web Controller HTTP limit tests passed.");

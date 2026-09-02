@@ -2,3 +2,4 @@ node_modules/
 lrplugin-log.txt
 develop-settings-dump.txt
 dist/
+/config/develop-presets.json

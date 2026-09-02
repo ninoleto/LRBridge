@@ -25,15 +25,23 @@ assert.match(bridge, /current\[specification\.availableField\] !== true[\s\S]*?s
 
 const transformRenderer = controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0];
 assert.match(transformRenderer,
-    /section\.items\.forEach[\s\S]*?groupElement\.appendChild\(sliderControl\);[\s\S]*?\}\);[\s\S]*?if \(section\.id === "transform"\) appendTransformConstrainCropControl\(groupElement\)/,
+    /section\.items\.forEach[\s\S]*?groupElement\.appendChild\(sliderControl\);[\s\S]*?\}\);[\s\S]*?if \(section\.id === "transform"\) appendConstrainCropControl\(groupElement\)/,
     "Constrain Crop must render after the final Transform slider");
 assert.doesNotMatch(controller, /appendSwitch\(manualPanel, "CropConstrainToWarp"\)/,
-    "Constrain Crop must not remain in Lens Corrections");
+    "Lens Manual must not invent a second CropConstrainToWarp switch state");
+const lensRenderer = controller.match(/function renderLensCorrectionsSection[\s\S]*?window\.addEventListener\("blur"/)[0];
+assert.match(lensRenderer,
+    /appendSlider\(manualPanel, "LensManualDistortionAmount", "Amount"\);\s*appendConstrainCropControl\(manualPanel\);\s*manualPanel\.appendChild\(createLensSubheading\("Defringe"\)\)/,
+    "Lens Manual Constrain Crop must sit after Distortion Amount and before Defringe");
 assert.equal((controller.match(/name\.textContent = "Constrain Crop"/g) || []).length, 1);
 assert.match(controller, /\[\[0, "Off", "negative"\], \[1, "On", "positive"\]\]/,
     "Constrain Crop must reuse the touch-friendly Off/On pattern");
 assert.match(controller, /submitDevelopCategorical\([\s\S]*?"constrainCrop"[\s\S]*?\/api\/develop-categorical\/constrain-crop/);
 assert.match(controller, /syncBinaryButtons\(constrainControl\.buttons, presentation, busy\)/);
+assert.match(controller, /const constrainControls = Array\.isArray\(developCategoricalControls\.constrainCrop\)[\s\S]*constrainControls\.forEach\(function \(constrainControl\)/,
+    "Transform and Lens Manual presentations must receive the same authoritative model update");
+assert.match(controller, /developCategoricalControls\.constrainCrop\.push\(\{ row: row, buttons: buttons, status: status \}\)/,
+    "Each presentation must register without duplicate DOM IDs or duplicate state");
 
 function buttonDouble() {
     const classes = new Set();
@@ -112,4 +120,4 @@ assert.equal(commands.validateCommand({ command: "develop.set", slider: "CropCon
 assert.equal(commands.validateCommand({ command: "develop.set", slider: "CropConstrainToWarp", value: 1 }), true,
     "Existing public numeric compatibility must remain intact");
 
-console.log("Transform Constrain Crop authoritative synchronization tests passed.");
+console.log("Transform and Lens Manual Constrain Crop authoritative synchronization tests passed.");

@@ -1,9 +1,6 @@
 const terminal = document.getElementById("terminal");
-const polling = document.getElementById("polling");
 const controllerUrl = document.getElementById("controllerUrl");
 const controllerLanUrls = document.getElementById("controllerLanUrls");
-const pollingInput = document.getElementById("pollingInput");
-const settingsMessage = document.getElementById("settingsMessage");
 const minimizeBehaviorInputs = Array.from(document.querySelectorAll('input[name="minimizeBehavior"]'));
 const minimizeMessage = document.getElementById("minimizeMessage");
 
@@ -11,15 +8,12 @@ const startLightroomButton = document.getElementById("startLightroom");
 const openWebControllerButton = document.getElementById("openWebController");
 const openHelpButton = document.getElementById("openHelp");
 const openHttpBuilderButton = document.getElementById("openHttpBuilder");
-const saveSettingsButton = document.getElementById("saveSettings");
-const defaultSettingsButton = document.getElementById("defaultSettings");
 const quitAppButton = document.getElementById("quitApp");
 const openKoFiButton = document.getElementById("openKoFi");
 const shareLocalControllerButton = document.getElementById("shareLocalController");
 const shareLocalStatus = document.getElementById("shareLocalStatus");
 const minimizeLrbridgeButton = document.getElementById("minimizeLrbridge");
 
-let defaultPollingMs = 100;
 let currentControllerUrl = "http://127.0.0.1:17892/";
 let currentMinimizeBehavior = "normal";
 
@@ -28,11 +22,6 @@ function appendLog(line) {
     div.textContent = line;
     terminal.appendChild(div);
     terminal.scrollTop = terminal.scrollHeight;
-}
-
-function setPollingDisplay(value) {
-    polling.textContent = value + " ms";
-    pollingInput.value = value;
 }
 
 function normalizeMinimizeBehavior(value) {
@@ -123,13 +112,9 @@ function renderLanUrls(urls) {
 async function init() {
     const state = await window.lrbridge.getInitialState();
 
-    defaultPollingMs = state.defaultPollingMs;
     currentControllerUrl = state.controllerUrl || currentControllerUrl;
 
-    setPollingDisplay(state.pollingMs);
     setMinimizeBehaviorDisplay(state.minimizeBehavior);
-    pollingInput.min = state.minPollingMs;
-    pollingInput.max = state.maxPollingMs;
 
     controllerUrl.textContent = currentControllerUrl;
     controllerUrl.href = currentControllerUrl;
@@ -220,38 +205,6 @@ minimizeLrbridgeButton.addEventListener("click", async function () {
         minimizeMessage.textContent = "Unable to minimize LRBridge.";
         appendLog("UI ERROR: Unable to minimize LRBridge.");
     }
-});
-
-saveSettingsButton.addEventListener("click", async function () {
-    appendLog("UI: Save settings clicked.");
-
-    const result = await window.lrbridge.saveSettings({
-        pollingMs: pollingInput.value
-    });
-
-    if (!result.ok) {
-        appendLog("UI ERROR: " + result.error);
-        settingsMessage.textContent = "Error: " + result.error;
-        return;
-    }
-
-    setPollingDisplay(result.pollingMs);
-    settingsMessage.textContent = "Settings saved to " + result.pollingMs + " ms. Change applies automatically within about 1 second.";
-});
-
-defaultSettingsButton.addEventListener("click", async function () {
-    appendLog("UI: Default settings clicked.");
-
-    const result = await window.lrbridge.resetSettings();
-
-    if (!result.ok) {
-        appendLog("UI ERROR: " + result.error);
-        settingsMessage.textContent = "Error: " + result.error;
-        return;
-    }
-
-    setPollingDisplay(result.pollingMs);
-    settingsMessage.textContent = "Default settings restored to " + result.pollingMs + " ms. Change applies automatically within about 1 second.";
 });
 
 init();

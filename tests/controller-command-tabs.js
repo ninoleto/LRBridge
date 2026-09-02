@@ -103,16 +103,29 @@ assert.equal(renderedActionSections.length, 1,
 assert.equal(renderedActionRows.length, 1);
 
 assert.match(source, /id:\s*"selection",\s*label:\s*"Selection"/, "Selection tab is missing");
-assert.match(source, /id:\s*"crop",\s*label:\s*"Crop"/, "Crop tab is missing");
+assert.match(source, /id:\s*"presets",\s*label:\s*"Presets"/, "Presets tab is missing");
+assert.match(source, /id:\s*"tools",\s*label:\s*"Tools"/, "Tools tab is missing");
 assert.match(source, /id:\s*"application",\s*label:\s*"Application"/, "Application tab is missing");
-assert.match(source, /activeTab === "selection"[\s\S]*renderCommandGroups\(selectionGroups\)/, "Selection tab renderer is missing");
-assert.match(source, /activeTab === "crop"[\s\S]*renderCommandGroups\(cropGroups\)/, "Crop tab renderer is missing");
+assert.match(source, /activeTab === "selection"[\s\S]*renderSelectionTab\(\)/, "Selection tab renderer is missing");
+assert.match(source, /function renderSelectionTab\(\) \{\s*renderCommandGroups\(selectionGroups\);\s*\}/,
+    "Selection must render only its selection/photo command groups");
+assert.match(source, /function renderPresetsTab\(\) \{\s*developPresetController\.activate\(content\);\s*\}/,
+    "Develop Presets must mount in the dedicated Presets tab");
+assert.doesNotMatch(source.match(/function renderSlidersTab\(\) \{[\s\S]*?\n        \}/)[0], /developPresetController\.activate/,
+    "Develop Sliders must not render the Develop Presets controller");
+assert.match(source, /if \(activeTab !== "presets"\) developPresetController\.deactivate\(\)/,
+    "Preset polling and cleanup must follow the Presets tab lifecycle");
+assert.match(source, /activeTab === "tools"[\s\S]*renderToolsTab\(\)/, "Tools tab renderer is missing");
 assert.match(source, /activeTab === "application"[\s\S]*renderCommandGroups\(applicationGroups\)/, "Application tab renderer is missing");
-assert.equal((source.match(/label: "Retouching"/g) || []).length, 1, "Retouching must appear exactly once in main navigation");
-assert.doesNotMatch(source.match(/const allTabs = \[[\s\S]*?\];/)[0], /label: "(?:Healing|Red Eye|Masking)"/,
-    "Legacy tools must not remain separate main tabs");
-assert.match(source, /function renderRetouchingTab\(\)[\s\S]*\["healing", "redEye", "masking"\]\.forEach[\s\S]*if \(tab\) renderToolTab\(tab\)/,
-    "Retouching must reuse the existing tool renderer in Healing, Red Eye, Masking order");
+const controllerTabIds = extractJavaScriptValue("const controllerTabIds =");
+assert.deepEqual(controllerTabIds,
+    ["sliders", "color-grading", "tone-curve", "presets", "selection", "application", "tools"],
+    "The exact seven-tab order drifted");
+const mainTabsBlock = source.match(/const allTabs = \[[\s\S]*?\];/)[0];
+assert.doesNotMatch(mainTabsBlock, /label: "(?:Crop|Retouching|Healing|Red Eye|Masking)"/,
+    "Crop, Retouching, and nested tools must not remain separate main tabs");
+assert.match(source, /function renderToolsTab\(\)[\s\S]*renderCropSection\(\);[\s\S]*\["healing", "redEye", "masking"\]\.forEach[\s\S]*if \(tab\) renderToolTab\(tab\)/,
+    "Tools must render Crop & Straighten, Healing, Red Eye, and Masking in order");
 assert.deepEqual(toolTabs.map((tab) => tab.title), ["Healing", "Red Eye", "Masking"]);
 assert.deepEqual(toolTabs.map((tab) => tab.actions.map((action) => [action.label, action.action, action.button])), [
     [["Healing Tool", "selectHealingTool", "Select"], ["Reset Spot Removal", "resetSpotRemoval", "Reset"]],
@@ -120,8 +133,8 @@ assert.deepEqual(toolTabs.map((tab) => tab.actions.map((action) => [action.label
     [["Masking Tool", "selectMaskingTool", "Select"]]
 ], "Retouching action definitions or command payloads drifted");
 const normalizeControllerTab = extractJavaScriptFunction("normalizeControllerTab", "tabFromLocation", {});
-for (const legacyTab of ["healing", "redEye", "masking"]) {
-    assert.equal(normalizeControllerTab(legacyTab), "retouching", "Legacy tab did not migrate: " + legacyTab);
+for (const legacyTab of ["crop", "retouching", "healing", "redEye", "masking"]) {
+    assert.equal(normalizeControllerTab(legacyTab), "tools", "Legacy tab did not migrate: " + legacyTab);
 }
 assert.equal(normalizeControllerTab("tone-curve"), "tone-curve");
 const tabsCss = source.match(/\.tabs\s*\{[\s\S]*?\}/)[0];
@@ -138,8 +151,28 @@ assert.match(
     "Compact title and human-help link must share the controller header"
 );
 assert.doesNotMatch(source, /This page only sends commands to Lightroom Classic|Open API Help|class="toolbar"|\.toolbar\s*\{/);
-assert.match(source, /mainButton\.textContent = "Slider Group ▾"/, "Slider jump menu label is missing");
+assert.match(source, /mainButton\.textContent = activeTab === "tools" \? "Tool Section ▾" : "Slider Group ▾"/,
+    "Slider and Tools jump menu labels are missing");
 assert.doesNotMatch(source, /mainButton\.textContent = "Section ▾"/, "Old slider jump menu label must not be visible");
+const developCollapseDefinitions = extractJavaScriptValue("const sectionCollapseDefinitions =");
+assert.deepEqual(Object.keys(developCollapseDefinitions), [
+    "develop.white-balance", "develop.tone", "develop.hdr-sdr-rendition", "develop.presence",
+    "develop.color-mixer", "develop.detail", "develop.lens-corrections", "develop.transform",
+    "develop.lens-blur", "develop.effects", "develop.calibration"
+], "The existing 11-ID Develop collapse allowlist must remain unchanged");
+const toolsCollapseDefinitions = extractJavaScriptValue("const toolsSectionCollapseDefinitions =");
+assert.deepEqual(Object.entries(toolsCollapseDefinitions), [
+    ["tools.crop-straighten", "Crop & Straighten"],
+    ["tools.healing", "Healing"],
+    ["tools.red-eye", "Red Eye"],
+    ["tools.masking", "Masking"]
+], "Tools collapse identities must include only the four actual top-level sections in page order");
+assert.match(source, /storageKey: "lrbridge\.controller\.collapsedToolsSections\.v1"/,
+    "Tools collapse state requires its own stable persistence key");
+assert.match(source, /function getToolsJumpSections\(\)[\s\S]*crop-straighten[\s\S]*healing[\s\S]*red-eye[\s\S]*masking/,
+    "Tools Jump-to order must match the rendered top-level sections");
+assert.match(source, /renderCommandGroups\(cropGroups, section, "tools-subsection"\)/,
+    "Nested Crop rows must remain outside the Tools collapse registry");
 
 const nativeDevelopReset = sliderActionGroups
     .flatMap((group) => group.actions)
@@ -197,6 +230,9 @@ const sliderRenderContext = {
     content: {
         appendChild() {}
     },
+    developPresetController: {
+        activate() {}
+    },
     createDevelopSliderControl() {
         return {};
     },
@@ -212,7 +248,7 @@ sliderRenderContext.requestDevelopCategoricalState = function () {};
 sliderRenderContext.getDevelopSectionDisplayLabel = function (section) { return section.label; };
 sliderRenderContext.createDevelopSectionElement = function () { return {}; };
 sliderRenderContext.selectDevelopSectionDefinitions = extractJavaScriptFunction(
-    "selectDevelopSectionDefinitions", "updateTreatmentButton", sliderRenderContext
+    "selectDevelopSectionDefinitions", "updateTreatmentPresentation", sliderRenderContext
 );
 sliderRenderContext.validateDevelopSectionMapping = extractJavaScriptFunction(
     "validateDevelopSectionMapping", "createDevelopCategoricalSelector", sliderRenderContext
@@ -224,7 +260,7 @@ assert.ok(!placementCalls.some((entry) => entry[0] === "actions" && entry[1] ===
     "Auto Tone must not be duplicated through the old Basic Actions placement");
 assert.match(source, /basicActions\.actions\.find\(function \(item\) \{ return item\.action === "setAutoTone"; \}\)/,
     "Compact Auto must reuse the existing Auto Tone action definition");
-assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*row\.appendChild\(treatmentButton\)/,
+assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPresentation = createTreatmentPresentation\(row\)/,
     "Compact Basic controls must render Auto before B&W");
 {
     function treatmentClassList() {
@@ -234,37 +270,50 @@ assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*row\.appendChild\(tre
             has(value) { return values.has(value); }
         };
     }
-    const attributes = {};
-    const button = {
-        disabled: false,
-        classList: treatmentClassList(),
-        title: "",
-        setAttribute(name, value) { attributes[name] = value; }
-    };
-    const status = { textContent: "" };
+    function createView() {
+        const attributes = {};
+        return {
+            attributes: attributes,
+            button: {
+                disabled: false,
+                classList: treatmentClassList(),
+                title: "",
+                setAttribute(name, value) { attributes[name] = value; }
+            },
+            status: { textContent: "" }
+        };
+    }
+    const developView = createView();
+    const presetView = createView();
     const treatmentPresentationContext = {
-        treatmentButton: button,
-        treatmentStatus: status,
         treatmentPending: false,
         treatmentHasAuthoritativeState: true,
         treatmentAuthoritativeState: false,
         treatmentStateFresh: true,
+        treatmentPresentations: new Set([developView, presetView]),
         selectedProfileLabel: "Adaptive Color"
     };
+    treatmentPresentationContext.updateTreatmentPresentation = extractJavaScriptFunction(
+        "updateTreatmentPresentation",
+        "updateTreatmentButton",
+        treatmentPresentationContext
+    );
     const updateTreatmentButton = extractJavaScriptFunction(
         "updateTreatmentButton",
-        "invalidateTreatmentState",
+        "createTreatmentPresentation",
         treatmentPresentationContext
     );
     function assertTreatmentPresentation(grayscale, expectedText) {
         treatmentPresentationContext.treatmentAuthoritativeState = grayscale;
         updateTreatmentButton();
-        assert.equal(button.classList.has("bw-treatment-active"), grayscale,
-            expectedText + " treatment button color drifted");
-        assert.equal(attributes["aria-pressed"], String(grayscale),
-            expectedText + " treatment aria-pressed drifted");
-        assert.equal(status.textContent, expectedText,
-            "Button and adjacent status must share the authoritative treatment boolean");
+        for (const view of [developView, presetView]) {
+            assert.equal(view.button.classList.has("bw-treatment-active"), grayscale,
+                expectedText + " treatment button color drifted");
+            assert.equal(view.attributes["aria-pressed"], String(grayscale),
+                expectedText + " treatment aria-pressed drifted");
+            assert.equal(view.status.textContent, expectedText,
+                "Both presentations and adjacent statuses must share the authoritative treatment boolean");
+        }
     }
     assertTreatmentPresentation(false, "Color");
     assertTreatmentPresentation(true, "Black & White");
@@ -282,13 +331,15 @@ assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*row\.appendChild\(tre
     treatmentPresentationContext.treatmentPending = true;
     treatmentPresentationContext.treatmentDesiredState = true;
     updateTreatmentButton();
-    assert.equal(button.classList.has("bw-treatment-active"), false,
-        "A Web Controller click must not optimistically activate B&W presentation");
-    assert.equal(attributes["aria-pressed"], "false");
-    assert.equal(status.textContent, "Applying…");
+    for (const view of [developView, presetView]) {
+        assert.equal(view.button.classList.has("bw-treatment-active"), false,
+            "A Web Controller click must not optimistically activate either B&W presentation");
+        assert.equal(view.attributes["aria-pressed"], "false");
+        assert.equal(view.status.textContent, "Applying…");
+    }
 }
 const treatmentPresentationSource = source.slice(
-    source.indexOf("function updateTreatmentButton("),
+    source.indexOf("function updateTreatmentPresentation("),
     source.indexOf("function invalidateTreatmentState(")
 );
 assert.doesNotMatch(treatmentPresentationSource, /profile/i,
@@ -317,8 +368,6 @@ const expectedSelection = [
     ["selection.navigate", "direction", "last"],
     ["selection.extend", "direction", "left"],
     ["selection.extend", "direction", "right"],
-    ["photo.treatment", "value", "grayscale"],
-    ["photo.treatment", "value", "color"],
     ["photo.rotate", "direction", "left"],
     ["photo.rotate", "direction", "right"],
     ["photo.reveal", "scope", "active"],
@@ -353,8 +402,8 @@ assert.deepEqual(
     expectedSelection,
     "Selection controller commands drifted"
 );
-assert.equal(selectionItems.length, 33, "Selection tab must expose exactly 33 buttons");
-assert.equal(cropItems.length, 11, "Crop tab must expose exactly 11 controls");
+assert.equal(selectionItems.length, 31, "Selection tab must expose exactly its 31 command buttons");
+assert.equal(cropItems.length, 11, "Crop & Straighten must expose exactly 11 controls");
 assert.equal(applicationItems.length, 34, "Application tab must expose exactly 34 buttons");
 assert.deepEqual(
     cropGroups.filter((group) => !group.actionBar).map((group) => group.name),
@@ -411,7 +460,7 @@ assert.doesNotMatch(cropLimitationsCss, /background|border/,
     "The consolidated Crop limitation must remain subdued informational text");
 assert.doesNotMatch(source, /manualOnly|crop-manual-only/);
 assert.match(source, /if \(group\.actionBar\) continue;/, "The former top Crop Tool action group must not render");
-assert.match(source, /function renderCropTab\([\s\S]*renderCommandGroups\(cropGroups\);[\s\S]*createElement\("p"\)[\s\S]*limitations\.className = "crop-sdk-limitations"[\s\S]*content\.appendChild\(limitations\);[\s\S]*actionBar\.appendChild\(resetButton\);[\s\S]*actionBar\.appendChild\(cropToolButton\);[\s\S]*content\.appendChild\(actionBar\)/,
+assert.match(source, /function renderCropSection\([\s\S]*heading\.textContent = "Crop & Straighten"[\s\S]*renderCommandGroups\(cropGroups, section, "tools-subsection"\);[\s\S]*limitations\.className = "crop-sdk-limitations"[\s\S]*section\.appendChild\(limitations\);[\s\S]*actionBar\.appendChild\(resetButton\);[\s\S]*actionBar\.appendChild\(cropToolButton\);[\s\S]*section\.appendChild\(actionBar\)/,
     "The consolidated SDK note must render after Angle and before the bottom Crop action bar");
 assert.match(source, /\.crop-tool-action\s*\{\s*margin-left:\s*auto/,
     "The Crop Tool action must align to the bottom-right on wide layouts");
@@ -485,12 +534,12 @@ assert.deepEqual(Object.assign({}, cropToolPresentation({ selectedToolAvailable:
 });
 assert.match(source, /function submitCropToolAction\([\s\S]*selectedToolAvailable !== true[\s\S]*selectedTool === "crop"\) path = cropToolCommandPath\("loupe"\)[\s\S]*else path = cropToolCommandPath\("crop"\)/,
     "Crop Tool action must choose explicit crop/loupe targets from authoritative selected-tool state");
-const cropToolSubmitBlock = source.match(/function submitCropToolAction\([\s\S]*?\n\s*}\n\n\s*function renderCropTab/)[0];
+const cropToolSubmitBlock = source.match(/function submitCropToolAction\([\s\S]*?\n\s*}\n\n\s*function renderCropSection/)[0];
 assert.doesNotMatch(cropToolSubmitBlock, /textContent|classList|\.apply\(|selectedTool\s*=(?!=)/,
     "Crop Tool submission must not optimistically change the selected-tool presentation");
-assert.match(source, /isGenericDevelopFeedbackTab\(tab\)[\s\S]*tab === "crop"/);
-assert.match(source, /activeTab === "sliders" \|\| activeTab === "crop"\) requestDevelopCategoricalState\(\)/);
-assert.match(source, /activeTab === "crop" \? \["CropAngle"\]/,
+assert.match(source, /isGenericDevelopFeedbackTab\(tab\)[\s\S]*tab === "tools"/);
+assert.match(source, /activeTab === "sliders" \|\| activeTab === "tools"\) requestDevelopCategoricalState\(\)/);
+assert.match(source, /activeTab === "tools" \? \["CropAngle"\]/,
     "Crop feedback polling must request authoritative Angle immediately");
 assert.match(source, /function updateDevelopCategoricalControls\([\s\S]*updateCropToolPresentation\(\)/,
     "Authoritative selected-tool feedback must update the Crop Tool button");
@@ -499,8 +548,8 @@ const cropToolPresentationUpdateBlock = source.match(
 )[0];
 assert.doesNotMatch(cropToolPresentationUpdateBlock, /aria-pressed/,
     "Open/Close Crop Tool must remain an explicit action rather than expose toggle semantics");
-assert.match(source, /activeTab === "crop"\)[\s\S]*renderCropTab\(\);\s*if \(genericFeedbackActive\) requestLiveFeedbackSnapshot\(true\);\s*else activateDevelopFeedbackPolling\(\)/,
-    "Crop must request one immediate snapshot whether polling is newly activated or already active");
+assert.match(source, /activeTab === "tools"\)[\s\S]*renderToolsTab\(\);\s*if \(genericFeedbackActive\) requestLiveFeedbackSnapshot\(true\);\s*else activateDevelopFeedbackPolling\(\)/,
+    "Tools must request one immediate Crop snapshot whether polling is newly activated or already active");
 assert.equal(commands.validateCommand({ command: "develop.action", action: "selectCropTool" }), true,
     "Legacy selectCropTool calls must remain valid");
 assert.equal(commands.validateCommand({ command: "develop.action", action: "selectCropTool", target: "crop" }), true);
@@ -602,14 +651,22 @@ assert.deepEqual(
     "Extend Selection buttons must use amount=1"
 );
 assert.deepEqual(
-    selectionGroups.find((group) => group.name === "Treatment").commands
-        .map((item) => [item.label, item.command, item.value]),
-    [
-        ["Black & White", "photo.treatment", "grayscale"],
-        ["Color", "photo.treatment", "color"]
-    ],
-    "Photo treatment controls drifted"
+    selectionGroups.map((group) => group.name),
+    ["Navigate", "Extend Selection", "Photo", "Flags", "Rating", "Adjust Rating", "Color Label", "Selection Operations"],
+    "Selection must contain only its established selection/photo sections in order"
 );
+assert.equal(selectionGroups.find((group) => group.name === "Treatment"), undefined,
+    "Selection must expose no Treatment section");
+assert.equal(selectionItems.some((item) => item.command === "photo.treatment"), false,
+    "Selection must expose neither Black & White nor Color treatment commands");
+assert.equal(commands.validateCommand({ command: "photo.treatment", value: "grayscale" }), true,
+    "Treatment backend compatibility must remain available");
+assert.equal(commands.validateCommand({ command: "photo.treatment", value: "color" }), true,
+    "Color treatment backend compatibility must remain available");
+assert.match(source, /makeButton\("B&W", "command-neutral", toggleTreatment\)/,
+    "The shared Develop Sliders and Presets B&W treatment control must remain available");
+assert.match(source, /command=photo\.treatment&value=/,
+    "Both treatment presentations must retain the existing HTTP command path");
 assert.deepEqual(
     selectionGroups.find((group) => group.name === "Photo").commands
         .map((item) => [item.label, item.command, item.value]),
@@ -641,8 +698,6 @@ assert.deepEqual(
         ...["First", "Previous", "Next", "Last"].map((label) => [label, "command-primary"]),
         ["Extend Left", "command-primary"],
         ["Extend Right", "command-primary"],
-        ["Black & White", "command-neutral"],
-        ["Color", "command-primary"],
         ["Rotate Left", "command-primary"],
         ["Rotate Right", "command-primary"],
         ["Show in Explorer", "command-neutral"],
