@@ -406,6 +406,60 @@ assert.match(jumpInstallerBlock, /function openMenu\(\)[\s\S]*updateSliderJumpPo
 assert.match(jumpInstallerBlock, /window\.addEventListener\("resize", sliderJumpViewportResizeHandler\)/);
 assert.match(jumpInstallerBlock, /window\.visualViewport\.addEventListener\("resize", sliderJumpViewportResizeHandler\)/,
     "window and visual viewport resizes must recalculate available height");
+assert.doesNotMatch(jumpInstallerBlock, /contentHost\.querySelector\("\.basic-controls-row"\)/,
+    "Jump-to must not derive an insertion reference from a nested controller subtree");
+assert.match(jumpInstallerBlock, /const insertionPoint = getSliderJumpInsertionPoint\(contentHost\)/,
+    "Every Jump-to render must resolve its insertion point from the current host");
+assert.match(controller,
+    /function disconnectSliderJumpDocumentListeners\(\)[\s\S]*removeEventListener\("pointerdown", sliderJumpDocumentPointerDownHandler\)[\s\S]*removeEventListener\("keydown", sliderJumpDocumentKeydownHandler\)/,
+    "Jump-to document listeners must be removable with their rendered menu");
+assert.match(controller,
+    /function removeSliderJumpMenus\(\) \{[\s\S]*disconnectSliderJumpDockObserver\(\);[\s\S]*disconnectSliderJumpDocumentListeners\(\);[\s\S]*querySelectorAll\("\.slider-jump-control, \.slider-jump-sentinel"\)/,
+    "Jump-to cleanup must dispose observers/listeners and remove every stale menu artifact");
+assert.match(controller,
+    /let sliderJumpMenuObserver = null;[\s\S]*if \(sliderJumpMenuObserver\) return;[\s\S]*sliderJumpMenuObserver = new MutationObserver/,
+    "the content observer must be installed at most once");
+
+const insertionResolverStart = controller.indexOf("function getSliderJumpInsertionPoint(");
+const insertionResolverEnd = controller.indexOf("function installSliderJumpMenu()", insertionResolverStart);
+assert.notEqual(insertionResolverStart, -1, "missing Jump-to insertion resolver");
+assert.notEqual(insertionResolverEnd, -1, "missing Jump-to insertion resolver boundary");
+const insertionResolverContext = {};
+vm.runInNewContext(controller.slice(insertionResolverStart, insertionResolverEnd) +
+    "\nthis.getSliderJumpInsertionPoint = getSliderJumpInsertionPoint;", insertionResolverContext);
+const directBasicControls = {
+    classList: { contains(name) { return name === "basic-controls-row"; } },
+    nextSibling: { id: "direct-sibling" }
+};
+const ordinaryChild = { classList: { contains() { return false; } } };
+assert.equal(insertionResolverContext.getSliderJumpInsertionPoint({
+    children: [directBasicControls, ordinaryChild], firstChild: directBasicControls
+}), directBasicControls.nextSibling,
+"a direct Basic controls row must retain the established Jump-to placement");
+const presetRoot = { classList: { contains() { return false; } } };
+assert.equal(insertionResolverContext.getSliderJumpInsertionPoint({
+    children: [presetRoot], firstChild: presetRoot
+}), presetRoot,
+"a nested Presets treatment row must not supply a detached insertBefore reference");
+
+const clearContentBlock = controller.slice(
+    controller.indexOf("function clearContent()"),
+    controller.indexOf("function renderTabs()")
+);
+assert.match(clearContentBlock, /removeSliderJumpMenus\(\);[\s\S]*disposeDevelopTreatmentPresentation\(\);[\s\S]*content\.innerHTML = ""/,
+    "render-owned observers, listeners, and treatment UI must be disposed before the content host is cleared");
+assert.match(renderBlock,
+    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
+    "every tab render must dispose the previous controllers and polling before clearing their host");
+const metadataInitializationBlock = controller.slice(
+    controller.indexOf("loadDevelopSliderDefinitions().then("),
+    controller.indexOf("const colorGradingController", controller.indexOf("loadDevelopSliderDefinitions().then("))
+);
+assert.match(metadataInitializationBlock,
+    /then\(function \(\) \{\s*startLiveFeedbackPolling\(\);\s*render\(\);\s*\}, function \(\) \{/,
+    "shared polling must start before rendering and render failures must not be mislabeled as metadata failures");
+assert.doesNotMatch(metadataInitializationBlock, /\.catch\(/,
+    "the slider-metadata error path must not catch unrelated tab-render failures");
 
 const activationStart = controller.indexOf("function activateSliderJumpEntry(section)");
 const activationEnd = controller.indexOf("\n\n            sections.forEach", activationStart);

@@ -374,3 +374,29 @@ This checkpoint is manually accepted. It is based on `95ed0f180bc902f576acc403cf
 
 - Keep `config/settings.txt` local and unstaged with only `minimize_behavior=normal`; expected SHA-256 is `9ADBD48B3F4B42E32C2FA722F9A80313A7232A668BA40B0A7E44E11323D067E3`.
 - Keep protected hashes `FFE9E61A3AB6655F53762A13D07EEC0E4EA1C67FC56A22C60CD44F4866671BFC` and `C3B4019EBC588EC4D121252D3266A2B57CC110CB5EDD118ECA314B708CE82069`, and preserve `stash@{0}` object `76bd3118f786b886a30dd81ce3b591f4e14f49fe`.
+
+## Controller lifecycle and preset inventory stability checkpoint (2026-09-03)
+
+The user manually confirmed that the Controller repair works. Preserve this checkpoint as a browser/server-only correction; it does not change the Lightroom Lua plug-in or the experimental Preset Amount design.
+
+### Resolved regressions
+
+- Profile recovery now treats an increasing authoritative `contextChangedAt` as a new server epoch when LRBridge restarts and its revision counters reset. The selected-photo UUID, request generation, context, and stale-response safeguards remain authoritative.
+- Jump-to insertion is owned only by direct child sections. Every render first deactivates controllers and polling, disconnects observers, removes document listeners and menus/sentinels, and cancels scheduled animation frames before rebuilding content. The corrected lifecycle avoids duplicated observers/listeners and unbounded `requestAnimationFrame` retries.
+- Controller metadata startup errors are reported by the metadata request itself; later render failures are no longer mislabeled as slider-metadata load failures.
+- The Presets controller automatically requests authoritative inventory on first activation for the current LRBridge process. Automatic, manual Refresh Presets, and Add Presets requests share one coalesced operation. Explicit not-loaded/loading/ready/error states preserve configured UUIDs, aliases, ordering, AI flags, cursor, Amount, Treatment, Alias drafts, and dirty state. Missing UUID is shown only after a successful complete inventory proves absence, and a failed refresh retains any previous successful snapshot.
+
+### Verification and live evidence
+
+- `npm run test:controller-browser` passed its isolated ephemeral-loopback, seven-tab lifecycle gate: 27 renders beginning at Presets, Profile epoch recovery to Adobe Landscape, Jump-to ownership/navigation, stable observer/listener/interval/rAF counts, no browser exceptions or required-request failures, and explicit browser/CDP/server/socket/profile cleanup.
+- All 36 non-contract scripts in the broad `package.json` test chain passed individually, including Profile/Profile Amount, Develop Presets, Jump-to/collapse, commands, Color Grading, Tone Curve/Point Curve, generic sliders, lifecycle/context/proxy/feedback, and all adjacent suites.
+- Syntax checks passed for all nine changed/new JavaScript files. The single inline Controller script compiled with `vm.Script`. `package.json`, `config/sliders.json`, `config/develop-presets.example.json`, and `tests/contract-fixture.json` parsed as JSON. The exclusion audit and `git diff --check` passed; only existing line-ending advisories were emitted.
+- `npm run test:contract` remains a visible exit-1 exception only at `Generated Companion document is missing slider LensBlurAmount`. Neither protected Companion file was modified, and this exception was not reinterpreted as passing.
+- The changed server source was loaded by exactly one LRBridge restart. Replacement Electron PID `34112` owns ports `17890`-`17892`; `queueLength` is `0`; `/api/context` is current and UUID-bound; Profile is authoritative as Adobe Color; Tone Curve feedback is available; preset inventory moved automatically to ready without Add Presets; and all 12 configured UUIDs resolved. No Lightroom plug-in reload was performed because no Lua changed.
+
+### First next task: Preset Amount remains experimental
+
+1. Establish an authoritative capability/application-success signal for presets such as AR01 that disable Lightroom's native Amount control or do not respond to Amount. Fail closed without classifying support from preset names, folders, aliases, or missing settings.
+2. Correct rapid minus/plus desired/submitted/committed reconciliation so polling or an older completion cannot roll the local value back over newer queued intent.
+
+Do not restart LRBridge or reload the Lightroom plug-in merely for this completed checkpoint. Restart the source process only after a future server-code change; request a plug-in reload only after a future Lua change.

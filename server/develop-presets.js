@@ -117,8 +117,8 @@ function createDevelopPresetState(options) {
     let configurationError = null;
     let inventory = [];
     let inventoryByUuid = new Map();
-    let inventoryStatus = "unavailable";
-    let inventoryError = "Refresh the Develop preset inventory from Lightroom.";
+    let inventoryStatus = "not-loaded";
+    let inventoryError = null;
     let inventoryRefreshedAt = null;
     let pendingInventory = null;
     let cursorUuid = null;
@@ -160,14 +160,18 @@ function createDevelopPresetState(options) {
         return getPublicState();
     }
 
+    function hasSuccessfulInventory() {
+        return Number.isFinite(inventoryRefreshedAt);
+    }
+
     function availableConfiguredEntries() {
-        if (inventoryStatus !== "ready") return [];
+        if (!hasSuccessfulInventory()) return [];
         return configuration.presets.filter(function (entry) { return inventoryByUuid.has(entry.uuid); });
     }
 
     function reconcileCursor() {
         const previousCursorUuid = cursorUuid;
-        if (inventoryStatus !== "ready") {
+        if (!hasSuccessfulInventory()) {
             if (!configuredEntry(cursorUuid)) cursorUuid = null;
             if (cursorUuid !== previousCursorUuid) presetAmount = null;
             return;
@@ -203,9 +207,8 @@ function createDevelopPresetState(options) {
         if (pendingInventory) throw new Error("A Develop preset inventory refresh is already pending");
         counter += 1;
         const requestId = operationId("inventory", counter, now());
-        inventoryStatus = "refreshing";
+        inventoryStatus = "loading";
         inventoryError = null;
-        inventoryRefreshedAt = null;
         pendingInventory = { requestId: requestId, startedAt: now(), items: new Map() };
         return requestId;
     }
@@ -226,20 +229,18 @@ function createDevelopPresetState(options) {
         inventoryStatus = "ready";
         inventoryError = null;
         inventoryRefreshedAt = now();
-        reconcileCursor();
+        if (cursorUuid === null) {
+            const available = availableConfiguredEntries();
+            if (available.length > 0) cursorUuid = available[0].uuid;
+        }
         return true;
     }
 
     function failInventoryRefresh(requestId, message) {
         if (!pendingInventory || pendingInventory.requestId !== requestId) return false;
         pendingInventory = null;
-        inventory = [];
-        inventoryByUuid = new Map();
         inventoryStatus = "error";
         inventoryError = validIdentity(message, 500) ? message : "Develop preset inventory refresh failed.";
-        inventoryRefreshedAt = null;
-        cursorUuid = null;
-        presetAmount = null;
         return true;
     }
 
@@ -261,7 +262,7 @@ function createDevelopPresetState(options) {
         }
         const entry = configuredEntry(uuid);
         if (!entry) throw new Error("Develop preset is not configured");
-        if (inventoryStatus !== "ready") throw new Error(inventoryError || "Develop preset inventory is unavailable");
+        if (!hasSuccessfulInventory()) throw new Error(inventoryError || "Develop preset inventory is unavailable");
         if (!inventoryByUuid.has(uuid)) throw new Error("Configured Develop preset UUID is unavailable in Lightroom");
         if (!binding || binding.activeModule !== "develop" || !validIdentity(binding.selectedPhotoUuid, 200) ||
             !Number.isSafeInteger(binding.contextCounter) || binding.contextCounter < 0 ||
@@ -341,15 +342,20 @@ function createDevelopPresetState(options) {
         const available = availableConfiguredEntries();
         if (available.length === 0) return null;
         const currentIndex = available.findIndex(function (entry) { return entry.uuid === cursorUuid; });
-        const startingIndex = currentIndex >= 0 ? currentIndex : 0;
         const delta = direction === "previous" ? -1 : direction === "next" ? 1 : 0;
         if (delta === 0) return null;
+        if (currentIndex < 0) {
+            return (direction === "previous" ? available[available.length - 1] : available[0]).uuid;
+        }
+        const startingIndex = currentIndex;
         return available[(startingIndex + delta + available.length) % available.length].uuid;
     }
 
     function publicConfiguredEntry(entry) {
         const item = inventoryByUuid.get(entry.uuid) || null;
-        const available = inventoryStatus === "ready" && item !== null;
+        const inventoryLoaded = hasSuccessfulInventory();
+        const available = inventoryLoaded && item !== null;
+        const missing = inventoryLoaded && item === null;
         return {
             uuid: entry.uuid,
             alias: entry.alias || null,
@@ -357,7 +363,8 @@ function createDevelopPresetState(options) {
             folder: item ? item.folder : null,
             name: item ? item.name : null,
             available: available,
-            error: available ? null : "Preset UUID is unavailable in the current Lightroom inventory."
+            missing: missing,
+            error: missing ? "Preset UUID is unavailable in the current Lightroom inventory." : null
         };
     }
 
@@ -375,12 +382,13 @@ function createDevelopPresetState(options) {
             inventoryStatus: inventoryStatus,
             inventoryError: inventoryError,
             inventoryRefreshedAt: inventoryRefreshedAt,
+            inventoryLoaded: hasSuccessfulInventory(),
             inventoryRequestId: pendingInventory ? pendingInventory.requestId : null,
             configured: configured,
             availableCount: availableCount,
             cursorUuid: cursorUuid,
             presetAmount: presetAmount,
-            controlsEnabled: inventoryStatus === "ready" && availableCount > 0,
+            controlsEnabled: hasSuccessfulInventory() && availableCount > 0,
             pendingApplication: pendingApplications.size > 0,
             lastApplication: lastApplication ? Object.assign({}, lastApplication) : null
         };

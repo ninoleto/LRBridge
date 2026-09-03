@@ -32,6 +32,7 @@
     "test:http-transport": "node tests/http-transport-limits.js",
     "test:controller-proxy": "node tests/controller-proxy.js",
     "test:controller-feedback": "node tests/controller-feedback-snapshot-proxy.js",
+    "test:controller-browser": "node tests/controller-browser-lifecycle.js",
     "test:controller-input": "node tests/input-validation.js",
     "test:controller-color-grading": "node tests/controller-color-grading.js",
     "test:controller-http": "node tests/controller-http-limits.js",

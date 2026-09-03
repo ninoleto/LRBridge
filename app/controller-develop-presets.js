@@ -69,7 +69,7 @@
     function secondaryLabel(entry) {
         if (entry.folder && entry.name) return entry.folder + " — " + entry.name;
         if (entry.name) return entry.name;
-        return entry.uuid + " (missing UUID)";
+        return entry.uuid + (entry.missing === true ? " (missing UUID)" : "");
     }
 
     function parsePresetAmount(value) {
@@ -108,6 +108,7 @@
         let manageButton = null;
         let managerPanel = null;
         let addPresetsButton = null;
+        let refreshPresetsButton = null;
         let configuredList = null;
         let saveButton = null;
         let managerStatus = null;
@@ -126,6 +127,8 @@
         let amountChainContext = null;
         let amountThrottleTimer = null;
         let inventoryRefreshInFlight = false;
+        let inventoryRefreshPromise = null;
+        let inventoryRefreshError = null;
         let saveInFlight = false;
         let configuredListRendered = false;
 
@@ -204,10 +207,37 @@
             return JSON.stringify(configurationFromDraft(draft)) !== JSON.stringify(savedConfiguration);
         }
 
+        function inventorySnapshotLoaded(candidate) {
+            return !!candidate && (candidate.inventoryLoaded === true || Number.isFinite(candidate.inventoryRefreshedAt));
+        }
+
+        function inventoryLifecycleMessage(candidate) {
+            const loaded = inventorySnapshotLoaded(candidate);
+            const status = candidate ? candidate.inventoryStatus : "not-loaded";
+            const failure = inventoryRefreshError || (candidate && candidate.inventoryError);
+            if (inventoryRefreshInFlight || status === "loading") {
+                return loaded
+                    ? "Refreshing preset inventory… The previous successful inventory remains available."
+                    : "Loading preset inventory…";
+            }
+            if (failure) {
+                return loaded
+                    ? "Preset inventory refresh failed. Continuing to use the previous successful inventory: " + failure
+                    : "Preset inventory refresh failed: " + failure;
+            }
+            if (status === "ready" && loaded) {
+                const count = candidate && Array.isArray(candidate.inventory) ? candidate.inventory.length : 0;
+                return "Preset inventory loaded successfully (" + count + " presets).";
+            }
+            return "Preset inventory has not been loaded for this LRBridge process.";
+        }
+
         function syncManagerToolbar() {
-            if (!addPresetsButton || !saveButton) return;
+            if (!addPresetsButton || !refreshPresetsButton || !saveButton) return;
             addPresetsButton.disabled = false;
             addPresetsButton.setAttribute("aria-busy", String(inventoryRefreshInFlight));
+            refreshPresetsButton.disabled = inventoryRefreshInFlight;
+            refreshPresetsButton.setAttribute("aria-busy", String(inventoryRefreshInFlight));
             saveButton.disabled = saveInFlight || !draftDirty;
             saveButton.className = "develop-preset-save" + (draftDirty ? " dirty" : "");
             saveButton.setAttribute("aria-busy", String(saveInFlight));
@@ -439,7 +469,7 @@
             const inventoryUuids = new Set(inventory.map(function (item) { return item.uuid; }));
             selectedInventoryUuids.forEach(function (uuid) {
                 if (configuredUuids.has(uuid) ||
-                    (state && state.inventoryStatus === "ready" && !inventoryUuids.has(uuid))) {
+                    (inventorySnapshotLoaded(state) && !inventoryUuids.has(uuid))) {
                     selectedInventoryUuids.delete(uuid);
                 }
             });
@@ -459,7 +489,8 @@
             const configuredUuids = reconcileSelectedInventoryUuids();
             const signature = [
                 inventorySearch,
-                inventoryRefreshInFlight ? "refreshing" : state.inventoryStatus,
+                inventoryRefreshInFlight ? "loading" : state.inventoryStatus,
+                inventorySnapshotLoaded(state) ? "loaded" : "not-loaded",
                 state.inventoryError || "",
                 Array.from(selectedInventoryUuids).sort().join("\u001f"),
                 Array.from(configuredUuids).sort().join("\u001f"),
@@ -514,9 +545,10 @@
             });
             inventoryPicker.optionRows = rows;
             if (rows.length === 0) {
-                const message = inventoryRefreshInFlight || state.inventoryStatus === "refreshing"
-                    ? "Refreshing the Lightroom preset inventory…"
-                    : inventory.length === 0 ? (state.inventoryError || "No Lightroom presets are available.")
+                const message = !inventorySnapshotLoaded(state) || inventoryRefreshInFlight ||
+                    state.inventoryStatus === "loading" || state.inventoryStatus === "error"
+                    ? inventoryLifecycleMessage(state)
+                    : inventory.length === 0 ? "No Lightroom presets are available."
                         : "No Lightroom presets match this search.";
                 appendPickerEmpty(inventoryPicker, message);
             }
@@ -734,6 +766,8 @@
 
         function renderCompact() {
             if (!rootElement || !state) return;
+            rootElement.dataset.inventoryStatus = inventoryRefreshInFlight ? "loading" : state.inventoryStatus;
+            rootElement.dataset.inventoryLoaded = String(inventorySnapshotLoaded(state));
             const configured = Array.isArray(state.configured) ? state.configured : [];
             const cursor = configured.find(function (entry) { return entry.uuid === state.cursorUuid; }) || null;
             const pending = state.pendingApplication === true || applicationRequestInFlight;
@@ -751,9 +785,10 @@
             renderAmount(cursor, pending);
             renderConfiguredPicker(false);
 
-            if (state.inventoryStatus !== "ready") {
-                compactStatus.textContent = state.inventoryError ||
-                    "Develop preset inventory is unavailable. Open Manage Presets and refresh it from Lightroom.";
+            if (inventoryRefreshInFlight || state.inventoryStatus === "loading" ||
+                state.inventoryStatus === "not-loaded" || state.inventoryStatus === "error" ||
+                inventoryRefreshError) {
+                compactStatus.textContent = inventoryLifecycleMessage(state);
             } else if (state.availableCount === 0) {
                 compactStatus.textContent = configured.length === 0
                     ? "No presets are configured. Open Manage Presets to add and save presets."
@@ -835,6 +870,7 @@
         function renderConfiguredList() {
             const inventory = state && Array.isArray(state.inventory) ? state.inventory : [];
             const inventoryByUuid = new Map(inventory.map(function (item) { return [item.uuid, item]; }));
+            const snapshotLoaded = inventorySnapshotLoaded(state);
             const captured = captureConfiguredEditorState();
             configuredList.textContent = "";
             if (draft.length === 0) {
@@ -849,11 +885,15 @@
 
             draft.forEach(function (entry, index) {
                 const item = inventoryByUuid.get(entry.uuid) || null;
+                const missing = snapshotLoaded && !item;
+                const unresolvedFolder = inventoryRefreshInFlight || (state && state.inventoryStatus === "loading")
+                    ? "Loading inventory…"
+                    : state && state.inventoryStatus === "error" ? "Refresh failed" : "Inventory not loaded";
                 const row = document.createElement("div");
-                row.className = "develop-preset-config-row" + (item ? "" : " unavailable");
+                row.className = "develop-preset-config-row" + (missing ? " unavailable" : "");
                 row.dataset.uuid = entry.uuid;
-                appendTextField(row, "Folder", item ? item.folder : "Unavailable", "folder");
-                appendTextField(row, "Preset", item ? item.name : entry.uuid + " (missing UUID)", "preset");
+                appendTextField(row, "Folder", item ? item.folder : missing ? "Unavailable" : unresolvedFolder, "folder");
+                appendTextField(row, "Preset", item ? item.name : entry.uuid + (missing ? " (missing UUID)" : ""), "preset");
 
                 const aliasField = document.createElement("label");
                 aliasField.className = "develop-preset-config-field alias";
@@ -920,7 +960,7 @@
                 actions.append(moveUp, moveDown, remove);
                 row.appendChild(actions);
 
-                if (!item) {
+                if (missing) {
                     const error = document.createElement("div");
                     error.className = "develop-preset-config-error";
                     error.textContent = "Unavailable: this configured UUID was not found in the current Lightroom inventory.";
@@ -939,17 +979,20 @@
             renderInventoryPicker(false);
             if (!preserveMessage && state.configurationError) {
                 setManagerMessage("Error: " + state.configurationError, "state-error");
-            } else if (!preserveMessage && state.inventoryStatus === "error" && !inventoryRefreshInFlight) {
-                setManagerMessage(
-                    "Error: " + (state.inventoryError || "Develop preset inventory is unavailable."),
-                    "state-error"
-                );
+            } else if (!preserveMessage) {
+                const inventoryKind = state.inventoryStatus === "error" || inventoryRefreshError
+                    ? "state-error" : state.inventoryStatus === "ready" ? "success" : "info";
+                setManagerMessage(inventoryLifecycleMessage(state), inventoryKind);
             }
         }
 
         function acceptServerState(nextState, optionsForState) {
             optionsForState = optionsForState || {};
             state = nextState;
+            if (state.inventoryStatus === "ready") inventoryRefreshError = null;
+            else if (state.inventoryStatus === "error" && state.inventoryError) {
+                inventoryRefreshError = state.inventoryError;
+            }
             reconcileAmountState(state);
             if (managerStatus && managerStatus.dataset.kind === "state-error" &&
                 !state.configurationError && state.inventoryStatus !== "error") {
@@ -986,20 +1029,28 @@
         }
 
         function unavailableState(message) {
+            const loaded = inventorySnapshotLoaded(state);
             const configured = state && Array.isArray(state.configured) ? state.configured.map(function (entry) {
-                return Object.assign({}, entry, { available: false });
+                return loaded ? Object.assign({}, entry) : Object.assign({}, entry, {
+                    available: false,
+                    missing: false,
+                    error: null
+                });
             }) : draft.map(function (entry) {
-                return Object.assign({ folder: null, name: null, available: false }, cloneEntry(entry));
+                return Object.assign({ folder: null, name: null, available: false, missing: false, error: null },
+                    cloneEntry(entry));
             });
             return {
                 ok: false,
                 configuration: configurationFromDraft(draft),
                 configurationError: null,
-                inventory: [],
+                inventory: loaded && state && Array.isArray(state.inventory) ? state.inventory.slice() : [],
                 inventoryStatus: "error",
                 inventoryError: message,
+                inventoryRefreshedAt: loaded ? state.inventoryRefreshedAt : null,
+                inventoryLoaded: loaded,
                 configured: configured,
-                availableCount: 0,
+                availableCount: loaded && state ? state.availableCount : 0,
                 cursorUuid: state ? state.cursorUuid : null,
                 presetAmount: state ? state.presetAmount : null,
                 controlsEnabled: false,
@@ -1052,43 +1103,62 @@
             return new Promise(function (resolve) { setTimeout(resolve, milliseconds); });
         }
 
-        async function refreshInventory() {
-            if (inventoryRefreshInFlight) return;
+        function refreshInventory() {
+            if (inventoryRefreshPromise) return inventoryRefreshPromise;
             const activeGeneration = generation;
             inventoryRefreshInFlight = true;
-            setManagerMessage("Waiting for Lightroom to return the ordinary Develop preset inventory…", "info");
+            inventoryRefreshError = null;
+            setManagerMessage(inventoryLifecycleMessage(state), "info");
+            renderCompact();
             renderManager(true);
-            try {
-                const response = await fetchRequest("/api/develop-presets/inventory/refresh", { cache: "no-store" });
-                let data = await response.json();
-                if (!response.ok || !data.ok) throw new Error(data.error || "Develop preset inventory refresh was rejected");
-                if (activeGeneration !== generation || !rootElement) return;
-                acceptServerState(data, { replaceDraft: false, renderManager: true });
-                const requestId = data.inventoryRequestId;
-                const deadline = Date.now() + 22_000;
-                while (data.inventoryStatus === "refreshing" && data.inventoryRequestId === requestId &&
-                    Date.now() < deadline) {
-                    await wait(400);
-                    if (activeGeneration !== generation || !rootElement) return;
-                    data = await fetchState();
+            const operation = (async function () {
+                try {
+                    const response = await fetchRequest("/api/develop-presets/inventory/refresh", { cache: "no-store" });
+                    let data = await response.json();
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.error || "Develop preset inventory refresh was rejected");
+                    }
+                    if (activeGeneration !== generation || !rootElement) return false;
                     acceptServerState(data, { replaceDraft: false, renderManager: true });
+                    const requestId = data.inventoryRequestId;
+                    const deadline = Date.now() + 22_000;
+                    while (data.inventoryStatus === "loading" && data.inventoryRequestId === requestId &&
+                        Date.now() < deadline) {
+                        await wait(400);
+                        if (activeGeneration !== generation || !rootElement) return false;
+                        data = await fetchState();
+                        acceptServerState(data, { replaceDraft: false, renderManager: true });
+                    }
+                    if (data.inventoryStatus === "loading") {
+                        throw new Error("Lightroom did not complete the Develop preset inventory refresh.");
+                    }
+                    if (data.inventoryStatus !== "ready") {
+                        throw new Error(data.inventoryError || "Lightroom Develop preset inventory is unavailable.");
+                    }
+                    inventoryRefreshError = null;
+                    setManagerMessage(
+                        "Loaded " + data.inventory.length + " Develop presets from Lightroom. Configured order was preserved.",
+                        "success"
+                    );
+                    return true;
+                } catch (err) {
+                    inventoryRefreshError = err.message;
+                    if (activeGeneration === generation && rootElement) {
+                        setManagerMessage(inventoryLifecycleMessage(state), "error");
+                        renderCompact();
+                    }
+                    return false;
                 }
-                if (data.inventoryStatus === "refreshing") {
-                    throw new Error("Lightroom did not complete the Develop preset inventory refresh.");
-                }
-                if (data.inventoryStatus !== "ready") {
-                    throw new Error(data.inventoryError || "Lightroom Develop preset inventory is unavailable.");
-                }
-                setManagerMessage(
-                    "Loaded " + data.inventory.length + " Develop presets from Lightroom. Configured order was preserved.",
-                    "success"
-                );
-            } catch (err) {
-                setManagerMessage("Error: " + err.message, "error");
-            } finally {
+            })();
+            inventoryRefreshPromise = operation.finally(function () {
                 inventoryRefreshInFlight = false;
-                if (activeGeneration === generation && rootElement) renderManager(true, true);
-            }
+                inventoryRefreshPromise = null;
+                if (activeGeneration === generation && rootElement) {
+                    renderCompact();
+                    renderManager(false, true);
+                }
+            });
+            return inventoryRefreshPromise;
         }
 
         async function saveConfiguration() {
@@ -1144,20 +1214,22 @@
                 "Preset UUID is the saved identity. Folder and preset names are labels; this sorted inventory does not claim Lightroom Presets panel order.";
 
             addPresetsButton = makeButton("+ Add Presets", "develop-preset-add-open", function () {
-                openPicker(inventoryPicker, addPresetsButton);
-                return refreshInventory();
+                return refreshInventory().then(function () {
+                    if (rootElement && inventoryPicker) openPicker(inventoryPicker, addPresetsButton);
+                });
             });
             addPresetsButton.setAttribute("aria-haspopup", "dialog");
             addPresetsButton.setAttribute("aria-expanded", "false");
             addPresetsButton.setAttribute("aria-controls", "developPresetInventoryPicker");
             const toolbar = document.createElement("div");
             toolbar.className = "develop-preset-manager-toolbar";
+            refreshPresetsButton = makeButton("Refresh Presets", "develop-preset-refresh secondary", refreshInventory);
             saveButton = makeButton("Save Configuration", "develop-preset-save", saveConfiguration);
             managerStatus = document.createElement("div");
             managerStatus.className = "develop-preset-manager-status";
             managerStatus.setAttribute("role", "status");
             managerStatus.setAttribute("aria-live", "polite");
-            toolbar.append(addPresetsButton, saveButton, managerStatus);
+            toolbar.append(addPresetsButton, refreshPresetsButton, saveButton, managerStatus);
 
             configuredList = document.createElement("div");
             configuredList.className = "develop-preset-config-list";
@@ -1340,7 +1412,13 @@
             if (!state) state = unavailableState("Loading Develop preset state…");
             renderCompact();
             renderManager(false, true);
-            refreshState();
+            const activeGeneration = generation;
+            refreshState().then(function (data) {
+                if (activeGeneration !== generation || !rootElement || !data) return;
+                if (data.inventoryStatus === "not-loaded" && !inventorySnapshotLoaded(data)) {
+                    refreshInventory();
+                }
+            });
             timer = setInterval(refreshState, 600);
         }
 

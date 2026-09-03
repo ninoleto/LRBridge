@@ -226,6 +226,10 @@ function rejectQueueFull(res, queueLength) {
 }
 
 function requestDevelopPresetInventory() {
+    const currentState = developPresets.getPublicState();
+    if (currentState.inventoryStatus === "loading" && currentState.inventoryRequestId) {
+        return currentState;
+    }
     const requestId = developPresets.beginInventoryRefresh();
     const admission = queueCommand({
         command: "develop_presets.inventory.request",

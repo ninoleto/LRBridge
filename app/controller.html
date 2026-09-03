@@ -1610,7 +1610,7 @@
             top: 76px;
             z-index: 20;
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             min-width: 0;
             gap: 8px;
             margin: 0 -4px 10px;
@@ -1640,6 +1640,11 @@
         .develop-preset-add-open {
             background: #21465d;
             border-color: #57a6d1;
+        }
+
+        .develop-preset-refresh {
+            background: #243849;
+            border-color: #6489a7;
         }
 
         .develop-preset-save.dirty:not(:disabled) {
@@ -1943,6 +1948,7 @@
 
         .develop-preset-current-button:focus-visible,
         .develop-preset-add-open:focus-visible,
+        .develop-preset-refresh:focus-visible,
         .develop-preset-picker button:focus-visible,
         .develop-preset-picker input:focus-visible {
             outline: 3px solid #f0c45b;
@@ -1996,6 +2002,7 @@
             }
 
             .develop-preset-add-open,
+            .develop-preset-refresh,
             .develop-preset-save {
                 width: 100%;
             }
@@ -3795,6 +3802,10 @@
         let sliderJumpDockObserver = null;
         let sliderJumpDockSentinel = null;
         let sliderJumpViewportResizeHandler = null;
+        let sliderJumpDocumentPointerDownHandler = null;
+        let sliderJumpDocumentKeydownHandler = null;
+        let sliderJumpMenuObserver = null;
+        let sliderJumpInstallAnimationFrame = null;
         let sliderJumpUndoButton = null;
         let sliderJumpRedoButton = null;
         const historyActionCooldownMs = 3000;
@@ -3877,6 +3888,24 @@
             sliderJumpViewportResizeHandler = null;
         }
 
+        function disconnectSliderJumpDocumentListeners() {
+            if (sliderJumpDocumentPointerDownHandler) {
+                document.removeEventListener("pointerdown", sliderJumpDocumentPointerDownHandler);
+            }
+            if (sliderJumpDocumentKeydownHandler) {
+                document.removeEventListener("keydown", sliderJumpDocumentKeydownHandler);
+            }
+            sliderJumpDocumentPointerDownHandler = null;
+            sliderJumpDocumentKeydownHandler = null;
+        }
+
+        function cancelPendingSliderJumpInstall() {
+            if (sliderJumpInstallAnimationFrame !== null) {
+                window.cancelAnimationFrame(sliderJumpInstallAnimationFrame);
+                sliderJumpInstallAnimationFrame = null;
+            }
+        }
+
         function observeSliderJumpDocking(control, sentinel) {
             disconnectSliderJumpDockObserver();
             sliderJumpDockSentinel = sentinel;
@@ -3896,18 +3925,26 @@
         }
 
         function removeSliderJumpMenus() {
+            cancelPendingSliderJumpInstall();
             disconnectSliderJumpDockObserver();
+            disconnectSliderJumpDocumentListeners();
             [
                 document.getElementById("content"),
                 document.getElementById("colorGradingWorkspace")
             ].filter(Boolean).forEach(function (host) {
-                const control = host.querySelector(".slider-jump-control");
-                const sentinel = host.querySelector(".slider-jump-sentinel");
-                if (control) control.remove();
-                if (sentinel) sentinel.remove();
+                host.querySelectorAll(".slider-jump-control, .slider-jump-sentinel").forEach(function (element) {
+                    element.remove();
+                });
             });
             sliderJumpUndoButton = null;
             sliderJumpRedoButton = null;
+        }
+
+        function getSliderJumpInsertionPoint(contentHost) {
+            const basicControls = Array.from(contentHost.children).find(function (element) {
+                return element.classList && element.classList.contains("basic-controls-row");
+            });
+            return basicControls ? basicControls.nextSibling : contentHost.firstChild;
         }
 
         function installSliderJumpMenu() {
@@ -3920,13 +3957,12 @@
                 return host !== contentHost && !!host.querySelector(".slider-jump-control");
             });
 
-            if (hasStaleMenu) disconnectSliderJumpDockObserver();
+            if (hasStaleMenu) removeSliderJumpMenus();
             possibleHosts.forEach(function (host) {
                 if (host === contentHost) return;
-                const staleControl = host.querySelector(".slider-jump-control");
-                const staleSentinel = host.querySelector(".slider-jump-sentinel");
-                if (staleControl) staleControl.remove();
-                if (staleSentinel) staleSentinel.remove();
+                host.querySelectorAll(".slider-jump-control, .slider-jump-sentinel").forEach(function (element) {
+                    element.remove();
+                });
             });
 
             if (!contentHost) {
@@ -3941,6 +3977,7 @@
             }
 
             disconnectSliderJumpDockObserver();
+            disconnectSliderJumpDocumentListeners();
 
             const sections = getSliderJumpMenuSections(activeTab)
                 .map(function (section) {
@@ -4082,17 +4119,19 @@
                 popover.appendChild(option);
             });
 
-            document.addEventListener("pointerdown", function (event) {
+            sliderJumpDocumentPointerDownHandler = function (event) {
                 if (!control.contains(event.target)) {
                     closeMenu();
                 }
-            });
+            };
+            document.addEventListener("pointerdown", sliderJumpDocumentPointerDownHandler);
 
-            document.addEventListener("keydown", function (event) {
+            sliderJumpDocumentKeydownHandler = function (event) {
                 if (event.key === "Escape") {
                     closeMenu();
                 }
-            });
+            };
+            document.addEventListener("keydown", sliderJumpDocumentKeydownHandler);
 
             const buttons = document.createElement("div");
             buttons.className = "slider-jump-buttons";
@@ -4107,8 +4146,7 @@
             control.appendChild(buttons);
             control.appendChild(popover);
 
-            const basicControls = contentHost.querySelector(".basic-controls-row");
-            const insertionPoint = basicControls ? basicControls.nextSibling : contentHost.firstChild;
+            const insertionPoint = getSliderJumpInsertionPoint(contentHost);
             const sentinel = document.createElement("div");
             sentinel.className = "slider-jump-sentinel";
             sentinel.setAttribute("aria-hidden", "true");
@@ -4121,6 +4159,14 @@
             requestHistoryState();
         }
 
+        function scheduleSliderJumpMenuInstall() {
+            cancelPendingSliderJumpInstall();
+            sliderJumpInstallAnimationFrame = window.requestAnimationFrame(function () {
+                sliderJumpInstallAnimationFrame = null;
+                installSliderJumpMenu();
+            });
+        }
+
         function startSliderJumpMenuObserver() {
             const contentHost = document.getElementById("content");
 
@@ -4129,11 +4175,13 @@
                 return;
             }
 
-            const observer = new MutationObserver(function () {
-                window.requestAnimationFrame(installSliderJumpMenu);
+            if (sliderJumpMenuObserver) return;
+
+            sliderJumpMenuObserver = new MutationObserver(function () {
+                scheduleSliderJumpMenuInstall();
             });
 
-            observer.observe(contentHost, {
+            sliderJumpMenuObserver.observe(contentHost, {
                 childList: true
             });
 
@@ -4141,7 +4189,7 @@
         }
 
         if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", startSliderJumpMenuObserver);
+            document.addEventListener("DOMContentLoaded", startSliderJumpMenuObserver, { once: true });
         } else {
             window.requestAnimationFrame(startSliderJumpMenuObserver);
         }
@@ -4641,6 +4689,7 @@
         const activeSliderInteractions = new Set();
         let pendingDevelopContextRefresh = false;
         let lastControllerContextCounter = null;
+        let lastControllerContextChangedAt = null;
         let lastControllerDevelopCounter = null;
         let lastControllerActiveModule = null;
         let lastControllerSelectedPhotoKey = null;
@@ -4672,6 +4721,16 @@
                 return createTreatmentPresentation(null, "develop-preset-treatment-row");
             }
         });
+
+        function profileContextBindingChanged(previous, next) {
+            if (!next || !Number.isSafeInteger(next.contextCounter)) return false;
+            return !previous || previous.contextCounter === null ||
+                next.contextCounter !== previous.contextCounter ||
+                next.selectedPhotoKey !== previous.selectedPhotoKey ||
+                next.selectedPhotoUuid !== previous.selectedPhotoUuid ||
+                (Number.isFinite(next.contextChangedAt) && Number.isFinite(previous.contextChangedAt) &&
+                    next.contextChangedAt > previous.contextChangedAt);
+        }
 
         function classifyControllerContextChange(previous, next) {
             if (!previous || previous.activeModule === null) return "none";
@@ -4940,6 +4999,7 @@
                 const data = await response.json();
                 const previous = {
                     contextCounter: lastControllerContextCounter,
+                    contextChangedAt: lastControllerContextChangedAt,
                     developCounter: lastControllerDevelopCounter,
                     activeModule: lastControllerActiveModule,
                     selectedPhotoKey: lastControllerSelectedPhotoKey,
@@ -4958,11 +5018,7 @@
                 )) {
                     cancelParametricCurveGesture("Parametric Curve gesture cancelled because Lightroom context changed.");
                 }
-                const profileContextChanged = Number.isSafeInteger(data.contextCounter) && (
-                    lastControllerContextCounter === null || data.contextCounter !== lastControllerContextCounter ||
-                    data.selectedPhotoKey !== lastControllerSelectedPhotoKey ||
-                    data.selectedPhotoUuid !== lastControllerSelectedPhotoUuid
-                );
+                const profileContextChanged = profileContextBindingChanged(previous, data);
                 if (classification === "navigation" || classification === "develop-revision") {
                     invalidateTreatmentState();
                 }
@@ -4986,6 +5042,7 @@
                 }
                 currentDevelopRefreshClassification = classification;
                 lastControllerContextCounter = data.contextCounter;
+                lastControllerContextChangedAt = data.contextChangedAt;
                 lastControllerDevelopCounter = data.developCounter;
                 lastControllerActiveModule = data.activeModule;
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
@@ -5085,6 +5142,7 @@
         }
 
         function clearContent() {
+            removeSliderJumpMenus();
             disposeDevelopTreatmentPresentation();
             content.innerHTML = "";
             cropToolButton = null;
@@ -11426,26 +11484,24 @@
             renderTabs();
 
             const colorGradingActive = activeTab === "color-grading";
-            if (activeTab !== "presets") developPresetController.deactivate();
+            developPresetController.deactivate();
+            colorGradingController.deactivate();
+            pointCurveController.deactivate();
+            deactivateDevelopFeedbackPolling();
+            clearContent();
             content.hidden = colorGradingActive;
             document.getElementById("colorGradingWorkspace").hidden = !colorGradingActive;
             if (colorGradingActive) {
-                deactivateDevelopFeedbackPolling();
                 colorGradingController.activate();
                 installSliderJumpMenu();
                 return;
             }
 
-            colorGradingController.deactivate();
-            if (activeTab !== "tone-curve") pointCurveController.deactivate();
             if (!isTreatmentControllerTab(activeTab)) invalidateTreatmentState();
             if (activeTab !== "sliders") {
                 lensBlurModel.applyAuthoritative(null);
                 updateLensBlurPresentation();
             }
-            if (!isGenericDevelopFeedbackTab(activeTab)) deactivateDevelopFeedbackPolling();
-            clearContent();
-
             if (activeTab === "sliders") {
                 renderSlidersTab();
                 activateDevelopFeedbackPolling();
@@ -11498,9 +11554,9 @@
         }
 
         loadDevelopSliderDefinitions().then(function () {
-            render();
             startLiveFeedbackPolling();
-        }).catch(function () {
+            render();
+        }, function () {
             renderTabs();
             clearContent();
             setStatus("ERROR: Could not load authoritative slider metadata.");

@@ -113,8 +113,10 @@ assert.match(source, /function renderPresetsTab\(\) \{\s*developPresetController
     "Develop Presets must mount in the dedicated Presets tab");
 assert.doesNotMatch(source.match(/function renderSlidersTab\(\) \{[\s\S]*?\n        \}/)[0], /developPresetController\.activate/,
     "Develop Sliders must not render the Develop Presets controller");
-assert.match(source, /if \(activeTab !== "presets"\) developPresetController\.deactivate\(\)/,
-    "Preset polling and cleanup must follow the Presets tab lifecycle");
+const mainRenderBlock = source.slice(source.indexOf("function render()"), source.indexOf("async function loadDevelopSliderDefinitions()"));
+assert.match(mainRenderBlock,
+    /developPresetController\.deactivate\(\);[\s\S]*clearContent\(\);[\s\S]*if \(activeTab === "presets"\) \{[\s\S]*renderPresetsTab\(\)/,
+    "Every render must dispose prior Preset polling before clearing its host, then reactivate it only for Presets");
 assert.match(source, /activeTab === "tools"[\s\S]*renderToolsTab\(\)/, "Tools tab renderer is missing");
 assert.match(source, /activeTab === "application"[\s\S]*renderCommandGroups\(applicationGroups\)/, "Application tab renderer is missing");
 const controllerTabIds = extractJavaScriptValue("const controllerTabIds =");

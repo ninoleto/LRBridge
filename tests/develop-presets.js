@@ -20,9 +20,11 @@ assert.match(controllerHtml, /\.develop-preset-manager-toolbar\s*\{[\s\S]*positi
     "Preset manager actions must remain in a sticky toolbar below Jump-to");
 assert.match(controllerHtml, /\.develop-preset-manager-toolbar\s*>\s*button\s*\{[\s\S]*width:\s*100%/,
     "Preset toolbar actions must share readable equal-width touch targets");
+assert.match(controllerHtml, /\.develop-preset-manager-toolbar\s*\{[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/,
+    "Add, Refresh, and Save must share three responsive toolbar columns");
 assert.match(controllerHtml,
     /\.develop-preset-manager-toolbar\s*>\s*button\s*\{[\s\S]*height:\s*52px;[\s\S]*min-height:\s*52px;[\s\S]*padding:\s*10px 14px;[\s\S]*border-radius:\s*7px;[\s\S]*font-family:\s*inherit;[\s\S]*font-size:\s*14px;[\s\S]*font-weight:\s*700/,
-    "Add and Save must share identical explicit touch sizing and inherited typography");
+    "Add, Refresh, and Save must share identical explicit touch sizing and inherited typography");
 assert.match(controllerHtml, /\.develop-preset-add-open\s*\{[\s\S]*background:\s*#21465d/,
     "Add Presets must retain the blue action treatment");
 assert.match(controllerHtml, /\.develop-preset-save\.dirty:not\(:disabled\)\s*\{[\s\S]*background:\s*#1f7651/,
@@ -247,6 +249,7 @@ async function webControllerInventorySelectionPersistenceTest() {
                 folder: preset ? preset.folder : null,
                 name: preset ? preset.name : null,
                 available: !!preset,
+                missing: !preset,
                 error: preset ? null : "Preset UUID is unavailable"
             };
         });
@@ -258,6 +261,7 @@ async function webControllerInventorySelectionPersistenceTest() {
             inventoryStatus: "ready",
             inventoryError: null,
             inventoryRefreshedAt: 1,
+            inventoryLoaded: true,
             inventoryRequestId: null,
             configured: configured,
             availableCount: configured.filter(function (entry) { return entry.available; }).length,
@@ -461,17 +465,21 @@ async function webControllerInventorySelectionPersistenceTest() {
         assert.ok(manageButton);
         await manageButton.dispatch("click");
         const addButton = findByText(host, "+ Add Presets");
+        const refreshButton = findByText(host, "Refresh Presets");
         const saveButton = findByText(host, "Save Configuration");
-        assert.ok(addButton && saveButton);
+        assert.ok(addButton && refreshButton && saveButton);
         assert.equal(saveButton.disabled, true, "A saved configuration must expose a neutral disabled Save action");
         assert.equal(saveButton.className, "develop-preset-save");
         assert.equal(countByClass(host, "develop-preset-add-open"), 1,
             "Manage Presets must expose exactly one Add Presets action");
+        assert.equal(countByClass(host, "develop-preset-refresh"), 1,
+            "Manage Presets must expose exactly one Refresh Presets action");
         assert.equal(countByClass(host, "develop-preset-save"), 1,
             "Manage Presets must expose exactly one Save Configuration action");
         const managerToolbar = findByClass(host, "develop-preset-manager-toolbar");
-        assert.ok(managerToolbar && managerToolbar.children[0] === addButton && managerToolbar.children[1] === saveButton,
-            "Add and Save must share the top manager toolbar");
+        assert.ok(managerToolbar && managerToolbar.children[0] === addButton &&
+            managerToolbar.children[1] === refreshButton && managerToolbar.children[2] === saveButton,
+        "Add, Refresh, and Save must appear in the required top manager toolbar order");
         assert.equal(findByClass(host, "develop-preset-config-list").parentElement.children.includes(saveButton), false,
             "There must be no bottom Save Configuration action");
         assert.equal(countByClass(host, "develop-preset-config-row"), 2);
@@ -626,6 +634,264 @@ async function webControllerInventorySelectionPersistenceTest() {
     }
 }
 
+async function webControllerInventoryRefreshLifecycleTest() {
+    const savedPresets = [
+        { uuid: "uuid-delayed", alias: "Saved Alias", updateAISettings: true },
+        { uuid: "uuid-second", updateAISettings: false }
+    ];
+    let inventory = [];
+    let inventoryStatus = "not-loaded";
+    let inventoryError = null;
+    let inventoryLoaded = false;
+    let inventoryRefreshedAt = null;
+    let cursorUuid = "uuid-delayed";
+    let presetAmount = 137;
+    let inventoryRefreshCount = 0;
+    let configurationSaveCount = 0;
+    let applicationCount = 0;
+    const refreshResponses = [];
+
+    function configuredState() {
+        return savedPresets.map(function (entry) {
+            const item = inventory.find(function (candidate) { return candidate.uuid === entry.uuid; }) || null;
+            const missing = inventoryLoaded && !item;
+            return {
+                uuid: entry.uuid,
+                alias: entry.alias || null,
+                updateAISettings: entry.updateAISettings === true,
+                folder: item ? item.folder : null,
+                name: item ? item.name : null,
+                available: inventoryLoaded && !!item,
+                missing: missing,
+                error: missing ? "Preset UUID is unavailable in the current Lightroom inventory." : null
+            };
+        });
+    }
+
+    function publicState() {
+        const configured = configuredState();
+        return {
+            ok: true,
+            configuration: {
+                version: 1,
+                presets: savedPresets.map(function (entry) { return Object.assign({}, entry); })
+            },
+            configurationError: null,
+            inventory: inventory.map(function (entry) { return Object.assign({}, entry); }),
+            inventoryStatus: inventoryStatus,
+            inventoryError: inventoryError,
+            inventoryRefreshedAt: inventoryRefreshedAt,
+            inventoryLoaded: inventoryLoaded,
+            inventoryRequestId: null,
+            configured: configured,
+            availableCount: configured.filter(function (entry) { return entry.available; }).length,
+            cursorUuid: cursorUuid,
+            presetAmount: presetAmount,
+            controlsEnabled: inventoryLoaded && configured.some(function (entry) { return entry.available; }),
+            pendingApplication: false,
+            lastApplication: null
+        };
+    }
+
+    function deferredRefresh() {
+        let resolve;
+        const promise = new Promise(function (resolvePromise) { resolve = resolvePromise; });
+        return {
+            promise: promise,
+            resolveState: function () {
+                const snapshot = JSON.parse(JSON.stringify(publicState()));
+                resolve({ ok: true, async json() { return snapshot; } });
+            }
+        };
+    }
+
+    async function fakeFetch(url) {
+        if (url === "/api/develop-presets/state") {
+            const snapshot = JSON.parse(JSON.stringify(publicState()));
+            return { ok: true, async json() { return snapshot; } };
+        }
+        if (url === "/api/develop-presets/inventory/refresh") {
+            inventoryRefreshCount += 1;
+            const response = refreshResponses.shift();
+            if (!response) throw new Error("Unexpected inventory refresh");
+            return response.promise;
+        }
+        if (url === "/api/develop-presets/config") configurationSaveCount += 1;
+        if (url.startsWith("/api/develop-presets/apply?") ||
+            url.startsWith("/api/develop-presets/amount?") ||
+            url.startsWith("/api/develop-presets/navigate?")) applicationCount += 1;
+        throw new Error("Unexpected preset lifecycle request: " + url);
+    }
+
+    function flushAsync() {
+        return new Promise(function (resolve) {
+            setImmediate(function () { setImmediate(resolve); });
+        });
+    }
+
+    function containsText(rootElement, fragment) {
+        return findAll(rootElement, function () { return true; }).some(function (element) {
+            return element.textContent.includes(fragment);
+        });
+    }
+
+    const document = new FakeDocument();
+    const host = document.createElement("div");
+    const originalSetInterval = global.setInterval;
+    const originalClearInterval = global.clearInterval;
+    global.setInterval = function (listener, milliseconds) {
+        return { listener: listener, milliseconds: milliseconds, active: true };
+    };
+    global.clearInterval = function (handle) {
+        if (handle) handle.active = false;
+    };
+    const controller = webController.createController({
+        document: document,
+        fetch: fakeFetch,
+        getContext: function () {
+            return { activeModule: "develop", selectedPhotoUuid: "photo", contextCounter: 4, developCounter: 8 };
+        }
+    });
+
+    try {
+        const automaticFailure = deferredRefresh();
+        refreshResponses.push(automaticFailure);
+        controller.activate(host);
+        await flushAsync();
+        assert.equal(inventoryRefreshCount, 1,
+            "First Presets activation must automatically request the current-process inventory exactly once");
+        const compactStatus = findByClass(host, "develop-presets-controller-status");
+        assert.equal(compactStatus.textContent, "Loading preset inventory…");
+        assert.equal(findByClass(host, "develop-presets-controller").dataset.inventoryStatus, "loading");
+
+        await findByText(host, "Manage Presets").dispatch("click");
+        const addButton = findByText(host, "+ Add Presets");
+        const refreshButton = findByText(host, "Refresh Presets");
+        const saveButton = findByText(host, "Save Configuration");
+        const configuredList = findByClass(host, "develop-preset-config-list");
+        const initialRow = findByDataUuid(configuredList, "uuid-delayed");
+        assert.equal(findByClass(initialRow, "preset").children[1].textContent, "uuid-delayed");
+        assert.equal(containsText(host, "missing UUID"), false,
+            "Configured UUIDs must not be called missing before a successful inventory snapshot exists");
+        assert.equal(saveButton.disabled, true, "Automatic inventory loading must not dirty configuration");
+
+        const addDuringAutomatic = addButton.dispatch("click");
+        const manualDuringAutomatic = refreshButton.dispatch("click");
+        await flushAsync();
+        assert.equal(inventoryRefreshCount, 1,
+            "Automatic, Add Presets, and manual refresh calls must share one browser refresh operation");
+        let inventoryDialog = findByAttribute(host, "aria-labelledby", "developPresetInventoryPickerTitle");
+        assert.equal(inventoryDialog.open, false,
+            "+ Add Presets must wait for the authoritative refresh before opening the picker");
+
+        inventoryStatus = "error";
+        inventoryError = "Lightroom inventory probe failed";
+        automaticFailure.resolveState();
+        await Promise.all([addDuringAutomatic, manualDuringAutomatic]);
+        inventoryDialog = findByAttribute(host, "aria-labelledby", "developPresetInventoryPickerTitle");
+        assert.equal(inventoryDialog.open, true, "Add Presets may open after a failed refresh to show the truthful error");
+        assert.match(compactStatus.textContent, /refresh failed: Lightroom inventory probe failed/);
+        assert.equal(containsText(host, "missing UUID"), false,
+            "A failed first refresh must not turn unproven configured UUIDs into missing UUIDs");
+        assert.deepEqual(controller.getDraft(), webController.createDraft(savedPresets),
+            "Failed initial inventory acquisition must preserve UUIDs, aliases, order, and AI settings");
+        assert.equal(saveButton.disabled, true, "A failed inventory refresh must not dirty configuration");
+        await findByText(inventoryDialog, "Cancel").dispatch("click");
+
+        let aliasInput = findByAttribute(host, "aria-label", "Optional alias for uuid-delayed");
+        aliasInput.value = "Unsaved Draft Alias";
+        aliasInput.selectionStart = 7;
+        aliasInput.selectionEnd = 12;
+        aliasInput.focus();
+        await aliasInput.dispatch("input");
+        assert.equal(saveButton.disabled, false, "Only the genuine Alias draft edit may enable Save Configuration");
+
+        const successfulRefresh = deferredRefresh();
+        refreshResponses.push(successfulRefresh);
+        const manualSuccess = refreshButton.dispatch("click");
+        await flushAsync();
+        assert.equal(inventoryRefreshCount, 2, "Refresh Presets must start one manual authoritative refresh");
+        assert.equal(compactStatus.textContent, "Loading preset inventory…");
+        inventory = [
+            { uuid: "uuid-delayed", folder: "User Presets", name: "Resolved Name" },
+            { uuid: "uuid-extra", folder: "User Presets", name: "Extra" }
+        ];
+        inventoryStatus = "ready";
+        inventoryError = null;
+        inventoryLoaded = true;
+        inventoryRefreshedAt = 1000;
+        successfulRefresh.resolveState();
+        await manualSuccess;
+        aliasInput = findByAttribute(host, "aria-label", "Optional alias for User Presets — Resolved Name");
+        assert.equal(aliasInput.value, "Unsaved Draft Alias");
+        assert.equal(document.activeElement, aliasInput, "Inventory resolution must restore Alias editing focus");
+        assert.equal(aliasInput.selectionStart, 7);
+        assert.equal(aliasInput.selectionEnd, 12);
+        assert.deepEqual(controller.getDraft(), [
+            { uuid: "uuid-delayed", alias: "Unsaved Draft Alias", updateAISettings: true },
+            { uuid: "uuid-second", alias: "", updateAISettings: false }
+        ]);
+        assert.equal(findByClass(findByDataUuid(configuredList, "uuid-delayed"), "preset").children[1].textContent,
+            "Resolved Name", "A delayed successful inventory must resolve the saved UUID without rebuilding identity");
+        assert.equal(containsText(host, "uuid-delayed (missing UUID)"), false);
+        assert.equal(saveButton.disabled, false, "Inventory success must preserve the genuine draft-dirty state");
+        assert.equal(controller.getState().cursorUuid, cursorUuid);
+        assert.equal(controller.getState().presetAmount, presetAmount);
+
+        const retainedInventory = JSON.parse(JSON.stringify(inventory));
+        const failedRefresh = deferredRefresh();
+        refreshResponses.push(failedRefresh);
+        const manualFailure = refreshButton.dispatch("click");
+        await flushAsync();
+        assert.match(compactStatus.textContent, /Refreshing preset inventory/);
+        inventoryStatus = "error";
+        inventoryError = "Second Lightroom inventory probe failed";
+        failedRefresh.resolveState();
+        await manualFailure;
+        assert.deepEqual(controller.getState().inventory, retainedInventory,
+            "A failed refresh after success must retain the previous authoritative snapshot");
+        assert.match(compactStatus.textContent, /Continuing to use the previous successful inventory/);
+        assert.equal(findByClass(findByDataUuid(configuredList, "uuid-delayed"), "preset").children[1].textContent,
+            "Resolved Name");
+        assert.equal(saveButton.disabled, false);
+        assert.equal(controller.getState().cursorUuid, cursorUuid);
+        assert.equal(controller.getState().presetAmount, presetAmount);
+        assert.equal(configurationSaveCount, 0, "Inventory lifecycle operations must never save configuration");
+        assert.equal(applicationCount, 0, "Inventory lifecycle operations must never apply or reapply a preset");
+
+        controller.deactivate();
+        controller.activate(host);
+        await flushAsync();
+        assert.equal(inventoryRefreshCount, 3,
+            "Reactivating Presets must not auto-refresh again while the same process has a successful snapshot");
+        controller.deactivate();
+
+        inventory = [];
+        inventoryStatus = "not-loaded";
+        inventoryError = null;
+        inventoryLoaded = false;
+        inventoryRefreshedAt = null;
+        const nextProcessRefresh = deferredRefresh();
+        refreshResponses.push(nextProcessRefresh);
+        controller.activate(host);
+        await flushAsync();
+        assert.equal(inventoryRefreshCount, 4,
+            "A new server process's not-loaded state must trigger one new automatic inventory request");
+        inventory = retainedInventory;
+        inventoryStatus = "ready";
+        inventoryLoaded = true;
+        inventoryRefreshedAt = 2000;
+        nextProcessRefresh.resolveState();
+        await flushAsync();
+        assert.equal(configurationSaveCount, 0);
+        assert.equal(applicationCount, 0);
+    } finally {
+        controller.deactivate();
+        global.setInterval = originalSetInterval;
+        global.clearInterval = originalClearInterval;
+    }
+}
+
 async function webControllerAmountCoalescingTest() {
     const configuredEntry = {
         uuid: "uuid-serial",
@@ -634,6 +900,7 @@ async function webControllerAmountCoalescingTest() {
         folder: "Test",
         name: "Serial",
         available: true,
+        missing: false,
         error: null
     };
     let presetAmount = 100;
@@ -660,6 +927,7 @@ async function webControllerAmountCoalescingTest() {
             inventoryStatus: "ready",
             inventoryError: null,
             inventoryRefreshedAt: 1,
+            inventoryLoaded: true,
             inventoryRequestId: null,
             configured: [Object.assign({}, configuredEntry)],
             availableCount: 1,
@@ -857,7 +1125,28 @@ function configurationAndOrderingTests() {
     });
     state.saveConfiguration(saved);
     const loaded = presetDefinition.createDevelopPresetState({ configPath: configPath });
-    assert.deepEqual(loaded.getPublicState().configuration, saved, "Save/load must preserve explicit configured order");
+    let notLoadedState = loaded.getPublicState();
+    assert.deepEqual(notLoadedState.configuration, saved, "Save/load must preserve explicit configured order");
+    assert.equal(notLoadedState.inventoryStatus, "not-loaded");
+    assert.equal(notLoadedState.inventoryLoaded, false);
+    assert.deepEqual(notLoadedState.configuration.presets, saved.presets,
+        "A new process must preserve the complete configured UUID/alias/order/AI payload before inventory loads");
+    assert.equal(notLoadedState.configured[0].missing, false);
+    assert.equal(notLoadedState.configured[1].missing, false);
+    assert.equal(notLoadedState.configured[0].error, null);
+    assert.equal(notLoadedState.configured[1].error, null,
+        "No configured UUID may be classified as missing without a successful current-process snapshot");
+    const failedFirstRequest = loaded.beginInventoryRefresh();
+    assert.equal(loaded.getPublicState().inventoryStatus, "loading");
+    assert.equal(loaded.getPublicState().configured[1].missing, false);
+    loaded.failInventoryRefresh(failedFirstRequest, "Initial Lightroom inventory failed");
+    notLoadedState = loaded.getPublicState();
+    assert.equal(notLoadedState.inventoryStatus, "error");
+    assert.equal(notLoadedState.inventoryLoaded, false);
+    assert.equal(notLoadedState.configured[1].missing, false);
+    assert.equal(notLoadedState.configured[1].error, null);
+    assert.deepEqual(notLoadedState.configuration.presets, saved.presets,
+        "A failed first inventory request must preserve all configured values");
     assert.equal(fs.readFileSync(configPath, "utf8").includes("Z Folder"), false,
         "Generated configuration must persist UUID/options, not mutable display labels");
 
@@ -869,6 +1158,7 @@ function configurationAndOrderingTests() {
         ["uuid-a", "missing-uuid"], "Inventory refresh must never reorder configured presets");
     assert.equal(publicState.configured[0].available, true);
     assert.equal(publicState.configured[1].available, false);
+    assert.equal(publicState.configured[1].missing, true);
     assert.match(publicState.configured[1].error, /unavailable/i);
     assert.equal(publicState.cursorUuid, "uuid-a", "Initial cursor must deterministically select the first available configured UUID");
 
@@ -904,12 +1194,41 @@ function configurationAndOrderingTests() {
         "Module drift must be rejected");
     state.rejectApplication(pending);
 
+    const committed = state.beginApplication("uuid-a", binding, 137);
+    assert.equal(state.finishApplication(committed.operationId, committed.uuid,
+        presetDefinition.OUTCOME_NO_CHANGE, "committed before refresh"), true);
+    assert.equal(state.getPublicState().presetAmount, 137);
+
     const failedRefresh = state.beginInventoryRefresh();
+    const loadingWithSnapshot = state.getPublicState();
+    assert.equal(loadingWithSnapshot.inventoryStatus, "loading");
+    assert.equal(loadingWithSnapshot.inventoryLoaded, true);
+    assert.equal(loadingWithSnapshot.configured[0].available, true,
+        "A refresh in progress must retain the previous successful snapshot");
+    assert.equal(loadingWithSnapshot.cursorUuid, "uuid-a");
+    assert.equal(loadingWithSnapshot.presetAmount, 137);
     assert.equal(state.failInventoryRefresh(failedRefresh, "Lightroom is unavailable"), true);
-    assert.equal(state.getPublicState().inventoryStatus, "error");
-    assert.match(state.getPublicState().inventoryError, /Lightroom is unavailable/);
-    assert.equal(state.getPublicState().controlsEnabled, false,
-        "An unavailable Lightroom inventory must fail closed with a clear error");
+    const retainedAfterFailure = state.getPublicState();
+    assert.equal(retainedAfterFailure.inventoryStatus, "error");
+    assert.match(retainedAfterFailure.inventoryError, /Lightroom is unavailable/);
+    assert.equal(retainedAfterFailure.inventoryLoaded, true);
+    assert.equal(retainedAfterFailure.controlsEnabled, true,
+        "A failed refresh must keep the previous successful inventory usable");
+    assert.deepEqual(retainedAfterFailure.inventory, publicState.inventory);
+    assert.equal(retainedAfterFailure.cursorUuid, "uuid-a");
+    assert.equal(retainedAfterFailure.presetAmount, 137,
+        "A failed refresh must preserve the preset cursor and committed Amount");
+
+    const changedInventory = state.beginInventoryRefresh();
+    state.acceptInventoryItem(changedInventory, { uuid: "uuid-z", folder: "Z Folder", name: "Duplicate" });
+    state.completeInventoryRefresh(changedInventory);
+    const afterChangedInventory = state.getPublicState();
+    assert.equal(afterChangedInventory.cursorUuid, "uuid-a",
+        "A successful inventory-only refresh must not reset the preset cursor");
+    assert.equal(afterChangedInventory.presetAmount, 137,
+        "A successful inventory-only refresh must not change committed Amount");
+    assert.equal(afterChangedInventory.configured[0].missing, true,
+        "Only a completed successful inventory may prove a configured UUID missing");
 
     const empty = presetDefinition.createDevelopPresetState({ configPath: null });
     const emptyRequest = empty.beginInventoryRefresh();
@@ -945,8 +1264,15 @@ async function httpNavigationAndSafetyTests() {
     try {
         let response = await request(port, "/develop-presets/inventory/refresh");
         assert.equal(response.statusCode, 200);
+        assert.equal(response.body.inventoryStatus, "loading");
+        const coalescedRefresh = await request(port, "/develop-presets/inventory/refresh");
+        assert.equal(coalescedRefresh.statusCode, 200);
+        assert.equal(coalescedRefresh.body.inventoryRequestId, response.body.inventoryRequestId,
+            "Concurrent HTTP refresh requests must join the active Lightroom inventory operation");
         const inventoryCommand = commands.getNextCommand();
         assert.equal(inventoryCommand.command, "develop_presets.inventory.request");
+        assert.equal(commands.getNextCommand(), null,
+            "Coalesced HTTP refresh requests must enqueue exactly one Lightroom inventory command");
         const inventoryItems = [
             { uuid: "uuid-c", folder: "Folder C", name: "Other" },
             { uuid: "uuid-a", folder: "Folder Z", name: "Duplicate" },
@@ -1220,11 +1546,17 @@ function sourceContractTests() {
         "Web Controller manager must be collapsed by default");
     assert.doesNotMatch(controller, /createElement\("select"\)|<select/i,
         "Develop Presets must use no native HTML select controls");
-    assert.doesNotMatch(controller, /makeButton\("Refresh from Lightroom"/,
-        "Inventory refresh must be part of the single Add Presets workflow");
     assert.match(controller, /makeButton\("\+ Add Presets"/);
-    assert.match(controller, /openPicker\(inventoryPicker, addPresetsButton\)[\s\S]*return refreshInventory\(\)/,
-        "+ Add Presets must open the custom picker and refresh Lightroom inventory");
+    assert.match(controller, /makeButton\("Refresh Presets", "develop-preset-refresh secondary", refreshInventory\)/,
+        "Manage Presets must expose the dedicated touch-sized Refresh Presets action");
+    assert.match(controller,
+        /makeButton\("\+ Add Presets"[\s\S]*return refreshInventory\(\)\.then\(function \(\) \{[\s\S]*openPicker\(inventoryPicker, addPresetsButton\)/,
+        "+ Add Presets must finish the shared authoritative refresh before opening the picker");
+    assert.match(controller, /if \(inventoryRefreshPromise\) return inventoryRefreshPromise/,
+        "Every browser inventory trigger must coalesce onto one shared refresh promise");
+    assert.match(controller,
+        /data\.inventoryStatus === "not-loaded" && !inventorySnapshotLoaded\(data\)[\s\S]*refreshInventory\(\)/,
+        "First Presets activation must auto-refresh only a current-process not-loaded inventory");
     assert.match(controller, /makeButton\("Add selected"/);
     assert.match(controller, /Alias \(optional\)/);
     assert.match(controller, /Update AI settings/);
@@ -1254,6 +1586,10 @@ function sourceContractTests() {
         "The browser must not persist a duplicate preset configuration");
     assert.match(controller, /Unavailable/);
     assert.match(controller, /missing UUID/);
+    assert.match(controller, /entry\.missing === true \? " \(missing UUID\)" : ""/,
+        "Compact labels must rely on authoritative missing proof");
+    assert.match(controller, /const missing = snapshotLoaded && !item/,
+        "Manager rows must not infer missing UUIDs before a successful snapshot exists");
     assert.match(controller, /state\.pendingApplication/);
     assert.match(controller, /const isCursor = entry\.uuid === state\.cursorUuid[\s\S]*submitPresetAtDefaultAmount\(applicationPath\(entry\.uuid\)\)/,
         "Selecting the cursor preset again must remain an explicit reapply action");
@@ -1287,6 +1623,9 @@ function sourceContractTests() {
         "Previous and Next must remain touch-sized");
     assert.match(controllerHtml, /develop-preset-current-button[\s\S]*min-height: 56px/,
         "The current preset cursor must be a large touch button");
+    assert.match(controllerHtml,
+        /\.develop-preset-manager-toolbar\s*\{[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)[\s\S]*@media \(max-width: 520px\)[\s\S]*\.develop-preset-manager-toolbar\s*\{[\s\S]*grid-template-columns:\s*1fr/,
+        "The three preset actions must share equal columns and stack without overflow on narrow screens");
     assert.match(controllerHtml, /\.develop-preset-amount-row[\s\S]*grid-template-columns:[\s\S]*min-width: 0/,
         "Preset Amount must use the established overflow-safe slider row layout");
     assert.match(controllerHtml, /\.develop-preset-amount-step,[\s\S]*min-width: 48px;[\s\S]*min-height: 48px/,
@@ -1322,8 +1661,9 @@ function sourceContractTests() {
     assert.match(controllerHtml,
         /createTreatmentPresentation: function \(\) \{\s*return createTreatmentPresentation\(null, "develop-preset-treatment-row"\);\s*\}/,
         "Presets must receive the same treatment renderer as Develop Sliders");
-    assert.match(controllerHtml, /if \(activeTab !== "presets"\) developPresetController\.deactivate\(\)/,
-        "Preset polling and cleanup must follow only the Presets tab lifecycle");
+    assert.match(controllerHtml,
+        /function render\(\) \{[\s\S]*developPresetController\.deactivate\(\);[\s\S]*clearContent\(\);[\s\S]*if \(activeTab === "presets"\) \{[\s\S]*renderPresetsTab\(\)/,
+        "Every render must dispose the previous Presets controller before clearing its host, then reactivate it only for Presets");
     const selectionRender = controllerHtml.match(/function renderSelectionTab\(\) \{[\s\S]*?\n\s*\}/)[0];
     assert.doesNotMatch(selectionRender, /developPresetController|Treatment/,
         "Selection must contain neither Develop Presets nor Treatment UI");
@@ -1343,12 +1683,16 @@ function sourceContractTests() {
     assert.match(lua, /not serverContextMatches\(command\)/);
     const commandSource = fs.readFileSync(path.join(root, "server/commands.js"), "utf8");
     const presetServerSource = fs.readFileSync(path.join(root, "server/develop-presets.js"), "utf8");
+    const bridgeSource = fs.readFileSync(path.join(root, "server/bridge.js"), "utf8");
     assert.match(presetServerSource, /pendingApplications\.size > 0[\s\S]*Wait for the current Develop preset application to finish/,
         "Server admission must reject overlapping preset SDK applications");
     assert.match(commandSource, /develop_preset\.apply[\s\S]*developPresetAdmissionProvider\.matches/,
         "Preset commands must revalidate at queue admission");
     assert.match(commandSource, /function getNextCommand\(\)[\s\S]*develop_preset\.apply[\s\S]*developPresetAdmissionProvider\.matches/,
         "Preset commands must revalidate at dequeue");
+    assert.match(bridgeSource,
+        /currentState\.inventoryStatus === "loading" && currentState\.inventoryRequestId[\s\S]*return currentState/,
+        "The server must coalesce concurrent inventory requests before queue admission");
     assert.doesNotMatch(lua, /getTargetPhotos|applyDevelopPreset\(photos|undo/i,
         "Preset application must target only the captured single photo and perform no automatic Undo");
     assert.match(parser, /local updateAISettings = parseBooleanField\(json, "updateAISettings"\)/);
@@ -1363,6 +1707,7 @@ async function main() {
     try {
         configurationAndOrderingTests();
         await webControllerInventorySelectionPersistenceTest();
+        await webControllerInventoryRefreshLifecycleTest();
         await webControllerAmountCoalescingTest();
         await httpNavigationAndSafetyTests();
         sourceContractTests();

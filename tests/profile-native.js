@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const vm = require("node:vm");
 const commands = require("../server/commands");
 const profileDefinition = require("../server/profile-native-state");
 const profileRegistry = require("../server/profile-sdk-registry");
@@ -227,6 +228,94 @@ function controllerConfirmationTests() {
     const failed = model.apply(state(16, "Adobe Landscape", 42, 43));
     assert.equal(failed.rejected, true, "an SDK graph-validation failure must reject native-label-only success");
     assert.equal(failed.rejectionReason, "sdk-validation-failed");
+}
+
+function controllerServerRestartRecoveryTests() {
+    const controller = read("app/controller.html");
+    const bindingHelperSource = controller.match(
+        /function profileContextBindingChanged\(previous, next\) \{[\s\S]*?\n        \}/
+    );
+    assert.ok(bindingHelperSource, "the Controller Profile context-binding helper must exist");
+    const profileContextBindingChanged = vm.runInNewContext("(" + bindingHelperSource[0] + ")");
+    const binding = {
+        contextCounter: 4,
+        contextChangedAt: 1000,
+        selectedPhotoKey: "photo-uuid-4",
+        selectedPhotoUuid: "photo-uuid-4"
+    };
+    const restartedBinding = Object.assign({}, binding, { contextChangedAt: 2000 });
+    assert.equal(profileContextBindingChanged(binding, binding), false,
+        "an unchanged current-context heartbeat must not reset authoritative Profile state");
+    assert.equal(profileContextBindingChanged(binding, restartedBinding), true,
+        "a newer server context epoch must reset Profile state even when counter and UUID collide");
+    assert.equal(profileContextBindingChanged(restartedBinding, binding), false,
+        "an older out-of-order context epoch must not roll Profile state backward");
+
+    function option(label, position) {
+        return {
+            token: "profile_" + String(position + 1).padStart(24, "0"),
+            label: label,
+            position: position,
+            enabled: true,
+            writable: true
+        };
+    }
+    const options = [option("Adobe Color", 0), option("Adobe Landscape", 1)];
+    const oldUnavailable = {
+        available: false,
+        updating: false,
+        reason: "Lightroom Profile control is temporarily unavailable",
+        revision: 180,
+        optionSnapshotRevision: 7,
+        contextCounter: binding.contextCounter,
+        photoKey: binding.selectedPhotoKey,
+        photoUuid: binding.selectedPhotoUuid,
+        processId: null,
+        browsePosition: null,
+        browseLabel: null,
+        selectedToken: null,
+        selectedLabel: null,
+        source: null,
+        supportsAmount: null,
+        validationGeneration: 0,
+        validationFailedGeneration: 0,
+        options: []
+    };
+    const selected = options[1];
+    const restartedAvailable = {
+        available: true,
+        updating: false,
+        reason: null,
+        revision: 80,
+        optionSnapshotRevision: 3,
+        contextCounter: binding.contextCounter,
+        photoKey: binding.selectedPhotoKey,
+        photoUuid: binding.selectedPhotoUuid,
+        processId: 15300,
+        browsePosition: 3,
+        browseLabel: "Browse...",
+        selectedToken: selected.token,
+        selectedLabel: selected.label,
+        source: "Look.Name",
+        supportsAmount: false,
+        validationGeneration: 0,
+        validationFailedGeneration: 0,
+        options: options
+    };
+    const model = controllerDefinition.createProfileModel();
+    assert.equal(model.apply(oldUnavailable).accepted, true);
+    assert.equal(model.apply(restartedAvailable).accepted, false,
+        "a lower revision from a restarted server must remain stale until its context epoch is admitted");
+    assert.equal(model.presentation().authoritativeLabel, null,
+        "the reproduced stale browser model must remain visibly unavailable before the context-epoch reset");
+    assert.equal(model.beginContext(
+        restartedAvailable.contextCounter,
+        restartedAvailable.photoKey,
+        restartedAvailable.photoUuid
+    ), true);
+    assert.equal(model.apply(restartedAvailable).accepted, true,
+        "the admitted newer context epoch must allow the restarted server's authoritative Profile state");
+    assert.equal(model.presentation().authoritativeLabel, "Adobe Landscape");
 }
 
 async function profileContextLatencyTests() {
@@ -922,6 +1011,7 @@ Promise.resolve()
     .then(function () { contextUuidIdentityTests(); })
     .then(stateRegistryAndAdmissionTests)
     .then(function () { controllerConfirmationTests(); })
+    .then(function () { controllerServerRestartRecoveryTests(); })
     .then(profileContextLatencyTests)
     .then(serverQueueAndReadbackTests)
     .then(serverEarlyLabelPublicationTests)

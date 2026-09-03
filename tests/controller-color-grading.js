@@ -24,8 +24,13 @@ assert.deepEqual(tabIds.map(id => tabLabels[id]), expectedTabLabels, "Flattened 
 assert.match(html, /id: "sliders",\s*label: "Develop Sliders"\s*},\s*{\s*id: "color-grading",\s*label: "Color Grading"/);
 assert.match(html, /window\.addEventListener\("hashchange"/);
 assert.match(html, /hash === "develop" \? "sliders"/);
-assert.match(html, /if \(colorGradingActive\) \{\s*deactivateDevelopFeedbackPolling\(\);\s*colorGradingController\.activate\(\);\s*installSliderJumpMenu\(\);\s*return;/);
-assert.match(html, /colorGradingController\.deactivate\(\);[\s\S]*if \(!isGenericDevelopFeedbackTab\(activeTab\)\) deactivateDevelopFeedbackPolling\(\);/);
+const renderBlock = html.slice(html.indexOf("function render()"), html.indexOf("async function loadDevelopSliderDefinitions()"));
+assert.match(renderBlock,
+    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
+    "Every render must tear down all previous tab owners and polling before replacing content");
+assert.match(renderBlock,
+    /if \(colorGradingActive\) \{\s*colorGradingController\.activate\(\);\s*installSliderJumpMenu\(\);\s*return;/,
+    "Color Grading must reactivate only after the shared render teardown");
 assert.match(html, /if \(activeTab === "sliders"\) \{\s*renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
 assert.match(html, /if \(activeTab === "tone-curve"\) \{\s*renderToneCurveTab\(\);\s*activateDevelopFeedbackPolling\(\);/);
 assert.match(html, /if \(!genericFeedbackActive \|\| !isGenericDevelopFeedbackTab\(activeTab\)\) return;/);
