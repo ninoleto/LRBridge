@@ -10,7 +10,8 @@
         return {
             uuid: entry.uuid,
             alias: typeof entry.alias === "string" ? entry.alias : "",
-            updateAISettings: entry.updateAISettings === true
+            updateAISettings: entry.updateAISettings === true,
+            amountEnabled: entry.amountEnabled === true
         };
     }
 
@@ -21,7 +22,7 @@
     function addDraftEntry(draft, uuid) {
         if (!Array.isArray(draft) || typeof uuid !== "string" || uuid.length === 0 ||
             draft.some(function (entry) { return entry.uuid === uuid; })) return false;
-        draft.push({ uuid: uuid, alias: "", updateAISettings: false });
+        draft.push({ uuid: uuid, alias: "", updateAISettings: false, amountEnabled: false });
         return true;
     }
 
@@ -45,7 +46,11 @@
         return {
             version: 1,
             presets: draft.map(function (entry) {
-                const saved = { uuid: entry.uuid, updateAISettings: entry.updateAISettings === true };
+                const saved = {
+                    uuid: entry.uuid,
+                    updateAISettings: entry.updateAISettings === true,
+                    amountEnabled: entry.amountEnabled === true
+                };
                 const alias = typeof entry.alias === "string" ? entry.alias.trim() : "";
                 if (alias) saved.alias = alias;
                 return saved;
@@ -103,6 +108,7 @@
         let amountDecrementButton = null;
         let amountIncrementButton = null;
         let amountResetButton = null;
+        let amountCapabilityNote = null;
         let compactStatus = null;
         let treatmentPresentation = null;
         let manageButton = null;
@@ -119,58 +125,65 @@
         let applicationRequestInFlight = false;
         let amountEditing = false;
         let amountDragging = false;
-        let lastSuccessfulCommittedAmount = null;
         let desiredAmount = null;
-        let submittedAmount = null;
-        let submittedAmountOperationId = null;
-        let latestQueuedAmount = null;
-        let amountChainContext = null;
+        let queuedAmount = null;
+        let queuedAmountRevision = 0;
+        let activeAmountRequest = null;
+        let awaitingAmountFeedback = null;
+        let amountGeneration = 0;
+        let amountIntentRevision = 0;
         let amountThrottleTimer = null;
+        let acceptedServerEpoch = null;
+        let acceptedStateRevision = -1;
+        let stateRequestGeneration = 0;
+        let acceptedStateRequestGeneration = 0;
+        let acceptedAmountFeedbackId = 0;
+        let acceptedAmountFeedbackBinding = null;
         let inventoryRefreshInFlight = false;
         let inventoryRefreshPromise = null;
         let inventoryRefreshError = null;
         let saveInFlight = false;
         let configuredListRendered = false;
-
-        const successfulApplicationOutcomes = new Set([
-            "SDK call completed and covered effect observed",
-            "SDK call completed with no detectable change"
-        ]);
+        let pendingPresetStatusOperationId = null;
 
         function currentContext() {
             const value = typeof getContext === "function" ? getContext() : null;
             return value || {};
         }
 
+        function nextStateRequestGeneration() {
+            stateRequestGeneration += 1;
+            return stateRequestGeneration;
+        }
+
         function contextReady() {
             const context = currentContext();
             return context.activeModule === "develop" && typeof context.selectedPhotoUuid === "string" &&
-                context.selectedPhotoUuid.length > 0 && Number.isInteger(context.contextCounter) &&
-                Number.isInteger(context.developCounter);
+                context.selectedPhotoUuid.length > 0 && Number.isSafeInteger(context.contextCounter) &&
+                Number.isSafeInteger(context.developCounter) && Number.isSafeInteger(context.contextChangedAt) &&
+                state && typeof state.serverEpoch === "string" && state.serverEpoch.length > 0;
+        }
+
+        function bindingQuery() {
+            const context = currentContext();
+            return "&selectedPhotoUuid=" + encodeURIComponent(context.selectedPhotoUuid) +
+                "&contextCounter=" + encodeURIComponent(String(context.contextCounter)) +
+                "&developCounter=" + encodeURIComponent(String(context.developCounter)) +
+                "&contextChangedAt=" + encodeURIComponent(String(context.contextChangedAt)) +
+                "&serverEpoch=" + encodeURIComponent(state.serverEpoch);
         }
 
         function applicationPath(uuid) {
-            const context = currentContext();
-            return "/api/develop-presets/apply?uuid=" + encodeURIComponent(uuid) +
-                "&selectedPhotoUuid=" + encodeURIComponent(context.selectedPhotoUuid) +
-                "&contextCounter=" + encodeURIComponent(String(context.contextCounter)) +
-                "&developCounter=" + encodeURIComponent(String(context.developCounter));
+            return "/api/develop-presets/apply?uuid=" + encodeURIComponent(uuid) + bindingQuery();
         }
 
         function navigationPath(direction) {
-            const context = currentContext();
-            return "/api/develop-presets/navigate?direction=" + encodeURIComponent(direction) +
-                "&selectedPhotoUuid=" + encodeURIComponent(context.selectedPhotoUuid) +
-                "&contextCounter=" + encodeURIComponent(String(context.contextCounter)) +
-                "&developCounter=" + encodeURIComponent(String(context.developCounter));
+            return "/api/develop-presets/navigate?direction=" + encodeURIComponent(direction) + bindingQuery();
         }
 
-        function amountPath(amount) {
-            const context = currentContext();
+        function amountPath(amount, feedbackId) {
             return "/api/develop-presets/amount?presetAmount=" + encodeURIComponent(String(amount)) +
-                "&selectedPhotoUuid=" + encodeURIComponent(context.selectedPhotoUuid) +
-                "&contextCounter=" + encodeURIComponent(String(context.contextCounter)) +
-                "&developCounter=" + encodeURIComponent(String(context.developCounter));
+                "&feedbackId=" + encodeURIComponent(String(feedbackId)) + bindingQuery();
         }
 
         function makeButton(text, className, listener) {
@@ -216,20 +229,16 @@
             const status = candidate ? candidate.inventoryStatus : "not-loaded";
             const failure = inventoryRefreshError || (candidate && candidate.inventoryError);
             if (inventoryRefreshInFlight || status === "loading") {
-                return loaded
-                    ? "Refreshing preset inventory… The previous successful inventory remains available."
-                    : "Loading preset inventory…";
+                return loaded ? "Refreshing Lightroom presets…" : "Finding Lightroom presets…";
             }
             if (failure) {
-                return loaded
-                    ? "Preset inventory refresh failed. Continuing to use the previous successful inventory: " + failure
-                    : "Preset inventory refresh failed: " + failure;
+                return "Could not refresh Lightroom presets. Please try again.";
             }
             if (status === "ready" && loaded) {
                 const count = candidate && Array.isArray(candidate.inventory) ? candidate.inventory.length : 0;
-                return "Preset inventory loaded successfully (" + count + " presets).";
+                return count + " Lightroom presets found.";
             }
-            return "Preset inventory has not been loaded for this LRBridge process.";
+            return "Lightroom presets have not been loaded yet.";
         }
 
         function syncManagerToolbar() {
@@ -405,7 +414,7 @@
         function renderConfiguredPicker(force) {
             if (!configuredPicker || !configuredPicker.open || !state) return;
             const configured = Array.isArray(state.configured) ? state.configured : [];
-            const pending = state.pendingApplication === true || applicationRequestInFlight;
+            const pending = state.pendingApplication === true || applicationRequestInFlight || amountBusy();
             const signature = [
                 configuredSearch,
                 state.cursorUuid || "",
@@ -430,7 +439,7 @@
                     (isCursor ? " current" : "") + (entry.available ? "" : " unavailable"), function () {
                     if (row.disabled) return;
                     closePicker(configuredPicker, true);
-                    return submitPresetAtDefaultAmount(applicationPath(entry.uuid));
+                    return submitPreset(applicationPath(entry.uuid));
                 });
                 row.dataset.uuid = entry.uuid;
                 row.setAttribute("role", "option");
@@ -572,106 +581,204 @@
             updateDraftDirtyState();
             closePicker(inventoryPicker, true);
             setManagerMessage(added + (added === 1 ? " preset added" : " presets added") +
-                " to the draft. Save Configuration to persist the change.", "info");
+                ". Choose Save Changes to keep the new order.", "info");
             renderManager(true, true);
         }
 
-        function currentCursorUsesAi() {
+        function currentCursorEntry() {
             if (!state || !Array.isArray(state.configured)) return false;
-            const cursor = state.configured.find(function (entry) { return entry.uuid === state.cursorUuid; });
-            return !!cursor && cursor.updateAISettings === true;
+            return state.configured.find(function (entry) { return entry.uuid === state.cursorUuid; }) || null;
+        }
+
+        function currentCursorAllowsAmount() {
+            const cursor = currentCursorEntry();
+            return !!cursor && cursor.amountEnabled === true;
+        }
+
+        function amountFeedback() {
+            const feedback = state && state.amountFeedback;
+            if (!feedback || feedback.available !== true || !Number.isSafeInteger(feedback.id) ||
+                parsePresetAmount(feedback.value) === null || !feedback.range ||
+                !Number.isFinite(feedback.range.min) || !Number.isFinite(feedback.range.max) ||
+                feedback.range.min >= feedback.range.max || feedback.value < feedback.range.min ||
+                feedback.value > feedback.range.max) return null;
+            return feedback;
         }
 
         function committedAmount() {
-            return parsePresetAmount(lastSuccessfulCommittedAmount) !== null
-                ? lastSuccessfulCommittedAmount
-                : null;
+            const feedback = amountFeedback();
+            return feedback ? Number(feedback.value) : null;
         }
 
         function showLocalAmount(amount) {
             if (parsePresetAmount(amount) === null) return false;
+            const feedback = amountFeedback();
+            const minimum = feedback ? feedback.range.min : 0;
+            const maximum = feedback ? feedback.range.max : 200;
             desiredAmount = Number(amount);
             if (amountRange) {
+                amountRange.min = String(minimum);
+                amountRange.max = String(maximum);
                 amountRange.value = String(desiredAmount);
-                amountRange.style.setProperty("--slider-progress", (desiredAmount / 2) + "%");
+                const progress = maximum > minimum
+                    ? ((desiredAmount - minimum) / (maximum - minimum)) * 100
+                    : 0;
+                amountRange.style.setProperty("--slider-progress", progress + "%");
                 amountRange.setAttribute("aria-valuenow", String(desiredAmount));
+                amountRange.setAttribute("aria-valuemin", String(minimum));
+                amountRange.setAttribute("aria-valuemax", String(maximum));
             }
             if (amountNumber && !amountEditing) amountNumber.value = String(desiredAmount);
             if (amountDecrementButton && amountRange) {
-                amountDecrementButton.disabled = amountRange.disabled || desiredAmount <= 0;
+                amountDecrementButton.disabled = amountRange.disabled || desiredAmount <= minimum;
             }
             if (amountIncrementButton && amountRange) {
-                amountIncrementButton.disabled = amountRange.disabled || desiredAmount >= 200;
+                amountIncrementButton.disabled = amountRange.disabled || desiredAmount >= maximum;
             }
             return true;
         }
 
-        function amountContextSnapshot() {
+        function amountBindingSnapshot() {
             const context = currentContext();
+            const feedback = amountFeedback();
             return {
                 activeModule: context.activeModule,
                 selectedPhotoUuid: context.selectedPhotoUuid,
                 contextCounter: context.contextCounter,
-                developCounter: context.developCounter
+                developCounter: context.developCounter,
+                contextChangedAt: context.contextChangedAt,
+                presetUuid: state ? state.cursorUuid : null,
+                serverEpoch: state ? state.serverEpoch : null,
+                feedbackId: feedback ? feedback.id : null
             };
         }
 
-        function amountContextMatchesCurrent() {
-            if (!amountChainContext) return true;
+        function stableAmountBindingMatches(binding) {
             const context = currentContext();
-            return context.activeModule === amountChainContext.activeModule &&
-                context.selectedPhotoUuid === amountChainContext.selectedPhotoUuid &&
-                context.contextCounter === amountChainContext.contextCounter &&
-                context.developCounter === amountChainContext.developCounter;
+            return !!binding && context.activeModule === "develop" &&
+                context.selectedPhotoUuid === binding.selectedPhotoUuid &&
+                context.contextCounter === binding.contextCounter &&
+                context.contextChangedAt === binding.contextChangedAt &&
+                state && state.cursorUuid === binding.presetUuid &&
+                state.serverEpoch === binding.serverEpoch && currentCursorAllowsAmount();
         }
 
-        function cancelAmountThrottle() {
+        function amountBusy() {
+            return activeAmountRequest !== null || queuedAmount !== null ||
+                amountThrottleTimer !== null || awaitingAmountFeedback !== null;
+        }
+
+        function cancelAmountWork(restoreAuthoritative) {
+            amountGeneration += 1;
             if (amountThrottleTimer !== null) clearTimeout(amountThrottleTimer);
             amountThrottleTimer = null;
+            queuedAmount = null;
+            queuedAmountRevision = 0;
+            activeAmountRequest = null;
+            awaitingAmountFeedback = null;
+            if (restoreAuthoritative && committedAmount() !== null) showLocalAmount(committedAmount());
         }
 
-        function discardAmountChain(restoreCommitted) {
-            cancelAmountThrottle();
-            latestQueuedAmount = null;
-            submittedAmount = null;
-            submittedAmountOperationId = null;
-            amountChainContext = null;
-            if (restoreCommitted && committedAmount() !== null) showLocalAmount(committedAmount());
+        function admittedAmountCommandMatches(data, record) {
+            const command = data && data.queued;
+            return data && data.ok === true && Number.isSafeInteger(data.feedbackRequestId) &&
+                data.feedbackRequestId > 0 && command && command.command === "develop_preset.amount.set" &&
+                command.presetAmount === record.amount &&
+                command.expectedPresetUuid === record.presetUuid &&
+                command.expectedSelectedPhotoUuid === record.selectedPhotoUuid &&
+                command.expectedContextCounter === record.contextCounter &&
+                command.expectedDevelopCounter >= record.developCounter &&
+                command.expectedContextChangedAt === record.contextChangedAt &&
+                command.expectedServerEpoch === record.serverEpoch &&
+                command.expectedFeedbackId >= record.feedbackId;
         }
 
         async function dispatchPendingAmount() {
-            if (!rootElement || latestQueuedAmount === null || !state || state.pendingApplication === true ||
-                applicationRequestInFlight || submittedAmount !== null || !contextReady() ||
-                !amountContextMatchesCurrent()) return false;
-            const amount = latestQueuedAmount;
-            latestQueuedAmount = null;
-            submittedAmount = amount;
-            submittedAmountOperationId = null;
-            const accepted = await submit(amountPath(amount), {
-                onAccepted: function (data) {
-                    submittedAmountOperationId = typeof data.operationId === "string" ? data.operationId : null;
-                }
-            });
-            if (!accepted) {
-                discardAmountChain(true);
+            if (!rootElement || queuedAmount === null || activeAmountRequest !== null ||
+                awaitingAmountFeedback !== null ||
+                !state || state.pendingApplication === true || applicationRequestInFlight ||
+                !contextReady() || !currentCursorAllowsAmount()) return false;
+            const feedback = amountFeedback();
+            if (!feedback) {
+                queuedAmount = null;
+                setStatus("Could not update Amount. Please try again.");
                 renderCompact();
                 return false;
             }
-            if (submittedAmount === null && latestQueuedAmount !== null) setTimeout(dispatchPendingAmount, 0);
-            return true;
+            const binding = amountBindingSnapshot();
+            if (!stableAmountBindingMatches(binding)) return false;
+            const amount = queuedAmount;
+            const intentRevision = queuedAmountRevision;
+            queuedAmount = null;
+            queuedAmountRevision = 0;
+            const record = Object.assign({
+                generation: amountGeneration,
+                amount: amount,
+                intentRevision: intentRevision,
+                submittedAt: Date.now()
+            }, binding);
+            activeAmountRequest = record;
+            renderCompact();
+            setStatus("Updating Amount…");
+            try {
+                const response = await fetchRequest(amountPath(amount, feedback.id), { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Native Lightroom Preset Amount was rejected");
+                }
+                if (activeAmountRequest !== record || record.generation !== amountGeneration) return false;
+                if (!admittedAmountCommandMatches(data, record)) {
+                    throw new Error("Native Preset Amount admission returned mismatched context");
+                }
+                awaitingAmountFeedback = Object.assign({}, binding, {
+                    target: amount,
+                    intentRevision: intentRevision,
+                    minimumFeedbackId: data.feedbackRequestId,
+                    submittedAt: record.submittedAt
+                });
+                return true;
+            } catch (err) {
+                if (activeAmountRequest === record && record.generation === amountGeneration) {
+                    awaitingAmountFeedback = null;
+                    if (queuedAmount === null && committedAmount() !== null) showLocalAmount(committedAmount());
+                    setStatus("Could not update Amount. Please try again.");
+                }
+                return false;
+            } finally {
+                if (activeAmountRequest === record) activeAmountRequest = null;
+                if (rootElement) {
+                    await refreshState();
+                    if (queuedAmount !== null && activeAmountRequest === null) dispatchPendingAmount();
+                    else renderCompact();
+                }
+            }
         }
 
         function queueAmount(amount, immediate) {
-            if (parsePresetAmount(amount) === null || !contextReady()) return false;
-            if (!amountChainContext) amountChainContext = amountContextSnapshot();
-            if (!amountContextMatchesCurrent()) {
-                discardAmountChain(true);
-                return false;
+            const parsed = parsePresetAmount(amount);
+            const feedback = amountFeedback();
+            if (parsed === null || !feedback || parsed < feedback.range.min || parsed > feedback.range.max ||
+                !contextReady() || !currentCursorAllowsAmount() || !state ||
+                state.controlsEnabled !== true || state.pendingApplication === true ||
+                applicationRequestInFlight) return false;
+            if (desiredAmount !== parsed) amountIntentRevision += 1;
+            showLocalAmount(parsed);
+            if (queuedAmount === parsed) {
+                if (immediate && activeAmountRequest === null) {
+                    if (amountThrottleTimer !== null) clearTimeout(amountThrottleTimer);
+                    amountThrottleTimer = null;
+                    dispatchPendingAmount();
+                }
+                return true;
             }
-            showLocalAmount(amount);
-            latestQueuedAmount = Number(amount);
-            cancelAmountThrottle();
-            if (submittedAmount !== null || applicationRequestInFlight || (state && state.pendingApplication === true)) {
+            if ((queuedAmount === null && activeAmountRequest && activeAmountRequest.amount === parsed) ||
+                (queuedAmount === null && !activeAmountRequest && awaitingAmountFeedback &&
+                    awaitingAmountFeedback.target === parsed)) return true;
+            queuedAmount = parsed;
+            queuedAmountRevision = amountIntentRevision;
+            if (amountThrottleTimer !== null) clearTimeout(amountThrottleTimer);
+            amountThrottleTimer = null;
+            if (activeAmountRequest !== null) {
                 renderCompact();
             } else if (immediate) {
                 dispatchPendingAmount();
@@ -684,8 +791,8 @@
             return true;
         }
 
-        function submitPresetAtDefaultAmount(path) {
-            discardAmountChain(true);
+        function submitPreset(path) {
+            cancelAmountWork(true);
             return submit(path);
         }
 
@@ -696,7 +803,7 @@
             if (amount === null) {
                 if (committedAmount() !== null) showLocalAmount(committedAmount());
                 else amountNumber.value = "100";
-                setStatus("ERROR: Preset Amount must be an integer from 0 through 200.");
+                setStatus("Could not update Amount. Please try again.");
                 renderCompact();
                 return false;
             }
@@ -704,64 +811,92 @@
         }
 
         function stepAmount(direction) {
+            const feedback = amountFeedback();
             const base = parsePresetAmount(desiredAmount) !== null ? desiredAmount : committedAmount();
-            if (base === null) return false;
-            return queueAmount(Math.max(0, Math.min(200, base + direction)), true);
+            if (!feedback || base === null) return false;
+            return queueAmount(Math.max(feedback.range.min,
+                Math.min(feedback.range.max, base + direction)), true);
         }
 
         function reconcileAmountState(nextState) {
-            const incomingCommitted = parsePresetAmount(nextState && nextState.presetAmount) !== null
-                ? Number(nextState.presetAmount)
-                : null;
-
-            if (submittedAmount !== null && nextState.pendingApplication !== true) {
-                const terminal = nextState.lastApplication;
-                const matchingOperation = terminal && (
-                    submittedAmountOperationId !== null
-                        ? terminal.operationId === submittedAmountOperationId
-                        : terminal.presetAmount === submittedAmount
-                );
-                const succeeded = matchingOperation && successfulApplicationOutcomes.has(terminal.outcome) &&
-                    terminal.presetAmount === submittedAmount && incomingCommitted === submittedAmount;
-                if (succeeded) {
-                    lastSuccessfulCommittedAmount = incomingCommitted;
-                    submittedAmount = null;
-                    submittedAmountOperationId = null;
-                    if (latestQueuedAmount === lastSuccessfulCommittedAmount) latestQueuedAmount = null;
-                    if (latestQueuedAmount === null) {
-                        amountChainContext = null;
-                        showLocalAmount(lastSuccessfulCommittedAmount);
+            const feedback = amountFeedback();
+            if (awaitingAmountFeedback && !stableAmountBindingMatches(awaitingAmountFeedback)) {
+                awaitingAmountFeedback = null;
+            }
+            if (awaitingAmountFeedback && feedback &&
+                feedback.id >= awaitingAmountFeedback.minimumFeedbackId) {
+                if (feedback.value === awaitingAmountFeedback.target) {
+                    const settledRevision = awaitingAmountFeedback.intentRevision;
+                    awaitingAmountFeedback = null;
+                    setStatus("Amount updated.");
+                    if (queuedAmount !== null && queuedAmount === feedback.value &&
+                        queuedAmountRevision > settledRevision) {
+                        queuedAmount = null;
+                        queuedAmountRevision = 0;
                     }
-                } else {
-                    const detail = terminal && terminal.detail ? terminal.detail : "Preset Amount application failed.";
-                    discardAmountChain(true);
-                    setStatus("ERROR: " + detail);
+                } else if (activeAmountRequest === null && queuedAmount === null &&
+                    Date.now() - awaitingAmountFeedback.submittedAt > 2500) {
+                    awaitingAmountFeedback = null;
+                    setStatus("Could not update Amount. Please try again.");
                 }
             }
-
-            if (submittedAmount === null && latestQueuedAmount === null && amountThrottleTimer === null &&
-                !amountEditing && !amountDragging && nextState.pendingApplication !== true) {
-                lastSuccessfulCommittedAmount = incomingCommitted;
-                desiredAmount = incomingCommitted;
+            if (!amountEditing && !amountDragging && activeAmountRequest === null &&
+                queuedAmount === null && amountThrottleTimer === null && awaitingAmountFeedback === null &&
+                nextState.pendingApplication !== true) {
+                showLocalAmount(feedback ? feedback.value : 100);
             }
+        }
+
+        const amountUnavailableMessage =
+            "Amount slider unavailable: Make sure it is enabled under Preset Options. If enabled, Lightroom Classic does not support it for this preset.";
+
+        function renderAmountUnavailableMessage() {
+            const emphasizedPrefix = "Amount slider unavailable:";
+            const emphasis = document.createElement("span");
+            emphasis.className = "develop-preset-amount-unavailable-emphasis";
+            emphasis.textContent = emphasizedPrefix;
+            const suffix = document.createElement("span");
+            suffix.textContent = amountUnavailableMessage.slice(emphasizedPrefix.length);
+            amountCapabilityNote.textContent = "";
+            amountCapabilityNote.append(emphasis, suffix);
         }
 
         function renderAmount(cursor, pending) {
             if (!amountRange || !amountNumber) return;
+            const feedback = amountFeedback();
             const committed = committedAmount();
-            if (!amountEditing && !amountDragging && latestQueuedAmount === null && submittedAmount === null &&
-                !pending) showLocalAmount(committed === null ? 100 : committed);
-            else if (desiredAmount === null) showLocalAmount(committed === null ? 100 : committed);
-            const ownAmountChainPending = submittedAmount !== null || latestQueuedAmount !== null;
-            const blockedByOtherApplication = pending && !ownAmountChainPending;
-            const enabled = !!cursor && cursor.available === true && committed !== null && state.controlsEnabled === true &&
-                contextReady() && !blockedByOtherApplication && amountContextMatchesCurrent();
+            if (!amountEditing && !amountDragging && !amountBusy() && !pending) {
+                showLocalAmount(committed === null ? 100 : committed);
+            } else if (desiredAmount === null) {
+                showLocalAmount(committed === null ? 100 : committed);
+            }
+            const enabled = !!cursor && cursor.available === true && feedback !== null &&
+                state.controlsEnabled === true && cursor.amountEnabled === true &&
+                contextReady() && !pending;
             amountRange.disabled = !enabled;
             amountNumber.disabled = !enabled;
-            amountDecrementButton.disabled = !enabled || desiredAmount <= 0;
-            amountIncrementButton.disabled = !enabled || desiredAmount >= 200;
-            amountResetButton.disabled = !enabled;
-            amountNumber.setAttribute("aria-invalid", String(amountEditing && parsePresetAmount(amountNumber.value) === null));
+            const minimum = feedback ? feedback.range.min : 0;
+            const maximum = feedback ? feedback.range.max : 200;
+            amountDecrementButton.disabled = !enabled || desiredAmount <= minimum;
+            amountIncrementButton.disabled = !enabled || desiredAmount >= maximum;
+            amountResetButton.disabled = !enabled || 100 < minimum || 100 > maximum;
+            amountNumber.setAttribute("aria-invalid", String(amountEditing &&
+                parsePresetAmount(amountNumber.value) === null));
+            if (amountCapabilityNote) {
+                if (cursor && cursor.amountEnabled !== true) {
+                    renderAmountUnavailableMessage();
+                } else if (cursor && cursor.amountEnabled === true && feedback !== null) {
+                    amountCapabilityNote.textContent =
+                        "Adjust the strength of this preset.";
+                } else if (cursor && cursor.amountEnabled === true && state.amountFeedback &&
+                    state.amountFeedback.available === false && Number.isSafeInteger(state.amountFeedback.id)) {
+                    renderAmountUnavailableMessage();
+                } else if (cursor && cursor.amountEnabled === true) {
+                    amountCapabilityNote.textContent = "Checking Amount availability…";
+                } else {
+                    amountCapabilityNote.textContent = "Choose an available configured preset to use Amount.";
+                }
+            }
         }
 
         function renderCompact() {
@@ -770,19 +905,20 @@
             rootElement.dataset.inventoryLoaded = String(inventorySnapshotLoaded(state));
             const configured = Array.isArray(state.configured) ? state.configured : [];
             const cursor = configured.find(function (entry) { return entry.uuid === state.cursorUuid; }) || null;
-            const pending = state.pendingApplication === true || applicationRequestInFlight;
+            const presetPending = state.pendingApplication === true || applicationRequestInFlight;
+            const pending = presetPending || amountBusy();
             const enabled = state.controlsEnabled === true && contextReady() && !pending;
 
             currentPresetPrimary.textContent = cursor ? primaryLabel(cursor) : "No preset available";
             currentPresetSecondary.textContent = cursor ? secondaryLabel(cursor) +
-                (cursor.available ? "" : " — Unavailable") : "Open Manage Presets to configure presets";
+                (cursor.available ? "" : " — Unavailable") : "Open Manage Favorite Presets to configure favorites";
             currentPresetButton.disabled = configured.length === 0 || pending;
             currentPresetButton.setAttribute("aria-label", cursor
-                ? "Preset to apply: " + displayLabel(cursor) + ". Open configured preset picker."
-                : "Preset to apply: none configured");
+                ? "Selected preset: " + displayLabel(cursor) + ". Open favorite preset picker."
+                : "Selected preset: none configured");
             previousButton.disabled = !enabled;
             nextButton.disabled = !enabled;
-            renderAmount(cursor, pending);
+            renderAmount(cursor, presetPending);
             renderConfiguredPicker(false);
 
             if (inventoryRefreshInFlight || state.inventoryStatus === "loading" ||
@@ -791,19 +927,26 @@
                 compactStatus.textContent = inventoryLifecycleMessage(state);
             } else if (state.availableCount === 0) {
                 compactStatus.textContent = configured.length === 0
-                    ? "No presets are configured. Open Manage Presets to add and save presets."
-                    : "No configured preset UUID is available in the current Lightroom inventory.";
+                    ? "No favorite presets yet. Open Manage Favorite Presets to add some."
+                    : "None of your favorite presets is currently available in Lightroom.";
             } else if (!contextReady()) {
                 compactStatus.textContent = "Select one photo in Lightroom's Develop module to apply a preset.";
-            } else if (pending) {
-                compactStatus.textContent = "Waiting for Lightroom to finish the preset application.";
+            } else if (presetPending) {
+                compactStatus.textContent = "Applying preset…";
+            } else if (amountBusy()) {
+                compactStatus.textContent = "Updating Amount…";
             } else if (state.lastApplication && state.lastApplication.outcome) {
-                compactStatus.textContent = state.lastApplication.outcome + ": " + state.lastApplication.detail +
-                    " Amount is LRBridge's last-successful application value, not native Lightroom readback.";
+                compactStatus.textContent = state.lastApplication.outcome === "failed" ||
+                    state.lastApplication.outcome === "stale/rejected"
+                    ? "Could not apply the preset. Please try again."
+                    : "Preset applied.";
+                if (pendingPresetStatusOperationId &&
+                    state.lastApplication.operationId === pendingPresetStatusOperationId) {
+                    setStatus(compactStatus.textContent);
+                    pendingPresetStatusOperationId = null;
+                }
             } else {
-                compactStatus.textContent =
-                    "This is LRBridge's preset-to-apply cursor, not Lightroom active-preset state. " +
-                    "Amount becomes LRBridge last-successful state after an application, not native Lightroom readback.";
+                compactStatus.textContent = "Choose a favorite preset to apply.";
             }
         }
 
@@ -867,6 +1010,37 @@
             configuredList.scrollLeft = captured.listScrollLeft;
         }
 
+        function createPresetOptionToggle(entry, propertyName, focusKey, titleText, helpText, ariaLabel) {
+            const toggle = makeButton("", "develop-preset-option-toggle", function () {
+                entry[propertyName] = entry[propertyName] !== true;
+                toggle.setAttribute("aria-checked", String(entry[propertyName]));
+                toggle.className = "develop-preset-option-toggle" + (entry[propertyName] ? " enabled" : "");
+                updateDraftDirtyState();
+            });
+            toggle.setAttribute("role", "switch");
+            toggle.setAttribute("aria-checked", String(entry[propertyName] === true));
+            toggle.setAttribute("aria-label", ariaLabel);
+            toggle.className += entry[propertyName] === true ? " enabled" : "";
+            toggle.dataset.focusKey = focusKey;
+            const track = document.createElement("span");
+            track.className = "develop-preset-option-track";
+            track.setAttribute("aria-hidden", "true");
+            const thumb = document.createElement("span");
+            thumb.className = "develop-preset-option-thumb";
+            track.appendChild(thumb);
+            const copy = document.createElement("span");
+            copy.className = "develop-preset-option-copy";
+            const title = document.createElement("span");
+            title.className = "develop-preset-option-title";
+            title.textContent = titleText;
+            const help = document.createElement("span");
+            help.className = "develop-preset-option-help";
+            help.textContent = helpText;
+            copy.append(title, help);
+            toggle.append(track, copy);
+            return toggle;
+        }
+
         function renderConfiguredList() {
             const inventory = state && Array.isArray(state.inventory) ? state.inventory : [];
             const inventoryByUuid = new Map(inventory.map(function (item) { return [item.uuid, item]; }));
@@ -892,8 +1066,8 @@
                 const row = document.createElement("div");
                 row.className = "develop-preset-config-row" + (missing ? " unavailable" : "");
                 row.dataset.uuid = entry.uuid;
-                appendTextField(row, "Folder", item ? item.folder : missing ? "Unavailable" : unresolvedFolder, "folder");
                 appendTextField(row, "Preset", item ? item.name : entry.uuid + (missing ? " (missing UUID)" : ""), "preset");
+                appendTextField(row, "Folder", item ? item.folder : missing ? "Unavailable" : unresolvedFolder, "folder");
 
                 const aliasField = document.createElement("label");
                 aliasField.className = "develop-preset-config-field alias";
@@ -903,6 +1077,7 @@
                 const alias = document.createElement("input");
                 alias.type = "text";
                 alias.maxLength = 160;
+                alias.placeholder = "Optional alias";
                 alias.value = entry.alias;
                 alias.dataset.focusKey = "alias";
                 alias.setAttribute("aria-label", "Optional alias for " + (item ? inventoryLabel(item) : entry.uuid));
@@ -913,28 +1088,30 @@
                 aliasField.append(aliasLabel, alias);
                 row.appendChild(aliasField);
 
-                const aiField = document.createElement("label");
-                aiField.className = "develop-preset-config-field ai";
-                const ai = document.createElement("input");
-                ai.type = "checkbox";
-                ai.checked = entry.updateAISettings;
-                ai.dataset.focusKey = "update-ai";
-                ai.setAttribute("aria-label", "Update AI settings for " + (item ? inventoryLabel(item) : entry.uuid));
-                ai.addEventListener("change", function () {
-                    entry.updateAISettings = ai.checked;
-                    updateDraftDirtyState();
-                });
-                const aiText = document.createElement("span");
-                aiText.textContent = "Update AI settings";
-                aiField.append(ai, aiText);
-                row.appendChild(aiField);
+                const optionBlock = document.createElement("div");
+                optionBlock.className = "develop-preset-config-options-block";
+                const optionsHeading = document.createElement("div");
+                optionsHeading.className = "develop-preset-options-heading";
+                optionsHeading.textContent = "Preset options";
+                const optionFields = document.createElement("div");
+                optionFields.className = "develop-preset-config-options";
+                const itemLabel = item ? inventoryLabel(item) : entry.uuid;
+                const aiSwitch = createPresetOptionToggle(entry, "updateAISettings", "update-ai",
+                    "AI adjustments", "Enable this if you apply an Adaptive or AI preset and the preset does not visibly affect the photo.",
+                    "AI adjustments for " + itemLabel);
+                const amountSwitch = createPresetOptionToggle(entry, "amountEnabled", "amount-enabled",
+                    "Amount slider", "Enable the Amount slider for this preset. Leave it disabled if Lightroom does not show an Amount slider for this preset.",
+                    "Amount slider for " + itemLabel);
+                optionFields.append(aiSwitch, amountSwitch);
+                optionBlock.append(optionsHeading, optionFields);
+                row.appendChild(optionBlock);
 
                 const actions = document.createElement("div");
                 actions.className = "develop-preset-config-actions";
                 const moveUp = makeButton("Move Up", "secondary", function () {
                     if (moveDraftEntry(draft, index, -1)) {
                         updateDraftDirtyState();
-                        setManagerMessage("Order changed. Save Configuration to persist it.", "info");
+                        setManagerMessage("Order changed. Choose Save Changes to keep it.", "info");
                         renderManager(true, true);
                     }
                 });
@@ -943,7 +1120,7 @@
                 const moveDown = makeButton("Move Down", "secondary", function () {
                     if (moveDraftEntry(draft, index, 1)) {
                         updateDraftDirtyState();
-                        setManagerMessage("Order changed. Save Configuration to persist it.", "info");
+                        setManagerMessage("Order changed. Choose Save Changes to keep it.", "info");
                         renderManager(true, true);
                     }
                 });
@@ -952,7 +1129,7 @@
                 const remove = makeButton("Remove", "danger", function () {
                     if (removeDraftEntry(draft, index)) {
                         updateDraftDirtyState();
-                        setManagerMessage("Preset removed from the draft. Save Configuration to persist it.", "info");
+                        setManagerMessage("Preset removed. Choose Save Changes to keep it.", "info");
                         renderManager(true, true);
                     }
                 });
@@ -978,7 +1155,7 @@
             if (rebuildConfiguredList === true || !configuredListRendered) renderConfiguredList();
             renderInventoryPicker(false);
             if (!preserveMessage && state.configurationError) {
-                setManagerMessage("Error: " + state.configurationError, "state-error");
+                setManagerMessage("Could not load preset settings. Please review the saved configuration.", "state-error");
             } else if (!preserveMessage) {
                 const inventoryKind = state.inventoryStatus === "error" || inventoryRefreshError
                     ? "state-error" : state.inventoryStatus === "ready" ? "success" : "info";
@@ -986,8 +1163,78 @@
             }
         }
 
+        function validAmountFeedbackSnapshot(feedback) {
+            if (!feedback || typeof feedback !== "object" || Array.isArray(feedback) ||
+                typeof feedback.available !== "boolean") return false;
+            if (feedback.available === false) {
+                return (feedback.id === null || (Number.isSafeInteger(feedback.id) && feedback.id > 0)) &&
+                    feedback.value === null && feedback.range === null;
+            }
+            return Number.isSafeInteger(feedback.id) && feedback.id > 0 &&
+                parsePresetAmount(feedback.value) !== null && feedback.range &&
+                Number.isFinite(feedback.range.min) && Number.isFinite(feedback.range.max) &&
+                feedback.range.min >= 0 && feedback.range.max <= 200 &&
+                feedback.range.min < feedback.range.max &&
+                feedback.value >= feedback.range.min && feedback.value <= feedback.range.max;
+        }
+
+        function amountFeedbackBinding(nextState) {
+            const context = currentContext();
+            return [
+                nextState.serverEpoch,
+                nextState.cursorUuid || "",
+                context.selectedPhotoUuid || "",
+                Number.isSafeInteger(context.contextCounter) ? context.contextCounter : "",
+                Number.isSafeInteger(context.contextChangedAt) ? context.contextChangedAt : ""
+            ].join("|");
+        }
+
         function acceptServerState(nextState, optionsForState) {
             optionsForState = optionsForState || {};
+            const requestGeneration = optionsForState.requestGeneration;
+            if (!nextState || typeof nextState.serverEpoch !== "string" || nextState.serverEpoch.length === 0 ||
+                !Number.isSafeInteger(nextState.stateRevision) || nextState.stateRevision < 0 ||
+                !Number.isSafeInteger(requestGeneration) || requestGeneration <= 0 ||
+                !validAmountFeedbackSnapshot(nextState.amountFeedback)) return false;
+            const sameEpoch = acceptedServerEpoch === nextState.serverEpoch;
+            if (sameEpoch && (nextState.stateRevision < acceptedStateRevision ||
+                requestGeneration < acceptedStateRequestGeneration)) return false;
+            if (acceptedServerEpoch !== null && !sameEpoch &&
+                requestGeneration < acceptedStateRequestGeneration) return false;
+            if (acceptedServerEpoch !== null && !sameEpoch) {
+                cancelAmountWork(false);
+                desiredAmount = null;
+                acceptedStateRevision = -1;
+            }
+            const nextAmountBinding = amountFeedbackBinding(nextState);
+            if (acceptedAmountFeedbackBinding !== nextAmountBinding) {
+                acceptedAmountFeedbackBinding = nextAmountBinding;
+                acceptedAmountFeedbackId = 0;
+            }
+            if (nextState.amountFeedback.available === true &&
+                nextState.amountFeedback.id < acceptedAmountFeedbackId && state &&
+                amountFeedbackBinding(state) === nextAmountBinding &&
+                validAmountFeedbackSnapshot(state.amountFeedback)) {
+                nextState = Object.assign({}, nextState, {
+                    amountFeedback: state.amountFeedback,
+                    presetAmount: state.presetAmount
+                });
+            } else if (nextState.amountFeedback.available === true) {
+                acceptedAmountFeedbackId = Math.max(acceptedAmountFeedbackId, nextState.amountFeedback.id);
+            }
+            if (awaitingAmountFeedback) {
+                const nextCursor = Array.isArray(nextState.configured)
+                    ? nextState.configured.find(function (entry) { return entry.uuid === nextState.cursorUuid; })
+                    : null;
+                if (nextState.serverEpoch !== awaitingAmountFeedback.serverEpoch ||
+                    nextState.cursorUuid !== awaitingAmountFeedback.presetUuid ||
+                    !nextCursor || nextCursor.amountEnabled !== true) {
+                    cancelAmountWork(false);
+                }
+            }
+            acceptedServerEpoch = nextState.serverEpoch;
+            acceptedStateRevision = Math.max(acceptedStateRevision, nextState.stateRevision);
+            acceptedStateRequestGeneration = Math.max(acceptedStateRequestGeneration, requestGeneration);
             state = nextState;
             if (state.inventoryStatus === "ready") inventoryRefreshError = null;
             else if (state.inventoryStatus === "error" && state.inventoryError) {
@@ -1015,17 +1262,19 @@
             } else {
                 renderInventoryPicker(false);
             }
-            if (latestQueuedAmount !== null && submittedAmount === null &&
-                state.pendingApplication !== true && !applicationRequestInFlight) {
-                setTimeout(dispatchPendingAmount, 0);
+            if (queuedAmount !== null && activeAmountRequest === null && awaitingAmountFeedback === null &&
+                amountThrottleTimer === null) {
+                Promise.resolve().then(dispatchPendingAmount);
             }
+            return true;
         }
 
         async function fetchState() {
+            const requestGeneration = nextStateRequestGeneration();
             const response = await fetchRequest("/api/develop-presets/state", { cache: "no-store" });
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || "Develop preset state is unavailable");
-            return data;
+            return { data: data, requestGeneration: requestGeneration };
         }
 
         function unavailableState(message) {
@@ -1051,10 +1300,15 @@
                 inventoryLoaded: loaded,
                 configured: configured,
                 availableCount: loaded && state ? state.availableCount : 0,
+                serverEpoch: state ? state.serverEpoch : null,
+                stateRevision: state && Number.isSafeInteger(state.stateRevision) ? state.stateRevision : 0,
                 cursorUuid: state ? state.cursorUuid : null,
-                presetAmount: state ? state.presetAmount : null,
+                cursorAmountEnabled: false,
+                presetAmount: null,
+                amountFeedback: { id: null, available: false, value: null, range: null, receivedAt: null },
                 controlsEnabled: false,
                 pendingApplication: false,
+                pendingOperation: null,
                 lastApplication: state ? state.lastApplication : null
             };
         }
@@ -1062,16 +1316,17 @@
         async function refreshState() {
             const activeGeneration = generation;
             try {
-                const data = await fetchState();
+                const result = await fetchState();
                 if (activeGeneration !== generation || !rootElement) return null;
-                acceptServerState(data);
-                return data;
+                return acceptServerState(result.data, { requestGeneration: result.requestGeneration })
+                    ? result.data
+                    : state;
             } catch (err) {
                 if (activeGeneration !== generation || !rootElement) return null;
                 state = unavailableState(err.message);
                 renderCompact();
                 renderManager();
-                setManagerMessage("Error: " + err.message, "state-error");
+                setManagerMessage("Could not load preset settings. Please try again.", "state-error");
                 return null;
             }
         }
@@ -1079,19 +1334,20 @@
         async function submit(path, submissionOptions) {
             submissionOptions = submissionOptions || {};
             if (!contextReady() || !state || state.controlsEnabled !== true ||
-                state.pendingApplication || applicationRequestInFlight) return false;
+                state.pendingApplication || applicationRequestInFlight || amountBusy()) return false;
             applicationRequestInFlight = true;
             renderCompact();
-            setStatus("Sending Develop preset command…");
+            setStatus("Applying preset…");
             try {
                 const response = await fetchRequest(path, { cache: "no-store" });
                 const data = await response.json();
                 if (!response.ok || !data.ok) throw new Error(data.error || "Develop preset application was rejected");
                 if (typeof submissionOptions.onAccepted === "function") submissionOptions.onAccepted(data);
-                setStatus("OK: Develop preset application queued. Lightroom result pending.");
+                pendingPresetStatusOperationId = typeof data.operationId === "string" ? data.operationId : null;
                 return data;
             } catch (err) {
-                setStatus("ERROR: " + err.message);
+                pendingPresetStatusOperationId = null;
+                setStatus("Could not apply the preset. Please try again.");
                 return false;
             } finally {
                 applicationRequestInFlight = false;
@@ -1113,21 +1369,31 @@
             renderManager(true);
             const operation = (async function () {
                 try {
+                    const initialRequestGeneration = nextStateRequestGeneration();
                     const response = await fetchRequest("/api/develop-presets/inventory/refresh", { cache: "no-store" });
                     let data = await response.json();
                     if (!response.ok || !data.ok) {
                         throw new Error(data.error || "Develop preset inventory refresh was rejected");
                     }
                     if (activeGeneration !== generation || !rootElement) return false;
-                    acceptServerState(data, { replaceDraft: false, renderManager: true });
+                    if (!acceptServerState(data, {
+                        replaceDraft: false,
+                        renderManager: true,
+                        requestGeneration: initialRequestGeneration
+                    })) data = state;
                     const requestId = data.inventoryRequestId;
                     const deadline = Date.now() + 22_000;
                     while (data.inventoryStatus === "loading" && data.inventoryRequestId === requestId &&
                         Date.now() < deadline) {
                         await wait(400);
                         if (activeGeneration !== generation || !rootElement) return false;
-                        data = await fetchState();
-                        acceptServerState(data, { replaceDraft: false, renderManager: true });
+                        const result = await fetchState();
+                        data = result.data;
+                        if (!acceptServerState(data, {
+                            replaceDraft: false,
+                            renderManager: true,
+                            requestGeneration: result.requestGeneration
+                        })) data = state;
                     }
                     if (data.inventoryStatus === "loading") {
                         throw new Error("Lightroom did not complete the Develop preset inventory refresh.");
@@ -1136,10 +1402,7 @@
                         throw new Error(data.inventoryError || "Lightroom Develop preset inventory is unavailable.");
                     }
                     inventoryRefreshError = null;
-                    setManagerMessage(
-                        "Loaded " + data.inventory.length + " Develop presets from Lightroom. Configured order was preserved.",
-                        "success"
-                    );
+                    setManagerMessage(data.inventory.length + " Lightroom presets found.", "success");
                     return true;
                 } catch (err) {
                     inventoryRefreshError = err.message;
@@ -1164,9 +1427,10 @@
         async function saveConfiguration() {
             if (saveInFlight || !draftDirty) return;
             saveInFlight = true;
-            setManagerMessage("Saving the ordered Develop preset configuration…", "info");
+            setManagerMessage("Saving changes…", "info");
             renderManager(true);
             try {
+                const requestGeneration = nextStateRequestGeneration();
                 const response = await fetchRequest("/api/develop-presets/config", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -1175,18 +1439,15 @@
                 });
                 const data = await response.json();
                 if (!response.ok || !data.ok) throw new Error(data.error || "Develop preset configuration save failed");
-                draftDirty = false;
-                acceptServerState(data, {
+                if (!acceptServerState(data, {
                     replaceDraft: true,
                     renderManager: true,
-                    rebuildConfiguredList: true
-                });
-                setManagerMessage(
-                    "Saved " + data.configuration.presets.length + " configured Develop presets in explicit order.",
-                    "success"
-                );
+                    rebuildConfiguredList: true,
+                    requestGeneration: requestGeneration
+                })) throw new Error("Ignored a stale Develop preset configuration response");
+                setManagerMessage("Changes saved.", "success");
             } catch (err) {
-                setManagerMessage("Error: " + err.message, "error");
+                setManagerMessage("Could not save changes. Please try again.", "error");
             } finally {
                 saveInFlight = false;
                 if (rootElement) renderManager(true);
@@ -1194,7 +1455,7 @@
         }
 
         function createManager() {
-            manageButton = makeButton("Manage Presets", "develop-preset-manage-toggle secondary", function () {
+            manageButton = makeButton("Manage Favorite Presets", "develop-preset-manage-toggle secondary", function () {
                 const expanded = manageButton.getAttribute("aria-expanded") !== "true";
                 manageButton.setAttribute("aria-expanded", String(expanded));
                 managerPanel.hidden = !expanded;
@@ -1211,9 +1472,9 @@
             const description = document.createElement("p");
             description.className = "develop-preset-manager-description";
             description.textContent =
-                "Preset UUID is the saved identity. Folder and preset names are labels; this sorted inventory does not claim Lightroom Presets panel order.";
+                "Choose which Lightroom presets appear in Favorite Presets and arrange the order used by Prev and Next. Adding an alias does not rename the original Lightroom preset.";
 
-            addPresetsButton = makeButton("+ Add Presets", "develop-preset-add-open", function () {
+            addPresetsButton = makeButton("+ Add to Favorites", "develop-preset-add-open", function () {
                 return refreshInventory().then(function () {
                     if (rootElement && inventoryPicker) openPicker(inventoryPicker, addPresetsButton);
                 });
@@ -1224,7 +1485,7 @@
             const toolbar = document.createElement("div");
             toolbar.className = "develop-preset-manager-toolbar";
             refreshPresetsButton = makeButton("Refresh Presets", "develop-preset-refresh secondary", refreshInventory);
-            saveButton = makeButton("Save Configuration", "develop-preset-save", saveConfiguration);
+            saveButton = makeButton("Save Changes", "develop-preset-save", saveConfiguration);
             managerStatus = document.createElement("div");
             managerStatus.className = "develop-preset-manager-status";
             managerStatus.setAttribute("role", "status");
@@ -1254,7 +1515,7 @@
 
             inventoryPicker = createPickerDialog(
                 "developPresetInventoryPicker",
-                "Add Lightroom presets",
+                "Add Lightroom Presets to Favorites",
                 "Choose one or more presets. The inventory is sorted by folder and name and does not claim to match Lightroom's visible Presets panel order.",
                 "Search Lightroom preset inventory",
                 "Lightroom Develop preset inventory",
@@ -1290,19 +1551,24 @@
             const title = document.createElement("h2");
             title.id = "developPresetsControllerTitle";
             title.className = "develop-presets-controller-title";
-            title.textContent = "DEVELOP PRESETS";
+            title.textContent = "FAVORITE PRESETS";
 
-            previousButton = makeButton("Previous Preset", "develop-preset-navigation", function () {
-                return submitPresetAtDefaultAmount(navigationPath("previous"));
+            const helper = document.createElement("p");
+            helper.className = "develop-presets-controller-help";
+            helper.textContent =
+                "This screen shows only your Favorites for faster touch control. Use Add to Favorites below to search all Lightroom presets.";
+
+            previousButton = makeButton("Prev", "develop-preset-navigation", function () {
+                return submitPreset(navigationPath("previous"));
             });
-            nextButton = makeButton("Next Preset", "develop-preset-navigation", function () {
-                return submitPresetAtDefaultAmount(navigationPath("next"));
+            nextButton = makeButton("Next", "develop-preset-navigation", function () {
+                return submitPreset(navigationPath("next"));
             });
             const current = document.createElement("div");
             current.className = "develop-preset-current";
             const currentLabel = document.createElement("span");
             currentLabel.className = "develop-preset-current-label";
-            currentLabel.textContent = "Preset to apply";
+            currentLabel.textContent = "Selected preset";
             currentPresetButton = makeButton("", "develop-preset-current-button", function () {
                 openPicker(configuredPicker, currentPresetButton);
             });
@@ -1343,19 +1609,26 @@
             amountNumber.spellcheck = false;
             amountNumber.value = "100";
             amountNumber.setAttribute("aria-label", "Preset Amount numeric value");
-            amountDecrementButton = makeButton("−", "develop-preset-amount-step", function () { stepAmount(-1); });
+            amountDecrementButton = makeButton("−", "develop-preset-amount-step", function () {
+                stepAmount(-1);
+            });
             amountDecrementButton.setAttribute("aria-label", "Decrease Preset Amount");
-            amountIncrementButton = makeButton("+", "develop-preset-amount-step", function () { stepAmount(1); });
+            amountIncrementButton = makeButton("+", "develop-preset-amount-step", function () {
+                stepAmount(1);
+            });
             amountIncrementButton.setAttribute("aria-label", "Increase Preset Amount");
             amountResetButton = makeButton("Reset", "reset develop-preset-amount-reset", function () {
                 queueAmount(100, true);
             });
-            amountRange.addEventListener("pointerdown", function () { amountDragging = true; });
+            amountCapabilityNote = document.createElement("p");
+            amountCapabilityNote.className = "develop-preset-amount-capability-note";
+            amountRange.addEventListener("pointerdown", function () {
+                amountDragging = true;
+            });
             amountRange.addEventListener("input", function () {
                 const amount = parsePresetAmount(amountRange.value);
                 if (amount === null) return;
-                showLocalAmount(amount);
-                if (!currentCursorUsesAi()) queueAmount(amount, false);
+                queueAmount(amount, false);
             });
             amountRange.addEventListener("pointerup", function () {
                 amountDragging = false;
@@ -1364,7 +1637,12 @@
             });
             amountRange.addEventListener("pointercancel", function () {
                 amountDragging = false;
-                if (currentCursorUsesAi() && committedAmount() !== null) showLocalAmount(committedAmount());
+                if (amountThrottleTimer !== null) clearTimeout(amountThrottleTimer);
+                amountThrottleTimer = null;
+                queuedAmount = null;
+                if (activeAmountRequest === null && awaitingAmountFeedback === null &&
+                    committedAmount() !== null) showLocalAmount(committedAmount());
+                renderCompact();
             });
             amountRange.addEventListener("change", function () {
                 amountDragging = false;
@@ -1388,7 +1666,17 @@
                 if (amountEditing) commitAmountNumber();
             });
             amountRow.append(amountLabel, amountRange, amountNumber,
-                amountDecrementButton, amountIncrementButton, amountResetButton);
+                amountDecrementButton, amountIncrementButton, amountResetButton, amountCapabilityNote);
+            const aiGuidance = document.createElement("div");
+            aiGuidance.className = "develop-preset-ai-guidance";
+            const aiGuidanceIcon = document.createElement("span");
+            aiGuidanceIcon.className = "develop-preset-ai-guidance-icon";
+            aiGuidanceIcon.setAttribute("aria-hidden", "true");
+            aiGuidanceIcon.textContent = "i";
+            const aiGuidanceText = document.createElement("span");
+            aiGuidanceText.textContent =
+                "If an Adaptive or AI preset does not change the photo, open Manage Favorite Presets and turn on AI adjustments for that preset. This lets Lightroom apply the preset’s sky, subject or people effects.";
+            aiGuidance.append(aiGuidanceIcon, aiGuidanceText);
             const treatmentBlock = document.createElement("div");
             treatmentBlock.className = "develop-preset-treatment";
             if (typeof createTreatmentPresentation === "function") {
@@ -1397,16 +1685,12 @@
                     treatmentBlock.appendChild(treatmentPresentation.element);
                 }
             }
-            const treatmentNote = document.createElement("p");
-            treatmentNote.className = "develop-preset-treatment-note";
-            treatmentNote.textContent = "Some presets preserve the current treatment. Switch back to Color here after using a B&W preset.";
-            treatmentBlock.appendChild(treatmentNote);
             compactStatus = document.createElement("div");
             compactStatus.className = "develop-presets-controller-status";
             compactStatus.setAttribute("role", "status");
             compactStatus.textContent = "Loading configured Develop presets…";
             createManager();
-            rootElement.append(title, row, amountRow, treatmentBlock, compactStatus, manageButton, managerPanel);
+            rootElement.append(title, helper, row, amountRow, treatmentBlock, aiGuidance, compactStatus, manageButton, managerPanel);
             createPickers();
             nextHost.appendChild(rootElement);
             if (!state) state = unavailableState("Loading Develop preset state…");
@@ -1423,7 +1707,11 @@
         }
 
         function updateContext() {
-            if (!amountContextMatchesCurrent()) discardAmountChain(true);
+            if ((activeAmountRequest && !stableAmountBindingMatches(activeAmountRequest)) ||
+                (awaitingAmountFeedback && !stableAmountBindingMatches(awaitingAmountFeedback))) {
+                cancelAmountWork(false);
+                desiredAmount = null;
+            }
             renderCompact();
         }
 
@@ -1431,10 +1719,12 @@
             generation += 1;
             if (timer !== null) clearInterval(timer);
             timer = null;
-            discardAmountChain(true);
+            cancelAmountWork(true);
             amountEditing = false;
             amountDragging = false;
             desiredAmount = null;
+            pendingPresetStatusOperationId = null;
+            amountCapabilityNote = null;
             closePicker(configuredPicker, false);
             closePicker(inventoryPicker, false);
             if (treatmentPresentation && typeof treatmentPresentation.dispose === "function") {
@@ -1459,8 +1749,10 @@
                 return {
                     committed: committedAmount(),
                     desired: desiredAmount,
-                    submitted: submittedAmount,
-                    queued: latestQueuedAmount
+                    submitted: activeAmountRequest ? activeAmountRequest.amount : null,
+                    queued: queuedAmount,
+                    awaiting: awaitingAmountFeedback ? awaitingAmountFeedback.target : null,
+                    feedbackId: state && state.amountFeedback ? state.amountFeedback.id : null
                 };
             },
             isActive: function () { return rootElement !== null; }

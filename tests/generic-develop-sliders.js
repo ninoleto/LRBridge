@@ -626,7 +626,8 @@ assert.match(slidersOnlyBlock, /setStatus\("ERROR: " \+ mappingError\)/,
 assert.match(controller.match(/function createDevelopSectionElement[\s\S]*?function rerenderColorMixerSection/)[0],
     /createDevelopSliderControl\(item\.definition\)/,
     "Develop presentation must reuse the production slider factory");
-assert.match(controller, /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPresentation = createTreatmentPresentation\(row\)/);
+assert.match(controller,
+    /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPresentation = createDevelopTreatmentPresentation\(row\)/);
 assert.match(controller, /autoTone\.action === "setAutoTone"|item\.action === "setAutoTone"/);
 assert.match(controller, /command=photo\.treatment&value=/);
 assert.match(controller, /if \(section\.id === "color-mixer"\)[\s\S]*treatmentAuthoritativeState[\s\S]*"B&W Mixer"[\s\S]*"Color Mixer \/ HSL"/);
@@ -661,32 +662,58 @@ assert.match(photo, /quickDevelopSetTreatment\("grayscale"\)/);
 assert.match(photo, /quickDevelopSetTreatment\("color"\)/);
 assert.match(bridge, /grayscale: status === "available" \? req\.query\.grayscale === "true" : null/);
 assert.match(mainProcess, /"\/api\/treatment\/request"[\s\S]*"\/treatment\/request"/);
-assert.match(controller, /const authoritativeBlackAndWhite = treatmentHasAuthoritativeState &&\s*treatmentAuthoritativeState === true/);
-assert.match(controller, /treatmentPresentations\.forEach\(updateTreatmentPresentation\)/,
-    "Develop Sliders and Presets must share one authoritative treatment presentation update");
+assert.match(controller, /const treatmentAvailable = treatmentHasAuthoritativeState && treatmentStateFresh/);
+assert.match(controller, /const authoritativeBlackAndWhite = treatmentAvailable &&\s*treatmentAuthoritativeState === true/);
+assert.match(controller, /const authoritativeColor = treatmentAvailable && treatmentAuthoritativeState === false/);
+assert.match(controller, /developTreatmentPresentations\.forEach\(updateDevelopTreatmentPresentation\)/);
+assert.match(controller, /presetTreatmentPresentations\.forEach\(updatePresetTreatmentPresentation\)/,
+    "Separate Develop and Presets renderers must update from the same authoritative treatment state");
 assert.equal((controller.match(/let treatmentAuthoritativeState =/g) || []).length, 1,
     "Both treatment presentations must share one authoritative state");
 assert.equal((controller.match(/let treatmentHasAuthoritativeState =/g) || []).length, 1,
     "Both treatment presentations must share one feedback-availability state");
 const treatmentFactoryBlock = controller.slice(
-    controller.indexOf("function createTreatmentPresentation("),
+    controller.indexOf("function createDevelopTreatmentPresentation("),
     controller.indexOf("function disposeDevelopTreatmentPresentation(")
 );
 assert.doesNotMatch(treatmentFactoryBlock, /\.id\s*=|setAttribute\("id"/,
     "Shared treatment presentations must not introduce duplicate DOM IDs");
-assert.match(controller, /presentation\.button\.setAttribute\("aria-pressed", String\(authoritativeBlackAndWhite\)\)/);
-assert.match(controller, /presentation\.button\.classList\.toggle\("bw-treatment-active", authoritativeBlackAndWhite\)/);
-assert.match(controller, /presentation\.button\.disabled = treatmentPending \|\| !treatmentHasAuthoritativeState/);
-assert.match(controller, /presentation\.button\.title = authoritativeBlackAndWhite \? "Black & White mode" : "Color mode"/);
 assert.match(controller,
-    /treatmentStateFresh \? \(authoritativeBlackAndWhite \? "Black & White" : "Color"\)/,
-    "B&W button and adjacent status must use the same authoritative treatment boolean");
+    /presentation\.colorButton\.setAttribute\("aria-pressed", String\(authoritativeColor\)\)[\s\S]*presentation\.blackAndWhiteButton\.setAttribute\("aria-pressed", String\(authoritativeBlackAndWhite\)\)/,
+    "Each treatment segment must expose only authoritative selected-state semantics");
 assert.match(controller,
-    /\.basic-controls-row button\.bw-treatment-active,[\s\S]*background:\s*#178447;[\s\S]*border-color:\s*#65e08c;/,
-    "Authoritative B&W treatment must use a dedicated strong-green background and border");
-assert.doesNotMatch(controller, /presentation\.button\.classList\.toggle\("active"/,
-    "B&W treatment must not reuse another control's generic active style");
-assert.match(controller, /const mode = treatmentAuthoritativeState \? "color" : "grayscale"/);
+    /presentation\.button\.setAttribute\("aria-pressed", String\(authoritativeBlackAndWhite\)\)[\s\S]*presentation\.button\.textContent = "B&W"/,
+    "Develop must keep one constant-label B&W button selected only by authoritative state");
+assert.match(controller,
+    /presentation\.button\.classList\.toggle\("active", authoritativeBlackAndWhite\)/,
+    "Develop B&W green active styling must follow only authoritative Black & White state");
+assert.match(controller,
+    /\.basic-controls-row button\.active\s*\{[\s\S]*background:\s*#3f6f5a/,
+    "Develop B&W must reuse the established LRBridge green active styling");
+assert.match(controller,
+    /presentation\.status\.textContent = treatmentAvailable[\s\S]*"Black & White" : "Color"/,
+    "Develop must show compact authoritative text beside its B&W button");
+assert.match(controller,
+    /presentation\.current\.textContent = treatmentAvailable[\s\S]*"Current mode unavailable"/,
+    "The component must report an explicit unavailable state with neither segment selected");
+assert.match(controller, /presentation\.colorButton\.classList\.toggle\("pending", colorPending\)/);
+assert.match(controller, /presentation\.blackAndWhiteButton\.classList\.toggle\("pending", blackAndWhitePending\)/);
+assert.match(treatmentFactoryBlock, /label\.textContent = "PHOTO MODE"/);
+assert.match(treatmentFactoryBlock, /return setTreatment\(false\)/);
+assert.match(treatmentFactoryBlock, /return setTreatment\(true\)/);
+assert.match(treatmentFactoryBlock, /warningIcon\.textContent = "⚠"/);
+assert.match(treatmentFactoryBlock, /warning\.setAttribute\("role", "alert"\);\s*warning\.hidden = true/,
+    "The B&W alert must start hidden until authoritative state is applied");
+assert.match(treatmentFactoryBlock, /warningTitle\.textContent = "BLACK & WHITE MODE IS ACTIVE"/);
+assert.match(treatmentFactoryBlock,
+    /Some color presets and profiles switch the photo back to Color automatically, while others leave it in Black & White\. If the photo stays B&W, choose Color above\./);
+assert.match(controller,
+    /\.preset-treatment-warning\s*\{[\s\S]*width:\s*100%;[\s\S]*background:\s*#2a1d0d;[\s\S]*border-left:\s*4px solid #e0a038/,
+    "Authoritative B&W must use a full-width prominent amber warning box");
+assert.doesNotMatch(controller,
+    /#178447|#65e08c|Tap Color to return to color|Color presets and profiles may leave the photo in Black & White/,
+    "Treatment must not retain the misleading bright-green or stale warning design");
+assert.match(controller, /const mode = grayscale \? "grayscale" : "color"/);
 assert.match(controller, /treatmentPending && treatmentDesiredState !== snapshot\.grayscale/,
     "Treatment must remain pending until matching authoritative readback");
 assert.match(controller, /const changed = !treatmentHasAuthoritativeState \|\| treatmentAuthoritativeState !== snapshot\.grayscale/);

@@ -169,6 +169,7 @@
     ,"tone_curve.preset.set"
     ,"develop_presets.inventory.request"
     ,"develop_preset.apply"
+    ,"develop_preset.amount.set"
   ],
   "selectionOperations": [
     "select_all",

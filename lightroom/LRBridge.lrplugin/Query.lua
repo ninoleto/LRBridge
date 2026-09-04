@@ -5,6 +5,7 @@ local Query = {}
 local developControllerMap = {
     CropAngle = "straightenAngle",
     ProfileAmount = "ProfileAmount",
+    PresetAmount = "PresetAmount",
     Exposure = "Exposure",
     Contrast = "Contrast",
     Highlights = "Highlights",

@@ -113,10 +113,14 @@ commands.setPointColorAdmissionContextProvider(function () {
 });
 commands.setDevelopPresetAdmissionProvider({
     matches: function (command, fields) {
-        return developPresets.applicationBindingMatches(command, fields);
+        return command && command.command === "develop_preset.amount.set"
+            ? developPresetAmountCommandMatches(command, fields)
+            : developPresets.applicationBindingMatches(command, fields);
     },
     onRejected: function (command, detail) {
-        developPresets.rejectApplication(command, detail);
+        if (command && command.command === "develop_preset.apply") {
+            developPresets.rejectApplication(command, detail);
+        }
     }
 });
 
@@ -128,11 +132,74 @@ const colorGradingSnapshots = {};
 const treatmentSnapshots = {};
 let feedbackRequestId = 0;
 let focalRangeCommitCounter = 0;
-const dedicatedFeedbackParameters = new Set(["CropAngle", "CropConstrainToWarp"]);
-const contextBoundFeedbackParameters = new Set(sliders.getContextBoundIds());
+const PRESET_AMOUNT_PARAMETER = "PresetAmount";
+const dedicatedFeedbackParameters = new Set(["CropAngle", "CropConstrainToWarp", PRESET_AMOUNT_PARAMETER]);
+const contextBoundFeedbackParameters = new Set(sliders.getContextBoundIds().concat([PRESET_AMOUNT_PARAMETER]));
 
 function isFeedbackParameter(value) {
     return sliders.exists(value) || dedicatedFeedbackParameters.has(value);
+}
+
+function queueFeedbackRequest(slider, deduplicate) {
+    if (deduplicate === true) {
+        const existing = feedbackRequests.find(function (request) { return request.slider === slider; });
+        if (existing) return existing;
+    }
+    feedbackRequestId += 1;
+    const request = { id: feedbackRequestId, slider: slider, requestedAt: Date.now() };
+    feedbackRequests.push(request);
+    createFeedbackSnapshot(request.id, [slider]);
+    return request;
+}
+
+function currentPresetAmountFeedback() {
+    const feedback = feedbackValues[PRESET_AMOUNT_PARAMETER];
+    return feedback && feedback.available === true && Number.isSafeInteger(feedback.value) &&
+        feedback.range && Number.isFinite(feedback.range.min) && Number.isFinite(feedback.range.max) &&
+        feedback.range.min < feedback.range.max && feedback.value >= feedback.range.min &&
+        feedback.value <= feedback.range.max
+        ? feedback
+        : null;
+}
+
+function developPresetAmountCommandMatches(command, fields) {
+    const state = developPresets.getPublicState();
+    const feedback = currentPresetAmountFeedback();
+    return Boolean(command && command.command === "develop_preset.amount.set" && fields && feedback &&
+        state.serverEpoch === command.expectedServerEpoch && state.cursorUuid === command.expectedPresetUuid &&
+        state.cursorAmountEnabled === true && feedback.id >= command.expectedFeedbackId &&
+        command.presetAmount >= feedback.range.min && command.presetAmount <= feedback.range.max &&
+        fields.activeModule === command.expectedActiveModule && command.expectedActiveModule === "develop" &&
+        fields.selectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+        fields.contextCounter === command.expectedContextCounter &&
+        fields.developCounter === command.expectedDevelopCounter &&
+        fields.contextChangedAt === command.expectedContextChangedAt);
+}
+
+function developPresetPublicState() {
+    const state = developPresets.getPublicState();
+    const feedback = currentPresetAmountFeedback();
+    state.amountFeedback = feedback ? {
+        id: feedback.id,
+        available: true,
+        value: feedback.value,
+        range: { min: feedback.range.min, max: feedback.range.max },
+        receivedAt: feedback.receivedAt
+    } : {
+        id: feedbackValues[PRESET_AMOUNT_PARAMETER] ? feedbackValues[PRESET_AMOUNT_PARAMETER].id : null,
+        available: false,
+        value: null,
+        range: null,
+        receivedAt: feedbackValues[PRESET_AMOUNT_PARAMETER]
+            ? feedbackValues[PRESET_AMOUNT_PARAMETER].receivedAt
+            : null
+    };
+    state.presetAmount = feedback ? feedback.value : null;
+    return state;
+}
+
+function invalidatePresetAmountFeedback() {
+    delete feedbackValues[PRESET_AMOUNT_PARAMETER];
 }
 
 function createFeedbackSnapshot(id, requestedSliders) {
@@ -228,7 +295,7 @@ function rejectQueueFull(res, queueLength) {
 function requestDevelopPresetInventory() {
     const currentState = developPresets.getPublicState();
     if (currentState.inventoryStatus === "loading" && currentState.inventoryRequestId) {
-        return currentState;
+        return developPresetPublicState();
     }
     const requestId = developPresets.beginInventoryRefresh();
     const admission = queueCommand({
@@ -245,11 +312,12 @@ function requestDevelopPresetInventory() {
         error.admission = admission;
         throw error;
     }
-    return developPresets.getPublicState();
+    return developPresetPublicState();
 }
 
 function saveDevelopPresetConfiguration(configuration) {
-    return developPresets.saveConfiguration(configuration);
+    developPresets.saveConfiguration(configuration);
+    return developPresetPublicState();
 }
 
 function exactQueryFields(req, expected) {
@@ -260,29 +328,41 @@ function exactQueryFields(req, expected) {
     });
 }
 
-function presetBindingFromRequest(req) {
-    if (!exactQueryFields(req, ["uuid", "selectedPhotoUuid", "contextCounter", "developCounter"])) return null;
+function presetBindingFromRequest(req, allowOlderDevelopCounter) {
+    if (!exactQueryFields(req, ["uuid", "selectedPhotoUuid", "contextCounter", "developCounter",
+        "contextChangedAt", "serverEpoch"])) return null;
     if (!/^(?:0|[1-9]\d*)$/.test(req.query.contextCounter) ||
-        !/^(?:0|[1-9]\d*)$/.test(req.query.developCounter)) return null;
+        !/^(?:0|[1-9]\d*)$/.test(req.query.developCounter) ||
+        !/^(?:0|[1-9]\d*)$/.test(req.query.contextChangedAt) ||
+        !developPresetsDefinition.validRequestId(req.query.serverEpoch)) return null;
     const contextCounter = numbers.parseFiniteInteger(req.query.contextCounter);
     const developCounter = numbers.parseFiniteInteger(req.query.developCounter);
-    if (!Number.isSafeInteger(contextCounter) || !Number.isSafeInteger(developCounter)) return null;
+    const contextChangedAt = numbers.parseFiniteInteger(req.query.contextChangedAt);
+    if (!Number.isSafeInteger(contextCounter) || !Number.isSafeInteger(developCounter) ||
+        !Number.isSafeInteger(contextChangedAt)) return null;
     const current = context.getContextFields();
+    const presetState = developPresets.getPublicState();
+    const developCounterMatches = allowOlderDevelopCounter === true
+        ? developCounter <= current.developCounter
+        : developCounter === current.developCounter;
     if (current.activeModule !== "develop" || !current.selectedPhotoUuid ||
         current.selectedPhotoUuid !== req.query.selectedPhotoUuid ||
-        current.contextCounter !== contextCounter || current.developCounter !== developCounter) return null;
+        current.contextCounter !== contextCounter || !developCounterMatches ||
+        current.contextChangedAt !== contextChangedAt || presetState.serverEpoch !== req.query.serverEpoch) return null;
     return {
         activeModule: current.activeModule,
         selectedPhotoUuid: current.selectedPhotoUuid,
         contextCounter: current.contextCounter,
-        developCounter: current.developCounter
+        developCounter: current.developCounter,
+        contextChangedAt: current.contextChangedAt,
+        serverEpoch: presetState.serverEpoch
     };
 }
 
-function queueDevelopPresetApplication(res, uuid, binding, presetAmount) {
+function queueDevelopPresetApplication(res, uuid, binding) {
     let operation;
     try {
-        operation = developPresets.beginApplication(uuid, binding, presetAmount);
+        operation = developPresets.beginPresetApplication(uuid, binding);
     } catch (err) {
         res.status(409).set("Cache-Control", "no-store").json({ ok: false, error: err.message });
         return;
@@ -290,13 +370,15 @@ function queueDevelopPresetApplication(res, uuid, binding, presetAmount) {
     const command = {
         command: "develop_preset.apply",
         operationId: operation.operationId,
+        operationKind: operation.operationKind,
         uuid: operation.uuid,
-        presetAmount: operation.presetAmount,
         updateAISettings: operation.updateAISettings,
         expectedActiveModule: operation.expectedActiveModule,
         expectedSelectedPhotoUuid: operation.expectedSelectedPhotoUuid,
         expectedContextCounter: operation.expectedContextCounter,
-        expectedDevelopCounter: operation.expectedDevelopCounter
+        expectedDevelopCounter: operation.expectedDevelopCounter,
+        expectedContextChangedAt: operation.expectedContextChangedAt,
+        expectedServerEpoch: operation.expectedServerEpoch
     };
     const admission = queueCommand(command);
     if (!admission.accepted) {
@@ -307,11 +389,23 @@ function queueDevelopPresetApplication(res, uuid, binding, presetAmount) {
             error: "Develop preset application was rejected during queue admission"
         });
     }
-    res.set("Cache-Control", "no-store").json({
+    const state = developPresets.getPublicState();
+    const responseBody = {
         ok: true,
         queued: command,
-        operationId: operation.operationId
-    });
+        operationId: operation.operationId,
+        operationKind: operation.operationKind,
+        uuid: operation.uuid,
+        serverEpoch: state.serverEpoch,
+        stateRevision: state.stateRevision,
+        expectedSelectedPhotoUuid: operation.expectedSelectedPhotoUuid,
+        expectedContextCounter: operation.expectedContextCounter,
+        expectedDevelopCounter: operation.expectedDevelopCounter,
+        expectedContextChangedAt: operation.expectedContextChangedAt
+    };
+    invalidatePresetAmountFeedback();
+    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, true);
+    res.set("Cache-Control", "no-store").json(responseBody);
 }
 
 app.get("/", function (req, res) {
@@ -858,7 +952,9 @@ app.get("/groups", function (req, res) {
 
 app.get("/develop-presets/state", function (req, res) {
     if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
-    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
+    const state = developPresetPublicState();
+    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, true);
+    res.set("Cache-Control", "no-store").json(state);
 });
 
 app.post("/develop-presets/config", function (req, res) {
@@ -917,7 +1013,7 @@ app.get("/develop-presets/inventory/complete", function (req, res) {
     if (!developPresets.completeInventoryRefresh(req.query.requestId)) {
         return res.status(409).json({ ok: false, error: "Stale Develop preset inventory completion" });
     }
-    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
+    res.set("Cache-Control", "no-store").json(developPresetPublicState());
 });
 
 app.get("/develop-presets/inventory/fail", function (req, res) {
@@ -928,7 +1024,7 @@ app.get("/develop-presets/inventory/fail", function (req, res) {
     if (!developPresets.failInventoryRefresh(req.query.requestId, req.query.error)) {
         return res.status(409).json({ ok: false, error: "Stale Develop preset inventory failure" });
     }
-    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
+    res.set("Cache-Control", "no-store").json(developPresetPublicState());
 });
 
 app.get("/develop-presets/apply", function (req, res) {
@@ -937,11 +1033,12 @@ app.get("/develop-presets/apply", function (req, res) {
         ok: false,
         error: "Develop preset photo, module, context, or Develop revision changed during submission"
     });
-    queueDevelopPresetApplication(res, req.query.uuid, binding, developPresetsDefinition.DEFAULT_PRESET_AMOUNT);
+    queueDevelopPresetApplication(res, req.query.uuid, binding);
 });
 
 app.get("/develop-presets/navigate", function (req, res) {
-    if (!exactQueryFields(req, ["direction", "selectedPhotoUuid", "contextCounter", "developCounter"]) ||
+    if (!exactQueryFields(req, ["direction", "selectedPhotoUuid", "contextCounter", "developCounter",
+        "contextChangedAt", "serverEpoch"]) ||
         (req.query.direction !== "previous" && req.query.direction !== "next")) {
         return res.status(400).json({ ok: false, error: "Invalid Develop preset navigation request" });
     }
@@ -949,7 +1046,9 @@ app.get("/develop-presets/navigate", function (req, res) {
         uuid: "placeholder",
         selectedPhotoUuid: req.query.selectedPhotoUuid,
         contextCounter: req.query.contextCounter,
-        developCounter: req.query.developCounter
+        developCounter: req.query.developCounter,
+        contextChangedAt: req.query.contextChangedAt,
+        serverEpoch: req.query.serverEpoch
     } };
     const binding = presetBindingFromRequest(synthetic);
     if (!binding) return res.status(409).set("Cache-Control", "no-store").json({
@@ -961,55 +1060,101 @@ app.get("/develop-presets/navigate", function (req, res) {
         ok: false,
         error: "No configured Develop preset is currently available"
     });
-    queueDevelopPresetApplication(res, uuid, binding, developPresetsDefinition.DEFAULT_PRESET_AMOUNT);
+    queueDevelopPresetApplication(res, uuid, binding);
 });
 
 app.get("/develop-presets/amount", function (req, res) {
-    if (!exactQueryFields(req, ["presetAmount", "selectedPhotoUuid", "contextCounter", "developCounter"]) ||
-        !/^(?:0|[1-9]\d*)$/.test(req.query.presetAmount)) {
+    if (!exactQueryFields(req, ["presetAmount", "feedbackId", "selectedPhotoUuid", "contextCounter", "developCounter",
+        "contextChangedAt", "serverEpoch"]) ||
+        !/^(?:0|[1-9]\d*)$/.test(req.query.presetAmount) || !/^[1-9]\d*$/.test(req.query.feedbackId)) {
         return res.status(400).set("Cache-Control", "no-store").json({
             ok: false,
-            error: "Develop preset Amount must be an integer from 0 through 200"
+            error: "Develop preset Amount requires current native feedback and an integer from 0 through 200"
         });
     }
     const presetAmount = numbers.parseFiniteInteger(req.query.presetAmount);
-    if (!developPresetsDefinition.validPresetAmount(presetAmount)) {
+    const feedbackId = numbers.parseFiniteInteger(req.query.feedbackId);
+    if (!developPresetsDefinition.validPresetAmount(presetAmount) || !Number.isSafeInteger(feedbackId) || feedbackId <= 0) {
         return res.status(400).set("Cache-Control", "no-store").json({
             ok: false,
-            error: "Develop preset Amount must be an integer from 0 through 200"
+            error: "Develop preset Amount requires current native feedback and an integer from 0 through 200"
         });
     }
     const synthetic = { query: {
         uuid: "placeholder",
         selectedPhotoUuid: req.query.selectedPhotoUuid,
         contextCounter: req.query.contextCounter,
-        developCounter: req.query.developCounter
+        developCounter: req.query.developCounter,
+        contextChangedAt: req.query.contextChangedAt,
+        serverEpoch: req.query.serverEpoch
     } };
-    const binding = presetBindingFromRequest(synthetic);
-    if (!binding) return res.status(409).set("Cache-Control", "no-store").json({
-        ok: false,
-        error: "Develop preset photo, module, context, or Develop revision changed during submission"
-    });
-    const state = developPresets.getPublicState();
-    if (!state.cursorUuid || !developPresetsDefinition.validPresetAmount(state.presetAmount)) {
+    const binding = presetBindingFromRequest(synthetic, true);
+    if (!binding) {
         return res.status(409).set("Cache-Control", "no-store").json({
             ok: false,
-            error: "Apply a configured Develop preset successfully before adjusting Amount"
+            error: "Develop preset photo, module, context, or Develop revision changed during submission"
         });
     }
-    queueDevelopPresetApplication(res, state.cursorUuid, binding, presetAmount);
+    const state = developPresets.getPublicState();
+    const cursor = state.configured.find(function (entry) { return entry.uuid === state.cursorUuid; });
+    if (!cursor || cursor.amountEnabled !== true) {
+        return res.status(409).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Preset Amount is not enabled for this configured UUID"
+        });
+    }
+    const feedback = currentPresetAmountFeedback();
+    if (!feedback || feedbackId > feedback.id || presetAmount < feedback.range.min || presetAmount > feedback.range.max) {
+        return res.status(409).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Lightroom's native Preset Amount value or range is unavailable or stale"
+        });
+    }
+    const command = {
+        command: "develop_preset.amount.set",
+        presetAmount: presetAmount,
+        expectedPresetUuid: state.cursorUuid,
+        expectedActiveModule: binding.activeModule,
+        expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
+        expectedContextCounter: binding.contextCounter,
+        expectedDevelopCounter: binding.developCounter,
+        expectedContextChangedAt: binding.contextChangedAt,
+        expectedServerEpoch: binding.serverEpoch,
+        expectedFeedbackId: feedback.id
+    };
+    const admission = queueCommand(command);
+    if (!admission.accepted) {
+        if (admission.status === commands.ADMISSION_QUEUE_FULL) return rejectQueueFull(res, admission.queueLength);
+        return res.status(409).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Native Preset Amount command was rejected during queue admission"
+        });
+    }
+    const feedbackRequest = queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, false);
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        queued: command,
+        coalesced: admission.coalesced === true,
+        feedbackRequestId: feedbackRequest.id
+    });
 });
 
 app.get("/develop-presets/apply-result", function (req, res) {
-    if (!exactQueryFields(req, ["operationId", "uuid", "outcome", "detail"]) ||
+    if (!exactQueryFields(req, ["operationId", "uuid", "serverEpoch", "outcome", "detail"]) ||
         !developPresetsDefinition.validRequestId(req.query.operationId) ||
+        !developPresetsDefinition.validRequestId(req.query.serverEpoch) ||
         !developPresetsDefinition.TERMINAL_OUTCOMES.has(req.query.outcome)) {
         return res.status(400).json({ ok: false, error: "Invalid Develop preset application result" });
     }
     if (!developPresets.finishApplication(
-        req.query.operationId, req.query.uuid, req.query.outcome, req.query.detail
-    )) return res.status(409).json({ ok: false, error: "Stale Develop preset application result" });
-    res.set("Cache-Control", "no-store").json(developPresets.getPublicState());
+        req.query.operationId, req.query.uuid, req.query.serverEpoch, req.query.outcome, req.query.detail,
+        context.getContextFields()
+    )) {
+        return res.status(409).json({ ok: false, error: "Stale Develop preset application result" });
+    }
+    invalidatePresetAmountFeedback();
+    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, true);
+    res.set("Cache-Control", "no-store").json(developPresetPublicState());
 });
 
 app.get("/next", function (req, res) {
@@ -2113,16 +2258,7 @@ app.get("/feedback/request", function (req, res) {
         return;
     }
 
-    feedbackRequestId += 1;
-
-    const request = {
-        id: feedbackRequestId,
-        slider: slider,
-        requestedAt: Date.now()
-    };
-
-    feedbackRequests.push(request);
-    createFeedbackSnapshot(request.id, [slider]);
+    const request = queueFeedbackRequest(slider, false);
 
     res.json({
         ok: true,
@@ -2143,7 +2279,7 @@ app.get("/feedback/request-all", function (req, res) {
     createFeedbackSnapshot(request.id, sliders.getAll()
         .filter(function (slider) { return slider.feedbackSupported === true; })
         .map(function (slider) { return slider.id; })
-        .concat(["CropAngle"]));
+        .concat(["CropAngle", PRESET_AMOUNT_PARAMETER]));
 
     res.json({
         ok: true,
@@ -2426,6 +2562,11 @@ app.get("/feedback/result", function (req, res) {
             (slider === "ProfileAmount" && (
                 rangeMin !== 0 || rangeMax !== 200 || !Number.isInteger(numericValue) ||
                 numericValue < 0 || numericValue > 200
+            )) ||
+            (slider === PRESET_AMOUNT_PARAMETER && (
+                !Number.isInteger(numericValue) || !developPresetsDefinition.validPresetAmount(numericValue) ||
+                rangeMin < developPresetsDefinition.MIN_PRESET_AMOUNT ||
+                rangeMax > developPresetsDefinition.MAX_PRESET_AMOUNT
             ))
         ))
     ) {
@@ -2446,13 +2587,16 @@ app.get("/feedback/result", function (req, res) {
         receivedAt: Date.now()
     };
 
-    if (!unavailable) {
-        sliders.setRuntimeRange(slider, rangeMin, rangeMax);
-    } else if (contextBoundFeedbackParameters.has(slider)) {
-        sliders.clearRuntimeRange(slider);
+    const previousFeedback = feedbackValues[slider];
+    const publishAsCurrent = !previousFeedback || requestId >= previousFeedback.id;
+    if (publishAsCurrent) {
+        if (!unavailable) {
+            sliders.setRuntimeRange(slider, rangeMin, rangeMax);
+        } else if (contextBoundFeedbackParameters.has(slider)) {
+            sliders.clearRuntimeRange(slider);
+        }
+        feedbackValues[slider] = result;
     }
-
-    feedbackValues[slider] = result;
 
     const snapshot = feedbackSnapshots[requestId];
     if (snapshot && snapshot.requestedSliders.includes(slider)) {

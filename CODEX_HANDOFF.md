@@ -1,5 +1,19 @@
 # LRBridge Codex Handoff
 
+## Favorite Presets and native PresetAmount checkpoint (2026-09-04)
+
+This section supersedes the older warnings below that Preset Amount still uses preset reapplication or awaits the final-intent workaround. The accepted checkpoint is based on `8a4562bcd31549643013f3afe337a5fec944ca04`; Git history and `.codex-handoff-2026-09-04.md` record the resulting checkpoint hash.
+
+- Presets are applied once, without an Amount argument. The ordinary call is `photo:applyDevelopPreset(preset, _PLUGIN)`; AI-enabled favorites retain `photo:applyDevelopPreset(preset, _PLUGIN, nil, true)`. Interactive Amount uses one dedicated `LrDevelopController.setValue("PresetAmount", value)` operation with immediate native readback and authoritative observer/poll feedback.
+- `amountEnabled` is an explicit UUID-bound per-favorite opt-in, defaults false, and is saved alongside the existing `updateAISettings` boolean. Native Amount range/availability fails closed. Server epoch, state revision, context timestamp, feedback ID, and browser intent ownership prevent stale/out-of-order feedback from rolling back a newer desired value. The old Amount-by-preset-reapplication path and temporary trace hooks are absent.
+- The Lightroom 15.3 SDK exposes no reliable authoritative active-preset UUID/name for this integration. The selected preset shown by LRBridge therefore remains its Favorite Presets apply cursor; identity is never inferred from Amount or Develop settings.
+- Develop Sliders retains the compact `Auto` / permanently labeled `B&W` / authoritative status presentation. Confirmed B&W alone uses the established restrained green active style. Presets separately uses authoritative `PHOTO MODE` Color/B&W segments and the prominent amber B&W alert. Both share the existing Treatment command and authoritative feedback state; pending intent never replaces confirmed selection.
+- The Presets surface is now photographer-facing `FAVORITE PRESETS`: `Selected preset`, `Prev`, `Next`, `Manage Favorite Presets`, `+ Add to Favorites`, matching AI/Amount option cards, dark warm-yellow Alias fields, Preset-before-Folder card order, and a `17px`/`700` Preset value. Technical SDK/queue/revision language was removed from normal UI copy.
+- Final Amount unavailable text is `Amount slider unavailable: Make sure it is enabled under Preset Options. If enabled, Lightroom Classic does not support it for this preset.` Its prefix through the colon alone is emphasized at `#f4f7fa` and weight `700`; availability logic is unchanged. Final AI/B&W copy and exact DOM order are recorded in the local checkpoint handoff.
+- Focused Presets, Treatment/controller, sliders, diagnostics, feedback, and Lua polling suites pass, as do all changed JavaScript syntax checks, inline Controller parsing, changed JSON parsing, and `git diff --check`. The established protected-document `test:contract` mismatch remains unchanged; do not edit the protected companion cheat sheets to hide it.
+- The final Amount-prefix and Preset-name styling were manually accepted as good enough. Treat this checkpoint as the baseline and wait for the user’s next LRBridge task rather than continuing Presets polish.
+- Preserve the intentional local `config/settings.txt` change, ignored handoffs/browser profiles, protected cheat sheets, and `stash@{0}`. No LRBridge restart or Lightroom reload was performed during the final UI-polish/checkpoint work.
+
 ## Accepted checkpoint
 
 - Branch: `feature/v0.6-more-sdk-and-web-controller`.

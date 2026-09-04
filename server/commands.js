@@ -179,6 +179,7 @@ function validateCommand(command) {
         ,"tone_curve.preset.set"
         ,"develop_presets.inventory.request"
         ,"develop_preset.apply"
+        ,"develop_preset.amount.set"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -253,17 +254,36 @@ function validateCommand(command) {
     }
 
     if (command.command === "develop_preset.apply") {
-        return Object.keys(command).length === 9 &&
+        return Object.keys(command).length === 11 && command.operationKind === "preset" &&
+            !Object.prototype.hasOwnProperty.call(command, "presetAmount") &&
             typeof command.operationId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(command.operationId) &&
             typeof command.uuid === "string" && command.uuid.length >= 1 && command.uuid.length <= 200 &&
             !/[\u0000-\u001f\u007f]/.test(command.uuid) &&
-            Number.isSafeInteger(command.presetAmount) && command.presetAmount >= 0 && command.presetAmount <= 200 &&
             typeof command.updateAISettings === "boolean" &&
             command.expectedActiveModule === "develop" &&
             typeof command.expectedSelectedPhotoUuid === "string" && command.expectedSelectedPhotoUuid.length >= 1 &&
             command.expectedSelectedPhotoUuid.length <= 200 &&
             Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
-            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0;
+            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0 &&
+            Number.isSafeInteger(command.expectedContextChangedAt) && command.expectedContextChangedAt >= 0 &&
+            typeof command.expectedServerEpoch === "string" &&
+            /^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch);
+    }
+
+    if (command.command === "develop_preset.amount.set") {
+        return Object.keys(command).length === 10 &&
+            Number.isSafeInteger(command.presetAmount) && command.presetAmount >= 0 && command.presetAmount <= 200 &&
+            typeof command.expectedPresetUuid === "string" && command.expectedPresetUuid.length >= 1 &&
+            command.expectedPresetUuid.length <= 200 && !/[\u0000-\u001f\u007f]/.test(command.expectedPresetUuid) &&
+            command.expectedActiveModule === "develop" &&
+            typeof command.expectedSelectedPhotoUuid === "string" && command.expectedSelectedPhotoUuid.length >= 1 &&
+            command.expectedSelectedPhotoUuid.length <= 200 &&
+            Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
+            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0 &&
+            Number.isSafeInteger(command.expectedContextChangedAt) && command.expectedContextChangedAt >= 0 &&
+            typeof command.expectedServerEpoch === "string" &&
+            /^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) &&
+            Number.isSafeInteger(command.expectedFeedbackId) && command.expectedFeedbackId > 0;
     }
 
     if (command.command === "point_color.value.set") {
@@ -590,7 +610,7 @@ function tryEnqueueCommand(command) {
     }
     command = bindContextBoundDevelopCommand(command);
     if (command === null) return admissionResult(ADMISSION_INVALID);
-    if (command.command === "develop_preset.apply" &&
+    if ((command.command === "develop_preset.apply" || command.command === "develop_preset.amount.set") &&
         (!developPresetAdmissionProvider || !developPresetAdmissionProvider.matches(command, context.getContextFields()))) {
         if (developPresetAdmissionProvider && typeof developPresetAdmissionProvider.onRejected === "function") {
             developPresetAdmissionProvider.onRejected(command, "Develop preset context changed during queue admission.");
@@ -634,6 +654,20 @@ function tryEnqueueCommand(command) {
         for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
             if (commandQueue[index].command === command.command) {
                 return replacePendingAt(index, command, admittedAt, "Coalesced Lens Blur Focus Range:");
+            }
+        }
+    }
+
+    if (command.command === "develop_preset.amount.set") {
+        const admittedAt = Date.now();
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+            if (pending.command === command.command &&
+                pending.expectedPresetUuid === command.expectedPresetUuid &&
+                pending.expectedSelectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+                pending.expectedContextCounter === command.expectedContextCounter &&
+                pending.expectedServerEpoch === command.expectedServerEpoch) {
+                return replacePendingAt(index, command, admittedAt, "Coalesced native Preset Amount:");
             }
         }
     }
@@ -960,7 +994,7 @@ function getNextCommand() {
             command.command === "tone_curve.preset.set") && !pointCurveCommandBindingMatches(command)) continue;
         if (command.command === "lens_blur.depth_visualization.toggle" &&
             !lensBlurDepthVisualizationBindingMatches(command)) continue;
-        if (command.command === "develop_preset.apply" &&
+        if ((command.command === "develop_preset.apply" || command.command === "develop_preset.amount.set") &&
             (!developPresetAdmissionProvider || !developPresetAdmissionProvider.matches(command, context.getContextFields()))) {
             if (developPresetAdmissionProvider && typeof developPresetAdmissionProvider.onRejected === "function") {
                 developPresetAdmissionProvider.onRejected(command, "Develop preset context changed before dequeue.");
@@ -1029,6 +1063,7 @@ function getQueueDiagnostics(nowMs) {
         ,"tone_curve.preset.set": 0
         ,"develop_presets.inventory.request": 0
         ,"develop_preset.apply": 0
+        ,"develop_preset.amount.set": 0
     };
 
     for (const command of commandQueue) {
@@ -1102,7 +1137,8 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.refine_saturation.gesture.end"] +
                     pendingByCommand["tone_curve.preset.set"] +
                     pendingByCommand["develop_presets.inventory.request"] +
-                    pendingByCommand["develop_preset.apply"],
+                    pendingByCommand["develop_preset.apply"] +
+                    pendingByCommand["develop_preset.amount.set"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
                     pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"] +
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +

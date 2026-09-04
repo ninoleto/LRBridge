@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
 
 const CONFIG_VERSION = 1;
 const INVENTORY_TIMEOUT_MS = 20_000;
@@ -17,9 +18,9 @@ const TERMINAL_OUTCOMES = new Set([
     OUTCOME_FAILED
 ]);
 const SUCCESS_OUTCOMES = new Set([OUTCOME_OBSERVED, OUTCOME_NO_CHANGE]);
-const DEFAULT_PRESET_AMOUNT = 100;
 const MIN_PRESET_AMOUNT = 0;
 const MAX_PRESET_AMOUNT = 200;
+const APPLICATION_KIND_PRESET = "preset";
 
 function validIdentity(value, maximumLength) {
     return typeof value === "string" && value.length >= 1 && value.length <= maximumLength &&
@@ -52,9 +53,14 @@ function normalizeConfiguredEntry(entry) {
     if (typeof updateAISettings !== "boolean") {
         throw new TypeError("Develop preset updateAISettings must be boolean");
     }
+    const amountEnabled = entry.amountEnabled === undefined ? false : entry.amountEnabled;
+    if (typeof amountEnabled !== "boolean") {
+        throw new TypeError("Develop preset amountEnabled must be boolean");
+    }
     const normalized = {
         uuid: entry.uuid,
-        updateAISettings: updateAISettings
+        updateAISettings: updateAISettings,
+        amountEnabled: amountEnabled
     };
     const alias = normalizeAlias(entry.alias);
     if (alias !== null) normalized.alias = alias;
@@ -112,7 +118,12 @@ function createDevelopPresetState(options) {
         : options.configPath;
     const fileSystem = options.fs || fs;
     const now = typeof options.now === "function" ? options.now : Date.now;
+    const serverEpoch = options.serverEpoch === undefined
+        ? "preset-" + crypto.randomUUID().replace(/-/g, "")
+        : options.serverEpoch;
+    if (!validRequestId(serverEpoch)) throw new TypeError("Develop preset server epoch is invalid");
     let counter = 0;
+    let stateRevision = 0;
     let configuration = { version: CONFIG_VERSION, presets: [] };
     let configurationError = null;
     let inventory = [];
@@ -122,9 +133,12 @@ function createDevelopPresetState(options) {
     let inventoryRefreshedAt = null;
     let pendingInventory = null;
     let cursorUuid = null;
-    let presetAmount = null;
     const pendingApplications = new Map();
     let lastApplication = null;
+
+    function touchState() {
+        stateRevision += 1;
+    }
 
     function loadConfiguration() {
         if (!configPath) return configuration;
@@ -142,6 +156,7 @@ function createDevelopPresetState(options) {
             }
         }
         reconcileCursor();
+        touchState();
         return configuration;
     }
 
@@ -157,6 +172,12 @@ function createDevelopPresetState(options) {
         configuration = normalized;
         configurationError = null;
         reconcileCursor();
+        for (const pending of Array.from(pendingApplications.values())) {
+            const entry = configuredEntry(pending.uuid);
+            if (!entry) rejectApplication(pending,
+                "Develop preset configuration changed while the operation was pending.");
+        }
+        touchState();
         return getPublicState();
     }
 
@@ -170,21 +191,17 @@ function createDevelopPresetState(options) {
     }
 
     function reconcileCursor() {
-        const previousCursorUuid = cursorUuid;
         if (!hasSuccessfulInventory()) {
             if (!configuredEntry(cursorUuid)) cursorUuid = null;
-            if (cursorUuid !== previousCursorUuid) presetAmount = null;
             return;
         }
         const available = availableConfiguredEntries();
         if (available.length === 0) {
             cursorUuid = null;
-            presetAmount = null;
             return;
         }
         if (!available.some(function (entry) { return entry.uuid === cursorUuid; })) {
             cursorUuid = available[0].uuid;
-            presetAmount = null;
         }
     }
 
@@ -196,7 +213,7 @@ function createDevelopPresetState(options) {
         }
         for (const pending of pendingApplications.values()) {
             if (observedAt - pending.submittedAt > APPLICATION_TIMEOUT_MS) {
-                finishApplication(pending.operationId, pending.uuid, OUTCOME_FAILED,
+                finishApplication(pending.operationId, pending.uuid, serverEpoch, OUTCOME_FAILED,
                     "Lightroom did not return a preset application result.");
             }
         }
@@ -210,6 +227,7 @@ function createDevelopPresetState(options) {
         inventoryStatus = "loading";
         inventoryError = null;
         pendingInventory = { requestId: requestId, startedAt: now(), items: new Map() };
+        touchState();
         return requestId;
     }
 
@@ -233,6 +251,7 @@ function createDevelopPresetState(options) {
             const available = availableConfiguredEntries();
             if (available.length > 0) cursorUuid = available[0].uuid;
         }
+        touchState();
         return true;
     }
 
@@ -241,6 +260,7 @@ function createDevelopPresetState(options) {
         pendingInventory = null;
         inventoryStatus = "error";
         inventoryError = validIdentity(message, 500) ? message : "Develop preset inventory refresh failed.";
+        touchState();
         return true;
     }
 
@@ -252,13 +272,10 @@ function createDevelopPresetState(options) {
         return configuration.presets.find(function (entry) { return entry.uuid === uuid; }) || null;
     }
 
-    function beginApplication(uuid, binding, requestedPresetAmount) {
+    function beginPresetApplication(uuid, binding) {
         expirePending();
         if (pendingApplications.size > 0) {
             throw new Error("Wait for the current Develop preset application to finish");
-        }
-        if (!validPresetAmount(requestedPresetAmount)) {
-            throw new Error("Develop preset Amount must be an integer from 0 through 200");
         }
         const entry = configuredEntry(uuid);
         if (!entry) throw new Error("Develop preset is not configured");
@@ -266,57 +283,79 @@ function createDevelopPresetState(options) {
         if (!inventoryByUuid.has(uuid)) throw new Error("Configured Develop preset UUID is unavailable in Lightroom");
         if (!binding || binding.activeModule !== "develop" || !validIdentity(binding.selectedPhotoUuid, 200) ||
             !Number.isSafeInteger(binding.contextCounter) || binding.contextCounter < 0 ||
-            !Number.isSafeInteger(binding.developCounter) || binding.developCounter < 0) {
+            !Number.isSafeInteger(binding.developCounter) || binding.developCounter < 0 ||
+            !Number.isSafeInteger(binding.contextChangedAt) || binding.contextChangedAt < 0 ||
+            binding.serverEpoch !== serverEpoch) {
             throw new Error("Develop preset application requires a current Develop photo context");
         }
         counter += 1;
         const operation = {
             operationId: operationId("apply", counter, now()),
+            operationKind: APPLICATION_KIND_PRESET,
             uuid: uuid,
-            presetAmount: requestedPresetAmount,
             updateAISettings: entry.updateAISettings,
             expectedActiveModule: binding.activeModule,
             expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
             expectedContextCounter: binding.contextCounter,
             expectedDevelopCounter: binding.developCounter,
+            expectedContextChangedAt: binding.contextChangedAt,
+            expectedServerEpoch: serverEpoch,
             submittedAt: now()
         };
         pendingApplications.set(operation.operationId, operation);
         lastApplication = Object.assign({ outcome: null, detail: "Waiting for Lightroom." }, operation);
+        touchState();
         return Object.assign({}, operation);
     }
 
     function applicationBindingMatches(command, fields) {
         const pending = command && pendingApplications.get(command.operationId);
-        return Boolean(pending && pending.uuid === command.uuid && pending.presetAmount === command.presetAmount &&
+        const entry = pending ? configuredEntry(pending.uuid) : null;
+        return Boolean(pending && pending.uuid === command.uuid && pending.operationKind === command.operationKind &&
+            !Object.prototype.hasOwnProperty.call(command, "presetAmount") && entry &&
             pending.updateAISettings === command.updateAISettings &&
+            command.expectedServerEpoch === serverEpoch &&
             command.expectedActiveModule === "develop" && fields && fields.activeModule === command.expectedActiveModule &&
             fields.selectedPhotoUuid === command.expectedSelectedPhotoUuid &&
             fields.contextCounter === command.expectedContextCounter &&
-            fields.developCounter === command.expectedDevelopCounter);
+            fields.developCounter === command.expectedDevelopCounter &&
+            fields.contextChangedAt === command.expectedContextChangedAt);
     }
 
-    function finishApplication(operationIdValue, uuid, outcome, detail) {
+    function finishApplication(operationIdValue, uuid, serverEpochValue, outcome, detail, settledContext) {
         const pending = pendingApplications.get(operationIdValue);
-        if (!pending || pending.uuid !== uuid || !TERMINAL_OUTCOMES.has(outcome)) return false;
+        if (!pending || pending.uuid !== uuid || serverEpochValue !== serverEpoch ||
+            pending.expectedServerEpoch !== serverEpoch || !TERMINAL_OUTCOMES.has(outcome)) return false;
         pendingApplications.delete(operationIdValue);
         if (SUCCESS_OUTCOMES.has(outcome) && configuredEntry(uuid) && inventoryByUuid.has(uuid)) {
             cursorUuid = uuid;
-            presetAmount = pending.presetAmount;
         } else {
             reconcileCursor();
         }
-        lastApplication = Object.assign({}, pending, {
+        const settlement = settledContext && settledContext.activeModule === "develop" &&
+            typeof settledContext.selectedPhotoUuid === "string" && settledContext.selectedPhotoUuid.length > 0 &&
+            Number.isSafeInteger(settledContext.contextCounter) && Number.isSafeInteger(settledContext.developCounter) &&
+            Number.isSafeInteger(settledContext.contextChangedAt)
+            ? {
+                settledActiveModule: settledContext.activeModule,
+                settledSelectedPhotoUuid: settledContext.selectedPhotoUuid,
+                settledContextCounter: settledContext.contextCounter,
+                settledDevelopCounter: settledContext.developCounter,
+                settledContextChangedAt: settledContext.contextChangedAt
+            }
+            : {};
+        lastApplication = Object.assign({}, pending, settlement, {
             outcome: outcome,
             detail: validIdentity(detail, 500) ? detail : outcome,
             completedAt: now()
         });
+        touchState();
         return true;
     }
 
     function rejectApplication(command, detail) {
         if (!command) return false;
-        return finishApplication(command.operationId, command.uuid, OUTCOME_STALE,
+        return finishApplication(command.operationId, command.uuid, serverEpoch, OUTCOME_STALE,
             detail || "Develop preset application was rejected because its captured context changed.");
     }
 
@@ -335,6 +374,7 @@ function createDevelopPresetState(options) {
         if (lastApplication && lastApplication.operationId === operationIdValue && lastApplication.outcome === null) {
             lastApplication = null;
         }
+        touchState();
         return true;
     }
 
@@ -360,6 +400,7 @@ function createDevelopPresetState(options) {
             uuid: entry.uuid,
             alias: entry.alias || null,
             updateAISettings: entry.updateAISettings,
+            amountEnabled: entry.amountEnabled,
             folder: item ? item.folder : null,
             name: item ? item.name : null,
             available: available,
@@ -372,8 +413,13 @@ function createDevelopPresetState(options) {
         expirePending();
         const configured = configuration.presets.map(publicConfiguredEntry);
         const availableCount = configured.filter(function (entry) { return entry.available; }).length;
+        const pendingOperation = pendingApplications.size > 0
+            ? Object.assign({}, pendingApplications.values().next().value)
+            : null;
         return {
             ok: true,
+            serverEpoch: serverEpoch,
+            stateRevision: stateRevision,
             configuration: { version: CONFIG_VERSION, presets: configuration.presets.map(function (entry) {
                 return Object.assign({}, entry);
             }) },
@@ -387,9 +433,10 @@ function createDevelopPresetState(options) {
             configured: configured,
             availableCount: availableCount,
             cursorUuid: cursorUuid,
-            presetAmount: presetAmount,
+            cursorAmountEnabled: Boolean(configuredEntry(cursorUuid) && configuredEntry(cursorUuid).amountEnabled === true),
             controlsEnabled: hasSuccessfulInventory() && availableCount > 0,
             pendingApplication: pendingApplications.size > 0,
+            pendingOperation: pendingOperation,
             lastApplication: lastApplication ? Object.assign({}, lastApplication) : null
         };
     }
@@ -404,7 +451,7 @@ function createDevelopPresetState(options) {
         cancelInventoryRefresh,
         saveConfiguration,
         loadConfiguration,
-        beginApplication,
+        beginPresetApplication,
         applicationBindingMatches,
         finishApplication,
         rejectApplication,
@@ -423,9 +470,9 @@ module.exports = {
     OUTCOME_FAILED,
     TERMINAL_OUTCOMES,
     SUCCESS_OUTCOMES,
-    DEFAULT_PRESET_AMOUNT,
     MIN_PRESET_AMOUNT,
     MAX_PRESET_AMOUNT,
+    APPLICATION_KIND_PRESET,
     compareInventory,
     normalizeConfiguration,
     normalizeInventoryItem,

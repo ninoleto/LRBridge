@@ -170,8 +170,8 @@ function validateStaticContract() {
     assert.deepEqual(driverIds, ids, "Lua Driver slider map drifted from sliders.json");
     assert.deepEqual(
         sorted(queryIds),
-        sorted(readableIds.concat(["CropAngle"])),
-        "Lua Query readable slider and dedicated Crop Angle feedback set drifted from the baseline"
+        sorted(readableIds.concat(["CropAngle", "PresetAmount"])),
+        "Lua Query readable slider and dedicated Crop Angle/Preset Amount feedback set drifted from the baseline"
     );
     assert.deepEqual(feedbackIds, queryIds, "Lua feedback slider order or definitions drifted from Lua Query");
 

@@ -250,7 +250,7 @@ sliderRenderContext.requestDevelopCategoricalState = function () {};
 sliderRenderContext.getDevelopSectionDisplayLabel = function (section) { return section.label; };
 sliderRenderContext.createDevelopSectionElement = function () { return {}; };
 sliderRenderContext.selectDevelopSectionDefinitions = extractJavaScriptFunction(
-    "selectDevelopSectionDefinitions", "updateTreatmentPresentation", sliderRenderContext
+    "selectDevelopSectionDefinitions", "updateDevelopTreatmentPresentation", sliderRenderContext
 );
 sliderRenderContext.validateDevelopSectionMapping = extractJavaScriptFunction(
     "validateDevelopSectionMapping", "createDevelopCategoricalSelector", sliderRenderContext
@@ -262,8 +262,8 @@ assert.ok(!placementCalls.some((entry) => entry[0] === "actions" && entry[1] ===
     "Auto Tone must not be duplicated through the old Basic Actions placement");
 assert.match(source, /basicActions\.actions\.find\(function \(item\) \{ return item\.action === "setAutoTone"; \}\)/,
     "Compact Auto must reuse the existing Auto Tone action definition");
-assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPresentation = createTreatmentPresentation\(row\)/,
-    "Compact Basic controls must render Auto before B&W");
+assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPresentation = createDevelopTreatmentPresentation\(row\)/,
+    "Compact Basic controls must render Auto before the Lightroom-style B&W control");
 {
     function treatmentClassList() {
         const values = new Set();
@@ -272,83 +272,228 @@ assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPrese
             has(value) { return values.has(value); }
         };
     }
-    function createView() {
+    function createButton(label) {
         const attributes = {};
         return {
             attributes: attributes,
-            button: {
-                disabled: false,
-                classList: treatmentClassList(),
-                title: "",
-                setAttribute(name, value) { attributes[name] = value; }
-            },
+            disabled: false,
+            classList: treatmentClassList(),
+            textContent: label,
+            setAttribute(name, value) { attributes[name] = value; }
+        };
+    }
+    function createDevelopView() {
+        return {
+            button: createButton("B&W"),
             status: { textContent: "" }
         };
     }
-    const developView = createView();
-    const presetView = createView();
+    function createPresetView() {
+        return {
+            colorButton: createButton("Color"),
+            blackAndWhiteButton: createButton("Black & White"),
+            current: { textContent: "" },
+            segments: { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } },
+            warning: { hidden: true }
+        };
+    }
+    const developView = createDevelopView();
+    const presetView = createPresetView();
     const treatmentPresentationContext = {
         treatmentPending: false,
         treatmentHasAuthoritativeState: true,
         treatmentAuthoritativeState: false,
         treatmentStateFresh: true,
-        treatmentPresentations: new Set([developView, presetView]),
-        selectedProfileLabel: "Adaptive Color"
+        developTreatmentPresentations: new Set([developView]),
+        presetTreatmentPresentations: new Set([presetView])
     };
-    treatmentPresentationContext.updateTreatmentPresentation = extractJavaScriptFunction(
-        "updateTreatmentPresentation",
+    treatmentPresentationContext.updateDevelopTreatmentPresentation = extractJavaScriptFunction(
+        "updateDevelopTreatmentPresentation",
+        "updatePresetTreatmentPresentation",
+        treatmentPresentationContext
+    );
+    treatmentPresentationContext.updatePresetTreatmentPresentation = extractJavaScriptFunction(
+        "updatePresetTreatmentPresentation",
         "updateTreatmentButton",
         treatmentPresentationContext
     );
     const updateTreatmentButton = extractJavaScriptFunction(
         "updateTreatmentButton",
-        "createTreatmentPresentation",
+        "createDevelopTreatmentPresentation",
         treatmentPresentationContext
     );
     function assertTreatmentPresentation(grayscale, expectedText) {
+        treatmentPresentationContext.treatmentHasAuthoritativeState = true;
+        treatmentPresentationContext.treatmentStateFresh = true;
+        treatmentPresentationContext.treatmentPending = false;
+        treatmentPresentationContext.treatmentDesiredState = null;
         treatmentPresentationContext.treatmentAuthoritativeState = grayscale;
         updateTreatmentButton();
-        for (const view of [developView, presetView]) {
-            assert.equal(view.button.classList.has("bw-treatment-active"), grayscale,
-                expectedText + " treatment button color drifted");
-            assert.equal(view.attributes["aria-pressed"], String(grayscale),
-                expectedText + " treatment aria-pressed drifted");
+        for (const view of treatmentPresentationContext.developTreatmentPresentations) {
+            assert.equal(view.button.textContent, "B&W",
+                "Develop must never replace the compact B&W button label");
+            assert.equal(view.button.attributes["aria-pressed"], String(grayscale));
+            assert.equal(view.button.classList.has("active"), grayscale,
+                "Develop B&W may use green active styling only for confirmed Black & White");
             assert.equal(view.status.textContent, expectedText,
-                "Both presentations and adjacent statuses must share the authoritative treatment boolean");
+                "Develop must show compact authoritative text beside B&W");
+            assert.equal(view.button.classList.has("pending"), false);
+        }
+        for (const view of treatmentPresentationContext.presetTreatmentPresentations) {
+            assert.equal(view.colorButton.attributes["aria-pressed"], String(!grayscale));
+            assert.equal(view.blackAndWhiteButton.attributes["aria-pressed"], String(grayscale));
+            assert.equal(view.colorButton.textContent, grayscale ? "Color" : "✓ Color");
+            assert.equal(view.blackAndWhiteButton.textContent,
+                grayscale ? "✓ Black & White" : "Black & White");
+            assert.equal(view.current.textContent, "Current: " + expectedText,
+                "Presets must report the same authoritative treatment state");
+            assert.equal(view.warning.hidden, !grayscale,
+                "Only the Presets renderer may show the authoritative B&W warning");
+            assert.equal(view.colorButton.classList.has("pending"), false);
+            assert.equal(view.blackAndWhiteButton.classList.has("pending"), false);
         }
     }
     assertTreatmentPresentation(false, "Color");
     assertTreatmentPresentation(true, "Black & White");
-    treatmentPresentationContext.selectedProfileLabel = "Adobe Color";
-    assertTreatmentPresentation(true, "Black & White");
-    treatmentPresentationContext.selectedProfileLabel = "Adaptive Color";
-    assertTreatmentPresentation(true, "Black & White");
-    treatmentPresentationContext.selectedProfileLabel = "Adobe Monochrome";
-    assertTreatmentPresentation(true, "Black & White");
-    assertTreatmentPresentation(false, "Color");
-    treatmentPresentationContext.selectedProfileLabel = "Adaptive B&W";
-    assertTreatmentPresentation(false, "Color");
-    assertTreatmentPresentation(true, "Black & White");
-    assertTreatmentPresentation(false, "Color");
+
+    treatmentPresentationContext.treatmentAuthoritativeState = false;
     treatmentPresentationContext.treatmentPending = true;
     treatmentPresentationContext.treatmentDesiredState = true;
     updateTreatmentButton();
-    for (const view of [developView, presetView]) {
-        assert.equal(view.button.classList.has("bw-treatment-active"), false,
-            "A Web Controller click must not optimistically activate either B&W presentation");
-        assert.equal(view.attributes["aria-pressed"], "false");
-        assert.equal(view.status.textContent, "Applying…");
+    assert.equal(developView.button.textContent, "B&W");
+    assert.equal(developView.button.attributes["aria-pressed"], "false");
+    assert.equal(developView.button.classList.has("active"), false,
+        "Pending B&W must retain the neutral confirmed-Color styling");
+    assert.equal(developView.button.classList.has("pending"), true);
+    assert.equal(developView.status.textContent, "Color");
+    for (const view of treatmentPresentationContext.presetTreatmentPresentations) {
+        assert.equal(view.colorButton.attributes["aria-pressed"], "true",
+            "Pending B&W must retain confirmed Color selection");
+        assert.equal(view.blackAndWhiteButton.attributes["aria-pressed"], "false",
+            "Pending B&W must not become selected before Lightroom confirms it");
+        assert.equal(view.blackAndWhiteButton.classList.has("pending"), true);
+        assert.equal(view.colorButton.classList.has("pending"), false);
+        assert.equal(view.current.textContent, "Current: Color");
+        assert.equal(view.warning.hidden, true);
     }
+
+    treatmentPresentationContext.treatmentPending = false;
+    treatmentPresentationContext.treatmentDesiredState = null;
+    updateTreatmentButton();
+    assert.equal(developView.button.attributes["aria-pressed"], "false");
+    assert.equal(developView.button.classList.has("pending"), false);
+    for (const view of treatmentPresentationContext.presetTreatmentPresentations) {
+        assert.equal(view.colorButton.attributes["aria-pressed"], "true",
+            "A failed transition must retain the last confirmed Color selection");
+        assert.equal(view.blackAndWhiteButton.classList.has("pending"), false,
+            "A failed transition must clear requested-state styling");
+    }
+
+    treatmentPresentationContext.treatmentAuthoritativeState = true;
+    treatmentPresentationContext.treatmentPending = true;
+    treatmentPresentationContext.treatmentDesiredState = false;
+    updateTreatmentButton();
+    assert.equal(developView.button.textContent, "B&W");
+    assert.equal(developView.button.attributes["aria-pressed"], "true",
+        "Develop must retain confirmed B&W while Color is pending");
+    assert.equal(developView.button.classList.has("active"), true,
+        "Pending Color must retain the green confirmed-B&W styling");
+    assert.equal(developView.status.textContent, "Black & White");
+    for (const view of treatmentPresentationContext.presetTreatmentPresentations) {
+        assert.equal(view.blackAndWhiteButton.attributes["aria-pressed"], "true",
+            "Pending Color must retain confirmed B&W selection");
+        assert.equal(view.colorButton.attributes["aria-pressed"], "false");
+        assert.equal(view.colorButton.classList.has("pending"), true);
+        assert.equal(view.current.textContent, "Current: Black & White");
+        assert.equal(view.warning.hidden, false,
+            "The B&W warning must remain until Lightroom authoritatively confirms Color");
+    }
+
+    treatmentPresentationContext.treatmentPending = false;
+    treatmentPresentationContext.treatmentDesiredState = null;
+    treatmentPresentationContext.treatmentStateFresh = false;
+    updateTreatmentButton();
+    assert.equal(developView.button.textContent, "B&W");
+    assert.equal(developView.button.attributes["aria-pressed"], "false");
+    assert.equal(developView.status.textContent, "Treatment unavailable");
+    assert.equal(developView.button.disabled, true);
+    for (const view of treatmentPresentationContext.presetTreatmentPresentations) {
+        assert.equal(view.colorButton.attributes["aria-pressed"], "false");
+        assert.equal(view.blackAndWhiteButton.attributes["aria-pressed"], "false");
+        assert.equal(view.current.textContent, "Current mode unavailable");
+        assert.equal(view.warning.hidden, true);
+        assert.equal(view.colorButton.disabled, true);
+        assert.equal(view.blackAndWhiteButton.disabled, true);
+    }
+
+    treatmentPresentationContext.treatmentStateFresh = true;
+    treatmentPresentationContext.treatmentAuthoritativeState = true;
+    const rerenderedDevelopView = createDevelopView();
+    const rerenderedPresetView = createPresetView();
+    treatmentPresentationContext.developTreatmentPresentations.add(rerenderedDevelopView);
+    treatmentPresentationContext.presetTreatmentPresentations.add(rerenderedPresetView);
+    treatmentPresentationContext.updateDevelopTreatmentPresentation(rerenderedDevelopView);
+    treatmentPresentationContext.updatePresetTreatmentPresentation(rerenderedPresetView);
+    assert.equal(rerenderedDevelopView.button.textContent, "B&W");
+    assert.equal(rerenderedDevelopView.button.attributes["aria-pressed"], "true");
+    assert.equal(rerenderedDevelopView.status.textContent, "Black & White");
+    assert.equal(rerenderedPresetView.blackAndWhiteButton.attributes["aria-pressed"], "true");
+    assert.equal(rerenderedPresetView.current.textContent, "Current: Black & White");
+    assert.equal(rerenderedPresetView.warning.hidden, false);
 }
 const treatmentPresentationSource = source.slice(
-    source.indexOf("function updateTreatmentPresentation("),
+    source.indexOf("function updateDevelopTreatmentPresentation("),
     source.indexOf("function invalidateTreatmentState(")
 );
-assert.doesNotMatch(treatmentPresentationSource, /profile/i,
-    "B&W button presentation must not inspect Profile labels or families");
+const developTreatmentFactorySource = source.slice(
+    source.indexOf("function createDevelopTreatmentPresentation("),
+    source.indexOf("function createPresetTreatmentPresentation(")
+);
+const presetTreatmentFactorySource = source.slice(
+    source.indexOf("function createPresetTreatmentPresentation("),
+    source.indexOf("function disposeDevelopTreatmentPresentation(")
+);
+assert.match(developTreatmentFactorySource,
+    /makeButton\("B&W", "command-neutral develop-treatment-button"/);
+assert.match(treatmentPresentationSource,
+    /presentation\.button\.classList\.toggle\("active", authoritativeBlackAndWhite\)/,
+    "Develop green active styling must follow only authoritative Black & White state");
+assert.doesNotMatch(developTreatmentFactorySource,
+    /PHOTO MODE|preset-treatment-segment|preset-treatment-warning|warningMessage/,
+    "Develop Sliders must not reuse the Presets Photo Mode or warning renderer");
+assert.match(presetTreatmentFactorySource, /label\.textContent = "PHOTO MODE"/);
+assert.match(presetTreatmentFactorySource, /preset-treatment-segment-color/);
+assert.match(presetTreatmentFactorySource, /preset-treatment-warning/);
+assert.doesNotMatch(treatmentPresentationSource, /selectedProfileLabel|profileModel|authoritativeProfile/i,
+    "Treatment presentation must not inspect Profile labels or families");
+assert.match(treatmentPresentationSource,
+    /const treatmentAvailable = treatmentHasAuthoritativeState && treatmentStateFresh/,
+    "Stale or unavailable Treatment feedback must select neither segment");
+assert.match(treatmentPresentationSource,
+    /presentation\.warning\.hidden = !authoritativeBlackAndWhite/,
+    "The warning must disappear only after authoritative Color feedback");
+assert.match(treatmentPresentationSource,
+    /BLACK & WHITE MODE IS ACTIVE/,
+    "The Presets treatment presentation must include the prominent warning title");
+assert.match(treatmentPresentationSource,
+    /Some color presets and profiles switch the photo back to Color automatically, while others leave it in Black & White\. If the photo stays B&W, choose Color above\./,
+    "The Presets treatment presentation must include the exact recovery guidance");
+assert.doesNotMatch(treatmentPresentationSource,
+    /Tap Color to return to color|Return to Color|Switch to Black & White/,
+    "Neither Treatment renderer may use destination-action wording");
 assert.match(source,
     /treatmentAuthoritativeState = snapshot\.grayscale;[\s\S]*treatmentHasAuthoritativeState = true;[\s\S]*updateTreatmentButton\(\)/,
-    "Direct authoritative Lightroom treatment feedback must update the B&W button");
+    "Direct authoritative Lightroom treatment feedback must update both treatment presentations");
+assert.match(source, /return setTreatment\(false\)/);
+assert.match(source, /return setTreatment\(true\)/);
+assert.match(source, /const mode = grayscale \? "grayscale" : "color"/,
+    "Each inactive segment must request its explicit treatment destination");
+assert.match(source,
+    /if \(!sent\) \{[\s\S]*treatmentPending = false;[\s\S]*treatmentDesiredState = null;[\s\S]*updateTreatmentButton\(\)/,
+    "A failed Treatment command must clear only pending intent and retain confirmed state");
+assert.match(source,
+    /catch \(err\) \{[\s\S]*treatmentStateFresh = false;[\s\S]*updateTreatmentButton\(\)/,
+    "Unavailable Treatment feedback must immediately clear both selected segments");
 assert.equal(new Set(placementCalls.map((entry) => entry.join(":"))).size, placementCalls.length,
     "Develop action or switch placements must not be duplicated by multi-source sections");
 
@@ -665,8 +810,9 @@ assert.equal(commands.validateCommand({ command: "photo.treatment", value: "gray
     "Treatment backend compatibility must remain available");
 assert.equal(commands.validateCommand({ command: "photo.treatment", value: "color" }), true,
     "Color treatment backend compatibility must remain available");
-assert.match(source, /makeButton\("B&W", "command-neutral", toggleTreatment\)/,
-    "The shared Develop Sliders and Presets B&W treatment control must remain available");
+assert.match(source,
+    /makeButton\("B&W", "command-neutral develop-treatment-button"[\s\S]*makeButton\("Color", "preset-treatment-segment preset-treatment-segment-color"[\s\S]*makeButton\("Black & White",[\s\S]*"preset-treatment-segment preset-treatment-segment-bw"/,
+    "Develop and Presets must keep separate compact and segmented Treatment presentations");
 assert.match(source, /command=photo\.treatment&value=/,
     "Both treatment presentations must retain the existing HTTP command path");
 assert.deepEqual(

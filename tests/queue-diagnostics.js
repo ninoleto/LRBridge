@@ -90,7 +90,8 @@ function emptyDiagnostics() {
                     "tone_curve.refine_saturation.reset": 0,
                     "tone_curve.preset.set": 0,
                     "develop_presets.inventory.request": 0,
-                    "develop_preset.apply": 0
+                    "develop_preset.apply": 0,
+                    "develop_preset.amount.set": 0
                 }
             }
         },
@@ -262,7 +263,8 @@ function testCoreMetrics() {
         "tone_curve.refine_saturation.reset": 0,
         "tone_curve.preset.set": 0,
         "develop_presets.inventory.request": 0,
-        "develop_preset.apply": 0
+        "develop_preset.apply": 0,
+        "develop_preset.amount.set": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);

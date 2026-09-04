@@ -4,7 +4,8 @@
     {
       "uuid": "replace-with-lightroom-develop-preset-uuid",
       "alias": "Optional controller label",
-      "updateAISettings": false
+      "updateAISettings": false,
+      "amountEnabled": false
     }
   ]
 }

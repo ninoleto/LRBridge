@@ -77,6 +77,7 @@ function Commands.execute(command)
     if command.command == "tone_curve.preset.set" then ToneCurve.setPreset(command); return end
     if command.command == "develop_presets.inventory.request" then DevelopPresets.refreshInventory(command.requestId); return end
     if command.command == "develop_preset.apply" then DevelopPresets.apply(command); return end
+    if command.command == "develop_preset.amount.set" then DevelopPresets.setAmount(command); return end
 
     if command.command == "develop.adjust" then
 

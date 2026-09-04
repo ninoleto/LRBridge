@@ -409,8 +409,9 @@
 
         .basic-controls-row {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 8px;
+            flex-wrap: wrap;
             padding: 10px 12px;
             margin-bottom: 12px;
             background: #111a23;
@@ -430,6 +431,126 @@
         .basic-controls-status {
             color: #d6a75b;
             font-size: 12px;
+        }
+
+        .basic-controls-row .develop-treatment-button.pending {
+            opacity: 0.65;
+        }
+
+        .preset-treatment-control {
+            display: grid;
+            gap: 7px;
+            flex: 1 1 360px;
+            min-width: 280px;
+        }
+
+        .preset-treatment-control-header {
+            display: grid;
+            gap: 2px;
+        }
+
+        .preset-treatment-control-label {
+            color: #8fa2b3;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+        }
+
+        .preset-treatment-current {
+            color: #d7e1ea;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .preset-treatment-segments {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 2px;
+            max-width: 420px;
+            padding: 2px;
+            background: #0d141b;
+            border: 1px solid #344352;
+            border-radius: 8px;
+        }
+
+        .preset-treatment-segments .preset-treatment-segment {
+            min-width: 0;
+            min-height: 44px;
+            padding: 8px 12px;
+            background: #202b35;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            color: #b9c7d2;
+            font-weight: 600;
+        }
+
+        .preset-treatment-segments .preset-treatment-segment:hover:not(:disabled) {
+            background: #293845;
+            border-color: #52697b;
+            color: #ffffff;
+        }
+
+        .preset-treatment-segments .preset-treatment-segment[aria-pressed="true"] {
+            background: #244d68;
+            border-color: #6398bb;
+            color: #ffffff;
+            box-shadow: inset 0 -2px 0 #75aed3;
+        }
+
+        .preset-treatment-segments .preset-treatment-segment-bw[aria-pressed="true"] {
+            background: #343d46;
+            border-color: #788896;
+            box-shadow: inset 0 -2px 0 #9ba8b3;
+        }
+
+        .preset-treatment-segments .preset-treatment-segment.pending {
+            border-color: #6f9ebc;
+            border-style: dashed;
+            opacity: 0.72;
+        }
+
+        .preset-treatment-segments[aria-busy="true"] .preset-treatment-segment[aria-pressed="true"] {
+            opacity: 1;
+        }
+
+        .preset-treatment-warning {
+            box-sizing: border-box;
+            display: grid;
+            gap: 4px;
+            width: 100%;
+            margin: 0;
+            padding: 9px 11px;
+            background: #2a1d0d;
+            border: 1px solid #a96f1b;
+            border-left: 4px solid #e0a038;
+            border-radius: 6px;
+            color: #f3e3c1;
+        }
+
+        .preset-treatment-warning-header {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .preset-treatment-warning-icon {
+            flex: 0 0 auto;
+            color: #f2b84b;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .preset-treatment-warning-title {
+            color: #ffd179;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.055em;
+        }
+
+        .preset-treatment-warning-message {
+            color: #f0dfbd;
+            font-size: 12px;
+            line-height: 1.4;
         }
 
         [hidden] { display: none !important; }
@@ -1158,14 +1279,6 @@
             background: #56626e;
         }
 
-        .basic-controls-row button.bw-treatment-active,
-        .basic-controls-row button.bw-treatment-active:hover {
-            background: #178447;
-            border-color: #65e08c;
-            color: #ffffff;
-            box-shadow: 0 0 0 2px rgba(101, 224, 140, 0.28);
-        }
-
         button.command-success,
         button.label-green {
             background: #27613d;
@@ -1419,11 +1532,51 @@
         }
 
         .develop-presets-controller-title {
-            margin: 0 0 10px;
+            margin: 0 0 4px;
             color: #9fb0bf;
             font-size: 12px;
             font-weight: 700;
             letter-spacing: 0.12em;
+        }
+
+        .develop-presets-controller-help {
+            margin: 0 0 10px;
+            color: #aebdc8;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .develop-preset-ai-guidance {
+            box-sizing: border-box;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            width: 100%;
+            margin: 8px 0 0;
+            padding: 8px 10px;
+            background: #10202c;
+            border-left: 3px solid #3d8fb8;
+            border-radius: 4px;
+            color: #9bc8e5;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 400;
+            line-height: 1.4;
+        }
+
+        .develop-preset-ai-guidance-icon {
+            display: inline-flex;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            width: 15px;
+            height: 15px;
+            margin-top: 1px;
+            border: 1px solid #3d8fb8;
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
         }
 
         .develop-presets-controller-row {
@@ -1498,19 +1651,25 @@
             font-size: 20px;
         }
 
+        .develop-preset-amount-capability-note {
+            grid-column: 1 / -1;
+            margin: 0;
+            color: #aebdc8;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .develop-preset-amount-unavailable-emphasis {
+            color: #f4f7fa;
+            font-weight: 700;
+        }
+
         .develop-preset-treatment {
             margin-top: 10px;
         }
 
         .develop-preset-treatment .basic-controls-row {
             margin-bottom: 6px;
-        }
-
-        .develop-preset-treatment-note {
-            margin: 0;
-            color: #9fb0bf;
-            font-size: 12px;
-            line-height: 1.45;
         }
 
         .develop-preset-navigation {
@@ -1535,6 +1694,29 @@
             min-width: 0;
             max-width: 100%;
             min-height: 48px;
+        }
+
+        .develop-preset-config-field.alias input[type="text"] {
+            padding: 9px 10px;
+            background: #080b10;
+            color: #f3c65f;
+            caret-color: #f3c65f;
+            border: 1px solid #42505c;
+            border-radius: 6px;
+        }
+
+        .develop-preset-config-field.alias input[type="text"]::placeholder {
+            color: #8f8773;
+            opacity: 1;
+        }
+
+        .develop-preset-config-field.alias input[type="text"]:focus-visible {
+            border-color: #7cc7ff;
+        }
+
+        .develop-preset-config-field.alias input[type="text"]::selection {
+            background: #315f7c;
+            color: #fff0c2;
         }
 
         .develop-preset-current-button {
@@ -1665,7 +1847,7 @@
 
         .develop-preset-config-row {
             display: grid;
-            grid-template-columns: minmax(100px, 0.8fr) minmax(130px, 1fr) minmax(150px, 1fr) minmax(145px, auto) minmax(235px, auto);
+            grid-template-columns: minmax(100px, 0.8fr) minmax(130px, 1fr) minmax(150px, 1fr) minmax(270px, auto) minmax(235px, auto);
             gap: 8px;
             align-items: end;
             min-width: 0;
@@ -1699,19 +1881,108 @@
             overflow-wrap: anywhere;
         }
 
-        .develop-preset-config-field.ai {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 44px;
-            color: #d7e1ea;
+        .develop-preset-config-field.preset .develop-preset-config-field-value {
+            font-size: 17px;
+            font-weight: 700;
         }
 
-        .develop-preset-config-field.ai input {
-            width: 20px;
-            height: 20px;
-            flex: 0 0 auto;
-            accent-color: #46c4b5;
+        .develop-preset-config-options-block {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .develop-preset-options-heading {
+            color: #8fa2b3;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .develop-preset-config-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            align-items: stretch;
+            min-width: 0;
+        }
+
+        .develop-preset-option-toggle {
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: 46px minmax(0, 1fr);
+            align-items: center;
+            gap: 9px;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 72px;
+            padding: 8px 10px;
+            color: #d7e1ea;
+            background: #111a22;
+            border: 1px solid #405263;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .develop-preset-option-track {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            width: 44px;
+            height: 26px;
+            padding: 3px;
+            background: #3b4854;
+            border: 1px solid #677887;
+            border-radius: 999px;
+            transition: background 120ms ease, border-color 120ms ease;
+        }
+
+        .develop-preset-option-thumb {
+            width: 18px;
+            height: 18px;
+            background: #d4dde5;
+            border-radius: 50%;
+            transform: translateX(0);
+            transition: transform 120ms ease;
+        }
+
+        .develop-preset-option-toggle.enabled {
+            background: #172c37;
+            border-color: #477f94;
+        }
+
+        .develop-preset-option-toggle.enabled .develop-preset-option-track {
+            background: #286b80;
+            border-color: #5a92a5;
+        }
+
+        .develop-preset-option-toggle.enabled .develop-preset-option-thumb {
+            background: #edfaff;
+            transform: translateX(18px);
+        }
+
+        .develop-preset-option-copy {
+            display: grid;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .develop-preset-option-title {
+            font-weight: 700;
+        }
+
+        .develop-preset-option-help {
+            color: #aebdc8;
+            font-size: 11px;
+            font-weight: 400;
+            line-height: 1.3;
+        }
+
+        .develop-preset-option-toggle:focus-visible {
+            outline: 3px solid #66a9c7;
+            outline-offset: 2px;
         }
 
         .develop-preset-config-actions {
@@ -1961,12 +2232,22 @@
             }
 
             .develop-preset-config-actions,
+            .develop-preset-config-options-block,
             .develop-preset-config-error {
                 grid-column: 1 / -1;
             }
         }
 
         @media (max-width: 680px) {
+            .preset-treatment-control {
+                flex-basis: 100%;
+                min-width: 0;
+            }
+
+            .preset-treatment-segments {
+                max-width: none;
+            }
+
             .develop-presets-controller-row {
                 grid-template-columns: 1fr 1fr;
             }
@@ -1998,6 +2279,10 @@
             }
 
             .develop-preset-config-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .develop-preset-config-options {
                 grid-template-columns: minmax(0, 1fr);
             }
 
@@ -4658,7 +4943,8 @@
         let treatmentStateFresh = false;
         let treatmentPending = false;
         let treatmentDesiredState = null;
-        const treatmentPresentations = new Set();
+        const developTreatmentPresentations = new Set();
+        const presetTreatmentPresentations = new Set();
         let developTreatmentPresentation = null;
         let pointColorState = { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false };
         let pointColorRequestInFlight = false;
@@ -4714,11 +5000,12 @@
                     activeModule: lastControllerActiveModule,
                     selectedPhotoUuid: lastControllerSelectedPhotoUuid,
                     contextCounter: lastControllerContextCounter,
-                    developCounter: lastControllerDevelopCounter
+                    developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt
                 };
             },
             createTreatmentPresentation: function () {
-                return createTreatmentPresentation(null, "develop-preset-treatment-row");
+                return createPresetTreatmentPresentation("develop-preset-treatment-row");
             }
         });
 
@@ -10442,43 +10729,139 @@
             return selected;
         }
 
-        function updateTreatmentPresentation(presentation) {
+        function updateDevelopTreatmentPresentation(presentation) {
             if (!presentation || !presentation.button || !presentation.status) return;
-            const authoritativeBlackAndWhite = treatmentHasAuthoritativeState &&
+            const treatmentAvailable = treatmentHasAuthoritativeState && treatmentStateFresh;
+            const authoritativeBlackAndWhite = treatmentAvailable &&
                 treatmentAuthoritativeState === true;
-            presentation.button.disabled = treatmentPending || !treatmentHasAuthoritativeState;
+            presentation.button.disabled = treatmentPending || !treatmentAvailable;
             presentation.button.setAttribute("aria-pressed", String(authoritativeBlackAndWhite));
-            presentation.button.classList.toggle("bw-treatment-active", authoritativeBlackAndWhite);
+            presentation.button.setAttribute("aria-busy", String(treatmentPending));
+            presentation.button.classList.toggle("active", authoritativeBlackAndWhite);
             presentation.button.classList.toggle("pending", treatmentPending);
-            presentation.button.title = authoritativeBlackAndWhite ? "Black & White mode" : "Color mode";
-            presentation.status.textContent = treatmentPending ? "Applying…" :
-                (!treatmentHasAuthoritativeState ? "Loading treatment…" :
-                    (treatmentStateFresh ? (authoritativeBlackAndWhite ? "Black & White" : "Color") : "Treatment unavailable"));
+            presentation.button.textContent = "B&W";
+            presentation.status.textContent = treatmentAvailable
+                ? (authoritativeBlackAndWhite ? "Black & White" : "Color")
+                : "Treatment unavailable";
+        }
+
+        function updatePresetTreatmentPresentation(presentation) {
+            if (!presentation || !presentation.colorButton || !presentation.blackAndWhiteButton ||
+                !presentation.current || !presentation.warning || !presentation.segments) return;
+            const treatmentAvailable = treatmentHasAuthoritativeState && treatmentStateFresh;
+            const authoritativeBlackAndWhite = treatmentAvailable &&
+                treatmentAuthoritativeState === true;
+            const authoritativeColor = treatmentAvailable && treatmentAuthoritativeState === false;
+            const colorPending = treatmentPending && treatmentDesiredState === false;
+            const blackAndWhitePending = treatmentPending && treatmentDesiredState === true;
+            presentation.colorButton.disabled = treatmentPending || !treatmentAvailable;
+            presentation.blackAndWhiteButton.disabled = treatmentPending || !treatmentAvailable;
+            presentation.colorButton.setAttribute("aria-pressed", String(authoritativeColor));
+            presentation.blackAndWhiteButton.setAttribute("aria-pressed", String(authoritativeBlackAndWhite));
+            presentation.colorButton.setAttribute("aria-busy", String(colorPending));
+            presentation.blackAndWhiteButton.setAttribute("aria-busy", String(blackAndWhitePending));
+            presentation.colorButton.classList.toggle("pending", colorPending);
+            presentation.blackAndWhiteButton.classList.toggle("pending", blackAndWhitePending);
+            presentation.colorButton.textContent = (authoritativeColor ? "✓ " : "") + "Color";
+            presentation.blackAndWhiteButton.textContent =
+                (authoritativeBlackAndWhite ? "✓ " : "") + "Black & White";
+            presentation.colorButton.setAttribute("aria-label", colorPending ? "Color, change pending" : "Color");
+            presentation.blackAndWhiteButton.setAttribute("aria-label",
+                blackAndWhitePending ? "Black & White, change pending" : "Black & White");
+            presentation.segments.setAttribute("aria-busy", String(treatmentPending));
+            presentation.current.textContent = treatmentAvailable
+                ? "Current: " + (authoritativeBlackAndWhite ? "Black & White" : "Color")
+                : "Current mode unavailable";
+            presentation.warning.hidden = !authoritativeBlackAndWhite;
         }
 
         function updateTreatmentButton() {
-            treatmentPresentations.forEach(updateTreatmentPresentation);
+            developTreatmentPresentations.forEach(updateDevelopTreatmentPresentation);
+            presetTreatmentPresentations.forEach(updatePresetTreatmentPresentation);
         }
 
-        function createTreatmentPresentation(existingRow, additionalClassName) {
-            const row = existingRow || document.createElement("div");
-            if (!existingRow) row.className = "basic-controls-row";
-            if (additionalClassName) row.classList.add(additionalClassName);
-            const button = makeButton("B&W", "command-neutral", toggleTreatment);
+        function createDevelopTreatmentPresentation(row) {
+            const button = makeButton("B&W", "command-neutral develop-treatment-button", function () {
+                return setTreatment(!treatmentAuthoritativeState);
+            });
             const status = document.createElement("span");
             status.className = "basic-controls-status";
-            row.appendChild(button);
-            row.appendChild(status);
+            row.append(button, status);
             const presentation = {
                 element: row,
                 button: button,
                 status: status,
                 dispose: function () {
-                    treatmentPresentations.delete(presentation);
+                    developTreatmentPresentations.delete(presentation);
                 }
             };
-            treatmentPresentations.add(presentation);
-            updateTreatmentPresentation(presentation);
+            developTreatmentPresentations.add(presentation);
+            updateDevelopTreatmentPresentation(presentation);
+            return presentation;
+        }
+
+        function createPresetTreatmentPresentation(additionalClassName) {
+            const row = document.createElement("div");
+            row.className = "basic-controls-row";
+            if (additionalClassName) row.classList.add(additionalClassName);
+            const control = document.createElement("div");
+            control.className = "preset-treatment-control";
+            const header = document.createElement("div");
+            header.className = "preset-treatment-control-header";
+            const label = document.createElement("span");
+            label.className = "preset-treatment-control-label";
+            label.textContent = "PHOTO MODE";
+            const current = document.createElement("span");
+            current.className = "preset-treatment-current";
+            current.setAttribute("role", "status");
+            current.setAttribute("aria-live", "polite");
+            header.append(label, current);
+            const segments = document.createElement("div");
+            segments.className = "preset-treatment-segments";
+            segments.setAttribute("role", "group");
+            segments.setAttribute("aria-label", "Photo mode");
+            const colorButton = makeButton("Color", "preset-treatment-segment preset-treatment-segment-color", function () {
+                return setTreatment(false);
+            });
+            const blackAndWhiteButton = makeButton("Black & White",
+                "preset-treatment-segment preset-treatment-segment-bw", function () {
+                    return setTreatment(true);
+                });
+            segments.append(colorButton, blackAndWhiteButton);
+            const warning = document.createElement("div");
+            warning.className = "preset-treatment-warning";
+            warning.setAttribute("role", "alert");
+            warning.hidden = true;
+            const warningHeader = document.createElement("div");
+            warningHeader.className = "preset-treatment-warning-header";
+            const warningIcon = document.createElement("span");
+            warningIcon.className = "preset-treatment-warning-icon";
+            warningIcon.setAttribute("aria-hidden", "true");
+            warningIcon.textContent = "⚠";
+            const warningTitle = document.createElement("span");
+            warningTitle.className = "preset-treatment-warning-title";
+            warningTitle.textContent = "BLACK & WHITE MODE IS ACTIVE";
+            warningHeader.append(warningIcon, warningTitle);
+            const warningMessage = document.createElement("div");
+            warningMessage.className = "preset-treatment-warning-message";
+            warningMessage.textContent =
+                "Some color presets and profiles switch the photo back to Color automatically, while others leave it in Black & White. If the photo stays B&W, choose Color above.";
+            warning.append(warningHeader, warningMessage);
+            control.append(header, segments, warning);
+            row.appendChild(control);
+            const presentation = {
+                element: row,
+                colorButton: colorButton,
+                blackAndWhiteButton: blackAndWhiteButton,
+                current: current,
+                segments: segments,
+                warning: warning,
+                dispose: function () {
+                    presetTreatmentPresentations.delete(presentation);
+                }
+            };
+            presetTreatmentPresentations.add(presentation);
+            updatePresetTreatmentPresentation(presentation);
             return presentation;
         }
 
@@ -10553,16 +10936,17 @@
             }
         }
 
-        async function toggleTreatment() {
-            if (treatmentPending || !treatmentHasAuthoritativeState) return;
+        async function setTreatment(grayscale) {
+            if (treatmentPending || !treatmentHasAuthoritativeState || !treatmentStateFresh ||
+                typeof grayscale !== "boolean" || treatmentAuthoritativeState === grayscale) return;
             treatmentGeneration += 1;
             if (treatmentAbortController) treatmentAbortController.abort();
             treatmentAbortController = null;
             treatmentRequestInFlight = false;
             treatmentPending = true;
-            treatmentDesiredState = !treatmentAuthoritativeState;
+            treatmentDesiredState = grayscale;
             updateTreatmentButton();
-            const mode = treatmentAuthoritativeState ? "color" : "grayscale";
+            const mode = grayscale ? "grayscale" : "color";
             const sent = await sendCommand("/api/command?command=photo.treatment&value=" + encodeURIComponent(mode));
             if (!sent) {
                 treatmentPending = false;
@@ -11248,7 +11632,7 @@
                 registerAutoActionButton(autoTone.action, autoButton);
                 row.appendChild(autoButton);
             }
-            developTreatmentPresentation = createTreatmentPresentation(row);
+            developTreatmentPresentation = createDevelopTreatmentPresentation(row);
             content.appendChild(row);
         }
 

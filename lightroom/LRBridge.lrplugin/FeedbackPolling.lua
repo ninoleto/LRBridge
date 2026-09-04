@@ -14,6 +14,7 @@ local History = require "History"
 local LensBlur = require "LensBlur"
 local DevelopCategorical = require "DevelopCategorical"
 local ToneCurve = require "ToneCurve"
+local DevelopPresets = require "DevelopPresets"
 
 local function getPortableRoot()
 
@@ -43,6 +44,7 @@ end
 local watchedSliders = {
     "CropAngle",
     "ProfileAmount",
+    "PresetAmount",
     "Exposure",
     "Contrast",
     "Highlights",
@@ -155,6 +157,7 @@ local watchedSliders = {
 }
 
 local contextBoundSliders = {
+    PresetAmount = true,
     HDREditMode = true,
     HDRMaxValue = true,
     SDRBrightness = true,
@@ -828,11 +831,12 @@ _G.LRBridgeFeedbackPollingStarted = true
 
 LrTasks.startAsyncTask(function()
 
-    LrFunctionContext.callWithContext("LRBridge Tone Curve feedback observer", function(observerContext)
+    LrFunctionContext.callWithContext("LRBridge Develop feedback observers", function(observerContext)
 
     log("feedback request polling loop started")
 
     local toneCurveObserverInstalled = false
+    local presetAmountObserverInstalled = false
 
     while _G.LRBridgeFeedbackPollingStarted == true do
 
@@ -877,9 +881,23 @@ LrTasks.startAsyncTask(function()
             end
         end
 
+        if presetAmountObserverInstalled ~= true and getActiveModule() == "develop" then
+            local observerIdentity = getSelectedPhotoIdentity()
+            if observerIdentity.photo ~= nil and observerIdentity.uuid ~= "" then
+                presetAmountObserverInstalled = DevelopPresets.installAmountObserver(observerContext)
+            end
+        end
+
         local toneCurveDirty = false
-        if _G.LRBridgeCommandBusy ~= true then toneCurveDirty = ToneCurve.consumeDirty() end
-        maybeSendContextHeartbeat(toneCurveDirty)
+        local presetAmountDirty = false
+        if _G.LRBridgeCommandBusy ~= true then
+            toneCurveDirty = ToneCurve.consumeDirty()
+            presetAmountDirty = DevelopPresets.consumeAmountDirty()
+        end
+        maybeSendContextHeartbeat(toneCurveDirty or presetAmountDirty)
+        if presetAmountDirty then
+            LrHttp.get("http://127.0.0.1:17891/feedback/request?slider=PresetAmount")
+        end
 
         local enhanceRequest = LrHttp.get("http://127.0.0.1:17891/enhance/next")
         if string.find(enhanceRequest or "", [["requested":true]], 1, true) then
