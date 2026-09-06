@@ -33,12 +33,26 @@
         return Math.max(1, Math.min(count, index));
     }
 
+    function confirmedMaskToolIndex(state) {
+        return state && state.available === true && state.active === true &&
+            state.hasSelectedMaskGroup === true && state.selectedMaskToolAvailable === true &&
+            Number.isSafeInteger(state.selectedMaskToolIndex) &&
+            Number.isSafeInteger(state.selectedMaskToolCount) && state.selectedMaskToolCount > 0
+            ? state.selectedMaskToolIndex : null;
+    }
+
     function navigationBindingKey(state) {
         if (!state || typeof state.serverEpoch !== "string" || typeof state.selectedPhotoUuid !== "string" ||
             !Number.isSafeInteger(state.contextCounter) || !Number.isSafeInteger(state.developCounter) ||
             !Number.isSafeInteger(state.contextChangedAt)) return null;
         return [state.serverEpoch, state.selectedPhotoUuid, state.contextCounter,
             state.developCounter, state.contextChangedAt].join("\u001f");
+    }
+
+    function toolNavigationBindingKey(state) {
+        const binding = navigationBindingKey(state);
+        return binding !== null && state && typeof state.selectedMaskGroupId === "string"
+            ? binding + "\u001f" + state.selectedMaskGroupId : null;
     }
 
     function serverOperationMatchesActive(serverOperation, activeOperation) {
@@ -67,9 +81,13 @@
         const serverOperation = confirmed && confirmed.pendingOperation ? confirmed.pendingOperation : null;
         const operation = activeOperation || serverOperation;
         const navigating = local.navigationIntentActive === true;
+        const toolNavigating = local.toolNavigationIntentActive === true;
         const confirmedIndex = confirmedMaskIndex(confirmed);
         const desiredIndex = confirmed && navigating
             ? clampMaskIndex(local.desiredMaskGroupIndex, confirmed.maskGroupCount) : confirmedIndex;
+        const confirmedToolIndex = confirmedMaskToolIndex(confirmed);
+        const desiredToolIndex = confirmed && toolNavigating
+            ? clampMaskIndex(local.desiredMaskToolIndex, confirmed.selectedMaskToolCount) : confirmedToolIndex;
         const foreignOperation = Boolean(serverOperation &&
             !serverOperationMatchesActive(serverOperation, activeOperation));
         const presentation = {
@@ -77,7 +95,10 @@
             panelDisabled: true,
             previousDisabled: true,
             nextDisabled: true,
+            previousComponentDisabled: true,
+            nextComponentDisabled: true,
             position: contextReady ? "Reading Masking state…" : unavailableMessage(null, context),
+            componentPosition: "",
             status: "",
             statusKind: "",
             confirmed: confirmed
@@ -92,10 +113,16 @@
             return presentation;
         }
         const navigationReady = confirmed.active === true && confirmedIndex !== null;
-        const navigationBlocked = Boolean((operation && operation.kind === "panel") || foreignOperation);
-        presentation.panelDisabled = Boolean(operation || navigating);
+        const navigationBlocked = Boolean((operation && operation.kind !== "navigate") || foreignOperation || toolNavigating);
+        const toolNavigationReady = navigationReady && confirmedToolIndex !== null;
+        const toolNavigationBlocked = Boolean((operation && operation.kind !== "toolNavigate") ||
+            foreignOperation || navigating);
+        presentation.panelDisabled = Boolean(operation || navigating || toolNavigating);
         presentation.previousDisabled = !navigationReady || navigationBlocked || desiredIndex <= 1;
         presentation.nextDisabled = !navigationReady || navigationBlocked || desiredIndex >= confirmed.maskGroupCount;
+        presentation.previousComponentDisabled = !toolNavigationReady || toolNavigationBlocked || desiredToolIndex <= 1;
+        presentation.nextComponentDisabled = !toolNavigationReady || toolNavigationBlocked ||
+            desiredToolIndex >= confirmed.selectedMaskToolCount;
         if (confirmed.maskGroupCount === 0) presentation.position = "No masks on this photo.";
         else if (confirmed.active !== true) {
             presentation.position = confirmed.maskGroupCount === 1
@@ -103,6 +130,11 @@
                 : confirmed.maskGroupCount + " masks on this photo.";
         } else if (confirmed.hasSelectedMaskGroup !== true) presentation.position = "No mask is selected.";
         else presentation.position = "Mask " + confirmed.selectedMaskGroupIndex + " of " + confirmed.maskGroupCount;
+        if (confirmed.active === true && confirmed.hasSelectedMaskGroup === true) {
+            presentation.componentPosition = confirmed.selectedMaskToolAvailable === true
+                ? "Component " + confirmed.selectedMaskToolIndex + " of " + confirmed.selectedMaskToolCount
+                : "No mask component is selected.";
+        }
 
         if (local.error) {
             presentation.statusKind = "error";
@@ -110,10 +142,14 @@
         } else if (navigating && desiredIndex !== null) {
             presentation.statusKind = "pending";
             presentation.status = "Moving to Mask " + desiredIndex + "…";
+        } else if (toolNavigating && desiredToolIndex !== null) {
+            presentation.statusKind = "pending";
+            presentation.status = "Moving to Component " + desiredToolIndex + "…";
         } else if (operation) {
             presentation.statusKind = "pending";
             if (operation.kind === "panel") presentation.status = operation.open ? "Opening Masking…" : "Closing Masking…";
-            else presentation.status = "Updating mask selection…";
+            else if (operation.kind === "navigate") presentation.status = "Updating mask selection…";
+            else presentation.status = "Updating mask component selection…";
         }
         return presentation;
     }
@@ -141,6 +177,9 @@
         let desiredMaskGroupIndex = null;
         let navigationIntentActive = false;
         let desiredBindingKey = null;
+        let desiredMaskToolIndex = null;
+        let toolNavigationIntentActive = false;
+        let desiredToolBindingKey = null;
         let requestInFlight = false;
         let abortController = null;
         let interval = null;
@@ -158,6 +197,8 @@
                 activeOperation: activeOperation,
                 desiredMaskGroupIndex: desiredMaskGroupIndex,
                 navigationIntentActive: navigationIntentActive,
+                desiredMaskToolIndex: desiredMaskToolIndex,
+                toolNavigationIntentActive: toolNavigationIntentActive,
                 error: persistentError
             });
             controls.panel.textContent = view.panelLabel;
@@ -165,6 +206,9 @@
             controls.previous.disabled = view.previousDisabled;
             controls.next.disabled = view.nextDisabled;
             controls.position.textContent = view.position;
+            controls.componentPrevious.disabled = view.previousComponentDisabled;
+            controls.componentNext.disabled = view.nextComponentDisabled;
+            controls.componentPosition.textContent = view.componentPosition;
             controls.status.className = "masking-status";
             if (view.statusKind) controls.status.classList.add(view.statusKind);
             controls.status.textContent = view.status;
@@ -174,6 +218,9 @@
             desiredMaskGroupIndex = confirmedMaskIndex(nextState);
             desiredBindingKey = navigationBindingKey(nextState);
             navigationIntentActive = false;
+            desiredMaskToolIndex = confirmedMaskToolIndex(nextState);
+            desiredToolBindingKey = toolNavigationBindingKey(nextState);
+            toolNavigationIntentActive = false;
         }
 
         function stopNavigation(message) {
@@ -185,6 +232,9 @@
             if (operation.kind === "navigate") return stale
                 ? "Lightroom changed before that mask change finished. Please try again."
                 : "Lightroom could not confirm that mask change. Please try again.";
+            if (operation.kind === "toolNavigate") return stale
+                ? "Lightroom changed before that mask component change finished. Please try again."
+                : "Lightroom could not confirm that mask component change. Please try again.";
             const action = operation.open ? "Open Masking" : "Close Masking";
             return stale
                 ? "Lightroom changed before " + action + " finished. Please try again."
@@ -193,8 +243,26 @@
 
         function successfulOperation(operation, result) {
             persistentError = "";
-            if (operation.kind !== "navigate") {
+            if (operation.kind === "panel") {
                 setDesiredToConfirmed(state);
+                return;
+            }
+            if (operation.kind === "toolNavigate") {
+                const confirmedGroupIndex = confirmedMaskIndex(state);
+                const confirmedToolIndex = confirmedMaskToolIndex(state);
+                const expectedToolIndex = clampMaskIndex(operation.baseMaskToolIndex +
+                    (operation.direction === "previous" ? -1 : 1), operation.baseMaskToolCount);
+                desiredMaskToolIndex = clampMaskIndex(desiredMaskToolIndex, state.selectedMaskToolCount);
+                if (confirmedGroupIndex !== operation.baseMaskGroupIndex ||
+                    state.selectedMaskGroupId !== operation.baseSelectedMaskId ||
+                    confirmedToolIndex === null || desiredMaskToolIndex === null || expectedToolIndex === null ||
+                    state.selectedMaskToolCount !== operation.baseMaskToolCount ||
+                    confirmedToolIndex !== expectedToolIndex ||
+                    (result.outcome === "no_change" && confirmedToolIndex !== desiredMaskToolIndex)) {
+                    stopNavigation("Lightroom could not confirm that mask component change. Please try again.");
+                    return;
+                }
+                if (confirmedToolIndex === desiredMaskToolIndex) toolNavigationIntentActive = false;
                 return;
             }
             const confirmedIndex = confirmedMaskIndex(state);
@@ -237,7 +305,7 @@
             const previousBinding = navigationBindingKey(previous);
             const nextBinding = navigationBindingKey(accepted);
             const bindingChanged = previousBinding !== null && previousBinding !== nextBinding;
-            const interrupted = Boolean(activeOperation || navigationIntentActive);
+            const interrupted = Boolean(activeOperation || navigationIntentActive || toolNavigationIntentActive);
             state = accepted;
             if (bindingChanged) {
                 activeOperation = null;
@@ -256,6 +324,16 @@
                 if (desiredMaskGroupIndex === null) stopNavigation();
             } else if (!activeOperation || activeOperation.kind !== "navigate") {
                 desiredMaskGroupIndex = confirmedMaskIndex(state);
+            }
+            if (desiredToolBindingKey !== toolNavigationBindingKey(state)) {
+                desiredMaskToolIndex = confirmedMaskToolIndex(state);
+                desiredToolBindingKey = toolNavigationBindingKey(state);
+                toolNavigationIntentActive = false;
+            } else if (toolNavigationIntentActive) {
+                desiredMaskToolIndex = clampMaskIndex(desiredMaskToolIndex, state.selectedMaskToolCount);
+                if (desiredMaskToolIndex === null) stopNavigation();
+            } else if (!activeOperation || activeOperation.kind !== "toolNavigate") {
+                desiredMaskToolIndex = confirmedMaskToolIndex(state);
             }
             return true;
         }
@@ -279,6 +357,7 @@
                 if (requestGeneration === generation) {
                     render();
                     driveNavigation();
+                    driveToolNavigation();
                 }
             }
         }
@@ -295,14 +374,16 @@
         }
 
         function admissionError(kind, status, value) {
-            if (status === 409) return kind === "navigate"
-                ? "That mask change is no longer available. Masking state was refreshed."
-                : (value ? "Open Masking" : "Close Masking") +
+            if (status === 409) {
+                if (kind === "navigate") return "That mask change is no longer available. Masking state was refreshed.";
+                if (kind === "toolNavigate") return "That mask component change is no longer available. Masking state was refreshed.";
+                return (value ? "Open Masking" : "Close Masking") +
                     " is no longer available. Masking state was refreshed.";
-            return kind === "navigate"
-                ? "Lightroom could not receive that mask change. Please try again."
-                : "Lightroom could not receive " + (value ? "Open Masking" : "Close Masking") +
-                    ". Please try again.";
+            }
+            if (kind === "navigate") return "Lightroom could not receive that mask change. Please try again.";
+            if (kind === "toolNavigate") return "Lightroom could not receive that mask component change. Please try again.";
+            return "Lightroom could not receive " + (value ? "Open Masking" : "Close Masking") +
+                ". Please try again.";
         }
 
         async function sendOperation(kind, value) {
@@ -313,19 +394,30 @@
             const requestGeneration = generation;
             const operation = kind === "panel"
                 ? { kind: kind, open: value, baseRevision: state.revision, operationId: null }
-                : {
+                : kind === "navigate" ? {
                     kind: kind,
                     direction: value,
                     baseRevision: state.revision,
                     baseMaskGroupIndex: confirmedMaskIndex(state),
                     baseMaskGroupCount: state.maskGroupCount,
                     operationId: null
+                } : {
+                    kind: kind,
+                    direction: value,
+                    baseRevision: state.revision,
+                    baseMaskGroupIndex: confirmedMaskIndex(state),
+                    baseSelectedMaskId: state.selectedMaskGroupId,
+                    baseMaskToolIndex: confirmedMaskToolIndex(state),
+                    baseMaskToolCount: state.selectedMaskToolCount,
+                    operationId: null
                 };
             activeOperation = operation;
             render();
             const endpoint = kind === "panel"
                 ? "/api/masking/panel?open=" + encodeURIComponent(value) + "&" + query
-                : "/api/masking/group/navigate?direction=" + encodeURIComponent(value) + "&" + query;
+                : kind === "navigate"
+                    ? "/api/masking/group/navigate?direction=" + encodeURIComponent(value) + "&" + query
+                    : "/api/masking/tool/navigate?direction=" + encodeURIComponent(value) + "&" + query;
             try {
                 const response = await fetchImpl(endpoint, { cache: "no-store" });
                 const data = await response.json();
@@ -379,10 +471,30 @@
             return true;
         }
 
+        function driveToolNavigation() {
+            if (!rootElement || activeOperation || !toolNavigationIntentActive || !state || state.pendingOperation ||
+                desiredToolBindingKey !== toolNavigationBindingKey(state)) return false;
+            const confirmedIndex = confirmedMaskToolIndex(state);
+            desiredMaskToolIndex = clampMaskIndex(desiredMaskToolIndex, state.selectedMaskToolCount);
+            if (confirmedIndex === null || desiredMaskToolIndex === null) {
+                stopNavigation();
+                render();
+                return false;
+            }
+            if (confirmedIndex === desiredMaskToolIndex) {
+                toolNavigationIntentActive = false;
+                render();
+                return true;
+            }
+            sendOperation("toolNavigate", desiredMaskToolIndex < confirmedIndex ? "previous" : "next");
+            return true;
+        }
+
         function requestNavigation(delta) {
             persistentError = "";
             if (!state || state.available !== true || state.active !== true ||
-                (activeOperation && activeOperation.kind === "panel") ||
+                toolNavigationIntentActive ||
+                (activeOperation && activeOperation.kind !== "navigate") ||
                 (state.pendingOperation && !serverOperationMatchesActive(state.pendingOperation, activeOperation))) {
                 render();
                 return false;
@@ -402,6 +514,33 @@
                 desiredMaskGroupIndex !== confirmedIndex);
             render();
             driveNavigation();
+            return true;
+        }
+
+        function requestToolNavigation(delta) {
+            persistentError = "";
+            if (!state || state.available !== true || state.active !== true ||
+                state.hasSelectedMaskGroup !== true || state.selectedMaskToolAvailable !== true ||
+                navigationIntentActive || (activeOperation && activeOperation.kind !== "toolNavigate") ||
+                (state.pendingOperation && !serverOperationMatchesActive(state.pendingOperation, activeOperation))) {
+                render();
+                return false;
+            }
+            const confirmedIndex = confirmedMaskToolIndex(state);
+            const bindingKey = toolNavigationBindingKey(state);
+            if (confirmedIndex === null || bindingKey === null) {
+                render();
+                return false;
+            }
+            if (desiredToolBindingKey !== bindingKey) setDesiredToConfirmed(state);
+            const baseIndex = toolNavigationIntentActive && Number.isSafeInteger(desiredMaskToolIndex)
+                ? desiredMaskToolIndex : confirmedIndex;
+            desiredMaskToolIndex = clampMaskIndex(baseIndex + delta, state.selectedMaskToolCount);
+            desiredToolBindingKey = bindingKey;
+            toolNavigationIntentActive = Boolean((activeOperation && activeOperation.kind === "toolNavigate") ||
+                desiredMaskToolIndex !== confirmedIndex);
+            render();
+            driveToolNavigation();
             return true;
         }
 
@@ -427,25 +566,41 @@
             const position = documentRef.createElement("div");
             position.className = "masking-position";
             position.setAttribute("aria-live", "polite");
+            const componentNavigation = documentRef.createElement("div");
+            componentNavigation.className = "masking-component-navigation";
+            const componentPrevious = createButton(documentRef, "Previous Component", "masking-navigation-button");
+            const componentNext = createButton(documentRef, "Next Component", "masking-navigation-button");
+            componentNavigation.appendChild(componentPrevious);
+            componentNavigation.appendChild(componentNext);
+            const componentPosition = documentRef.createElement("div");
+            componentPosition.className = "masking-component-position";
+            componentPosition.setAttribute("aria-live", "polite");
             const status = documentRef.createElement("div");
             status.className = "masking-status";
             status.setAttribute("aria-live", "polite");
             body.appendChild(panelRow);
             body.appendChild(navigation);
             body.appendChild(position);
+            body.appendChild(componentNavigation);
+            body.appendChild(componentPosition);
             body.appendChild(status);
             section.appendChild(title);
             section.appendChild(body);
             panel.addEventListener("click", function () {
                 persistentError = "";
                 const view = present(state, currentContext(), {});
-                if (view.confirmed && !activeOperation && !navigationIntentActive && !state.pendingOperation) {
+                if (view.confirmed && !activeOperation && !navigationIntentActive &&
+                    !toolNavigationIntentActive && !state.pendingOperation) {
                     sendOperation("panel", view.confirmed.active !== true);
                 }
             });
             previous.addEventListener("click", function () { requestNavigation(-1); });
             next.addEventListener("click", function () { requestNavigation(1); });
-            controls = { title: title, panel: panel, previous: previous, next: next, position: position, status: status };
+            componentPrevious.addEventListener("click", function () { requestToolNavigation(-1); });
+            componentNext.addEventListener("click", function () { requestToolNavigation(1); });
+            controls = { title: title, panel: panel, previous: previous, next: next, position: position,
+                componentPrevious: componentPrevious, componentNext: componentNext,
+                componentPosition: componentPosition, status: status };
             return section;
         }
 
@@ -475,6 +630,9 @@
             desiredMaskGroupIndex = null;
             navigationIntentActive = false;
             desiredBindingKey = null;
+            desiredMaskToolIndex = null;
+            toolNavigationIntentActive = false;
+            desiredToolBindingKey = null;
             persistentError = "";
             if (rootElement && rootElement.parentElement) rootElement.remove();
             rootElement = null;
@@ -492,6 +650,9 @@
                 desiredMaskGroupIndex = null;
                 navigationIntentActive = false;
                 desiredBindingKey = null;
+                desiredMaskToolIndex = null;
+                toolNavigationIntentActive = false;
+                desiredToolBindingKey = null;
                 persistentError = "";
                 generation += 1;
                 render();
@@ -516,6 +677,7 @@
         present: present,
         unavailableMessage: unavailableMessage,
         confirmedMaskIndex: confirmedMaskIndex,
+        confirmedMaskToolIndex: confirmedMaskToolIndex,
         clampMaskIndex: clampMaskIndex
     };
 });

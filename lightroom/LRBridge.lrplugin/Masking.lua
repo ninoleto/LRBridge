@@ -105,7 +105,11 @@ local function unavailable(reason)
         previousAvailable = false,
         nextAvailable = false,
         selectedMaskToolAvailable = false,
-        selectedMaskToolId = nil
+        selectedMaskToolId = nil,
+        selectedMaskToolCount = nil,
+        selectedMaskToolIndex = nil,
+        previousMaskToolAvailable = false,
+        nextMaskToolAvailable = false
     }
 end
 
@@ -207,6 +211,10 @@ local function readSnapshot(expectedPhotoUuid)
         nextAvailable = false,
         selectedMaskToolAvailable = false,
         selectedMaskToolId = nil,
+        selectedMaskToolCount = nil,
+        selectedMaskToolIndex = nil,
+        previousMaskToolAvailable = false,
+        nextMaskToolAvailable = false,
         _masks = masks
     }
 
@@ -229,6 +237,7 @@ local function readSnapshot(expectedPhotoUuid)
                 end
             end
             if snapshot.hasSelectedMaskGroup ~= true then return unavailable("unreconciled_selection") end
+            snapshot.selectedMaskToolCount = #masks[snapshot.selectedMaskGroupIndex].Tools
 
             local maskToolOk, selectedMaskToolId = LrTasks.pcall(function()
                 return LrDevelopController.getSelectedMaskTool()
@@ -236,10 +245,13 @@ local function readSnapshot(expectedPhotoUuid)
             if maskToolOk ~= true then return unavailable("sdk_error") end
             if selectedMaskToolId ~= nil then
                 if not validOpaqueId(selectedMaskToolId) then return unavailable("unreconciled_tool") end
-                for _, maskTool in ipairs(masks[snapshot.selectedMaskGroupIndex].Tools) do
+                for toolIndex, maskTool in ipairs(masks[snapshot.selectedMaskGroupIndex].Tools) do
                     if maskTool.ID == selectedMaskToolId then
                         snapshot.selectedMaskToolAvailable = true
                         snapshot.selectedMaskToolId = selectedMaskToolId
+                        snapshot.selectedMaskToolIndex = toolIndex
+                        snapshot.previousMaskToolAvailable = toolIndex > 1
+                        snapshot.nextMaskToolAvailable = toolIndex < snapshot.selectedMaskToolCount
                         break
                     end
                 end
@@ -278,7 +290,11 @@ local function appendSnapshot(url, snapshot)
         "&previousAvailable=" .. queryValue(snapshot.previousAvailable) ..
         "&nextAvailable=" .. queryValue(snapshot.nextAvailable) ..
         "&selectedMaskToolAvailable=" .. queryValue(snapshot.selectedMaskToolAvailable) ..
-        "&selectedMaskToolId=" .. queryValue(snapshot.selectedMaskToolId)
+        "&selectedMaskToolId=" .. queryValue(snapshot.selectedMaskToolId) ..
+        "&selectedMaskToolCount=" .. queryValue(snapshot.selectedMaskToolCount) ..
+        "&selectedMaskToolIndex=" .. queryValue(snapshot.selectedMaskToolIndex) ..
+        "&previousMaskToolAvailable=" .. queryValue(snapshot.previousMaskToolAvailable) ..
+        "&nextMaskToolAvailable=" .. queryValue(snapshot.nextMaskToolAvailable)
 end
 
 local function resultBindingUrl(command)
@@ -307,16 +323,69 @@ local function sendOperationResult(command, outcome, detail, snapshot)
     return ok == true
 end
 
-local function settledSnapshot(command, expectedActive, expectedMaskId)
+local function settledSnapshot(command, expectedActive, expectedMaskId, expectedMaskToolId)
     local lastSnapshot = unavailable("sdk_error")
     for _ = 1, 12 do
         lastSnapshot = readSnapshot(command.expectedSelectedPhotoUuid)
         if lastSnapshot.available == true and
             (expectedActive == nil or lastSnapshot.active == expectedActive) and
-            (expectedMaskId == nil or lastSnapshot.selectedMaskGroupId == expectedMaskId) then return lastSnapshot end
+            (expectedMaskId == nil or lastSnapshot.selectedMaskGroupId == expectedMaskId) and
+            (expectedMaskToolId == nil or lastSnapshot.selectedMaskToolId == expectedMaskToolId) then
+            return lastSnapshot
+        end
         LrTasks.sleep(0.05)
     end
     return lastSnapshot
+end
+
+local function executeToolNavigation(command)
+    if (command.direction ~= "previous" and command.direction ~= "next") or
+        not validOpaqueId(command.expectedSelectedMaskId) or
+        not validOpaqueId(command.expectedSelectedMaskToolId) then
+        error("Invalid Masking component navigation command")
+    end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+    local before = readSnapshot(command.expectedSelectedPhotoUuid)
+    if before.available ~= true or before.active ~= true or before.hasSelectedMaskGroup ~= true or
+        before.selectedMaskGroupId ~= command.expectedSelectedMaskId or
+        before.selectedMaskToolAvailable ~= true or
+        before.selectedMaskToolId ~= command.expectedSelectedMaskToolId then
+        sendOperationResult(command, "stale", "The selected mask component changed.", before)
+        return false
+    end
+    local targetIndex = before.selectedMaskToolIndex + (command.direction == "previous" and -1 or 1)
+    if targetIndex < 1 or targetIndex > before.selectedMaskToolCount then
+        sendOperationResult(command, "no_change", "There is no mask component in that direction.", before)
+        return true
+    end
+    local selectedMask = before._masks[before.selectedMaskGroupIndex]
+    local targetTool = selectedMask and selectedMask.Tools and selectedMask.Tools[targetIndex] or nil
+    if type(selectedMask) ~= "table" or selectedMask.ID ~= before.selectedMaskGroupId or
+        type(targetTool) ~= "table" or not validOpaqueId(targetTool.ID) then
+        sendOperationResult(command, "failed", "The adjacent mask component could not be reconciled.", unavailable("invalid_inventory"))
+        return false
+    end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+    LrDevelopController.selectMask(selectedMask.ID)
+    LrDevelopController.selectMaskTool(targetTool.ID)
+    local after = settledSnapshot(command, true, selectedMask.ID, targetTool.ID)
+    if after.available == true and after.active == true and
+        after.selectedMaskGroupIndex == before.selectedMaskGroupIndex and
+        after.selectedMaskGroupId == selectedMask.ID and
+        after.selectedMaskToolAvailable == true and
+        after.selectedMaskToolCount == before.selectedMaskToolCount and
+        after.selectedMaskToolIndex == targetIndex and after.selectedMaskToolId == targetTool.ID then
+        sendOperationResult(command, "confirmed", "", after)
+        return true
+    end
+    sendOperationResult(command, "failed", "Lightroom did not confirm the mask component selection.", after)
+    return false
 end
 
 function Masking.sendRequestedSnapshot(json)
@@ -402,6 +471,7 @@ function Masking.execute(command)
     local ok, result = LrTasks.pcall(function()
         if command.command == "masking.panel.set" then return executePanel(command) end
         if command.command == "masking.group.navigate" then return executeNavigation(command) end
+        if command.command == "masking.tool.navigate" then return executeToolNavigation(command) end
         error("Invalid Masking command")
     end)
     if ok ~= true then

@@ -1,5 +1,15 @@
 # LRBridge Codex Handoff
 
+## Masking Phase 2B component-navigation checkpoint (2026-09-06)
+
+Masking Phase 2B adds bounded **Previous Component** / **Next Component** navigation within the currently selected mask. The Controller presents authoritative Lightroom feedback as `Component n of m`; direct component selections in Lightroom update the Web Controller, and Controller selections update Lightroom without changing the selected mask group. Navigation stops at the first and last component and never wraps.
+
+- Rapid component input is retained as a bounded desired index and executed as serialized, authoritative one-step commands. Component, mask-group, and Open/Close Masking operations cannot overlap. Each operation preserves the selected-photo UUID, context counter/timestamp, Develop revision, server epoch, semantic Masking revision, selected mask ID, selected component ID, protected queue ownership, stale-response rejection, and exact Lightroom/server readback reconciliation.
+- Core live acceptance used a real three-component mask ordered **Background 1**, **Sky 1**, and **Brush 1**. The user confirmed correct `Component 1 of 3` feedback, working Previous/Next Component controls, Lightroom-to-Web and Web-to-Lightroom synchronization, unchanged mask-group selection, no observed error, and continued Phase 1 Previous/Next Mask behavior.
+- Do not describe the complete 15-step procedure as manually passed. Rapid reversal, repeated boundary clicks, and photo/module context cancellation are covered by the passing automated contracts but were not repeated manually in the shortened acceptance session.
+- Component visibility, mask visibility, and the Masks panel master **Masking Corrections** eye/switch remain deferred pending separate Lightroom 15.3 runtime probes. Do not infer or implement those capabilities from component navigation.
+- This checkpoint is based on `a769f957e035415f2405d324846903b51c3e053a`. The required validation lifecycle consumed one LRBridge restart and one production plug-in reload; checkpointing requires neither another restart nor another reload.
+
 ## Authoritative Masking Phase 1 checkpoint (2026-09-06)
 
 Masking Phase 1 is manually accepted on Lightroom Classic 15.3. Open Masking, Close Masking, Previous Mask, and Next Mask work, including rapid navigation, and the former false `That mask change is no longer available` error did not recur in the accepted test. This checkpoint starts from `ced19b232555a1c9919c33f064ef30ea6c819519`; Git history is authoritative for its final commit hash.

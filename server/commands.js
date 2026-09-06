@@ -183,6 +183,7 @@ function validateCommand(command) {
         ,"develop_preset.amount.set"
         ,"masking.panel.set"
         ,"masking.group.navigate"
+        ,"masking.tool.navigate"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -289,9 +290,11 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedFeedbackId) && command.expectedFeedbackId > 0;
     }
 
-    if (command.command === "masking.panel.set" || command.command === "masking.group.navigate") {
-        const navigation = command.command === "masking.group.navigate";
-        if (Object.keys(command).length !== (navigation ? 11 : 10) ||
+    if (command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+        command.command === "masking.tool.navigate") {
+        const navigation = command.command !== "masking.panel.set";
+        const toolNavigation = command.command === "masking.tool.navigate";
+        if (Object.keys(command).length !== (toolNavigation ? 12 : (navigation ? 11 : 10)) ||
             typeof command.operationId !== "string" || !/^mo-\d{1,15}$/.test(command.operationId) ||
             command.expectedActiveModule !== "develop" ||
             typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
@@ -302,9 +305,12 @@ function validateCommand(command) {
             typeof command.expectedServerEpoch !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) ||
             Number.isSafeInteger(command.expectedMaskingRevision) === false || command.expectedMaskingRevision < 1) return false;
         if (!navigation) return typeof command.open === "boolean";
-        return (command.direction === "previous" || command.direction === "next") &&
-            typeof command.expectedSelectedMaskId === "string" && command.expectedSelectedMaskId.length >= 1 &&
-            command.expectedSelectedMaskId.length <= 256 && !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId);
+        if ((command.direction !== "previous" && command.direction !== "next") ||
+            typeof command.expectedSelectedMaskId !== "string" || command.expectedSelectedMaskId.length < 1 ||
+            command.expectedSelectedMaskId.length > 256 || /[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId)) return false;
+        return !toolNavigation || (typeof command.expectedSelectedMaskToolId === "string" &&
+            command.expectedSelectedMaskToolId.length >= 1 && command.expectedSelectedMaskToolId.length <= 256 &&
+            !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId));
     }
 
     if (command.command === "point_color.value.set") {
@@ -638,7 +644,8 @@ function tryEnqueueCommand(command) {
         }
         return admissionResult(ADMISSION_INVALID);
     }
-    if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate") &&
+    if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+        command.command === "masking.tool.navigate") &&
         (!maskingAdmissionProvider || !maskingAdmissionProvider.matches(command, context.getContextFields()))) {
         if (maskingAdmissionProvider && typeof maskingAdmissionProvider.onRejected === "function") {
             maskingAdmissionProvider.onRejected(command, "Masking context changed during queue admission.");
@@ -972,7 +979,8 @@ function isProtectedCommand(command) {
         command.command === "tone_curve.reset" || command.command === "tone_curve.gesture.cancel" ||
         command.command === "tone_curve.refine_saturation.reset" ||
         command.command === "tone_curve.refine_saturation.gesture.cancel" ||
-        command.command === "masking.panel.set" || command.command === "masking.group.navigate";
+        command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+        command.command === "masking.tool.navigate";
 }
 
 function pointCurveCommandBindingMatches(command) {
@@ -1030,7 +1038,8 @@ function getNextCommand() {
             }
             continue;
         }
-        if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate") &&
+        if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+            command.command === "masking.tool.navigate") &&
             (!maskingAdmissionProvider || !maskingAdmissionProvider.matches(command, context.getContextFields()))) {
             if (maskingAdmissionProvider && typeof maskingAdmissionProvider.onRejected === "function") {
                 maskingAdmissionProvider.onRejected(command, "Masking context changed before dequeue.");
@@ -1102,6 +1111,7 @@ function getQueueDiagnostics(nowMs) {
         ,"develop_preset.amount.set": 0
         ,"masking.panel.set": 0
         ,"masking.group.navigate": 0
+        ,"masking.tool.navigate": 0
     };
 
     for (const command of commandQueue) {
@@ -1182,7 +1192,8 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
                     pendingByCommand["tone_curve.refine_saturation.reset"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.cancel"] +
-                    pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"],
+                    pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"] +
+                    pendingByCommand["masking.tool.navigate"],
                 byCommand: pendingByCommand
             }
         },

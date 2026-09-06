@@ -99,6 +99,7 @@ function Parser.parse(json)
     local expectedServerEpoch = parseStringField(json, "expectedServerEpoch")
     local expectedMaskingRevision = parseIntegerField(json, "expectedMaskingRevision")
     local expectedSelectedMaskId = parseStringField(json, "expectedSelectedMaskId")
+    local expectedSelectedMaskToolId = parseStringField(json, "expectedSelectedMaskToolId")
     local expectedFeedbackId = parseIntegerField(json, "expectedFeedbackId")
     local expectedValue = string.match(json, [["expectedValue":([%-]?%d+%.?%d*)]])
     local profileGeneration = string.match(json, [["profileGeneration":([%-]?%d+)]])
@@ -219,6 +220,7 @@ function Parser.parse(json)
         ,expectedServerEpoch = expectedServerEpoch
         ,expectedMaskingRevision = expectedMaskingRevision
         ,expectedSelectedMaskId = expectedSelectedMaskId
+        ,expectedSelectedMaskToolId = expectedSelectedMaskToolId
         ,expectedFeedbackId = expectedFeedbackId
         ,expectedValue = expectedValue
         ,points = points

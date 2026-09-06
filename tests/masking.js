@@ -68,12 +68,27 @@ function context(overrides) {
 }
 
 function snapshot(overrides) {
-    return Object.assign({
+    const value = Object.assign({
         available: true, unavailableReason: null, active: true, maskGroupCount: 3,
         hasSelectedMaskGroup: true, selectedMaskGroupIndex: 2, selectedMaskGroupId: "mask-b",
         previousAvailable: true, nextAvailable: true, selectedMaskToolAvailable: true,
-        selectedMaskToolId: "tool-b1"
+        selectedMaskToolId: "tool-b2", selectedMaskToolCount: 3, selectedMaskToolIndex: 2,
+        previousMaskToolAvailable: true, nextMaskToolAvailable: true
     }, overrides || {});
+    if (value.active !== true || value.hasSelectedMaskGroup !== true) {
+        value.selectedMaskToolAvailable = false;
+        value.selectedMaskToolId = null;
+        value.selectedMaskToolCount = null;
+        value.selectedMaskToolIndex = null;
+        value.previousMaskToolAvailable = false;
+        value.nextMaskToolAvailable = false;
+    } else if (value.selectedMaskToolAvailable !== true) {
+        value.selectedMaskToolId = null;
+        value.selectedMaskToolIndex = null;
+        value.previousMaskToolAvailable = false;
+        value.nextMaskToolAvailable = false;
+    }
+    return value;
 }
 
 function suppliedBinding(state) {
@@ -192,6 +207,9 @@ function renderedControllerState(options) {
     const active = options.active !== false;
     const count = options.count === undefined ? 5 : options.count;
     const index = active && count > 0 ? (options.index === undefined ? 1 : options.index) : null;
+    const toolCount = index === null ? null : (options.toolCount === undefined ? 5 : options.toolCount);
+    const toolIndex = index === null || toolCount < 1
+        ? null : (options.toolIndex === undefined ? 1 : options.toolIndex);
     return {
         ok: true,
         serverEpoch: options.serverEpoch || "mask-rendered",
@@ -212,8 +230,12 @@ function renderedControllerState(options) {
         selectedMaskGroupId: index === null ? null : "mask-" + index,
         previousAvailable: index !== null && index > 1,
         nextAvailable: index !== null && index < count,
-        selectedMaskToolAvailable: index !== null,
-        selectedMaskToolId: index === null ? null : "tool-" + index
+        selectedMaskToolAvailable: toolIndex !== null,
+        selectedMaskToolId: toolIndex === null ? null : "tool-" + index + "-" + toolIndex,
+        selectedMaskToolCount: toolCount,
+        selectedMaskToolIndex: toolIndex,
+        previousMaskToolAvailable: toolIndex !== null && toolIndex > 1,
+        nextMaskToolAvailable: toolIndex !== null && toolIndex < toolCount
     };
 }
 
@@ -228,7 +250,9 @@ async function createRenderedMaskingHarness(options) {
         revision: options.revision,
         active: options.active,
         count: options.count,
-        index: options.index
+        index: options.index,
+        toolCount: options.toolCount,
+        toolIndex: options.toolIndex
     });
     let pendingServerOperation = null;
     let operationCounter = 0;
@@ -244,8 +268,9 @@ async function createRenderedMaskingHarness(options) {
         }
         const parsed = new URL(requestPath, "http://controller.test");
         const navigation = parsed.pathname === "/api/masking/group/navigate";
+        const toolNavigation = parsed.pathname === "/api/masking/tool/navigate";
         const panel = parsed.pathname === "/api/masking/panel";
-        if (!navigation && !panel) throw new Error("Unexpected Masking request: " + requestPath);
+        if (!navigation && !toolNavigation && !panel) throw new Error("Unexpected Masking request: " + requestPath);
         const record = {
             path: parsed.pathname,
             direction: parsed.searchParams.get("direction"),
@@ -287,6 +312,14 @@ async function createRenderedMaskingHarness(options) {
             kind: "navigate",
             direction: record.direction,
             beforeIndex: authoritative.selectedMaskGroupIndex
+        } : toolNavigation ? {
+            operationId: operationId,
+            kind: "toolNavigate",
+            direction: record.direction,
+            beforeIndex: authoritative.selectedMaskGroupIndex,
+            beforeSelectedMaskId: authoritative.selectedMaskGroupId,
+            beforeToolIndex: authoritative.selectedMaskToolIndex,
+            beforeToolCount: authoritative.selectedMaskToolCount
         } : {
             operationId: operationId,
             kind: "panel",
@@ -330,12 +363,17 @@ async function createRenderedMaskingHarness(options) {
         pendingServerOperation = null;
         let active = authoritative.active;
         let selectedIndex = operation.beforeIndex;
+        let selectedToolIndex = authoritative.selectedMaskToolIndex;
         if (outcome === "confirmed") {
             if (operation.kind === "navigate") {
                 selectedIndex += operation.direction === "previous" ? -1 : 1;
+                selectedToolIndex = 1;
+            } else if (operation.kind === "toolNavigate") {
+                selectedToolIndex += operation.direction === "previous" ? -1 : 1;
             } else {
                 active = operation.open;
                 selectedIndex = active && authoritative.maskGroupCount > 0 ? (selectedIndex || 1) : null;
+                selectedToolIndex = selectedIndex === null ? null : (selectedToolIndex || 1);
             }
         }
         overrides = overrides || {};
@@ -346,6 +384,8 @@ async function createRenderedMaskingHarness(options) {
             active: overrides.active === undefined ? active : overrides.active,
             count: overrides.count === undefined ? authoritative.maskGroupCount : overrides.count,
             index: overrides.index === undefined ? selectedIndex : overrides.index,
+            toolCount: overrides.toolCount === undefined ? authoritative.selectedMaskToolCount : overrides.toolCount,
+            toolIndex: overrides.toolIndex === undefined ? selectedToolIndex : overrides.toolIndex,
             lastResult: {
                 operationId: operation.operationId,
                 outcome: outcome,
@@ -376,6 +416,13 @@ async function createRenderedMaskingHarness(options) {
             });
         })(),
         position: control("masking-position"),
+        componentPrevious: findElement(host, function (element) {
+            return element.textContent === "Previous Component";
+        }),
+        componentNext: findElement(host, function (element) {
+            return element.textContent === "Next Component";
+        }),
+        componentPosition: control("masking-component-position"),
         status: control("masking-status"),
         commandRequests: commandRequests,
         admissions: admissions,
@@ -411,6 +458,41 @@ function testStateMachine() {
     assert.equal(publicState.selectedMaskGroupIndex, 2);
     assert.equal(state.acceptQueryResult(Object.assign({}, request, { snapshot: snapshot() }), fields), false,
         "a completed query must not be accepted twice");
+
+    const toolOperation = state.beginOperation(
+        { kind: "toolNavigate", direction: "next" }, suppliedBinding(publicState), fields);
+    assert.equal(toolOperation.command, "masking.tool.navigate");
+    assert.equal(toolOperation.expectedSelectedMaskId, "mask-b");
+    assert.equal(toolOperation.expectedSelectedMaskToolId, "tool-b2");
+    assert.equal(state.beginOperation({ kind: "navigate", direction: "next" }, suppliedBinding(publicState), fields), null,
+        "group and component navigation must not overlap");
+    assert.equal(state.commandMatches(toolOperation, fields), true);
+    assert.equal(state.commandMatches(Object.assign({}, toolOperation, {
+        expectedSelectedMaskToolId: "tool-stale"
+    }), fields), false, "the selected component ID must remain part of command admission");
+    assert.equal(state.finishOperation(Object.assign({}, toolOperation, {
+        outcome: "confirmed", detail: "", snapshot: snapshot({
+            selectedMaskToolIndex: 3, selectedMaskToolId: "tool-b3",
+            previousMaskToolAvailable: true, nextMaskToolAvailable: false
+        })
+    }), fields), true);
+    publicState = state.getPublicState();
+    assert.equal(publicState.selectedMaskToolIndex, 3);
+    assert.equal(state.beginOperation(
+        { kind: "toolNavigate", direction: "next" }, suppliedBinding(publicState), fields), null,
+        "Next Component must be bounded at the final component");
+    const unreconciledToolOperation = state.beginOperation(
+        { kind: "toolNavigate", direction: "previous" }, suppliedBinding(publicState), fields);
+    assert.ok(unreconciledToolOperation);
+    assert.equal(state.finishOperation(Object.assign({}, unreconciledToolOperation, {
+        outcome: "confirmed", detail: "", snapshot: snapshot({
+            selectedMaskToolIndex: 1, selectedMaskToolId: "tool-b1",
+            previousMaskToolAvailable: false, nextMaskToolAvailable: true
+        })
+    }), fields), true);
+    publicState = state.getPublicState();
+    assert.equal(publicState.lastResult.outcome, "failed",
+        "a component result that skips the adjacent target must fail reconciliation");
 
     const operation = state.beginOperation({ kind: "navigate", direction: "next" }, suppliedBinding(publicState), fields);
     assert.equal(operation.command, "masking.group.navigate");
@@ -452,6 +534,13 @@ function testStateMachine() {
 
     assert.equal(maskingDefinition.sanitizeSnapshot(snapshot({ selectedMaskGroupIndex: 1, previousAvailable: true })), null,
         "derived navigation flags must be exact");
+    assert.equal(maskingDefinition.sanitizeSnapshot(snapshot({
+        selectedMaskToolIndex: 1, previousMaskToolAvailable: true
+    })), null, "derived component-navigation flags must be exact");
+    assert.equal(maskingDefinition.sanitizeSnapshot(snapshot({ selectedMaskToolId: "bad\ncomponent" })), null,
+        "malformed component IDs must fail closed");
+    assert.ok(maskingDefinition.sanitizeSnapshot(snapshot({ selectedMaskToolAvailable: false })),
+        "a selected mask with no authoritative selected component must remain readable but non-navigable");
     assert.equal(maskingDefinition.sanitizeSnapshot({ available: false, unavailableReason: "sdk_error" }).available, false);
 
     let staleNow = 20000;
@@ -530,6 +619,19 @@ function testSemanticRevisionFreshness() {
         { kind: "navigate", direction: "next" }, suppliedBinding(publicState), fields);
     assert.ok(navigation, "a navigation command using the pre-refresh semantic revision must remain admissible");
 
+    machine = readyState("mask-semantic-component-navigation");
+    publicState = machine.getPublicState();
+    const componentRevision = publicState.revision;
+    now += 500;
+    machine.requestRefresh(fields, false);
+    request = machine.takeRequest();
+    assert.equal(machine.acceptQueryResult(Object.assign({}, request, { snapshot: snapshot() }), fields), true);
+    assert.equal(machine.getPublicState().revision, componentRevision);
+    const componentNavigation = machine.beginOperation(
+        { kind: "toolNavigate", direction: "next" }, suppliedBinding(publicState), fields);
+    assert.ok(componentNavigation,
+        "a component command using the pre-refresh semantic revision must remain admissible");
+
     machine = readyState("mask-semantic-change");
     const staleBinding = suppliedBinding(machine.getPublicState());
     now += 500;
@@ -587,6 +689,9 @@ function testSemanticRevisionFreshness() {
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot()), true);
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskToolId: "tool-new" })), false,
         "selected tool changes must remain command-relevant semantic changes");
+    assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({
+        selectedMaskToolCount: 4, nextMaskToolAvailable: true
+    })), false, "component inventory changes must advance the semantic revision");
 }
 
 function testLightroom153RuntimeInventoryFixture() {
@@ -613,7 +718,11 @@ function testLightroom153RuntimeInventoryFixture() {
         previousAvailable: selectedIndex > 0,
         nextAvailable: selectedIndex + 1 < normalized.length,
         selectedMaskToolAvailable: true,
-        selectedMaskToolId: runtimeInventoryFixture.selectedMaskToolId
+        selectedMaskToolId: runtimeInventoryFixture.selectedMaskToolId,
+        selectedMaskToolCount: normalized[selectedIndex].Tools.length,
+        selectedMaskToolIndex: 1,
+        previousMaskToolAvailable: false,
+        nextMaskToolAvailable: false
     });
     assert.ok(maskingDefinition.sanitizeSnapshot(runtimeSnapshot));
     const ctx = context();
@@ -627,13 +736,38 @@ function testLightroom153RuntimeInventoryFixture() {
         selectedMaskGroupId: normalized[0].ID,
         previousAvailable: false,
         nextAvailable: true,
-        selectedMaskToolId: normalized[0].Tools[0].ID
+        selectedMaskToolId: normalized[0].Tools[0].ID,
+        selectedMaskToolCount: normalized[0].Tools.length,
+        selectedMaskToolIndex: 1,
+        previousMaskToolAvailable: false,
+        nextMaskToolAvailable: false
     }), ctx, null);
     assert.equal(presentation.position, "Mask 1 of 2");
     assert.equal(presentation.previousDisabled, true, "Previous must remain bounded at the first group");
     assert.equal(presentation.nextDisabled, false);
     assert.equal(JSON.stringify(runtimeInventoryFixture), before,
         "inventory normalization and state presentation must not mutate the Lightroom fixture");
+
+    const syntheticMultiComponent = clone(runtimeInventoryFixture.allMasks);
+    syntheticMultiComponent[selectedIndex].Tools.push(
+        { ID: "tool-runtime-b2", Type: "brush", Hidden: false, Inverted: false },
+        { ID: "tool-runtime-b3", Type: "linearGradient", Hidden: false, Inverted: false });
+    const normalizedMultiComponent = normalizeRuntimeInventoryFixture(syntheticMultiComponent);
+    assert.equal(normalizedMultiComponent[selectedIndex].Tools.length, 3,
+        "synthetic coverage must retain every nested component in the selected mask");
+    const multiComponentSnapshot = snapshot({
+        maskGroupCount: normalizedMultiComponent.length,
+        selectedMaskGroupIndex: selectedIndex + 1,
+        selectedMaskGroupId: runtimeInventoryFixture.selectedMaskId,
+        previousAvailable: selectedIndex > 0,
+        nextAvailable: selectedIndex + 1 < normalizedMultiComponent.length,
+        selectedMaskToolId: normalizedMultiComponent[selectedIndex].Tools[1].ID,
+        selectedMaskToolCount: normalizedMultiComponent[selectedIndex].Tools.length,
+        selectedMaskToolIndex: 2,
+        previousMaskToolAvailable: true,
+        nextMaskToolAvailable: true
+    });
+    assert.ok(maskingDefinition.sanitizeSnapshot(multiComponentSnapshot));
 
     const optionalMetadataMissing = clone(runtimeInventoryFixture.allMasks);
     delete optionalMetadataMissing[0].Name;
@@ -708,6 +842,19 @@ function assertNavigationRequestSequence(harness, directions, startingRevision) 
         "only one HTTP/Lightroom Masking operation may be in flight");
 }
 
+function assertComponentRequestSequence(harness, directions, startingRevision) {
+    const requests = harness.commandRequests.filter(function (request) {
+        return request.path === "/api/masking/tool/navigate";
+    });
+    assert.deepEqual(requests.map(function (request) { return request.direction; }), directions,
+        "the exact serialized HTTP component sequence drifted");
+    assert.deepEqual(requests.map(function (request) { return request.stateRevision; }),
+        directions.map(function (_direction, index) { return startingRevision + (index * 2); }),
+        "each component step must use the newly confirmed authoritative revision");
+    assert.equal(harness.getMaximumPending(), directions.length > 0 ? 1 : 0,
+        "only one HTTP/Lightroom Masking operation may be in flight");
+}
+
 async function testRenderedRapidFinalIntentSequences() {
     let harness = await createRenderedMaskingHarness({ index: 1, count: 5 });
     try {
@@ -767,6 +914,156 @@ async function testRenderedRapidFinalIntentSequences() {
         assertNavigationRequestSequence(harness, ["next", "previous"], 1);
         assert.equal(harness.controller.getState().selectedMaskGroupIndex, 3,
             "rapid alternating direction changes must preserve the final intent");
+    } finally {
+        harness.close();
+    }
+}
+
+async function testRenderedComponentNavigation() {
+    let harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 1, toolCount: 5 });
+    try {
+        assert.equal(harness.componentPosition.textContent, "Component 1 of 5");
+        assert.equal(harness.componentPrevious.disabled, true);
+        harness.componentNext.click();
+        harness.componentNext.click();
+        harness.componentNext.click();
+        assert.equal(harness.status.textContent, "Moving to Component 4…");
+        assert.equal(harness.componentPosition.textContent, "Component 1 of 5",
+            "component intent must not replace confirmed Lightroom state");
+        assert.equal(harness.commandRequests.length, 1, "rapid component clicks must not overlap commands");
+        assert.equal(harness.next.disabled, true, "group navigation must be blocked during component navigation");
+        assert.equal(harness.panel.disabled, true, "panel changes must be blocked during component navigation");
+        await settleAllRenderedNavigation(harness);
+        assertComponentRequestSequence(harness, ["next", "next", "next"], 1);
+        assert.equal(harness.controller.getState().selectedMaskToolIndex, 4);
+        assert.equal(harness.controller.getState().selectedMaskGroupIndex, 2,
+            "component navigation must remain inside the selected mask");
+        assert.equal(harness.componentPosition.textContent, "Component 4 of 5");
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 2, toolCount: 5 });
+    try {
+        harness.componentNext.click();
+        harness.componentNext.click();
+        harness.componentPrevious.click();
+        assert.equal(harness.status.textContent, "Moving to Component 3…");
+        await settleAllRenderedNavigation(harness);
+        assertComponentRequestSequence(harness, ["next"], 1);
+        assert.equal(harness.controller.getState().selectedMaskToolIndex, 3,
+            "Next, Next, Previous Component must preserve the final intent");
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 3, toolCount: 5 });
+    try {
+        harness.componentNext.click();
+        harness.componentPrevious.click();
+        harness.componentNext.click();
+        harness.componentPrevious.click();
+        await settleAllRenderedNavigation(harness);
+        assertComponentRequestSequence(harness, ["next", "previous"], 1);
+        assert.equal(harness.controller.getState().selectedMaskToolIndex, 3,
+            "rapid component reversals must converge on the mathematical final target");
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 1, toolCount: 5 });
+    try {
+        for (let index = 0; index < 10; index += 1) harness.componentNext.click();
+        assert.equal(harness.componentNext.disabled, true, "Next Component must clamp at the final component");
+        assert.equal(harness.status.textContent, "Moving to Component 5…");
+        await settleAllRenderedNavigation(harness);
+        assertComponentRequestSequence(harness, ["next", "next", "next", "next"], 1);
+        assert.equal(harness.componentNext.click(), false);
+        assert.equal(harness.controller.getState().selectedMaskToolIndex, 5);
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 1, toolCount: 5 });
+    try {
+        const admissionGate = deferred();
+        harness.admissions.push({ gate: admissionGate });
+        harness.componentNext.click();
+        harness.componentNext.click();
+        harness.componentNext.click();
+        await flushAsync();
+        assert.equal(harness.commandRequests.length, 1,
+            "delayed component admission must retain later clicks locally");
+        admissionGate.resolve();
+        await flushAsync();
+        await harness.controller.refresh();
+        assert.equal(harness.commandRequests.length, 1,
+            "polling during delayed component settlement must not overlap commands");
+        await settleAllRenderedNavigation(harness);
+        assertComponentRequestSequence(harness, ["next", "next", "next"], 1);
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 2, toolCount: 5 });
+    try {
+        harness.admissions.push({
+            status: 409,
+            body: { ok: false, error: "Masking state changed or the requested action is unavailable" }
+        });
+        harness.componentNext.click();
+        await flushAsync();
+        assert.equal(harness.status.textContent,
+            "That mask component change is no longer available. Masking state was refreshed.");
+        await harness.controller.refresh();
+        assert.equal(harness.status.textContent,
+            "That mask component change is no longer available. Masking state was refreshed.",
+            "routine polling must not erase a component admission error");
+        harness.next.click();
+        assert.equal(harness.status.textContent, "Moving to Mask 3…",
+            "a deliberate group action must take ownership from an older component error");
+        await settleAllRenderedNavigation(harness);
+        assert.equal(harness.status.textContent, "");
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 2, toolCount: 5 });
+    try {
+        harness.componentNext.click();
+        await flushAsync();
+        await harness.replaceContext(context({
+            selectedPhotoUuid: "photo-2", contextCounter: 8, contextChangedAt: 2234
+        }), { index: 2, count: 4, toolIndex: 4, toolCount: 5, revision: 1 });
+        assert.equal(harness.commandRequests.length, 1,
+            "a photo change must cancel remaining component intent immediately");
+        assert.equal(harness.componentPosition.textContent, "Component 4 of 5");
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 2, toolCount: 5 });
+    try {
+        harness.componentNext.click();
+        await flushAsync();
+        await harness.settle("confirmed", "", { toolIndex: 2 });
+        assert.equal(harness.status.textContent,
+            "Lightroom could not confirm that mask component change. Please try again.",
+            "an unreconciled component result must stop the automatic sequence");
+        assert.equal(harness.commandRequests.length, 1);
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 2, toolCount: 5 });
+    try {
+        harness.next.click();
+        assert.equal(harness.componentNext.disabled, true,
+            "component navigation must be blocked during group navigation");
+        assert.equal(harness.componentNext.click(), false);
+        await settleAllRenderedNavigation(harness);
+        assert.deepEqual(harness.commandRequests.map(function (request) { return request.path; }),
+            ["/api/masking/group/navigate"]);
     } finally {
         harness.close();
     }
@@ -1158,7 +1455,10 @@ function snapshotFields(value) {
         maskGroupCount: value.maskGroupCount, hasSelectedMaskGroup: value.hasSelectedMaskGroup,
         selectedMaskGroupIndex: value.selectedMaskGroupIndex, selectedMaskGroupId: value.selectedMaskGroupId,
         previousAvailable: value.previousAvailable, nextAvailable: value.nextAvailable,
-        selectedMaskToolAvailable: value.selectedMaskToolAvailable, selectedMaskToolId: value.selectedMaskToolId
+        selectedMaskToolAvailable: value.selectedMaskToolAvailable, selectedMaskToolId: value.selectedMaskToolId,
+        selectedMaskToolCount: value.selectedMaskToolCount, selectedMaskToolIndex: value.selectedMaskToolIndex,
+        previousMaskToolAvailable: value.previousMaskToolAvailable,
+        nextMaskToolAvailable: value.nextMaskToolAvailable
     };
 }
 
@@ -1204,7 +1504,8 @@ async function submitOperationResult(port, command, outcome, value) {
 
 function operationRequestPath(kind, value, binding) {
     const operationField = kind === "panel" ? { open: value } : { direction: value };
-    return "/masking/" + (kind === "panel" ? "panel" : "group/navigate") + "?" + queryString(Object.assign(
+    const endpoint = kind === "panel" ? "panel" : (kind === "toolNavigate" ? "tool/navigate" : "group/navigate");
+    return "/masking/" + endpoint + "?" + queryString(Object.assign(
         operationField,
         {
             selectedPhotoUuid: binding.selectedPhotoUuid,
@@ -1303,6 +1604,46 @@ async function testHttpAndQueueContract() {
         assert.equal(response.status, 200);
         state = (await get(port, "/masking/state")).body;
         assert.equal(state.selectedMaskGroupIndex, 2);
+
+        binding = suppliedBinding(state);
+        const componentQuery = queryString({
+            direction: "next", selectedPhotoUuid: binding.selectedPhotoUuid, contextCounter: binding.contextCounter,
+            developCounter: binding.developCounter, contextChangedAt: binding.contextChangedAt,
+            serverEpoch: binding.serverEpoch, stateRevision: binding.revision
+        });
+        response = await get(port, "/masking/tool/navigate?" + componentQuery);
+        assert.equal(response.status, 200);
+        assert.equal((await get(port, "/masking/group/navigate?" + componentQuery)).status, 409,
+            "group navigation must not overlap a component operation");
+        assert.equal((await get(port, "/masking/tool/navigate?" + componentQuery)).status, 409,
+            "rapid duplicate component navigation must not queue twice");
+        const componentDiagnostics = (await get(port, "/diagnostics/queue")).body;
+        assert.equal(componentDiagnostics.queue.length, 1);
+        assert.equal(componentDiagnostics.queue.pending.byCommand["masking.tool.navigate"], 1);
+        assert.equal(componentDiagnostics.queue.pending.protected, 1,
+            "an authoritative component operation must retain protected queue ownership");
+        const componentCommand = commands.getNextCommand();
+        assert.equal(componentCommand.command, "masking.tool.navigate");
+        assert.equal(componentCommand.expectedSelectedMaskId, "mask-b");
+        assert.equal(componentCommand.expectedSelectedMaskToolId, "tool-b1");
+        assert.equal(commands.validateCommand(componentCommand), true);
+        assert.equal(commands.validateCommand(Object.assign({}, componentCommand, {
+            expectedSelectedMaskToolId: "bad\ncomponent"
+        })), false, "malformed server-side component IDs must fail command validation");
+        const thirdComponent = snapshot({
+            maskGroupCount: 2, selectedMaskGroupIndex: 2, selectedMaskGroupId: "mask-b",
+            previousAvailable: true, nextAvailable: false,
+            selectedMaskToolId: "tool-b3", selectedMaskToolIndex: 3,
+            previousMaskToolAvailable: true, nextMaskToolAvailable: false
+        });
+        response = await submitOperationResult(port, componentCommand, "confirmed", thirdComponent);
+        assert.equal(response.status, 200);
+        state = (await get(port, "/masking/state")).body;
+        assert.equal(state.selectedMaskGroupIndex, 2);
+        assert.equal(state.selectedMaskToolIndex, 3);
+        response = await get(port, operationRequestPath("toolNavigate", "next", suppliedBinding(state)));
+        assert.equal(response.status, 409, "Next Component must be rejected at the final component");
+
         response = await get(port, "/masking/group/navigate?" + queryString({
             direction: "next", selectedPhotoUuid: state.selectedPhotoUuid, contextCounter: state.contextCounter,
             developCounter: state.developCounter, contextChangedAt: state.contextChangedAt,
@@ -1522,6 +1863,9 @@ async function testHttpSemanticRevisionRace() {
         response = await get(port, operationRequestPath("navigate", "next", staleBinding));
         assert.equal(response.status, 409,
             "the exact navigation endpoint must reject the previous semantic revision after a real change");
+        response = await get(port, operationRequestPath("toolNavigate", "next", staleBinding));
+        assert.equal(response.status, 409,
+            "component navigation must reject the previous semantic revision after a real change");
         assert.deepEqual(response.body, {
             ok: false,
             error: "Masking state changed or the requested action is unavailable"
@@ -1582,6 +1926,13 @@ function testPhotographerPresentationAndSourceContract() {
     assert.equal(maskingUi.present(authoritative, ctx, null).position, "Mask 2 of 3");
     assert.equal(maskingUi.present(authoritative, ctx, null).panelLabel, "Close Masking");
     assert.equal(maskingUi.present(authoritative, ctx, null).previousDisabled, false);
+    assert.equal(maskingUi.present(authoritative, ctx, null).componentPosition, "Component 2 of 3");
+    assert.equal(maskingUi.present(authoritative, ctx, null).previousComponentDisabled, false);
+    assert.equal(maskingUi.present(authoritative, ctx, null).nextComponentDisabled, false);
+    const noSelectedComponent = Object.assign({}, authoritative, snapshot({ selectedMaskToolAvailable: false }));
+    assert.equal(maskingUi.present(noSelectedComponent, ctx, null).componentPosition,
+        "No mask component is selected.");
+    assert.equal(maskingUi.present(noSelectedComponent, ctx, null).nextComponentDisabled, true);
     assert.equal(maskingUi.present(Object.assign({}, authoritative, {
         selectedMaskGroupIndex: 1, selectedMaskGroupId: "mask-a", previousAvailable: false
     }), ctx, null).previousDisabled, true);
@@ -1595,9 +1946,24 @@ function testPhotographerPresentationAndSourceContract() {
     assert.equal(pendingPresentation.status, "Moving to Mask 3…");
     assert.equal(pendingPresentation.previousDisabled, false,
         "reverse direction must remain clickable while navigation is serialized");
+    assert.equal(pendingPresentation.nextComponentDisabled, true,
+        "component navigation must be disabled during group navigation");
+    const pendingComponentPresentation = maskingUi.present(authoritative, ctx, {
+        activeOperation: { kind: "toolNavigate", direction: "next", operationId: "test-tool-op" },
+        desiredMaskToolIndex: 3,
+        toolNavigationIntentActive: true
+    });
+    assert.equal(pendingComponentPresentation.componentPosition, "Component 2 of 3");
+    assert.equal(pendingComponentPresentation.status, "Moving to Component 3…");
+    assert.equal(pendingComponentPresentation.previousComponentDisabled, false,
+        "component direction reversal must remain clickable while serialized");
+    assert.equal(pendingComponentPresentation.nextDisabled, true,
+        "group navigation must be disabled during component navigation");
     const empty = Object.assign({}, authoritative, {
         maskGroupCount: 0, hasSelectedMaskGroup: false, selectedMaskGroupIndex: null, selectedMaskGroupId: null,
-        previousAvailable: false, nextAvailable: false, selectedMaskToolAvailable: false, selectedMaskToolId: null
+        previousAvailable: false, nextAvailable: false, selectedMaskToolAvailable: false, selectedMaskToolId: null,
+        selectedMaskToolCount: null, selectedMaskToolIndex: null,
+        previousMaskToolAvailable: false, nextMaskToolAvailable: false
     });
     assert.equal(maskingUi.present(empty, ctx, null).position, "No masks on this photo.");
     const unavailable = Object.assign({}, authoritative, maskingDefinition.unavailableSnapshot("sdk_error"));
@@ -1609,6 +1975,7 @@ function testPhotographerPresentationAndSourceContract() {
 
     const lua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Masking.lua"), "utf8");
     const commandsLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Commands.lua"), "utf8");
+    const parserLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Parser.lua"), "utf8");
     const feedbackLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), "utf8");
     const maskingControllerSource = fs.readFileSync(path.join(root, "app/controller-masking.js"), "utf8");
     const controllerHtml = fs.readFileSync(path.join(root, "app/controller.html"), "utf8");
@@ -1636,17 +2003,34 @@ function testPhotographerPresentationAndSourceContract() {
         "group navigation must select the first tool from the evidenced nested Tools array");
     assert.doesNotMatch(lua, /targetMask\[1\]/,
         "the rejected direct mask[1] tool-layout assumption must not return");
-    assert.ok(lua.indexOf("LrDevelopController.selectMask(targetMask.ID)") <
-        lua.indexOf("LrDevelopController.selectMaskTool(targetTool.ID)"));
+    const groupNavigationBlock = lua.slice(lua.indexOf("local function executeNavigation"),
+        lua.indexOf("function Masking.execute"));
+    assert.ok(groupNavigationBlock.indexOf("LrDevelopController.selectMask(targetMask.ID)") <
+        groupNavigationBlock.indexOf("LrDevelopController.selectMaskTool(targetTool.ID)"));
+    const toolNavigationBlock = lua.slice(lua.indexOf("local function executeToolNavigation"),
+        lua.indexOf("function Masking.sendRequestedSnapshot"));
+    assert.match(toolNavigationBlock, /before\._masks\[before\.selectedMaskGroupIndex\]/,
+        "component navigation targets only the selected mask's nested Tools array");
+    assert.ok(toolNavigationBlock.indexOf("LrDevelopController.selectMask(selectedMask.ID)") <
+        toolNavigationBlock.indexOf("LrDevelopController.selectMaskTool(targetTool.ID)"));
+    assert.match(toolNavigationBlock, /expectedSelectedMaskToolId/,
+        "component navigation must bind the authoritative selected component ID");
     assert.match(lua, /LrDevelopController\.goToMasking\(\)/);
     assert.match(lua, /LrDevelopController\.selectTool\("loupe"\)/);
-    assert.match(commandsLua, /masking\.panel\.set[\s\S]*masking\.group\.navigate[\s\S]*Masking\.execute/);
+    assert.match(commandsLua,
+        /masking\.panel\.set[\s\S]*masking\.group\.navigate[\s\S]*masking\.tool\.navigate[\s\S]*Masking\.execute/);
+    assert.match(parserLua, /expectedSelectedMaskToolId/);
     assert.match(feedbackLua, /\/masking\/next[\s\S]*Masking\.sendRequestedSnapshot/);
     assert.match(controllerHtml, /<script src="\/controller-masking\.js"><\/script>/);
     assert.match(electronMain, /requestUrl\.pathname === "\/controller-masking\.js"/);
     assert.match(maskingControllerSource, /desiredMaskGroupIndex/);
     assert.match(maskingControllerSource, /navigationIntentActive/);
     assert.match(maskingControllerSource, /driveNavigation\(\)/);
+    assert.match(maskingControllerSource, /desiredMaskToolIndex/);
+    assert.match(maskingControllerSource, /toolNavigationIntentActive/);
+    assert.match(maskingControllerSource, /driveToolNavigation\(\)/);
+    assert.match(maskingControllerSource, /Previous Component/);
+    assert.match(maskingControllerSource, /Next Component/);
     assert.doesNotMatch(maskingControllerSource, /if \(localIntent \|\|/,
         "rapid Masking clicks must not be discarded by the old pending-intent guard");
     for (const forbidden of ["loadstring", "executeTemplate", "deleteMask", "resetMasking", "createNewMask",
@@ -1669,6 +2053,7 @@ function testPhotographerPresentationAndSourceContract() {
     testLightroom153RuntimeInventoryFixture();
     testPhotographerPresentationAndSourceContract();
     await testRenderedRapidFinalIntentSequences();
+    await testRenderedComponentNavigation();
     await testRenderedBoundaryClamping();
     await testRenderedDelayedAdmissionAndSettlement();
     await testRenderedOutOfOrderAndContextCancellation();

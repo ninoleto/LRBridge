@@ -172,6 +172,7 @@
     ,"develop_preset.amount.set"
     ,"masking.panel.set"
     ,"masking.group.navigate"
+    ,"masking.tool.navigate"
   ],
   "selectionOperations": [
     "select_all",

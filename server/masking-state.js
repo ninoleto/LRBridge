@@ -4,6 +4,7 @@ const crypto = require("crypto");
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_MASK_GROUPS = 512;
+const MAX_MASK_TOOLS_PER_GROUP = 2048;
 const SNAPSHOT_FRESH_MS = 3000;
 const QUERY_RETRY_MS = 2500;
 const OPERATION_TIMEOUT_MS = 10000;
@@ -28,7 +29,11 @@ const COMMAND_RELEVANT_SNAPSHOT_FIELDS = [
     "previousAvailable",
     "nextAvailable",
     "selectedMaskToolAvailable",
-    "selectedMaskToolId"
+    "selectedMaskToolId",
+    "selectedMaskToolCount",
+    "selectedMaskToolIndex",
+    "previousMaskToolAvailable",
+    "nextMaskToolAvailable"
 ];
 
 function createId(prefix) {
@@ -47,7 +52,11 @@ function unavailableSnapshot(reason) {
         previousAvailable: false,
         nextAvailable: false,
         selectedMaskToolAvailable: false,
-        selectedMaskToolId: null
+        selectedMaskToolId: null,
+        selectedMaskToolCount: null,
+        selectedMaskToolIndex: null,
+        previousMaskToolAvailable: false,
+        nextMaskToolAvailable: false
     };
 }
 
@@ -70,22 +79,32 @@ function sanitizeSnapshot(input) {
     if (input.active === false) {
         if (selected !== null || input.selectedMaskGroupIndex !== null || input.selectedMaskGroupId !== null ||
             input.previousAvailable !== false || input.nextAvailable !== false ||
-            input.selectedMaskToolAvailable !== false || input.selectedMaskToolId !== null) return null;
+            input.selectedMaskToolAvailable !== false || input.selectedMaskToolId !== null ||
+            input.selectedMaskToolCount !== null || input.selectedMaskToolIndex !== null ||
+            input.previousMaskToolAvailable !== false || input.nextMaskToolAvailable !== false) return null;
     } else {
         if (typeof selected !== "boolean") return null;
         if (!selected) {
             if (input.selectedMaskGroupIndex !== null || input.selectedMaskGroupId !== null ||
                 input.previousAvailable !== false || input.nextAvailable !== false ||
-                input.selectedMaskToolAvailable !== false || input.selectedMaskToolId !== null) return null;
+                input.selectedMaskToolAvailable !== false || input.selectedMaskToolId !== null ||
+                input.selectedMaskToolCount !== null || input.selectedMaskToolIndex !== null ||
+                input.previousMaskToolAvailable !== false || input.nextMaskToolAvailable !== false) return null;
         } else {
             if (!Number.isSafeInteger(input.selectedMaskGroupIndex) || input.selectedMaskGroupIndex < 1 ||
                 input.selectedMaskGroupIndex > input.maskGroupCount || !validOpaqueId(input.selectedMaskGroupId)) return null;
             if (input.previousAvailable !== (input.selectedMaskGroupIndex > 1) ||
                 input.nextAvailable !== (input.selectedMaskGroupIndex < input.maskGroupCount) ||
-                typeof input.selectedMaskToolAvailable !== "boolean") return null;
+                typeof input.selectedMaskToolAvailable !== "boolean" ||
+                !Number.isSafeInteger(input.selectedMaskToolCount) || input.selectedMaskToolCount < 1 ||
+                input.selectedMaskToolCount > MAX_MASK_TOOLS_PER_GROUP) return null;
             if (input.selectedMaskToolAvailable) {
-                if (!validOpaqueId(input.selectedMaskToolId)) return null;
-            } else if (input.selectedMaskToolId !== null) return null;
+                if (!validOpaqueId(input.selectedMaskToolId) || !Number.isSafeInteger(input.selectedMaskToolIndex) ||
+                    input.selectedMaskToolIndex < 1 || input.selectedMaskToolIndex > input.selectedMaskToolCount ||
+                    input.previousMaskToolAvailable !== (input.selectedMaskToolIndex > 1) ||
+                    input.nextMaskToolAvailable !== (input.selectedMaskToolIndex < input.selectedMaskToolCount)) return null;
+            } else if (input.selectedMaskToolId !== null || input.selectedMaskToolIndex !== null ||
+                input.previousMaskToolAvailable !== false || input.nextMaskToolAvailable !== false) return null;
         }
     }
 
@@ -100,7 +119,11 @@ function sanitizeSnapshot(input) {
         previousAvailable: input.previousAvailable,
         nextAvailable: input.nextAvailable,
         selectedMaskToolAvailable: input.selectedMaskToolAvailable,
-        selectedMaskToolId: input.selectedMaskToolId
+        selectedMaskToolId: input.selectedMaskToolId,
+        selectedMaskToolCount: input.selectedMaskToolCount,
+        selectedMaskToolIndex: input.selectedMaskToolIndex,
+        previousMaskToolAvailable: input.previousMaskToolAvailable,
+        nextMaskToolAvailable: input.nextMaskToolAvailable
     };
 }
 
@@ -286,6 +309,15 @@ function createMaskingState(options) {
             direction = specification.direction;
             if (snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
                 (direction === "previous" ? snapshot.previousAvailable !== true : snapshot.nextAvailable !== true)) return null;
+        } else if (specification.kind === "toolNavigate" &&
+            (specification.direction === "previous" || specification.direction === "next")) {
+            kind = "toolNavigate";
+            direction = specification.direction;
+            if (snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
+                snapshot.selectedMaskToolAvailable !== true ||
+                (direction === "previous"
+                    ? snapshot.previousMaskToolAvailable !== true
+                    : snapshot.nextMaskToolAvailable !== true)) return null;
         } else return null;
 
         operationCounter += 1;
@@ -301,10 +333,14 @@ function createMaskingState(options) {
             expectedMaskingRevision: revision,
             beforeIndex: snapshot.selectedMaskGroupIndex,
             beforeCount: snapshot.maskGroupCount,
-            beforeSelectedMaskId: snapshot.selectedMaskGroupId
+            beforeSelectedMaskId: snapshot.selectedMaskGroupId,
+            beforeToolIndex: snapshot.selectedMaskToolIndex,
+            beforeToolCount: snapshot.selectedMaskToolCount,
+            beforeSelectedMaskToolId: snapshot.selectedMaskToolId
         }, binding);
         return Object.assign({
-            command: kind === "panel" ? "masking.panel.set" : "masking.group.navigate",
+            command: kind === "panel" ? "masking.panel.set" :
+                (kind === "navigate" ? "masking.group.navigate" : "masking.tool.navigate"),
             operationId: pendingOperation.operationId,
             expectedActiveModule: "develop",
             expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
@@ -313,9 +349,13 @@ function createMaskingState(options) {
             expectedContextChangedAt: binding.contextChangedAt,
             expectedServerEpoch: serverEpoch,
             expectedMaskingRevision: revision
-        }, kind === "panel" ? { open: open } : {
+        }, kind === "panel" ? { open: open } : kind === "navigate" ? {
             direction: direction,
             expectedSelectedMaskId: snapshot.selectedMaskGroupId
+        } : {
+            direction: direction,
+            expectedSelectedMaskId: snapshot.selectedMaskGroupId,
+            expectedSelectedMaskToolId: snapshot.selectedMaskToolId
         });
     }
 
@@ -328,8 +368,13 @@ function createMaskingState(options) {
         if (pendingOperation.kind === "panel") {
             return command.command === "masking.panel.set" && command.open === pendingOperation.open;
         }
-        return command.command === "masking.group.navigate" && command.direction === pendingOperation.direction &&
-            command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId;
+        if (pendingOperation.kind === "navigate") {
+            return command.command === "masking.group.navigate" && command.direction === pendingOperation.direction &&
+                command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId;
+        }
+        return command.command === "masking.tool.navigate" && command.direction === pendingOperation.direction &&
+            command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId &&
+            command.expectedSelectedMaskToolId === pendingOperation.beforeSelectedMaskToolId;
     }
 
     function rejectCommand(command, detail) {
@@ -370,12 +415,30 @@ function createMaskingState(options) {
                 next.selectedMaskGroupIndex !== pendingOperation.beforeIndex + delta ||
                 next.selectedMaskGroupId === pendingOperation.beforeSelectedMaskId) reconciled = false;
         }
+        if (result.outcome === "confirmed" && pendingOperation.kind === "toolNavigate") {
+            const delta = pendingOperation.direction === "previous" ? -1 : 1;
+            if (next.available !== true || next.active !== true || next.hasSelectedMaskGroup !== true ||
+                next.maskGroupCount !== pendingOperation.beforeCount ||
+                next.selectedMaskGroupIndex !== pendingOperation.beforeIndex ||
+                next.selectedMaskGroupId !== pendingOperation.beforeSelectedMaskId ||
+                next.selectedMaskToolAvailable !== true ||
+                next.selectedMaskToolCount !== pendingOperation.beforeToolCount ||
+                next.selectedMaskToolIndex !== pendingOperation.beforeToolIndex + delta ||
+                next.selectedMaskToolId === pendingOperation.beforeSelectedMaskToolId) reconciled = false;
+        }
         if (result.outcome === "no_change" && pendingOperation.kind === "panel" &&
             next.active === pendingOperation.open) reconciled = false;
         if (result.outcome === "no_change" && pendingOperation.kind === "navigate" &&
             (next.maskGroupCount !== pendingOperation.beforeCount ||
                 next.selectedMaskGroupIndex !== pendingOperation.beforeIndex ||
                 next.selectedMaskGroupId !== pendingOperation.beforeSelectedMaskId)) reconciled = false;
+        if (result.outcome === "no_change" && pendingOperation.kind === "toolNavigate" &&
+            (next.maskGroupCount !== pendingOperation.beforeCount ||
+                next.selectedMaskGroupIndex !== pendingOperation.beforeIndex ||
+                next.selectedMaskGroupId !== pendingOperation.beforeSelectedMaskId ||
+                next.selectedMaskToolCount !== pendingOperation.beforeToolCount ||
+                next.selectedMaskToolIndex !== pendingOperation.beforeToolIndex ||
+                next.selectedMaskToolId !== pendingOperation.beforeSelectedMaskToolId)) reconciled = false;
         if (!reconciled) {
             outcome = "failed";
             detail = "Lightroom's Masking result could not be reconciled safely.";
@@ -432,6 +495,7 @@ function createMaskingState(options) {
 module.exports = {
     ID_PATTERN,
     MAX_MASK_GROUPS,
+    MAX_MASK_TOOLS_PER_GROUP,
     SNAPSHOT_FRESH_MS,
     OPERATION_TIMEOUT_MS,
     validOpaqueId,

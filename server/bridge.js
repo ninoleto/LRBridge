@@ -341,7 +341,8 @@ function exactQueryFields(req, expected) {
 const MASKING_SNAPSHOT_FIELDS = [
     "available", "unavailableReason", "active", "maskGroupCount", "hasSelectedMaskGroup",
     "selectedMaskGroupIndex", "selectedMaskGroupId", "previousAvailable", "nextAvailable",
-    "selectedMaskToolAvailable", "selectedMaskToolId"
+    "selectedMaskToolAvailable", "selectedMaskToolId", "selectedMaskToolCount", "selectedMaskToolIndex",
+    "previousMaskToolAvailable", "nextMaskToolAvailable"
 ];
 
 function parseMaskingCounter(value) {
@@ -367,13 +368,22 @@ function maskingSnapshotFromQuery(query) {
     const previousAvailable = parseMaskingBoolean(query.previousAvailable, false);
     const nextAvailable = parseMaskingBoolean(query.nextAvailable, false);
     const selectedMaskToolAvailable = parseMaskingBoolean(query.selectedMaskToolAvailable, false);
+    const previousMaskToolAvailable = parseMaskingBoolean(query.previousMaskToolAvailable, false);
+    const nextMaskToolAvailable = parseMaskingBoolean(query.nextMaskToolAvailable, false);
     const maskGroupCount = query.maskGroupCount === "null" ? null : parseMaskingCounter(query.maskGroupCount);
     const selectedMaskGroupIndex = query.selectedMaskGroupIndex === "null"
         ? null : parseMaskingCounter(query.selectedMaskGroupIndex);
+    const selectedMaskToolCount = query.selectedMaskToolCount === "null"
+        ? null : parseMaskingCounter(query.selectedMaskToolCount);
+    const selectedMaskToolIndex = query.selectedMaskToolIndex === "null"
+        ? null : parseMaskingCounter(query.selectedMaskToolIndex);
     if (available === undefined || active === undefined || hasSelectedMaskGroup === undefined ||
         previousAvailable === undefined || nextAvailable === undefined || selectedMaskToolAvailable === undefined ||
+        previousMaskToolAvailable === undefined || nextMaskToolAvailable === undefined ||
         (query.maskGroupCount !== "null" && maskGroupCount === null) ||
-        (query.selectedMaskGroupIndex !== "null" && selectedMaskGroupIndex === null)) return null;
+        (query.selectedMaskGroupIndex !== "null" && selectedMaskGroupIndex === null) ||
+        (query.selectedMaskToolCount !== "null" && selectedMaskToolCount === null) ||
+        (query.selectedMaskToolIndex !== "null" && selectedMaskToolIndex === null)) return null;
     return {
         available: available,
         unavailableReason: parseMaskingNullableString(query.unavailableReason),
@@ -385,7 +395,11 @@ function maskingSnapshotFromQuery(query) {
         previousAvailable: previousAvailable,
         nextAvailable: nextAvailable,
         selectedMaskToolAvailable: selectedMaskToolAvailable,
-        selectedMaskToolId: parseMaskingNullableString(query.selectedMaskToolId)
+        selectedMaskToolId: parseMaskingNullableString(query.selectedMaskToolId),
+        selectedMaskToolCount: selectedMaskToolCount,
+        selectedMaskToolIndex: selectedMaskToolIndex,
+        previousMaskToolAvailable: previousMaskToolAvailable,
+        nextMaskToolAvailable: nextMaskToolAvailable
     };
 }
 
@@ -555,6 +569,7 @@ app.get("/help", function (req, res) {
             maskingState: "/masking/state",
             setMaskingPanel: "/masking/panel?open=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             navigateMaskGroup: "/masking/group/navigate?direction=next&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
+            navigateMaskComponent: "/masking/tool/navigate?direction=next&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             deprecatedWakeEndpoint: "/wake-lightroom",
             libraryModuleCommand: "/command?command=application.module&module=library"
         },
@@ -1610,6 +1625,14 @@ app.get("/masking/group/navigate", function (req, res) {
         return res.status(400).json({ ok: false, error: "Invalid Masking command" });
     }
     queueMaskingOperation(req, res, { kind: "navigate", direction: req.query.direction },
+        ["direction"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/tool/navigate", function (req, res) {
+    if (req.query.direction !== "previous" && req.query.direction !== "next") {
+        return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    }
+    queueMaskingOperation(req, res, { kind: "toolNavigate", direction: req.query.direction },
         ["direction"].concat(MASKING_COMMAND_BINDING_FIELDS));
 });
 
