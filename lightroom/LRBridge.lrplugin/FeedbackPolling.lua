@@ -15,6 +15,7 @@ local LensBlur = require "LensBlur"
 local DevelopCategorical = require "DevelopCategorical"
 local ToneCurve = require "ToneCurve"
 local DevelopPresets = require "DevelopPresets"
+local Masking = require "Masking"
 
 local function getPortableRoot()
 
@@ -922,6 +923,11 @@ LrTasks.startAsyncTask(function()
         local categoricalRequest = LrHttp.get("http://127.0.0.1:17891/develop-categorical/next")
         if string.find(categoricalRequest or "", [["requested":true]], 1, true) then
             DevelopCategorical.sendCurrentState()
+        end
+
+        local maskingRequest = LrHttp.get("http://127.0.0.1:17891/masking/next")
+        if string.find(maskingRequest or "", [["request":{]], 1, true) then
+            Masking.sendRequestedSnapshot(maskingRequest)
         end
 
         LrTasks.sleep(0.1)

@@ -1,0 +1,39 @@
+{
+  "source": "Sanitized type-and-key shape captured from Lightroom Classic 15.3 getAllMasks() on 2026-09-06; identifiers and metadata values are synthetic.",
+  "selectedTool": "masking",
+  "allMasks": [
+    {
+      "ID": "mask-runtime-a",
+      "Name": "Mask A",
+      "Hidden": false,
+      "Tools": [
+        {
+          "ID": "tool-runtime-a1",
+          "Name": "Tool A1",
+          "Type": "runtime-type-a",
+          "Subtype": "runtime-subtype-a",
+          "Hidden": false,
+          "Inverted": false
+        }
+      ]
+    },
+    {
+      "ID": "mask-runtime-b",
+      "Name": "Mask B",
+      "Hidden": false,
+      "Tools": [
+        {
+          "ID": "tool-runtime-b1",
+          "Name": "Tool B1",
+          "Type": "runtime-type-b",
+          "Subtype": "runtime-subtype-b",
+          "Hidden": false,
+          "Inverted": false,
+          "MaskSubCategoryID": 1
+        }
+      ]
+    }
+  ],
+  "selectedMaskId": "mask-runtime-b",
+  "selectedMaskToolId": "tool-runtime-b1"
+}

@@ -31,6 +31,7 @@ const controllerDevelopCategoricalPath = path.join(__dirname, "controller-develo
 const controllerToneCurvePath = path.join(__dirname, "controller-tone-curve.js");
 const controllerSectionCollapsePath = path.join(__dirname, "controller-section-collapse.js");
 const controllerDevelopPresetsPath = path.join(__dirname, "controller-develop-presets.js");
+const controllerMaskingPath = path.join(__dirname, "controller-masking.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
@@ -421,6 +422,12 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/controller-develop-presets.js") {
         const script = fs.readFileSync(controllerDevelopPresetsPath, "utf8");
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-masking.js") {
+        const script = fs.readFileSync(controllerMaskingPath, "utf8");
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
         return;
     }

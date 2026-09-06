@@ -19,6 +19,7 @@ const windowsNativeDefinition = require("./windows-lightroom-native");
 const developCategoricalDefinition = require("./develop-categorical-state");
 const profileNativeDefinition = require("./profile-native-state");
 const developPresetsDefinition = require("./develop-presets");
+const maskingDefinition = require("./masking-state");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -94,6 +95,7 @@ const profileNative = profileNativeDefinition.createProfileNativeState(profileBa
 const developPresets = developPresetsDefinition.createDevelopPresetState({
     configPath: options.developPresetConfigPath
 });
+const masking = maskingDefinition.createMaskingState(options.maskingStateOptions);
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -121,6 +123,14 @@ commands.setDevelopPresetAdmissionProvider({
         if (command && command.command === "develop_preset.apply") {
             developPresets.rejectApplication(command, detail);
         }
+    }
+});
+commands.setMaskingAdmissionProvider({
+    matches: function (command, fields) {
+        return masking.commandMatches(command, fields);
+    },
+    onRejected: function (command, detail) {
+        masking.rejectCommand(command, detail);
     }
 });
 
@@ -328,6 +338,76 @@ function exactQueryFields(req, expected) {
     });
 }
 
+const MASKING_SNAPSHOT_FIELDS = [
+    "available", "unavailableReason", "active", "maskGroupCount", "hasSelectedMaskGroup",
+    "selectedMaskGroupIndex", "selectedMaskGroupId", "previousAvailable", "nextAvailable",
+    "selectedMaskToolAvailable", "selectedMaskToolId"
+];
+
+function parseMaskingCounter(value) {
+    if (typeof value !== "string" || !/^(?:0|[1-9]\d*)$/.test(value)) return null;
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function parseMaskingBoolean(value, nullable) {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return nullable === true && value === "null" ? null : undefined;
+}
+
+function parseMaskingNullableString(value) {
+    return value === "null" ? null : value;
+}
+
+function maskingSnapshotFromQuery(query) {
+    const available = parseMaskingBoolean(query.available, false);
+    const active = parseMaskingBoolean(query.active, true);
+    const hasSelectedMaskGroup = parseMaskingBoolean(query.hasSelectedMaskGroup, true);
+    const previousAvailable = parseMaskingBoolean(query.previousAvailable, false);
+    const nextAvailable = parseMaskingBoolean(query.nextAvailable, false);
+    const selectedMaskToolAvailable = parseMaskingBoolean(query.selectedMaskToolAvailable, false);
+    const maskGroupCount = query.maskGroupCount === "null" ? null : parseMaskingCounter(query.maskGroupCount);
+    const selectedMaskGroupIndex = query.selectedMaskGroupIndex === "null"
+        ? null : parseMaskingCounter(query.selectedMaskGroupIndex);
+    if (available === undefined || active === undefined || hasSelectedMaskGroup === undefined ||
+        previousAvailable === undefined || nextAvailable === undefined || selectedMaskToolAvailable === undefined ||
+        (query.maskGroupCount !== "null" && maskGroupCount === null) ||
+        (query.selectedMaskGroupIndex !== "null" && selectedMaskGroupIndex === null)) return null;
+    return {
+        available: available,
+        unavailableReason: parseMaskingNullableString(query.unavailableReason),
+        active: active,
+        maskGroupCount: maskGroupCount,
+        hasSelectedMaskGroup: hasSelectedMaskGroup,
+        selectedMaskGroupIndex: selectedMaskGroupIndex,
+        selectedMaskGroupId: parseMaskingNullableString(query.selectedMaskGroupId),
+        previousAvailable: previousAvailable,
+        nextAvailable: nextAvailable,
+        selectedMaskToolAvailable: selectedMaskToolAvailable,
+        selectedMaskToolId: parseMaskingNullableString(query.selectedMaskToolId)
+    };
+}
+
+function maskingBindingFromRequest(req) {
+    const contextCounter = parseMaskingCounter(req.query.contextCounter);
+    const developCounter = parseMaskingCounter(req.query.developCounter);
+    const contextChangedAt = parseMaskingCounter(req.query.contextChangedAt);
+    const revision = parseMaskingCounter(req.query.stateRevision);
+    if (contextCounter === null || developCounter === null || contextChangedAt === null || revision === null ||
+        typeof req.query.selectedPhotoUuid !== "string" || req.query.selectedPhotoUuid.length < 1 ||
+        req.query.selectedPhotoUuid.length > 200 || !maskingDefinition.ID_PATTERN.test(req.query.serverEpoch || "")) return null;
+    return {
+        activeModule: "develop",
+        selectedPhotoUuid: req.query.selectedPhotoUuid,
+        contextCounter: contextCounter,
+        developCounter: developCounter,
+        contextChangedAt: contextChangedAt,
+        serverEpoch: req.query.serverEpoch,
+        revision: revision
+    };
+}
+
 function presetBindingFromRequest(req, allowOlderDevelopCounter) {
     if (!exactQueryFields(req, ["uuid", "selectedPhotoUuid", "contextCounter", "developCounter",
         "contextChangedAt", "serverEpoch"])) return null;
@@ -472,6 +552,9 @@ app.get("/help", function (req, res) {
             setLensBlurFocalRange: "/lens-blur/focal-range/set?nearOuter=-80&nearInner=0&farInner=55&farOuter=135&expected=-43%2037%2057%20137",
             selectLensBlurDepthRefinement: "/lens-blur/depth-refinement/select",
             lensBlurState: "/lens-blur/state",
+            maskingState: "/masking/state",
+            setMaskingPanel: "/masking/panel?open=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
+            navigateMaskGroup: "/masking/group/navigate?direction=next&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             deprecatedWakeEndpoint: "/wake-lightroom",
             libraryModuleCommand: "/command?command=application.module&module=library"
         },
@@ -551,6 +634,8 @@ app.get("/context/update", function (req, res) {
     abandonedPointCurveGestures.forEach(queuePointCurveCancellation);
     lensBlur.syncContext(updated.contextCounter);
     developCategorical.syncContext(updated.contextCounter);
+    masking.syncContext(updated);
+    masking.requestRefresh(updated, false);
     const profileContextChanged = profileNative.syncContext(
         profileContextBinding(updated, previousContext.developCounter)
     );
@@ -1440,6 +1525,129 @@ app.get("/develop-categorical/upright-tool", function (req, res) {
         developCategorical.invalidate("selectedTool");
         developCategorical.requestRefresh(Date.now(), true);
     });
+});
+
+app.get("/masking/state", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    const fields = context.getContextFields();
+    masking.syncContext(fields);
+    masking.requestRefresh(fields, false);
+    res.set("Cache-Control", "no-store").json(masking.getPublicState());
+});
+
+app.get("/masking/next", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json({ request: masking.takeRequest() });
+});
+
+app.get("/masking/query-result", function (req, res) {
+    const bindingFields = ["requestId", "expectedServerEpoch", "expectedMaskingRevision", "expectedActiveModule",
+        "expectedSelectedPhotoUuid", "expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt"];
+    if (!exactQueryFields(req, bindingFields.concat(MASKING_SNAPSHOT_FIELDS))) {
+        return res.status(400).json({ ok: false, error: "Invalid Masking query result" });
+    }
+    const snapshot = maskingSnapshotFromQuery(req.query);
+    const result = {
+        requestId: req.query.requestId,
+        expectedServerEpoch: req.query.expectedServerEpoch,
+        expectedMaskingRevision: parseMaskingCounter(req.query.expectedMaskingRevision),
+        expectedActiveModule: req.query.expectedActiveModule,
+        expectedSelectedPhotoUuid: req.query.expectedSelectedPhotoUuid,
+        expectedContextCounter: parseMaskingCounter(req.query.expectedContextCounter),
+        expectedDevelopCounter: parseMaskingCounter(req.query.expectedDevelopCounter),
+        expectedContextChangedAt: parseMaskingCounter(req.query.expectedContextChangedAt),
+        snapshot: snapshot
+    };
+    if (!snapshot || result.expectedMaskingRevision === null || result.expectedContextCounter === null ||
+        result.expectedDevelopCounter === null || result.expectedContextChangedAt === null) {
+        return res.status(400).json({ ok: false, error: "Invalid Masking query result" });
+    }
+    if (!masking.acceptQueryResult(result, context.getContextFields())) {
+        return res.status(409).json({ ok: false, error: "Stale Masking query result" });
+    }
+    res.set("Cache-Control", "no-store").json({ ok: true, revision: masking.getPublicState().revision });
+});
+
+function queueMaskingOperation(req, res, specification, expectedFields) {
+    if (!exactQueryFields(req, expectedFields)) return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    const suppliedBinding = maskingBindingFromRequest(req);
+    if (!suppliedBinding) return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    const command = masking.beginOperation(specification, suppliedBinding, context.getContextFields());
+    if (!command) {
+        return res.status(409).set("Cache-Control", "no-store").json({ ok: false, error: "Masking state changed or the requested action is unavailable" });
+    }
+    const admission = queueCommand(command);
+    if (!admission.accepted) {
+        masking.rejectCommand(command, admission.status === commands.ADMISSION_QUEUE_FULL
+            ? "The command queue is full." : "The Masking command was rejected.");
+        if (admission.status === commands.ADMISSION_QUEUE_FULL) return rejectQueueFull(res, admission.queueLength);
+        return res.status(409).set("Cache-Control", "no-store").json({ ok: false, error: "Masking command was rejected" });
+    }
+    const state = masking.getPublicState();
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        operationId: command.operationId,
+        serverEpoch: state.serverEpoch,
+        revision: state.revision,
+        pendingOperation: state.pendingOperation
+    });
+}
+
+const MASKING_COMMAND_BINDING_FIELDS = [
+    "selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt", "serverEpoch", "stateRevision"
+];
+
+app.get("/masking/panel", function (req, res) {
+    if (req.query.open !== "true" && req.query.open !== "false") {
+        return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    }
+    queueMaskingOperation(req, res, { kind: "panel", open: req.query.open === "true" },
+        ["open"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/group/navigate", function (req, res) {
+    if (req.query.direction !== "previous" && req.query.direction !== "next") {
+        return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    }
+    queueMaskingOperation(req, res, { kind: "navigate", direction: req.query.direction },
+        ["direction"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/operation-result", function (req, res) {
+    const resultFields = ["operationId", "outcome", "detail", "expectedServerEpoch", "expectedMaskingRevision",
+        "expectedActiveModule", "expectedSelectedPhotoUuid", "expectedContextCounter", "expectedDevelopCounter",
+        "expectedContextChangedAt"];
+    if (!exactQueryFields(req, resultFields.concat(MASKING_SNAPSHOT_FIELDS)) ||
+        !["confirmed", "no_change", "failed", "stale"].includes(req.query.outcome) ||
+        req.query.detail.length > 300 || /[\u0000-\u001f\u007f]/.test(req.query.detail)) {
+        return res.status(400).json({ ok: false, error: "Invalid Masking operation result" });
+    }
+    const snapshot = maskingSnapshotFromQuery(req.query);
+    const result = {
+        operationId: req.query.operationId,
+        outcome: req.query.outcome,
+        detail: req.query.detail || null,
+        expectedServerEpoch: req.query.expectedServerEpoch,
+        expectedMaskingRevision: parseMaskingCounter(req.query.expectedMaskingRevision),
+        expectedActiveModule: req.query.expectedActiveModule,
+        expectedSelectedPhotoUuid: req.query.expectedSelectedPhotoUuid,
+        expectedContextCounter: parseMaskingCounter(req.query.expectedContextCounter),
+        expectedDevelopCounter: parseMaskingCounter(req.query.expectedDevelopCounter),
+        expectedContextChangedAt: parseMaskingCounter(req.query.expectedContextChangedAt),
+        snapshot: snapshot
+    };
+    if (!snapshot || result.expectedMaskingRevision === null || result.expectedContextCounter === null ||
+        result.expectedDevelopCounter === null || result.expectedContextChangedAt === null) {
+        return res.status(400).json({ ok: false, error: "Invalid Masking operation result" });
+    }
+    if (!masking.finishOperation(result, context.getContextFields())) {
+        if (masking.rejectResult(result, context.getContextFields(), "Lightroom returned invalid Masking state.")) {
+            masking.requestRefresh(context.getContextFields(), true);
+        }
+        return res.status(409).json({ ok: false, error: "Stale or unreconciled Masking operation result" });
+    }
+    masking.requestRefresh(context.getContextFields(), true);
+    res.set("Cache-Control", "no-store").json({ ok: true, revision: masking.getPublicState().revision });
 });
 
 app.get("/lens-blur/next", function (req, res) {
@@ -2896,6 +3104,7 @@ const api = {
     start: start,
     stop: stop,
     getDevelopPresetState: function () { return developPresets.getPublicState(); },
+    getMaskingState: function () { return masking.getPublicState(); },
     requestDevelopPresetInventory: requestDevelopPresetInventory,
     saveDevelopPresetConfiguration: saveDevelopPresetConfiguration,
     getState: function () { return lifecycleState; },

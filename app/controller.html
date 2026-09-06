@@ -760,6 +760,44 @@
             letter-spacing: 0.08em;
         }
 
+        .masking-body {
+            display: grid;
+            gap: 12px;
+            max-width: 920px;
+        }
+
+        .masking-panel-row,
+        .masking-navigation {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(150px, 1fr));
+            gap: 8px;
+        }
+
+        .masking-panel-row .masking-panel-button {
+            grid-column: 1 / -1;
+        }
+
+        .masking-panel-button,
+        .masking-navigation-button {
+            min-height: 44px;
+        }
+
+        .masking-position {
+            color: #eef4f8;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .masking-status {
+            min-height: 20px;
+            color: #9fb0bf;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .masking-status.pending { color: #f0bd55; }
+        .masking-status.error { color: #ff8f8f; }
+
         .group[data-develop-section="hdr-sdr-rendition"] .hdr-sdr-rendition-note {
             margin: 0 0 12px;
         }
@@ -2469,6 +2507,11 @@
 
             .lens-blur-focus-native-actions { grid-template-columns: 1fr; }
 
+            .masking-panel-row,
+            .masking-navigation { grid-template-columns: 1fr; }
+
+            .masking-panel-row .masking-panel-button { grid-column: auto; }
+
             .slider-name {
                 border: 0;
                 padding: 0 0 6px 0;
@@ -3139,6 +3182,7 @@
     <script src="/controller-tone-curve.js"></script>
     <script src="/controller-section-collapse.js"></script>
     <script src="/controller-develop-presets.js"></script>
+    <script src="/controller-masking.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -5008,6 +5052,19 @@
                 return createPresetTreatmentPresentation("develop-preset-treatment-row");
             }
         });
+        const maskingController = LRBridgeControllerMasking.createController({
+            document: document,
+            fetch: fetch.bind(window),
+            getContext: function () {
+                return {
+                    activeModule: lastControllerActiveModule,
+                    selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter,
+                    developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt
+                };
+            }
+        });
 
         function profileContextBindingChanged(previous, next) {
             if (!next || !Number.isSafeInteger(next.contextCounter)) return false;
@@ -5335,6 +5392,7 @@
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
                 lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;
                 developPresetController.updateContext();
+                maskingController.updateContext(data);
                 pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
@@ -11848,11 +11906,14 @@
 
         function renderToolsTab() {
             renderCropSection();
-            ["healing", "redEye", "masking"].forEach(function (tabId) {
+            ["healing", "redEye"].forEach(function (tabId) {
                 const tab = toolTabs.find(function (item) {
                     return item.id === tabId;
                 });
                 if (tab) renderToolTab(tab);
+            });
+            maskingController.activate(content, function (groupElement, title) {
+                decorateToolsCollapsibleWhole(groupElement, title, "tools.masking", "Masking");
             });
         }
 
@@ -11871,6 +11932,7 @@
             developPresetController.deactivate();
             colorGradingController.deactivate();
             pointCurveController.deactivate();
+            maskingController.deactivate();
             deactivateDevelopFeedbackPolling();
             clearContent();
             content.hidden = colorGradingActive;

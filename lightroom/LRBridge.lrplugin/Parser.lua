@@ -97,6 +97,8 @@ function Parser.parse(json)
     local expectedDevelopCounter = string.match(json, [["expectedDevelopCounter":([%-]?%d+)]])
     local expectedContextChangedAt = string.match(json, [["expectedContextChangedAt":([%-]?%d+)]])
     local expectedServerEpoch = parseStringField(json, "expectedServerEpoch")
+    local expectedMaskingRevision = parseIntegerField(json, "expectedMaskingRevision")
+    local expectedSelectedMaskId = parseStringField(json, "expectedSelectedMaskId")
     local expectedFeedbackId = parseIntegerField(json, "expectedFeedbackId")
     local expectedValue = string.match(json, [["expectedValue":([%-]?%d+%.?%d*)]])
     local profileGeneration = string.match(json, [["profileGeneration":([%-]?%d+)]])
@@ -109,6 +111,7 @@ function Parser.parse(json)
     local rating = string.match(json, [["rating":([%-]?%d+)]])
     local amount = string.match(json, [["amount":([%-]?%d+)]])
     local enabled = parseBooleanField(json, "enabled")
+    local open = parseBooleanField(json, "open")
     local updateAISettings = parseBooleanField(json, "updateAISettings")
     local w = string.match(json, [["w":([%-]?%d+)]])
     local h = string.match(json, [["h":([%-]?%d+)]])
@@ -186,6 +189,7 @@ function Parser.parse(json)
         ,hue = hue
         ,saturation = saturation
         ,enabled = enabled
+        ,open = open
         ,field = field
         ,range = range
         ,boundary = boundary
@@ -213,6 +217,8 @@ function Parser.parse(json)
         ,expectedDevelopCounter = expectedDevelopCounter
         ,expectedContextChangedAt = expectedContextChangedAt
         ,expectedServerEpoch = expectedServerEpoch
+        ,expectedMaskingRevision = expectedMaskingRevision
+        ,expectedSelectedMaskId = expectedSelectedMaskId
         ,expectedFeedbackId = expectedFeedbackId
         ,expectedValue = expectedValue
         ,points = points

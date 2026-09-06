@@ -126,7 +126,7 @@ assert.deepEqual(controllerTabIds,
 const mainTabsBlock = source.match(/const allTabs = \[[\s\S]*?\];/)[0];
 assert.doesNotMatch(mainTabsBlock, /label: "(?:Crop|Retouching|Healing|Red Eye|Masking)"/,
     "Crop, Retouching, and nested tools must not remain separate main tabs");
-assert.match(source, /function renderToolsTab\(\)[\s\S]*renderCropSection\(\);[\s\S]*\["healing", "redEye", "masking"\]\.forEach[\s\S]*if \(tab\) renderToolTab\(tab\)/,
+assert.match(source, /function renderToolsTab\(\)[\s\S]*renderCropSection\(\);[\s\S]*\["healing", "redEye"\]\.forEach[\s\S]*if \(tab\) renderToolTab\(tab\)[\s\S]*maskingController\.activate\(content/,
     "Tools must render Crop & Straighten, Healing, Red Eye, and Masking in order");
 assert.deepEqual(toolTabs.map((tab) => tab.title), ["Healing", "Red Eye", "Masking"]);
 assert.deepEqual(toolTabs.map((tab) => tab.actions.map((action) => [action.label, action.action, action.button])), [
@@ -134,6 +134,8 @@ assert.deepEqual(toolTabs.map((tab) => tab.actions.map((action) => [action.label
     [["Red Eye Tool", "selectRedEyeTool", "Select"], ["Reset Red Eye", "resetRedeye", "Reset"]],
     [["Masking Tool", "selectMaskingTool", "Select"]]
 ], "Retouching action definitions or command payloads drifted");
+assert.match(source, /maskingController\.activate\(content[\s\S]*decorateToolsCollapsibleWhole[\s\S]*"tools\.masking"/,
+    "Masking must use its authoritative controller inside the existing Tools section");
 const normalizeControllerTab = extractJavaScriptFunction("normalizeControllerTab", "tabFromLocation", {});
 for (const legacyTab of ["crop", "retouching", "healing", "redEye", "masking"]) {
     assert.equal(normalizeControllerTab(legacyTab), "tools", "Legacy tab did not migrate: " + legacyTab);

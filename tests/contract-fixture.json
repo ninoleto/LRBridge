@@ -170,6 +170,8 @@
     ,"develop_presets.inventory.request"
     ,"develop_preset.apply"
     ,"develop_preset.amount.set"
+    ,"masking.panel.set"
+    ,"masking.group.navigate"
   ],
   "selectionOperations": [
     "select_all",

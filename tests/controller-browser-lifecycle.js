@@ -213,7 +213,8 @@ function createMockControllerServer() {
         ["/controller-lens-blur.js", "controller-lens-blur.js"],
         ["/controller-tone-curve.js", "controller-tone-curve.js"],
         ["/controller-section-collapse.js", "controller-section-collapse.js"],
-        ["/controller-develop-presets.js", "controller-develop-presets.js"]
+        ["/controller-develop-presets.js", "controller-develop-presets.js"],
+        ["/controller-masking.js", "controller-masking.js"]
     ]);
     const feedbackSnapshots = new Map();
     const treatmentSnapshots = new Map();
@@ -276,6 +277,33 @@ function createMockControllerServer() {
         }
         if (parsed.pathname === "/api/develop-presets/state") {
             sendJson(response, fixturePresetState());
+            return;
+        }
+        if (parsed.pathname === "/api/masking/state") {
+            const context = fixtureContext();
+            sendJson(response, {
+                ok: true,
+                serverEpoch: "masking-browser-fixture",
+                revision: 1,
+                capturedAt: Date.now(),
+                selectedPhotoUuid: context.selectedPhotoUuid,
+                contextCounter: context.contextCounter,
+                developCounter: context.developCounter,
+                contextChangedAt: context.contextChangedAt,
+                pendingOperation: null,
+                lastResult: null,
+                available: true,
+                unavailableReason: null,
+                active: false,
+                maskGroupCount: 2,
+                hasSelectedMaskGroup: null,
+                selectedMaskGroupIndex: null,
+                selectedMaskGroupId: null,
+                previousAvailable: false,
+                nextAvailable: false,
+                selectedMaskToolAvailable: false,
+                selectedMaskToolId: null
+            });
             return;
         }
         if (parsed.pathname === "/api/history/state") {

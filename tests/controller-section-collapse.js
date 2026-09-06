@@ -449,7 +449,7 @@ const clearContentBlock = controller.slice(
 assert.match(clearContentBlock, /removeSliderJumpMenus\(\);[\s\S]*disposeDevelopTreatmentPresentation\(\);[\s\S]*content\.innerHTML = ""/,
     "render-owned observers, listeners, and treatment UI must be disposed before the content host is cleared");
 assert.match(renderBlock,
-    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
+    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*maskingController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
     "every tab render must dispose the previous controllers and polling before clearing their host");
 const metadataInitializationBlock = controller.slice(
     controller.indexOf("loadDevelopSliderDefinitions().then("),
@@ -577,9 +577,10 @@ const fixedTabBlock = controller.slice(
         "dedicated tabs must retain fixed layouts without collapse behavior");
 });
 assert.match(toolsBlock, /decorateToolsCollapsibleWhole\(groupElement, title, "tools\." \+ sectionSlug, tab\.title\)/);
+assert.match(toolsBlock, /decorateToolsCollapsibleWhole\(groupElement, title, "tools\.masking", "Masking"\)/);
 assert.match(controller, /decorateToolsCollapsibleWhole\(section, heading, "tools\.crop-straighten", "Crop & Straighten"\)/);
-assert.equal((controller.match(/decorateToolsCollapsibleWhole\(/g) || []).length, 3,
-    "only the Tools decorator definition, Crop section, and shared Retouching renderer may reference Tools collapse decoration");
+assert.equal((controller.match(/decorateToolsCollapsibleWhole\(/g) || []).length, 4,
+    "only the Tools decorator definition, Crop section, shared Retouching renderer, and Masking controller may reference Tools collapse decoration");
 [
     "color-grading.", "tone-curve", "presets.", "selection.", "crop.", "application.", "retouching.", "tools.",
     "develop.color-mixer.hsl.", "develop.color-mixer.color.", "develop.color-mixer.point-color",

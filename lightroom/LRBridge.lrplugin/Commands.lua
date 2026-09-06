@@ -13,6 +13,7 @@ local DevelopCategorical = require "DevelopCategorical"
 local ToneCurve = require "ToneCurve"
 local Profile = require "Profile"
 local DevelopPresets = require "DevelopPresets"
+local Masking = require "Masking"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -78,6 +79,7 @@ function Commands.execute(command)
     if command.command == "develop_presets.inventory.request" then DevelopPresets.refreshInventory(command.requestId); return end
     if command.command == "develop_preset.apply" then DevelopPresets.apply(command); return end
     if command.command == "develop_preset.amount.set" then DevelopPresets.setAmount(command); return end
+    if command.command == "masking.panel.set" or command.command == "masking.group.navigate" then Masking.execute(command); return end
 
     if command.command == "develop.adjust" then
 

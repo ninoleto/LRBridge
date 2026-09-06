@@ -26,7 +26,7 @@ assert.match(html, /window\.addEventListener\("hashchange"/);
 assert.match(html, /hash === "develop" \? "sliders"/);
 const renderBlock = html.slice(html.indexOf("function render()"), html.indexOf("async function loadDevelopSliderDefinitions()"));
 assert.match(renderBlock,
-    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
+    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*maskingController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
     "Every render must tear down all previous tab owners and polling before replacing content");
 assert.match(renderBlock,
     /if \(colorGradingActive\) \{\s*colorGradingController\.activate\(\);\s*installSliderJumpMenu\(\);\s*return;/,
