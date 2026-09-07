@@ -100,6 +100,7 @@ function Parser.parse(json)
     local expectedMaskingRevision = parseIntegerField(json, "expectedMaskingRevision")
     local expectedSelectedMaskId = parseStringField(json, "expectedSelectedMaskId")
     local expectedSelectedMaskToolId = parseStringField(json, "expectedSelectedMaskToolId")
+    local expectedHidden = parseBooleanField(json, "expectedHidden")
     local expectedFeedbackId = parseIntegerField(json, "expectedFeedbackId")
     local expectedValue = string.match(json, [["expectedValue":([%-]?%d+%.?%d*)]])
     local profileGeneration = string.match(json, [["profileGeneration":([%-]?%d+)]])
@@ -113,6 +114,7 @@ function Parser.parse(json)
     local amount = string.match(json, [["amount":([%-]?%d+)]])
     local enabled = parseBooleanField(json, "enabled")
     local open = parseBooleanField(json, "open")
+    local hidden = parseBooleanField(json, "hidden")
     local updateAISettings = parseBooleanField(json, "updateAISettings")
     local w = string.match(json, [["w":([%-]?%d+)]])
     local h = string.match(json, [["h":([%-]?%d+)]])
@@ -191,6 +193,7 @@ function Parser.parse(json)
         ,saturation = saturation
         ,enabled = enabled
         ,open = open
+        ,hidden = hidden
         ,field = field
         ,range = range
         ,boundary = boundary
@@ -221,6 +224,7 @@ function Parser.parse(json)
         ,expectedMaskingRevision = expectedMaskingRevision
         ,expectedSelectedMaskId = expectedSelectedMaskId
         ,expectedSelectedMaskToolId = expectedSelectedMaskToolId
+        ,expectedHidden = expectedHidden
         ,expectedFeedbackId = expectedFeedbackId
         ,expectedValue = expectedValue
         ,points = points

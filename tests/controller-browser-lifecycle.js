@@ -299,10 +299,16 @@ function createMockControllerServer() {
                 hasSelectedMaskGroup: null,
                 selectedMaskGroupIndex: null,
                 selectedMaskGroupId: null,
+                selectedMaskHidden: null,
                 previousAvailable: false,
                 nextAvailable: false,
                 selectedMaskToolAvailable: false,
-                selectedMaskToolId: null
+                selectedMaskToolId: null,
+                selectedMaskToolHidden: null,
+                selectedMaskToolCount: null,
+                selectedMaskToolIndex: null,
+                previousMaskToolAvailable: false,
+                nextMaskToolAvailable: false
             });
             return;
         }

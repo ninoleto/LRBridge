@@ -1,5 +1,17 @@
 # LRBridge Codex Handoff
 
+## Masking Phase 3 visibility checkpoint (2026-09-07)
+
+Masking Phase 3 adds authoritative visibility control for the selected mask group and its selected component. Lightroom Classic 15.3 runtime probes proved that `getAllMasks()` returns authoritative boolean `Hidden` values for both objects and that `LrDevelopController.toggleHideMask(maskId)` / `toggleHideMaskTool(toolId)` change them with authoritative readback. Production state and UI therefore follow Lightroom feedback only; pending requests retain the last confirmed presentation.
+
+- The two exact three-column rows remain **Previous Mask | visibility | Next Mask** and **Previous Component | visibility | Next Component**, with `Mask n of m` and `Component n of m` feedback directly below their rows. A visible item has one open-eye inline SVG, neutral styling, and **Hide Mask** / **Hide Component**. An authoritatively hidden item has one crossed-eye inline SVG, the accepted dark-red styling, and **Mask Hidden** / **Component Hidden**; its accessible action remains Show and clicking restores visibility.
+- **Open Masking** preserves an already complete authoritative mask/component selection. If masks exist without a complete selection, it uses the fresh post-open `getAllMasks()` inventory to select Lightroom's first mask and that mask's first component, then settles only after authoritative selection readback. A photo with no masks remains a successful open state with disabled controls and the photographer-facing message **No masks available.**
+- Visibility and selection operations share the serialized Masking lifecycle. Every command remains bound to selected-photo UUID, Masking context, context timestamp, Develop revision, server epoch, semantic Masking revision, selected mask ID, selected component ID, and prior authoritative `Hidden` state, with queue admission/dequeue, stale-response, context-cancellation, and exact settlement protections preserved.
+- Both isolated Lightroom visibility probes passed with original visibility, inventory, and selection restored. The user then manually accepted automatic Open Masking selection and both visibility controls, and visually reviewed the final UI as good enough. Focused `test:masking` and `test:controller-browser` passed after the final presentation change.
+- The master **Masking Corrections** switch remains deferred and was not implemented. Phase 1 mask navigation and Phase 2B component navigation remain unchanged.
+- The existing protected-document contract mismatch, `Generated Companion document is missing slider LensBlurAmount`, remains unrelated and unchanged. Neither protected Companion document was modified.
+- This checkpoint is based on Phase 2B commit `f04c7ca3f04d6d486b3f9bdc14d120eb82606f3e`. Git history is authoritative for the resulting Phase 3 commit.
+
 ## Masking Phase 2B component-navigation checkpoint (2026-09-06)
 
 Masking Phase 2B adds bounded **Previous Component** / **Next Component** navigation within the currently selected mask. The Controller presents authoritative Lightroom feedback as `Component n of m`; direct component selections in Lightroom update the Web Controller, and Controller selections update Lightroom without changing the selected mask group. Navigation stops at the first and last component and never wraps.

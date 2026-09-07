@@ -102,10 +102,12 @@ local function unavailable(reason)
         hasSelectedMaskGroup = nil,
         selectedMaskGroupIndex = nil,
         selectedMaskGroupId = nil,
+        selectedMaskHidden = nil,
         previousAvailable = false,
         nextAvailable = false,
         selectedMaskToolAvailable = false,
         selectedMaskToolId = nil,
+        selectedMaskToolHidden = nil,
         selectedMaskToolCount = nil,
         selectedMaskToolIndex = nil,
         previousMaskToolAvailable = false,
@@ -171,9 +173,9 @@ local function validateInventory(masks)
                 if type(key) ~= "string" or toolFields[key] ~= true then return nil end
             end
             toolIds[tool.ID] = true
-            normalizedTools[toolIndex] = { ID = tool.ID }
+            normalizedTools[toolIndex] = { ID = tool.ID, Hidden = tool.Hidden }
         end
-        normalized[index] = { ID = mask.ID, Tools = normalizedTools }
+        normalized[index] = { ID = mask.ID, Hidden = mask.Hidden, Tools = normalizedTools }
     end
     return normalized
 end
@@ -207,10 +209,12 @@ local function readSnapshot(expectedPhotoUuid)
         hasSelectedMaskGroup = nil,
         selectedMaskGroupIndex = nil,
         selectedMaskGroupId = nil,
+        selectedMaskHidden = nil,
         previousAvailable = false,
         nextAvailable = false,
         selectedMaskToolAvailable = false,
         selectedMaskToolId = nil,
+        selectedMaskToolHidden = nil,
         selectedMaskToolCount = nil,
         selectedMaskToolIndex = nil,
         previousMaskToolAvailable = false,
@@ -228,9 +232,11 @@ local function readSnapshot(expectedPhotoUuid)
         elseif validOpaqueId(selectedMaskId) then
             for index, mask in ipairs(masks) do
                 if mask.ID == selectedMaskId then
+                    if type(mask.Hidden) ~= "boolean" then return unavailable("invalid_inventory") end
                     snapshot.hasSelectedMaskGroup = true
                     snapshot.selectedMaskGroupIndex = index
                     snapshot.selectedMaskGroupId = selectedMaskId
+                    snapshot.selectedMaskHidden = mask.Hidden
                     snapshot.previousAvailable = index > 1
                     snapshot.nextAvailable = index < #masks
                     break
@@ -247,8 +253,10 @@ local function readSnapshot(expectedPhotoUuid)
                 if not validOpaqueId(selectedMaskToolId) then return unavailable("unreconciled_tool") end
                 for toolIndex, maskTool in ipairs(masks[snapshot.selectedMaskGroupIndex].Tools) do
                     if maskTool.ID == selectedMaskToolId then
+                        if type(maskTool.Hidden) ~= "boolean" then return unavailable("invalid_inventory") end
                         snapshot.selectedMaskToolAvailable = true
                         snapshot.selectedMaskToolId = selectedMaskToolId
+                        snapshot.selectedMaskToolHidden = maskTool.Hidden
                         snapshot.selectedMaskToolIndex = toolIndex
                         snapshot.previousMaskToolAvailable = toolIndex > 1
                         snapshot.nextMaskToolAvailable = toolIndex < snapshot.selectedMaskToolCount
@@ -287,10 +295,12 @@ local function appendSnapshot(url, snapshot)
         "&hasSelectedMaskGroup=" .. queryValue(snapshot.hasSelectedMaskGroup) ..
         "&selectedMaskGroupIndex=" .. queryValue(snapshot.selectedMaskGroupIndex) ..
         "&selectedMaskGroupId=" .. queryValue(snapshot.selectedMaskGroupId) ..
+        "&selectedMaskHidden=" .. queryValue(snapshot.selectedMaskHidden) ..
         "&previousAvailable=" .. queryValue(snapshot.previousAvailable) ..
         "&nextAvailable=" .. queryValue(snapshot.nextAvailable) ..
         "&selectedMaskToolAvailable=" .. queryValue(snapshot.selectedMaskToolAvailable) ..
         "&selectedMaskToolId=" .. queryValue(snapshot.selectedMaskToolId) ..
+        "&selectedMaskToolHidden=" .. queryValue(snapshot.selectedMaskToolHidden) ..
         "&selectedMaskToolCount=" .. queryValue(snapshot.selectedMaskToolCount) ..
         "&selectedMaskToolIndex=" .. queryValue(snapshot.selectedMaskToolIndex) ..
         "&previousMaskToolAvailable=" .. queryValue(snapshot.previousMaskToolAvailable) ..
@@ -323,19 +333,82 @@ local function sendOperationResult(command, outcome, detail, snapshot)
     return ok == true
 end
 
-local function settledSnapshot(command, expectedActive, expectedMaskId, expectedMaskToolId)
+local function settledSnapshot(command, expectedActive, expectedMaskId, expectedMaskToolId,
+    expectedMaskHidden, expectedMaskToolHidden)
     local lastSnapshot = unavailable("sdk_error")
     for _ = 1, 12 do
         lastSnapshot = readSnapshot(command.expectedSelectedPhotoUuid)
         if lastSnapshot.available == true and
             (expectedActive == nil or lastSnapshot.active == expectedActive) and
             (expectedMaskId == nil or lastSnapshot.selectedMaskGroupId == expectedMaskId) and
-            (expectedMaskToolId == nil or lastSnapshot.selectedMaskToolId == expectedMaskToolId) then
+            (expectedMaskToolId == nil or lastSnapshot.selectedMaskToolId == expectedMaskToolId) and
+            (expectedMaskHidden == nil or lastSnapshot.selectedMaskHidden == expectedMaskHidden) and
+            (expectedMaskToolHidden == nil or lastSnapshot.selectedMaskToolHidden == expectedMaskToolHidden) then
             return lastSnapshot
         end
         LrTasks.sleep(0.05)
     end
     return lastSnapshot
+end
+
+local function executeVisibility(command, component)
+    if type(command.hidden) ~= "boolean" or type(command.expectedHidden) ~= "boolean" or
+        command.hidden == command.expectedHidden or not validOpaqueId(command.expectedSelectedMaskId) or
+        not validOpaqueId(command.expectedSelectedMaskToolId) then
+        error("Invalid Masking visibility command")
+    end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+
+    local before = readSnapshot(command.expectedSelectedPhotoUuid)
+    if before.available ~= true or before.active ~= true or before.hasSelectedMaskGroup ~= true or
+        before.selectedMaskGroupId ~= command.expectedSelectedMaskId or
+        before.selectedMaskToolAvailable ~= true or
+        before.selectedMaskToolId ~= command.expectedSelectedMaskToolId then
+        sendOperationResult(command, "stale", "The selected mask or component changed.", before)
+        return false
+    end
+    local beforeHidden = before.selectedMaskHidden
+    if component then beforeHidden = before.selectedMaskToolHidden end
+    if beforeHidden ~= command.expectedHidden then
+        sendOperationResult(command, "stale", "Mask visibility changed before the command ran.", before)
+        return false
+    end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+
+    if component then
+        LrDevelopController.toggleHideMaskTool(command.expectedSelectedMaskToolId)
+    else
+        LrDevelopController.toggleHideMask(command.expectedSelectedMaskId)
+    end
+    local expectedMaskHidden = command.hidden
+    local expectedMaskToolHidden = before.selectedMaskToolHidden
+    if component then
+        expectedMaskHidden = before.selectedMaskHidden
+        expectedMaskToolHidden = command.hidden
+    end
+    local after = settledSnapshot(command, true, command.expectedSelectedMaskId,
+        command.expectedSelectedMaskToolId, expectedMaskHidden, expectedMaskToolHidden)
+    if after.available == true and after.active == true and after.hasSelectedMaskGroup == true and
+        after.maskGroupCount == before.maskGroupCount and
+        after.selectedMaskGroupIndex == before.selectedMaskGroupIndex and
+        after.selectedMaskGroupId == before.selectedMaskGroupId and
+        after.selectedMaskToolAvailable == true and
+        after.selectedMaskToolCount == before.selectedMaskToolCount and
+        after.selectedMaskToolIndex == before.selectedMaskToolIndex and
+        after.selectedMaskToolId == before.selectedMaskToolId and
+        after.selectedMaskHidden == expectedMaskHidden and
+        after.selectedMaskToolHidden == expectedMaskToolHidden then
+        sendOperationResult(command, "confirmed", "", after)
+        return true
+    end
+    sendOperationResult(command, "failed", "Lightroom did not confirm the Masking visibility change.", after)
+    return false
 end
 
 local function executeToolNavigation(command)
@@ -416,9 +489,39 @@ local function executePanel(command)
     end
     if command.open then LrDevelopController.goToMasking() else LrDevelopController.selectTool("loupe") end
     local after = settledSnapshot(command, command.open, nil)
-    if after.available == true and after.active == command.open then
+    if command.open and after.available == true and after.active == true and after.maskGroupCount > 0 and
+        (after.hasSelectedMaskGroup ~= true or after.selectedMaskToolAvailable ~= true) then
+        local targetIndex = 1
+        if after.hasSelectedMaskGroup == true then targetIndex = after.selectedMaskGroupIndex end
+        local targetMask = after._masks and after._masks[targetIndex] or nil
+        local targetTool = targetMask and targetMask.Tools and targetMask.Tools[1] or nil
+        if type(targetMask) ~= "table" or not validOpaqueId(targetMask.ID) or
+            type(targetTool) ~= "table" or not validOpaqueId(targetTool.ID) then
+            sendOperationResult(command, "failed", "The first available mask could not be reconciled.",
+                unavailable("invalid_inventory"))
+            return false
+        end
+        if not serverBindingMatches(command, command.operationId) then
+            sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+            return false
+        end
+        LrDevelopController.selectMask(targetMask.ID)
+        LrDevelopController.selectMaskTool(targetTool.ID)
+        after = settledSnapshot(command, true, targetMask.ID, targetTool.ID)
+    end
+    local openSelectionReady = not command.open
+    if command.open and after.available == true then
+        openSelectionReady = (after.maskGroupCount == 0 and after.hasSelectedMaskGroup == false) or
+            (after.maskGroupCount > 0 and after.hasSelectedMaskGroup == true and
+                after.selectedMaskToolAvailable == true)
+    end
+    if after.available == true and after.active == command.open and openSelectionReady then
         sendOperationResult(command, "confirmed", "", after)
         return true
+    end
+    if after.unavailableReason == "context_changed" then
+        sendOperationResult(command, "stale", "Lightroom context changed.", after)
+        return false
     end
     sendOperationResult(command, "failed", "Lightroom did not confirm the Masking panel change.", after)
     return false
@@ -472,6 +575,8 @@ function Masking.execute(command)
         if command.command == "masking.panel.set" then return executePanel(command) end
         if command.command == "masking.group.navigate" then return executeNavigation(command) end
         if command.command == "masking.tool.navigate" then return executeToolNavigation(command) end
+        if command.command == "masking.group.visibility.set" then return executeVisibility(command, false) end
+        if command.command == "masking.tool.visibility.set" then return executeVisibility(command, true) end
         error("Invalid Masking command")
     end)
     if ok ~= true then

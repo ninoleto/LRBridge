@@ -59,6 +59,9 @@
         if (!serverOperation || !activeOperation || serverOperation.kind !== activeOperation.kind) return false;
         if (activeOperation.operationId && serverOperation.operationId !== activeOperation.operationId) return false;
         if (activeOperation.kind === "panel") return serverOperation.open === activeOperation.open;
+        if (activeOperation.kind === "maskVisibility" || activeOperation.kind === "toolVisibility") {
+            return serverOperation.hidden === activeOperation.hidden;
+        }
         return serverOperation.direction === activeOperation.direction;
     }
 
@@ -97,6 +100,16 @@
             nextDisabled: true,
             previousComponentDisabled: true,
             nextComponentDisabled: true,
+            maskVisibilityLabel: "Hide Mask",
+            maskVisibilityAriaLabel: "Hide Mask",
+            maskVisibilityTitle: "",
+            maskVisibilityDisabled: true,
+            maskVisibilityHidden: false,
+            componentVisibilityLabel: "Hide Component",
+            componentVisibilityAriaLabel: "Hide Component",
+            componentVisibilityTitle: "",
+            componentVisibilityDisabled: true,
+            componentVisibilityHidden: false,
             position: contextReady ? "Reading Masking state…" : unavailableMessage(null, context),
             componentPosition: "",
             status: "",
@@ -117,13 +130,29 @@
         const toolNavigationReady = navigationReady && confirmedToolIndex !== null;
         const toolNavigationBlocked = Boolean((operation && operation.kind !== "toolNavigate") ||
             foreignOperation || navigating);
+        const visibilityReady = toolNavigationReady && typeof confirmed.selectedMaskHidden === "boolean" &&
+            typeof confirmed.selectedMaskToolHidden === "boolean";
+        const visibilityBlocked = Boolean(operation || foreignOperation || navigating || toolNavigating);
         presentation.panelDisabled = Boolean(operation || navigating || toolNavigating);
         presentation.previousDisabled = !navigationReady || navigationBlocked || desiredIndex <= 1;
         presentation.nextDisabled = !navigationReady || navigationBlocked || desiredIndex >= confirmed.maskGroupCount;
         presentation.previousComponentDisabled = !toolNavigationReady || toolNavigationBlocked || desiredToolIndex <= 1;
         presentation.nextComponentDisabled = !toolNavigationReady || toolNavigationBlocked ||
             desiredToolIndex >= confirmed.selectedMaskToolCount;
-        if (confirmed.maskGroupCount === 0) presentation.position = "No masks on this photo.";
+        presentation.maskVisibilityLabel = confirmed.selectedMaskHidden === true ? "Mask Hidden" : "Hide Mask";
+        presentation.maskVisibilityAriaLabel = confirmed.selectedMaskHidden === true ? "Show Mask" : "Hide Mask";
+        presentation.maskVisibilityTitle = confirmed.selectedMaskHidden === true ? "Click to show mask" : "";
+        presentation.maskVisibilityHidden = confirmed.selectedMaskHidden === true;
+        presentation.componentVisibilityLabel = confirmed.selectedMaskToolHidden === true
+            ? "Component Hidden" : "Hide Component";
+        presentation.componentVisibilityAriaLabel = confirmed.selectedMaskToolHidden === true
+            ? "Show Component" : "Hide Component";
+        presentation.componentVisibilityTitle = confirmed.selectedMaskToolHidden === true
+            ? "Click to show component" : "";
+        presentation.componentVisibilityHidden = confirmed.selectedMaskToolHidden === true;
+        presentation.maskVisibilityDisabled = !visibilityReady || visibilityBlocked;
+        presentation.componentVisibilityDisabled = !visibilityReady || visibilityBlocked;
+        if (confirmed.maskGroupCount === 0) presentation.position = "No masks available.";
         else if (confirmed.active !== true) {
             presentation.position = confirmed.maskGroupCount === 1
                 ? "1 mask on this photo."
@@ -149,7 +178,10 @@
             presentation.statusKind = "pending";
             if (operation.kind === "panel") presentation.status = operation.open ? "Opening Masking…" : "Closing Masking…";
             else if (operation.kind === "navigate") presentation.status = "Updating mask selection…";
-            else presentation.status = "Updating mask component selection…";
+            else if (operation.kind === "toolNavigate") presentation.status = "Updating mask component selection…";
+            else if (operation.kind === "maskVisibility") {
+                presentation.status = operation.hidden ? "Hiding Mask…" : "Showing Mask…";
+            } else presentation.status = operation.hidden ? "Hiding Component…" : "Showing Component…";
         }
         return presentation;
     }
@@ -160,6 +192,62 @@
         button.textContent = label;
         if (className) button.className = className;
         return button;
+    }
+
+    function createVisibilityIcon(documentRef, hidden) {
+        const namespace = "http://www.w3.org/2000/svg";
+        const svg = documentRef.createElementNS(namespace, "svg");
+        svg.setAttribute("class", hidden ? "masking-eye-icon masking-eye-off-icon" :
+            "masking-eye-icon masking-eye-open-icon");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("aria-hidden", "true");
+        svg.setAttribute("focusable", "false");
+        function path(data) {
+            const element = documentRef.createElementNS(namespace, "path");
+            element.setAttribute("d", data);
+            svg.appendChild(element);
+        }
+        if (hidden) {
+            path("M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94");
+            path("M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19");
+            path("M14.12 14.12a3 3 0 1 1-4.24-4.24");
+            path("M1 1l22 22");
+        } else {
+            path("M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12Z");
+            const pupil = documentRef.createElementNS(namespace, "circle");
+            pupil.setAttribute("cx", "12");
+            pupil.setAttribute("cy", "12");
+            pupil.setAttribute("r", "3");
+            svg.appendChild(pupil);
+        }
+        return svg;
+    }
+
+    function createVisibilityButton(documentRef, label, className) {
+        const button = createButton(documentRef, "", "masking-visibility-button " + className);
+        const icon = createVisibilityIcon(documentRef, false);
+        const text = documentRef.createElement("span");
+        text.className = "masking-visibility-label";
+        text.textContent = label;
+        button.setAttribute("aria-label", label);
+        button.appendChild(icon);
+        button.appendChild(text);
+        return { button: button, icon: icon, text: text, hidden: false };
+    }
+
+    function renderVisibilityButton(control, label, ariaLabel, title, hidden, disabled) {
+        if (control.hidden !== hidden) {
+            const icon = createVisibilityIcon(control.button.ownerDocument, hidden);
+            control.button.replaceChild(icon, control.icon);
+            control.icon = icon;
+            control.hidden = hidden;
+        }
+        control.text.textContent = label;
+        control.button.classList.toggle("masking-visibility-visible", !hidden);
+        control.button.classList.toggle("masking-visibility-hidden", hidden);
+        control.button.setAttribute("aria-label", ariaLabel);
+        control.button.title = title;
+        control.button.disabled = disabled;
     }
 
     function createController(options) {
@@ -209,6 +297,12 @@
             controls.componentPrevious.disabled = view.previousComponentDisabled;
             controls.componentNext.disabled = view.nextComponentDisabled;
             controls.componentPosition.textContent = view.componentPosition;
+            renderVisibilityButton(controls.maskVisibilityControl, view.maskVisibilityLabel,
+                view.maskVisibilityAriaLabel, view.maskVisibilityTitle,
+                view.maskVisibilityHidden, view.maskVisibilityDisabled);
+            renderVisibilityButton(controls.componentVisibilityControl, view.componentVisibilityLabel,
+                view.componentVisibilityAriaLabel, view.componentVisibilityTitle,
+                view.componentVisibilityHidden, view.componentVisibilityDisabled);
             controls.status.className = "masking-status";
             if (view.statusKind) controls.status.classList.add(view.statusKind);
             controls.status.textContent = view.status;
@@ -235,6 +329,12 @@
             if (operation.kind === "toolNavigate") return stale
                 ? "Lightroom changed before that mask component change finished. Please try again."
                 : "Lightroom could not confirm that mask component change. Please try again.";
+            if (operation.kind === "maskVisibility") return stale
+                ? "Lightroom changed before that mask visibility change finished. Please try again."
+                : "Lightroom could not confirm that mask visibility change. Please try again.";
+            if (operation.kind === "toolVisibility") return stale
+                ? "Lightroom changed before that component visibility change finished. Please try again."
+                : "Lightroom could not confirm that component visibility change. Please try again.";
             const action = operation.open ? "Open Masking" : "Close Masking";
             return stale
                 ? "Lightroom changed before " + action + " finished. Please try again."
@@ -244,6 +344,10 @@
         function successfulOperation(operation, result) {
             persistentError = "";
             if (operation.kind === "panel") {
+                setDesiredToConfirmed(state);
+                return;
+            }
+            if (operation.kind === "maskVisibility" || operation.kind === "toolVisibility") {
                 setDesiredToConfirmed(state);
                 return;
             }
@@ -377,11 +481,15 @@
             if (status === 409) {
                 if (kind === "navigate") return "That mask change is no longer available. Masking state was refreshed.";
                 if (kind === "toolNavigate") return "That mask component change is no longer available. Masking state was refreshed.";
+                if (kind === "maskVisibility") return "That mask visibility change is no longer available. Masking state was refreshed.";
+                if (kind === "toolVisibility") return "That component visibility change is no longer available. Masking state was refreshed.";
                 return (value ? "Open Masking" : "Close Masking") +
                     " is no longer available. Masking state was refreshed.";
             }
             if (kind === "navigate") return "Lightroom could not receive that mask change. Please try again.";
             if (kind === "toolNavigate") return "Lightroom could not receive that mask component change. Please try again.";
+            if (kind === "maskVisibility") return "Lightroom could not receive that mask visibility change. Please try again.";
+            if (kind === "toolVisibility") return "Lightroom could not receive that component visibility change. Please try again.";
             return "Lightroom could not receive " + (value ? "Open Masking" : "Close Masking") +
                 ". Please try again.";
         }
@@ -401,7 +509,7 @@
                     baseMaskGroupIndex: confirmedMaskIndex(state),
                     baseMaskGroupCount: state.maskGroupCount,
                     operationId: null
-                } : {
+                } : kind === "toolNavigate" ? {
                     kind: kind,
                     direction: value,
                     baseRevision: state.revision,
@@ -410,6 +518,18 @@
                     baseMaskToolIndex: confirmedMaskToolIndex(state),
                     baseMaskToolCount: state.selectedMaskToolCount,
                     operationId: null
+                } : {
+                    kind: kind,
+                    hidden: value,
+                    baseRevision: state.revision,
+                    baseMaskGroupIndex: confirmedMaskIndex(state),
+                    baseSelectedMaskId: state.selectedMaskGroupId,
+                    baseMaskHidden: state.selectedMaskHidden,
+                    baseMaskToolIndex: confirmedMaskToolIndex(state),
+                    baseMaskToolCount: state.selectedMaskToolCount,
+                    baseSelectedMaskToolId: state.selectedMaskToolId,
+                    baseMaskToolHidden: state.selectedMaskToolHidden,
+                    operationId: null
                 };
             activeOperation = operation;
             render();
@@ -417,7 +537,11 @@
                 ? "/api/masking/panel?open=" + encodeURIComponent(value) + "&" + query
                 : kind === "navigate"
                     ? "/api/masking/group/navigate?direction=" + encodeURIComponent(value) + "&" + query
-                    : "/api/masking/tool/navigate?direction=" + encodeURIComponent(value) + "&" + query;
+                    : kind === "toolNavigate"
+                        ? "/api/masking/tool/navigate?direction=" + encodeURIComponent(value) + "&" + query
+                        : kind === "maskVisibility"
+                            ? "/api/masking/group/visibility?hidden=" + encodeURIComponent(value) + "&" + query
+                            : "/api/masking/tool/visibility?hidden=" + encodeURIComponent(value) + "&" + query;
             try {
                 const response = await fetchImpl(endpoint, { cache: "no-store" });
                 const data = await response.json();
@@ -431,7 +555,8 @@
                 }
                 if (data.serverEpoch !== state.serverEpoch || !Number.isSafeInteger(data.revision) ||
                     data.revision <= operation.baseRevision || !data.pendingOperation ||
-                    data.pendingOperation.operationId !== data.operationId || data.pendingOperation.kind !== kind) {
+                    data.pendingOperation.operationId !== data.operationId ||
+                    !serverOperationMatchesActive(data.pendingOperation, operation)) {
                     activeOperation = null;
                     stopNavigation(operationFailureMessage(operation, false));
                     render();
@@ -544,6 +669,20 @@
             return true;
         }
 
+        function requestVisibility(kind) {
+            persistentError = "";
+            if (!state || state.available !== true || state.active !== true ||
+                state.hasSelectedMaskGroup !== true || state.selectedMaskToolAvailable !== true ||
+                typeof state.selectedMaskHidden !== "boolean" || typeof state.selectedMaskToolHidden !== "boolean" ||
+                activeOperation || navigationIntentActive || toolNavigationIntentActive || state.pendingOperation) {
+                render();
+                return false;
+            }
+            const hidden = kind === "maskVisibility" ? state.selectedMaskHidden : state.selectedMaskToolHidden;
+            sendOperation(kind, !hidden);
+            return true;
+        }
+
         function build() {
             const section = documentRef.createElement("section");
             section.className = "group tools-section masking-section";
@@ -561,7 +700,11 @@
             navigation.className = "masking-navigation";
             const previous = createButton(documentRef, "Previous Mask", "masking-navigation-button");
             const next = createButton(documentRef, "Next Mask", "masking-navigation-button");
+            const maskVisibilityControl = createVisibilityButton(documentRef, "Hide Mask",
+                "masking-mask-visibility-button");
+            const maskVisibility = maskVisibilityControl.button;
             navigation.appendChild(previous);
+            navigation.appendChild(maskVisibility);
             navigation.appendChild(next);
             const position = documentRef.createElement("div");
             position.className = "masking-position";
@@ -570,7 +713,11 @@
             componentNavigation.className = "masking-component-navigation";
             const componentPrevious = createButton(documentRef, "Previous Component", "masking-navigation-button");
             const componentNext = createButton(documentRef, "Next Component", "masking-navigation-button");
+            const componentVisibilityControl = createVisibilityButton(documentRef, "Hide Component",
+                "masking-component-visibility-button");
+            const componentVisibility = componentVisibilityControl.button;
             componentNavigation.appendChild(componentPrevious);
+            componentNavigation.appendChild(componentVisibility);
             componentNavigation.appendChild(componentNext);
             const componentPosition = documentRef.createElement("div");
             componentPosition.className = "masking-component-position";
@@ -598,9 +745,13 @@
             next.addEventListener("click", function () { requestNavigation(1); });
             componentPrevious.addEventListener("click", function () { requestToolNavigation(-1); });
             componentNext.addEventListener("click", function () { requestToolNavigation(1); });
+            maskVisibility.addEventListener("click", function () { requestVisibility("maskVisibility"); });
+            componentVisibility.addEventListener("click", function () { requestVisibility("toolVisibility"); });
             controls = { title: title, panel: panel, previous: previous, next: next, position: position,
                 componentPrevious: componentPrevious, componentNext: componentNext,
-                componentPosition: componentPosition, status: status };
+                componentPosition: componentPosition, maskVisibility: maskVisibility,
+                maskVisibilityControl: maskVisibilityControl, componentVisibility: componentVisibility,
+                componentVisibilityControl: componentVisibilityControl, status: status };
             return section;
         }
 

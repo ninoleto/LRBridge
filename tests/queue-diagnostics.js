@@ -94,7 +94,9 @@ function emptyDiagnostics() {
                     "develop_preset.amount.set": 0,
                     "masking.panel.set": 0,
                     "masking.group.navigate": 0,
-                    "masking.tool.navigate": 0
+                    "masking.tool.navigate": 0,
+                    "masking.group.visibility.set": 0,
+                    "masking.tool.visibility.set": 0
                 }
             }
         },
@@ -270,7 +272,9 @@ function testCoreMetrics() {
         "develop_preset.amount.set": 0,
         "masking.panel.set": 0,
         "masking.group.navigate": 0,
-        "masking.tool.navigate": 0
+        "masking.tool.navigate": 0,
+        "masking.group.visibility.set": 0,
+        "masking.tool.visibility.set": 0
     });
     assert.equal(diagnostics.queue.pending.ordinary, 19);
     assert.equal(diagnostics.queue.pending.protected, 2);

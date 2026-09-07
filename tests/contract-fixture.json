@@ -173,6 +173,8 @@
     ,"masking.panel.set"
     ,"masking.group.navigate"
     ,"masking.tool.navigate"
+    ,"masking.group.visibility.set"
+    ,"masking.tool.visibility.set"
   ],
   "selectionOperations": [
     "select_all",

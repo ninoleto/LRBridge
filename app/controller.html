@@ -766,21 +766,63 @@
             max-width: 920px;
         }
 
-        .masking-panel-row,
-        .masking-navigation,
-        .masking-component-navigation {
+        .masking-panel-row {
             display: grid;
-            grid-template-columns: repeat(2, minmax(150px, 1fr));
+            grid-template-columns: 1fr;
             gap: 8px;
         }
 
-        .masking-panel-row .masking-panel-button {
-            grid-column: 1 / -1;
+        .masking-navigation,
+        .masking-component-navigation {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
         }
 
         .masking-panel-button,
-        .masking-navigation-button {
+        .masking-navigation-button,
+        .masking-visibility-button {
             min-height: 44px;
+        }
+
+        .masking-visibility-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .masking-visibility-button .masking-eye-icon {
+            width: 19px;
+            height: 19px;
+            flex: 0 0 19px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .masking-visibility-button .masking-visibility-label {
+            min-width: 0;
+        }
+
+        button.masking-visibility-button.masking-visibility-hidden {
+            background: #742f3a;
+            border-color: #9a4452;
+            color: #ffffff;
+        }
+
+        button.masking-visibility-button.masking-visibility-hidden:hover {
+            background: #893946;
+        }
+
+        button.masking-visibility-button.masking-visibility-hidden:disabled,
+        button.masking-visibility-button.masking-visibility-hidden:disabled:hover {
+            background: #742f3a;
+            border-color: #9a4452;
+            color: #ffffff;
         }
 
         .masking-position,
@@ -2509,11 +2551,18 @@
 
             .lens-blur-focus-native-actions { grid-template-columns: 1fr; }
 
-            .masking-panel-row,
             .masking-navigation,
-            .masking-component-navigation { grid-template-columns: 1fr; }
+            .masking-component-navigation {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 5px;
+            }
 
-            .masking-panel-row .masking-panel-button { grid-column: auto; }
+            .masking-navigation-button,
+            .masking-visibility-button {
+                padding-left: 5px;
+                padding-right: 5px;
+                font-size: 12px;
+            }
 
             .slider-name {
                 border: 0;

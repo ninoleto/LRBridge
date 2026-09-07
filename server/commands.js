@@ -184,6 +184,8 @@ function validateCommand(command) {
         ,"masking.panel.set"
         ,"masking.group.navigate"
         ,"masking.tool.navigate"
+        ,"masking.group.visibility.set"
+        ,"masking.tool.visibility.set"
     ];
 
     if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -291,10 +293,13 @@ function validateCommand(command) {
     }
 
     if (command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
-        command.command === "masking.tool.navigate") {
-        const navigation = command.command !== "masking.panel.set";
+        command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
+        command.command === "masking.tool.visibility.set") {
+        const visibility = command.command === "masking.group.visibility.set" ||
+            command.command === "masking.tool.visibility.set";
+        const navigation = command.command === "masking.group.navigate" || command.command === "masking.tool.navigate";
         const toolNavigation = command.command === "masking.tool.navigate";
-        if (Object.keys(command).length !== (toolNavigation ? 12 : (navigation ? 11 : 10)) ||
+        if (Object.keys(command).length !== (visibility ? 13 : (toolNavigation ? 12 : (navigation ? 11 : 10))) ||
             typeof command.operationId !== "string" || !/^mo-\d{1,15}$/.test(command.operationId) ||
             command.expectedActiveModule !== "develop" ||
             typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
@@ -304,13 +309,18 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedContextChangedAt) === false || command.expectedContextChangedAt < 0 ||
             typeof command.expectedServerEpoch !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) ||
             Number.isSafeInteger(command.expectedMaskingRevision) === false || command.expectedMaskingRevision < 1) return false;
-        if (!navigation) return typeof command.open === "boolean";
-        if ((command.direction !== "previous" && command.direction !== "next") ||
-            typeof command.expectedSelectedMaskId !== "string" || command.expectedSelectedMaskId.length < 1 ||
-            command.expectedSelectedMaskId.length > 256 || /[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId)) return false;
-        return !toolNavigation || (typeof command.expectedSelectedMaskToolId === "string" &&
+        if (!visibility && !navigation) return typeof command.open === "boolean";
+        const validMaskId = typeof command.expectedSelectedMaskId === "string" &&
+            command.expectedSelectedMaskId.length >= 1 && command.expectedSelectedMaskId.length <= 256 &&
+            !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId);
+        const validToolId = typeof command.expectedSelectedMaskToolId === "string" &&
             command.expectedSelectedMaskToolId.length >= 1 && command.expectedSelectedMaskToolId.length <= 256 &&
-            !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId));
+            !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId);
+        if (!validMaskId) return false;
+        if (visibility) return validToolId && typeof command.hidden === "boolean" &&
+            typeof command.expectedHidden === "boolean" && command.hidden !== command.expectedHidden;
+        if (command.direction !== "previous" && command.direction !== "next") return false;
+        return !toolNavigation || validToolId;
     }
 
     if (command.command === "point_color.value.set") {
@@ -645,7 +655,8 @@ function tryEnqueueCommand(command) {
         return admissionResult(ADMISSION_INVALID);
     }
     if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
-        command.command === "masking.tool.navigate") &&
+        command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
+        command.command === "masking.tool.visibility.set") &&
         (!maskingAdmissionProvider || !maskingAdmissionProvider.matches(command, context.getContextFields()))) {
         if (maskingAdmissionProvider && typeof maskingAdmissionProvider.onRejected === "function") {
             maskingAdmissionProvider.onRejected(command, "Masking context changed during queue admission.");
@@ -980,7 +991,8 @@ function isProtectedCommand(command) {
         command.command === "tone_curve.refine_saturation.reset" ||
         command.command === "tone_curve.refine_saturation.gesture.cancel" ||
         command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
-        command.command === "masking.tool.navigate";
+        command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
+        command.command === "masking.tool.visibility.set";
 }
 
 function pointCurveCommandBindingMatches(command) {
@@ -1039,7 +1051,8 @@ function getNextCommand() {
             continue;
         }
         if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
-            command.command === "masking.tool.navigate") &&
+            command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
+            command.command === "masking.tool.visibility.set") &&
             (!maskingAdmissionProvider || !maskingAdmissionProvider.matches(command, context.getContextFields()))) {
             if (maskingAdmissionProvider && typeof maskingAdmissionProvider.onRejected === "function") {
                 maskingAdmissionProvider.onRejected(command, "Masking context changed before dequeue.");
@@ -1112,6 +1125,8 @@ function getQueueDiagnostics(nowMs) {
         ,"masking.panel.set": 0
         ,"masking.group.navigate": 0
         ,"masking.tool.navigate": 0
+        ,"masking.group.visibility.set": 0
+        ,"masking.tool.visibility.set": 0
     };
 
     for (const command of commandQueue) {
@@ -1193,7 +1208,8 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.refine_saturation.reset"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.cancel"] +
                     pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"] +
-                    pendingByCommand["masking.tool.navigate"],
+                    pendingByCommand["masking.tool.navigate"] + pendingByCommand["masking.group.visibility.set"] +
+                    pendingByCommand["masking.tool.visibility.set"],
                 byCommand: pendingByCommand
             }
         },

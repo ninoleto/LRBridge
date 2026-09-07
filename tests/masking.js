@@ -49,9 +49,9 @@ function normalizeRuntimeInventoryFixture(inventory) {
                     (typeof tool.MaskSubCategoryID !== "number" || !Number.isFinite(tool.MaskSubCategoryID))) ||
                 Object.keys(tool).some(function (key) { return !RUNTIME_TOOL_FIELDS.has(key); })) return null;
             toolIds.add(tool.ID);
-            tools.push({ ID: tool.ID });
+            tools.push({ ID: tool.ID, Hidden: tool.Hidden });
         }
-        normalized.push({ ID: mask.ID, Tools: tools });
+        normalized.push({ ID: mask.ID, Hidden: mask.Hidden, Tools: tools });
     }
     return normalized;
 }
@@ -71,19 +71,24 @@ function snapshot(overrides) {
     const value = Object.assign({
         available: true, unavailableReason: null, active: true, maskGroupCount: 3,
         hasSelectedMaskGroup: true, selectedMaskGroupIndex: 2, selectedMaskGroupId: "mask-b",
+        selectedMaskHidden: false,
         previousAvailable: true, nextAvailable: true, selectedMaskToolAvailable: true,
-        selectedMaskToolId: "tool-b2", selectedMaskToolCount: 3, selectedMaskToolIndex: 2,
+        selectedMaskToolId: "tool-b2", selectedMaskToolHidden: false,
+        selectedMaskToolCount: 3, selectedMaskToolIndex: 2,
         previousMaskToolAvailable: true, nextMaskToolAvailable: true
     }, overrides || {});
     if (value.active !== true || value.hasSelectedMaskGroup !== true) {
+        value.selectedMaskHidden = null;
         value.selectedMaskToolAvailable = false;
         value.selectedMaskToolId = null;
+        value.selectedMaskToolHidden = null;
         value.selectedMaskToolCount = null;
         value.selectedMaskToolIndex = null;
         value.previousMaskToolAvailable = false;
         value.nextMaskToolAvailable = false;
     } else if (value.selectedMaskToolAvailable !== true) {
         value.selectedMaskToolId = null;
+        value.selectedMaskToolHidden = null;
         value.selectedMaskToolIndex = null;
         value.previousMaskToolAvailable = false;
         value.nextMaskToolAvailable = false;
@@ -106,6 +111,12 @@ class FakeClassList {
     constructor() { this.values = new Set(); }
     add() { for (const value of arguments) this.values.add(value); }
     contains(value) { return this.values.has(value); }
+    toggle(value, force) {
+        const enabled = force === undefined ? !this.values.has(value) : Boolean(force);
+        if (enabled) this.values.add(value);
+        else this.values.delete(value);
+        return enabled;
+    }
     reset(value) {
         this.values.clear();
         String(value || "").split(/\s+/).filter(Boolean).forEach(this.values.add.bind(this.values));
@@ -122,6 +133,7 @@ class FakeElement {
         this.attributes = new Map();
         this.listeners = new Map();
         this.disabled = false;
+        this.hidden = false;
         this.type = "";
         this._className = "";
         this._textContent = "";
@@ -132,7 +144,9 @@ class FakeElement {
         this._className = String(value);
         this.classList.reset(this._className);
     }
-    get textContent() { return this._textContent; }
+    get textContent() {
+        return this._textContent + this.children.map(function (child) { return child.textContent; }).join("");
+    }
     set textContent(value) {
         this._textContent = String(value);
         for (const child of this.children) child.parentElement = null;
@@ -143,13 +157,24 @@ class FakeElement {
         this.children.push(child);
         return child;
     }
+    replaceChild(nextChild, previousChild) {
+        const index = this.children.indexOf(previousChild);
+        if (index < 0) throw new Error("Previous child was not found");
+        previousChild.parentElement = null;
+        nextChild.parentElement = this;
+        this.children[index] = nextChild;
+        return previousChild;
+    }
     remove() {
         if (!this.parentElement) return;
         const index = this.parentElement.children.indexOf(this);
         if (index >= 0) this.parentElement.children.splice(index, 1);
         this.parentElement = null;
     }
-    setAttribute(name, value) { this.attributes.set(name, String(value)); }
+    setAttribute(name, value) {
+        this.attributes.set(name, String(value));
+        if (name === "class") this.className = value;
+    }
     getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
     addEventListener(type, listener) {
         if (!this.listeners.has(type)) this.listeners.set(type, []);
@@ -165,6 +190,11 @@ class FakeElement {
 
 class FakeDocument {
     createElement(tagName) { return new FakeElement(tagName, this); }
+    createElementNS(namespaceURI, tagName) {
+        const element = new FakeElement(tagName, this);
+        element.namespaceURI = namespaceURI;
+        return element;
+    }
 }
 
 function findElement(rootElement, predicate) {
@@ -228,10 +258,12 @@ function renderedControllerState(options) {
         hasSelectedMaskGroup: active ? count > 0 : null,
         selectedMaskGroupIndex: index,
         selectedMaskGroupId: index === null ? null : "mask-" + index,
+        selectedMaskHidden: index === null ? null : options.maskHidden === true,
         previousAvailable: index !== null && index > 1,
         nextAvailable: index !== null && index < count,
         selectedMaskToolAvailable: toolIndex !== null,
         selectedMaskToolId: toolIndex === null ? null : "tool-" + index + "-" + toolIndex,
+        selectedMaskToolHidden: toolIndex === null ? null : options.toolHidden === true,
         selectedMaskToolCount: toolCount,
         selectedMaskToolIndex: toolIndex,
         previousMaskToolAvailable: toolIndex !== null && toolIndex > 1,
@@ -252,7 +284,9 @@ async function createRenderedMaskingHarness(options) {
         count: options.count,
         index: options.index,
         toolCount: options.toolCount,
-        toolIndex: options.toolIndex
+        toolIndex: options.toolIndex,
+        maskHidden: options.maskHidden,
+        toolHidden: options.toolHidden
     });
     let pendingServerOperation = null;
     let operationCounter = 0;
@@ -270,11 +304,16 @@ async function createRenderedMaskingHarness(options) {
         const navigation = parsed.pathname === "/api/masking/group/navigate";
         const toolNavigation = parsed.pathname === "/api/masking/tool/navigate";
         const panel = parsed.pathname === "/api/masking/panel";
-        if (!navigation && !toolNavigation && !panel) throw new Error("Unexpected Masking request: " + requestPath);
+        const maskVisibility = parsed.pathname === "/api/masking/group/visibility";
+        const toolVisibility = parsed.pathname === "/api/masking/tool/visibility";
+        if (!navigation && !toolNavigation && !panel && !maskVisibility && !toolVisibility) {
+            throw new Error("Unexpected Masking request: " + requestPath);
+        }
         const record = {
             path: parsed.pathname,
             direction: parsed.searchParams.get("direction"),
             open: parsed.searchParams.get("open"),
+            hidden: parsed.searchParams.get("hidden"),
             selectedPhotoUuid: parsed.searchParams.get("selectedPhotoUuid"),
             contextCounter: Number(parsed.searchParams.get("contextCounter")),
             developCounter: Number(parsed.searchParams.get("developCounter")),
@@ -320,6 +359,18 @@ async function createRenderedMaskingHarness(options) {
             beforeSelectedMaskId: authoritative.selectedMaskGroupId,
             beforeToolIndex: authoritative.selectedMaskToolIndex,
             beforeToolCount: authoritative.selectedMaskToolCount
+        } : maskVisibility ? {
+            operationId: operationId,
+            kind: "maskVisibility",
+            hidden: record.hidden === "true",
+            beforeIndex: authoritative.selectedMaskGroupIndex,
+            beforeToolIndex: authoritative.selectedMaskToolIndex
+        } : toolVisibility ? {
+            operationId: operationId,
+            kind: "toolVisibility",
+            hidden: record.hidden === "true",
+            beforeIndex: authoritative.selectedMaskGroupIndex,
+            beforeToolIndex: authoritative.selectedMaskToolIndex
         } : {
             operationId: operationId,
             kind: "panel",
@@ -364,12 +415,18 @@ async function createRenderedMaskingHarness(options) {
         let active = authoritative.active;
         let selectedIndex = operation.beforeIndex;
         let selectedToolIndex = authoritative.selectedMaskToolIndex;
+        let maskHidden = authoritative.selectedMaskHidden;
+        let toolHidden = authoritative.selectedMaskToolHidden;
         if (outcome === "confirmed") {
             if (operation.kind === "navigate") {
                 selectedIndex += operation.direction === "previous" ? -1 : 1;
                 selectedToolIndex = 1;
             } else if (operation.kind === "toolNavigate") {
                 selectedToolIndex += operation.direction === "previous" ? -1 : 1;
+            } else if (operation.kind === "maskVisibility") {
+                maskHidden = operation.hidden;
+            } else if (operation.kind === "toolVisibility") {
+                toolHidden = operation.hidden;
             } else {
                 active = operation.open;
                 selectedIndex = active && authoritative.maskGroupCount > 0 ? (selectedIndex || 1) : null;
@@ -386,6 +443,8 @@ async function createRenderedMaskingHarness(options) {
             index: overrides.index === undefined ? selectedIndex : overrides.index,
             toolCount: overrides.toolCount === undefined ? authoritative.selectedMaskToolCount : overrides.toolCount,
             toolIndex: overrides.toolIndex === undefined ? selectedToolIndex : overrides.toolIndex,
+            maskHidden: overrides.maskHidden === undefined ? maskHidden : overrides.maskHidden,
+            toolHidden: overrides.toolHidden === undefined ? toolHidden : overrides.toolHidden,
             lastResult: {
                 operationId: operation.operationId,
                 outcome: outcome,
@@ -408,6 +467,7 @@ async function createRenderedMaskingHarness(options) {
         controller: controller,
         host: host,
         panel: control("masking-panel-button"),
+        maskRow: control("masking-navigation"),
         previous: control("masking-navigation-button"),
         next: (function () {
             const first = control("masking-navigation-button");
@@ -419,10 +479,13 @@ async function createRenderedMaskingHarness(options) {
         componentPrevious: findElement(host, function (element) {
             return element.textContent === "Previous Component";
         }),
+        componentRow: control("masking-component-navigation"),
         componentNext: findElement(host, function (element) {
             return element.textContent === "Next Component";
         }),
         componentPosition: control("masking-component-position"),
+        maskVisibility: control("masking-mask-visibility-button"),
+        componentVisibility: control("masking-component-visibility-button"),
         status: control("masking-status"),
         commandRequests: commandRequests,
         admissions: admissions,
@@ -573,6 +636,237 @@ function testStateMachine() {
     assert.equal(unreconciled.getPublicState().pendingOperation, null);
 }
 
+function testVisibilityStateMachine() {
+    let now = 25000;
+    const fields = context();
+    const machine = maskingDefinition.createMaskingState({
+        serverEpoch: "mask-visibility",
+        now: function () { return now; }
+    });
+    machine.syncContext(fields);
+    machine.requestRefresh(fields, true);
+    const request = machine.takeRequest();
+    assert.equal(machine.acceptQueryResult(Object.assign({}, request, { snapshot: snapshot() }), fields), true);
+
+    let publicState = machine.getPublicState();
+    const hideMask = machine.beginOperation(
+        { kind: "maskVisibility", hidden: true }, suppliedBinding(publicState), fields);
+    assert.equal(hideMask.command, "masking.group.visibility.set");
+    assert.equal(hideMask.hidden, true);
+    assert.equal(hideMask.expectedHidden, false);
+    assert.equal(hideMask.expectedSelectedMaskId, "mask-b");
+    assert.equal(hideMask.expectedSelectedMaskToolId, "tool-b2");
+    assert.equal(machine.getPublicState().selectedMaskHidden, false,
+        "operation admission must not optimistically change authoritative mask visibility");
+    assert.deepEqual(machine.getPublicState().pendingOperation, {
+        operationId: hideMask.operationId,
+        kind: "maskVisibility",
+        open: null,
+        direction: null,
+        hidden: true
+    });
+    assert.equal(machine.beginOperation(
+        { kind: "toolVisibility", hidden: true }, suppliedBinding(publicState), fields), null,
+    "mask and component visibility operations must serialize");
+    assert.equal(machine.beginOperation(
+        { kind: "navigate", direction: "next" }, suppliedBinding(publicState), fields), null,
+    "visibility and navigation operations must serialize");
+    assert.equal(machine.commandMatches(hideMask, fields), true);
+    assert.equal(machine.commandMatches(Object.assign({}, hideMask, {
+        expectedSelectedMaskToolId: "tool-other"
+    }), fields), false, "mask visibility must bind the selected component ID");
+    assert.equal(machine.commandMatches(Object.assign({}, hideMask, {
+        expectedHidden: true
+    }), fields), false, "mask visibility must bind the authoritative prior Hidden value");
+    assert.equal(machine.finishOperation(Object.assign({}, hideMask, {
+        outcome: "confirmed",
+        detail: "",
+        snapshot: snapshot({ selectedMaskHidden: true })
+    }), fields), true);
+    publicState = machine.getPublicState();
+    assert.equal(publicState.selectedMaskHidden, true);
+    assert.equal(publicState.selectedMaskToolHidden, false);
+    assert.equal(publicState.lastResult.outcome, "confirmed");
+    assert.equal(machine.beginOperation(
+        { kind: "maskVisibility", hidden: true }, suppliedBinding(publicState), fields), null,
+    "a visibility request equal to authoritative state must not toggle");
+
+    const hideComponent = machine.beginOperation(
+        { kind: "toolVisibility", hidden: true }, suppliedBinding(publicState), fields);
+    assert.equal(hideComponent.command, "masking.tool.visibility.set");
+    assert.equal(hideComponent.hidden, true);
+    assert.equal(hideComponent.expectedHidden, false);
+    assert.equal(hideComponent.expectedSelectedMaskId, "mask-b");
+    assert.equal(hideComponent.expectedSelectedMaskToolId, "tool-b2");
+    assert.equal(machine.finishOperation(Object.assign({}, hideComponent, {
+        outcome: "confirmed",
+        detail: "",
+        snapshot: snapshot({ selectedMaskHidden: false, selectedMaskToolHidden: true })
+    }), fields), true);
+    publicState = machine.getPublicState();
+    assert.equal(publicState.lastResult.outcome, "failed",
+        "component visibility must reject collateral mask visibility changes");
+
+    const showComponent = machine.beginOperation(
+        { kind: "toolVisibility", hidden: false }, suppliedBinding(publicState), fields);
+    assert.ok(showComponent, "authoritative changed state must remain recoverable after failed reconciliation");
+    assert.equal(showComponent.expectedHidden, true);
+    assert.equal(machine.finishOperation(Object.assign({}, showComponent, {
+        outcome: "confirmed",
+        detail: "",
+        snapshot: snapshot({ selectedMaskHidden: false, selectedMaskToolHidden: false })
+    }), fields), true);
+    publicState = machine.getPublicState();
+    assert.equal(publicState.lastResult.outcome, "confirmed");
+
+    const retryHideComponent = machine.beginOperation(
+        { kind: "toolVisibility", hidden: true }, suppliedBinding(publicState), fields);
+    assert.ok(retryHideComponent);
+    assert.equal(machine.finishOperation(Object.assign({}, retryHideComponent, {
+        outcome: "confirmed",
+        detail: "",
+        snapshot: snapshot({ selectedMaskHidden: false, selectedMaskToolHidden: true })
+    }), fields), true);
+    publicState = machine.getPublicState();
+    assert.equal(publicState.selectedMaskHidden, false);
+    assert.equal(publicState.selectedMaskToolHidden, true);
+    assert.equal(publicState.lastResult.outcome, "confirmed");
+
+    assert.equal(maskingDefinition.sanitizeSnapshot(snapshot({ selectedMaskHidden: undefined })), null,
+        "selected mask visibility must be an authoritative boolean");
+    assert.equal(maskingDefinition.sanitizeSnapshot(snapshot({ selectedMaskToolHidden: "false" })), null,
+        "selected component visibility must be an authoritative boolean");
+    assert.ok(maskingDefinition.sanitizeSnapshot(snapshot({ selectedMaskToolAvailable: false })),
+        "a selected group remains readable when no component is selected");
+}
+
+function testOpenMaskingSelectionSettlement() {
+    const fields = context();
+
+    function inactive(maskCount) {
+        return snapshot({
+            active: false,
+            maskGroupCount: maskCount,
+            hasSelectedMaskGroup: null,
+            selectedMaskGroupIndex: null,
+            selectedMaskGroupId: null,
+            selectedMaskHidden: null,
+            previousAvailable: false,
+            nextAvailable: false,
+            selectedMaskToolAvailable: false,
+            selectedMaskToolId: null,
+            selectedMaskToolHidden: null,
+            selectedMaskToolCount: null,
+            selectedMaskToolIndex: null,
+            previousMaskToolAvailable: false,
+            nextMaskToolAvailable: false
+        });
+    }
+
+    function openWithoutSelection(maskCount) {
+        return snapshot({
+            active: true,
+            maskGroupCount: maskCount,
+            hasSelectedMaskGroup: false,
+            selectedMaskGroupIndex: null,
+            selectedMaskGroupId: null,
+            selectedMaskHidden: null,
+            previousAvailable: false,
+            nextAvailable: false,
+            selectedMaskToolAvailable: false,
+            selectedMaskToolId: null,
+            selectedMaskToolHidden: null,
+            selectedMaskToolCount: null,
+            selectedMaskToolIndex: null,
+            previousMaskToolAvailable: false,
+            nextMaskToolAvailable: false
+        });
+    }
+
+    function readyClosed(epoch, maskCount) {
+        const machine = maskingDefinition.createMaskingState({ serverEpoch: epoch });
+        machine.syncContext(fields);
+        machine.requestRefresh(fields, true);
+        const request = machine.takeRequest();
+        assert.equal(machine.acceptQueryResult(Object.assign({}, request, {
+            snapshot: inactive(maskCount)
+        }), fields), true);
+        return machine;
+    }
+
+    let machine = readyClosed("mask-open-existing", 3);
+    let operation = machine.beginOperation(
+        { kind: "panel", open: true }, suppliedBinding(machine.getPublicState()), fields);
+    const existingSelection = snapshot();
+    assert.equal(machine.finishOperation(Object.assign({}, operation, {
+        outcome: "confirmed", detail: "", snapshot: existingSelection
+    }), fields), true);
+    let state = machine.getPublicState();
+    assert.equal(state.lastResult.outcome, "confirmed");
+    assert.equal(state.selectedMaskGroupId, existingSelection.selectedMaskGroupId,
+        "an existing authoritative mask selection must be preserved");
+    assert.equal(state.selectedMaskToolId, existingSelection.selectedMaskToolId,
+        "an existing authoritative component selection must be preserved");
+
+    machine = readyClosed("mask-open-unselected", 3);
+    operation = machine.beginOperation(
+        { kind: "panel", open: true }, suppliedBinding(machine.getPublicState()), fields);
+    assert.equal(machine.finishOperation(Object.assign({}, operation, {
+        outcome: "confirmed", detail: "", snapshot: openWithoutSelection(3)
+    }), fields), true);
+    assert.equal(machine.getPublicState().lastResult.outcome, "failed",
+        "Open Masking must not settle as confirmed while masks exist without a selected mask and component");
+
+    machine = readyClosed("mask-open-first", 3);
+    operation = machine.beginOperation(
+        { kind: "panel", open: true }, suppliedBinding(machine.getPublicState()), fields);
+    const firstSelection = snapshot({
+        maskGroupCount: 3,
+        selectedMaskGroupIndex: 1,
+        selectedMaskGroupId: "mask-first",
+        selectedMaskHidden: false,
+        previousAvailable: false,
+        nextAvailable: true,
+        selectedMaskToolId: "tool-first",
+        selectedMaskToolHidden: false,
+        selectedMaskToolCount: 1,
+        selectedMaskToolIndex: 1,
+        previousMaskToolAvailable: false,
+        nextMaskToolAvailable: false
+    });
+    assert.equal(machine.finishOperation(Object.assign({}, operation, {
+        outcome: "confirmed", detail: "", snapshot: firstSelection
+    }), fields), true);
+    state = machine.getPublicState();
+    assert.equal(state.lastResult.outcome, "confirmed");
+    assert.equal(state.selectedMaskGroupIndex, 1);
+    assert.equal(state.selectedMaskGroupId, "mask-first");
+    assert.equal(state.selectedMaskToolIndex, 1);
+    assert.equal(state.selectedMaskToolId, "tool-first");
+
+    machine = readyClosed("mask-open-empty", 0);
+    operation = machine.beginOperation(
+        { kind: "panel", open: true }, suppliedBinding(machine.getPublicState()), fields);
+    assert.equal(machine.finishOperation(Object.assign({}, operation, {
+        outcome: "confirmed", detail: "", snapshot: openWithoutSelection(0)
+    }), fields), true);
+    state = machine.getPublicState();
+    assert.equal(state.lastResult.outcome, "confirmed");
+    assert.equal(state.maskGroupCount, 0);
+    assert.equal(state.hasSelectedMaskGroup, false);
+
+    machine = readyClosed("mask-open-stale", 3);
+    operation = machine.beginOperation(
+        { kind: "panel", open: true }, suppliedBinding(machine.getPublicState()), fields);
+    const changedFields = context({ selectedPhotoUuid: "photo-2", contextCounter: 8, contextChangedAt: 2234 });
+    assert.equal(machine.finishOperation(Object.assign({}, operation, {
+        outcome: "confirmed", detail: "", snapshot: firstSelection
+    }), changedFields), false, "a post-open result must not settle after the selected-photo context changes");
+    machine.syncContext(changedFields);
+    assert.equal(machine.getPublicState().pendingOperation, null);
+    assert.equal(machine.getPublicState().lastResult.outcome, "stale");
+}
+
 function testSemanticRevisionFreshness() {
     let now = 30000;
     const fields = context();
@@ -631,6 +925,19 @@ function testSemanticRevisionFreshness() {
         { kind: "toolNavigate", direction: "next" }, suppliedBinding(publicState), fields);
     assert.ok(componentNavigation,
         "a component command using the pre-refresh semantic revision must remain admissible");
+
+    machine = readyState("mask-semantic-visibility");
+    publicState = machine.getPublicState();
+    const visibilityRevision = publicState.revision;
+    now += 500;
+    machine.requestRefresh(fields, false);
+    request = machine.takeRequest();
+    assert.equal(machine.acceptQueryResult(Object.assign({}, request, { snapshot: snapshot() }), fields), true);
+    assert.equal(machine.getPublicState().revision, visibilityRevision);
+    const visibility = machine.beginOperation(
+        { kind: "maskVisibility", hidden: true }, suppliedBinding(publicState), fields);
+    assert.ok(visibility,
+        "a visibility command using the pre-refresh semantic revision must remain admissible");
 
     machine = readyState("mask-semantic-change");
     const staleBinding = suppliedBinding(machine.getPublicState());
@@ -692,6 +999,10 @@ function testSemanticRevisionFreshness() {
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({
         selectedMaskToolCount: 4, nextMaskToolAvailable: true
     })), false, "component inventory changes must advance the semantic revision");
+    assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskHidden: true })), false,
+        "selected mask visibility changes must advance the semantic revision");
+    assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskToolHidden: true })), false,
+        "selected component visibility changes must advance the semantic revision");
 }
 
 function testLightroom153RuntimeInventoryFixture() {
@@ -703,6 +1014,10 @@ function testLightroom153RuntimeInventoryFixture() {
         ["mask-runtime-a", "mask-runtime-b"]);
     assert.deepEqual(normalized.map(function (mask) { return mask.Tools[0].ID; }),
         ["tool-runtime-a1", "tool-runtime-b1"]);
+    assert.deepEqual(normalized.map(function (mask) { return mask.Hidden; }), [false, false],
+        "authoritative group Hidden values must survive inventory normalization");
+    assert.deepEqual(normalized.map(function (mask) { return mask.Tools[0].Hidden; }), [false, false],
+        "authoritative component Hidden values must survive inventory normalization");
     const selectedIndex = normalized.findIndex(function (mask) {
         return mask.ID === runtimeInventoryFixture.selectedMaskId;
     });
@@ -715,10 +1030,12 @@ function testLightroom153RuntimeInventoryFixture() {
         maskGroupCount: normalized.length,
         selectedMaskGroupIndex: selectedIndex + 1,
         selectedMaskGroupId: runtimeInventoryFixture.selectedMaskId,
+        selectedMaskHidden: normalized[selectedIndex].Hidden,
         previousAvailable: selectedIndex > 0,
         nextAvailable: selectedIndex + 1 < normalized.length,
         selectedMaskToolAvailable: true,
         selectedMaskToolId: runtimeInventoryFixture.selectedMaskToolId,
+        selectedMaskToolHidden: normalized[selectedIndex].Tools[0].Hidden,
         selectedMaskToolCount: normalized[selectedIndex].Tools.length,
         selectedMaskToolIndex: 1,
         previousMaskToolAvailable: false,
@@ -734,9 +1051,11 @@ function testLightroom153RuntimeInventoryFixture() {
     presentation = maskingUi.present(Object.assign({}, authoritative, {
         selectedMaskGroupIndex: 1,
         selectedMaskGroupId: normalized[0].ID,
+        selectedMaskHidden: normalized[0].Hidden,
         previousAvailable: false,
         nextAvailable: true,
         selectedMaskToolId: normalized[0].Tools[0].ID,
+        selectedMaskToolHidden: normalized[0].Tools[0].Hidden,
         selectedMaskToolCount: normalized[0].Tools.length,
         selectedMaskToolIndex: 1,
         previousMaskToolAvailable: false,
@@ -759,9 +1078,11 @@ function testLightroom153RuntimeInventoryFixture() {
         maskGroupCount: normalizedMultiComponent.length,
         selectedMaskGroupIndex: selectedIndex + 1,
         selectedMaskGroupId: runtimeInventoryFixture.selectedMaskId,
+        selectedMaskHidden: normalizedMultiComponent[selectedIndex].Hidden,
         previousAvailable: selectedIndex > 0,
         nextAvailable: selectedIndex + 1 < normalizedMultiComponent.length,
         selectedMaskToolId: normalizedMultiComponent[selectedIndex].Tools[1].ID,
+        selectedMaskToolHidden: normalizedMultiComponent[selectedIndex].Tools[1].Hidden,
         selectedMaskToolCount: normalizedMultiComponent[selectedIndex].Tools.length,
         selectedMaskToolIndex: 2,
         previousMaskToolAvailable: true,
@@ -917,6 +1238,7 @@ async function testRenderedRapidFinalIntentSequences() {
     } finally {
         harness.close();
     }
+
 }
 
 async function testRenderedComponentNavigation() {
@@ -1064,6 +1386,186 @@ async function testRenderedComponentNavigation() {
         await settleAllRenderedNavigation(harness);
         assert.deepEqual(harness.commandRequests.map(function (request) { return request.path; }),
             ["/api/masking/group/navigate"]);
+    } finally {
+        harness.close();
+    }
+}
+
+async function testRenderedVisibilityControls() {
+    function assertVisibilityPresentation(button, label, hidden) {
+        const maskButton = button.classList.contains("masking-mask-visibility-button");
+        const actionLabel = hidden ? (maskButton ? "Show Mask" : "Show Component") : label;
+        const title = hidden ? (maskButton ? "Click to show mask" : "Click to show component") : "";
+        const icons = button.children.filter(function (element) { return element.tagName === "SVG"; });
+        const icon = icons[0];
+        const text = findElement(button, function (element) {
+            return element.classList.contains("masking-visibility-label");
+        });
+        assert.equal(button.children.length, 2,
+            "each visibility button must contain exactly one icon and one text label");
+        assert.equal(icons.length, 1, "each visibility button must contain exactly one SVG");
+        assert.equal(button.children[0], icon);
+        assert.equal(button.children[1], text);
+        assert.ok(icon);
+        assert.ok(text);
+        assert.equal(icon.namespaceURI, "http://www.w3.org/2000/svg");
+        assert.equal(icon.getAttribute("aria-hidden"), "true");
+        assert.equal(icon.classList.contains("masking-eye-open-icon"), !hidden);
+        assert.equal(icon.classList.contains("masking-eye-off-icon"), hidden);
+        assert.equal(text.textContent, label);
+        assert.equal(button.textContent, label, "the icon must not replace the photographer-facing action text");
+        assert.equal(button.getAttribute("aria-label"), actionLabel);
+        assert.equal(button.title, title);
+        assert.equal(button.classList.contains("masking-visibility-visible"), !hidden);
+        assert.equal(button.classList.contains("masking-visibility-hidden"), hidden);
+        assert.equal(button.classList.contains("command-danger"), false);
+    }
+
+    let harness = await createRenderedMaskingHarness({
+        index: 2, count: 4, toolIndex: 2, toolCount: 3, maskHidden: false, toolHidden: false
+    });
+    try {
+        assert.deepEqual(harness.maskRow.children.map(function (child) { return child.textContent; }),
+            ["Previous Mask", "Hide Mask", "Next Mask"],
+        "the mask controls must use the exact three-column DOM order");
+        assert.equal(harness.maskRow.children[1], harness.maskVisibility);
+        assert.deepEqual(harness.componentRow.children.map(function (child) { return child.textContent; }),
+            ["Previous Component", "Hide Component", "Next Component"],
+        "the component controls must use the exact three-column DOM order");
+        assert.equal(harness.componentRow.children[1], harness.componentVisibility);
+        const bodyChildren = harness.maskRow.parentElement.children;
+        assert.equal(bodyChildren[bodyChildren.indexOf(harness.maskRow) + 1], harness.position,
+            "Mask n of m must remain directly below the mask row");
+        assert.equal(bodyChildren[bodyChildren.indexOf(harness.componentRow) + 1], harness.componentPosition,
+            "Component n of m must remain directly below the component row");
+        assert.equal(findElement(harness.host, function (element) {
+            return element.classList.contains("masking-visibility");
+        }), null, "visibility controls must not be placed in a separate row");
+        assert.equal(harness.maskVisibility.textContent, "Hide Mask");
+        assert.equal(harness.componentVisibility.textContent, "Hide Component");
+        assertVisibilityPresentation(harness.maskVisibility, "Hide Mask", false);
+        assertVisibilityPresentation(harness.componentVisibility, "Hide Component", false);
+        const initialMaskIcon = harness.maskVisibility.children[0];
+        assert.equal(harness.maskVisibility.disabled, false);
+        assert.equal(harness.componentVisibility.disabled, false);
+
+        assert.equal(harness.maskVisibility.click(), true);
+        assert.equal(harness.status.textContent, "Hiding Mask…");
+        assert.equal(harness.maskVisibility.textContent, "Hide Mask",
+            "the mask label must remain at the last authoritative value while Lightroom is pending");
+        assert.equal(harness.componentVisibility.textContent, "Hide Component");
+        assertVisibilityPresentation(harness.maskVisibility, "Hide Mask", false);
+        assert.equal(harness.maskVisibility.children[0], initialMaskIcon,
+            "a pending operation must retain the last confirmed icon node");
+        assert.equal(harness.maskVisibility.disabled, true);
+        assert.equal(harness.componentVisibility.disabled, true);
+        assert.equal(harness.next.disabled, true, "mask navigation must serialize behind visibility");
+        assert.equal(harness.componentNext.disabled, true, "component navigation must serialize behind visibility");
+        assert.equal(harness.panel.disabled, true, "Open/Close Masking must serialize behind visibility");
+        assert.equal(harness.next.click(), false);
+        assert.equal(harness.componentVisibility.click(), false);
+        await flushAsync();
+        assert.deepEqual(harness.commandRequests.map(function (request) {
+            return [request.path, request.hidden];
+        }), [["/api/masking/group/visibility", "true"]]);
+        await harness.settle("confirmed", "");
+        assert.equal(harness.maskVisibility.textContent, "Mask Hidden");
+        assert.equal(harness.maskRow.children[1].textContent, "Mask Hidden");
+        assert.equal(harness.componentVisibility.textContent, "Hide Component");
+        assertVisibilityPresentation(harness.maskVisibility, "Mask Hidden", true);
+        assertVisibilityPresentation(harness.componentVisibility, "Hide Component", false);
+        assert.notEqual(harness.maskVisibility.children[0], initialMaskIcon,
+            "authoritative Hidden feedback must replace the visible-state icon");
+        assert.equal(harness.controller.getState().selectedMaskHidden, true);
+        assert.equal(harness.controller.getState().selectedMaskToolHidden, false);
+
+        harness.componentVisibility.click();
+        assert.equal(harness.status.textContent, "Hiding Component…");
+        assert.equal(harness.componentVisibility.textContent, "Hide Component",
+            "the component label must remain at the last authoritative value while Lightroom is pending");
+        await flushAsync();
+        await harness.settle("confirmed", "");
+        assert.equal(harness.maskVisibility.textContent, "Mask Hidden");
+        assert.equal(harness.componentVisibility.textContent, "Component Hidden");
+        assert.equal(harness.componentRow.children[1].textContent, "Component Hidden");
+        assertVisibilityPresentation(harness.maskVisibility, "Mask Hidden", true);
+        assertVisibilityPresentation(harness.componentVisibility, "Component Hidden", true);
+        assert.equal(harness.controller.getState().selectedMaskHidden, true);
+        assert.equal(harness.controller.getState().selectedMaskToolHidden, true);
+
+        harness.componentVisibility.click();
+        assert.equal(harness.status.textContent, "Showing Component…");
+        assertVisibilityPresentation(harness.componentVisibility, "Component Hidden", true);
+        await flushAsync();
+        await harness.settle("confirmed", "");
+        assertVisibilityPresentation(harness.componentVisibility, "Hide Component", false);
+
+        harness.maskVisibility.click();
+        assert.equal(harness.status.textContent, "Showing Mask…");
+        assertVisibilityPresentation(harness.maskVisibility, "Mask Hidden", true);
+        await flushAsync();
+        await harness.settle("confirmed", "");
+        assertVisibilityPresentation(harness.maskVisibility, "Hide Mask", false);
+        assert.deepEqual(harness.commandRequests.map(function (request) {
+            return [request.path, request.hidden];
+        }), [
+            ["/api/masking/group/visibility", "true"],
+            ["/api/masking/tool/visibility", "true"],
+            ["/api/masking/tool/visibility", "false"],
+            ["/api/masking/group/visibility", "false"]
+        ]);
+        assert.equal(harness.commandRequests.every(function (request) {
+            return request.selectedPhotoUuid === "photo-1" && request.contextCounter === 7 &&
+                request.developCounter === 12 && request.contextChangedAt === 1234 &&
+                request.serverEpoch === "mask-rendered" && request.responseStatus === 200;
+        }), true, "every visibility request must retain the complete authoritative binding");
+        assert.equal(harness.getMaximumPending(), 1,
+            "mask and component visibility must share the serialized Masking operation lifecycle");
+
+        const requestCount = harness.commandRequests.length;
+        const currentState = harness.controller.getState();
+        await harness.publish(renderedControllerState({
+            index: 2,
+            count: 4,
+            toolIndex: 2,
+            toolCount: 3,
+            revision: currentState.revision + 1,
+            maskHidden: true,
+            toolHidden: true
+        }));
+        assert.equal(harness.commandRequests.length, requestCount,
+            "direct Lightroom visibility feedback must update presentation without a Web command");
+        assertVisibilityPresentation(harness.maskVisibility, "Mask Hidden", true);
+        assertVisibilityPresentation(harness.componentVisibility, "Component Hidden", true);
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({
+        index: 2, count: 4, toolIndex: 2, toolCount: 3, maskHidden: false, toolHidden: false
+    });
+    try {
+        harness.admissions.push({
+            status: 409,
+            body: { ok: false, error: "Masking state changed or the requested action is unavailable" }
+        });
+        harness.componentVisibility.click();
+        await flushAsync();
+        assert.equal(harness.componentVisibility.textContent, "Hide Component",
+            "a rejected command must not fabricate a changed component visibility");
+        assert.equal(harness.status.textContent,
+            "That component visibility change is no longer available. Masking state was refreshed.");
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({
+        index: 2, count: 4, toolCount: 0, maskHidden: false
+    });
+    try {
+        assert.equal(harness.maskVisibility.disabled, true,
+            "mask visibility requires both the selected mask and component bindings");
+        assert.equal(harness.componentVisibility.disabled, true);
     } finally {
         harness.close();
     }
@@ -1353,6 +1855,23 @@ async function testRenderedPanelOperationsStaySeparate() {
     } finally {
         harness.close();
     }
+
+    const emptyHarness = await createRenderedMaskingHarness({ active: false, count: 0 });
+    try {
+        emptyHarness.panel.click();
+        await flushAsync();
+        await emptyHarness.settle("confirmed", "", { active: true });
+        assert.equal(emptyHarness.panel.textContent, "Close Masking");
+        assert.equal(emptyHarness.position.textContent, "No masks available.");
+        assert.equal(emptyHarness.previous.disabled, true);
+        assert.equal(emptyHarness.next.disabled, true);
+        assert.equal(emptyHarness.componentPrevious.disabled, true);
+        assert.equal(emptyHarness.componentNext.disabled, true);
+        assert.equal(emptyHarness.maskVisibility.disabled, true);
+        assert.equal(emptyHarness.componentVisibility.disabled, true);
+    } finally {
+        emptyHarness.close();
+    }
 }
 
 async function testRenderedOperationErrorOwnership() {
@@ -1454,8 +1973,10 @@ function snapshotFields(value) {
         available: value.available, unavailableReason: value.unavailableReason, active: value.active,
         maskGroupCount: value.maskGroupCount, hasSelectedMaskGroup: value.hasSelectedMaskGroup,
         selectedMaskGroupIndex: value.selectedMaskGroupIndex, selectedMaskGroupId: value.selectedMaskGroupId,
+        selectedMaskHidden: value.selectedMaskHidden,
         previousAvailable: value.previousAvailable, nextAvailable: value.nextAvailable,
         selectedMaskToolAvailable: value.selectedMaskToolAvailable, selectedMaskToolId: value.selectedMaskToolId,
+        selectedMaskToolHidden: value.selectedMaskToolHidden,
         selectedMaskToolCount: value.selectedMaskToolCount, selectedMaskToolIndex: value.selectedMaskToolIndex,
         previousMaskToolAvailable: value.previousMaskToolAvailable,
         nextMaskToolAvailable: value.nextMaskToolAvailable
@@ -1503,8 +2024,10 @@ async function submitOperationResult(port, command, outcome, value) {
 }
 
 function operationRequestPath(kind, value, binding) {
-    const operationField = kind === "panel" ? { open: value } : { direction: value };
-    const endpoint = kind === "panel" ? "panel" : (kind === "toolNavigate" ? "tool/navigate" : "group/navigate");
+    const visibility = kind === "maskVisibility" || kind === "toolVisibility";
+    const operationField = kind === "panel" ? { open: value } : visibility ? { hidden: value } : { direction: value };
+    const endpoint = kind === "panel" ? "panel" : kind === "toolNavigate" ? "tool/navigate" :
+        kind === "maskVisibility" ? "group/visibility" : kind === "toolVisibility" ? "tool/visibility" : "group/navigate";
     return "/masking/" + endpoint + "?" + queryString(Object.assign(
         operationField,
         {
@@ -1643,6 +2166,101 @@ async function testHttpAndQueueContract() {
         assert.equal(state.selectedMaskToolIndex, 3);
         response = await get(port, operationRequestPath("toolNavigate", "next", suppliedBinding(state)));
         assert.equal(response.status, 409, "Next Component must be rejected at the final component");
+
+        response = await get(port, operationRequestPath("maskVisibility", true, suppliedBinding(state)));
+        assert.equal(response.status, 200);
+        assert.equal(response.body.pendingOperation.kind, "maskVisibility");
+        assert.equal(response.body.pendingOperation.hidden, true);
+        const visibilityBinding = suppliedBinding((await get(port, "/masking/state")).body);
+        assert.equal((await get(port,
+            operationRequestPath("toolVisibility", true, visibilityBinding))).status, 409,
+        "component visibility must serialize behind mask visibility");
+        assert.equal((await get(port,
+            operationRequestPath("toolNavigate", "previous", visibilityBinding))).status, 409,
+        "component navigation must serialize behind mask visibility");
+        assert.equal((await get(port,
+            operationRequestPath("navigate", "previous", visibilityBinding))).status, 409,
+        "mask navigation must serialize behind mask visibility");
+        assert.equal((await get(port,
+            operationRequestPath("panel", false, visibilityBinding))).status, 409,
+        "Open/Close Masking must serialize behind visibility");
+        let visibilityDiagnostics = (await get(port, "/diagnostics/queue")).body;
+        assert.equal(visibilityDiagnostics.queue.length, 1);
+        assert.equal(visibilityDiagnostics.queue.pending.byCommand["masking.group.visibility.set"], 1);
+        assert.equal(visibilityDiagnostics.queue.pending.protected, 1);
+        const maskVisibilityCommand = commands.getNextCommand();
+        assert.equal(maskVisibilityCommand.command, "masking.group.visibility.set");
+        assert.equal(maskVisibilityCommand.hidden, true);
+        assert.equal(maskVisibilityCommand.expectedHidden, false);
+        assert.equal(maskVisibilityCommand.expectedSelectedMaskId, "mask-b");
+        assert.equal(maskVisibilityCommand.expectedSelectedMaskToolId, "tool-b3");
+        assert.equal(commands.validateCommand(maskVisibilityCommand), true);
+        assert.equal(commands.validateCommand(Object.assign({}, maskVisibilityCommand, {
+            expectedHidden: true
+        })), false, "a visibility command must represent an actual state change");
+        assert.equal(commands.validateCommand(Object.assign({}, maskVisibilityCommand, {
+            expectedSelectedMaskToolId: "bad\ncomponent"
+        })), false, "mask visibility must retain a valid selected-component binding");
+        const hiddenMask = snapshot(Object.assign({}, thirdComponent, { selectedMaskHidden: true }));
+        response = await submitOperationResult(port, maskVisibilityCommand, "confirmed", hiddenMask);
+        assert.equal(response.status, 200);
+        state = (await get(port, "/masking/state")).body;
+        assert.equal(state.selectedMaskHidden, true);
+        assert.equal(state.selectedMaskToolHidden, false);
+        assert.equal((await get(port,
+            operationRequestPath("maskVisibility", true, suppliedBinding(state)))).status, 409,
+        "a requested mask visibility equal to authoritative Hidden must not toggle");
+
+        response = await get(port, operationRequestPath("toolVisibility", true, suppliedBinding(state)));
+        assert.equal(response.status, 200);
+        visibilityDiagnostics = (await get(port, "/diagnostics/queue")).body;
+        assert.equal(visibilityDiagnostics.queue.length, 1);
+        assert.equal(visibilityDiagnostics.queue.pending.byCommand["masking.tool.visibility.set"], 1);
+        assert.equal(visibilityDiagnostics.queue.pending.protected, 1);
+        const toolVisibilityCommand = commands.getNextCommand();
+        assert.equal(toolVisibilityCommand.command, "masking.tool.visibility.set");
+        assert.equal(toolVisibilityCommand.hidden, true);
+        assert.equal(toolVisibilityCommand.expectedHidden, false);
+        assert.equal(toolVisibilityCommand.expectedSelectedMaskId, "mask-b");
+        assert.equal(toolVisibilityCommand.expectedSelectedMaskToolId, "tool-b3");
+        assert.equal(commands.validateCommand(toolVisibilityCommand), true);
+        const hiddenTool = snapshot(Object.assign({}, thirdComponent, {
+            selectedMaskHidden: true,
+            selectedMaskToolHidden: true
+        }));
+        response = await submitOperationResult(port, toolVisibilityCommand, "confirmed", hiddenTool);
+        assert.equal(response.status, 200);
+        state = (await get(port, "/masking/state")).body;
+        assert.equal(state.selectedMaskHidden, true,
+            "component visibility must not change authoritative mask visibility");
+        assert.equal(state.selectedMaskToolHidden, true);
+        assert.equal((await get(port, operationRequestPath("toolVisibility", "invalid",
+            suppliedBinding(state)))).status, 400, "visibility input must be an exact boolean string");
+        assert.equal((await get(port, operationRequestPath("maskVisibility", false,
+            suppliedBinding(state)) + "&extra=1")).status, 400,
+        "visibility endpoints must reject unexpected query fields");
+
+        response = await get(port, operationRequestPath("toolVisibility", false, suppliedBinding(state)));
+        assert.equal(response.status, 200);
+        const showToolCommand = commands.getNextCommand();
+        assert.equal(showToolCommand.command, "masking.tool.visibility.set");
+        assert.equal(showToolCommand.hidden, false);
+        assert.equal(showToolCommand.expectedHidden, true);
+        const shownTool = snapshot(Object.assign({}, thirdComponent, { selectedMaskHidden: true }));
+        response = await submitOperationResult(port, showToolCommand, "confirmed", shownTool);
+        assert.equal(response.status, 200);
+        state = (await get(port, "/masking/state")).body;
+        response = await get(port, operationRequestPath("maskVisibility", false, suppliedBinding(state)));
+        assert.equal(response.status, 200);
+        const showMaskCommand = commands.getNextCommand();
+        assert.equal(showMaskCommand.command, "masking.group.visibility.set");
+        assert.equal(showMaskCommand.hidden, false);
+        assert.equal(showMaskCommand.expectedHidden, true);
+        response = await submitOperationResult(port, showMaskCommand, "confirmed", thirdComponent);
+        assert.equal(response.status, 200);
+        state = (await get(port, "/masking/state")).body;
+        assert.equal(state.selectedMaskHidden, false);
+        assert.equal(state.selectedMaskToolHidden, false);
 
         response = await get(port, "/masking/group/navigate?" + queryString({
             direction: "next", selectedPhotoUuid: state.selectedPhotoUuid, contextCounter: state.contextCounter,
@@ -1870,6 +2488,12 @@ async function testHttpSemanticRevisionRace() {
             ok: false,
             error: "Masking state changed or the requested action is unavailable"
         });
+        response = await get(port, operationRequestPath("maskVisibility", true, staleBinding));
+        assert.equal(response.status, 409,
+            "mask visibility must reject the previous semantic revision after a real change");
+        response = await get(port, operationRequestPath("toolVisibility", true, staleBinding));
+        assert.equal(response.status, 409,
+            "component visibility must reject the previous semantic revision after a real change");
         assert.equal((await get(port, "/diagnostics/queue")).body.queue.length, 0);
 
         state = (await get(port, "/masking/state")).body;
@@ -1929,10 +2553,32 @@ function testPhotographerPresentationAndSourceContract() {
     assert.equal(maskingUi.present(authoritative, ctx, null).componentPosition, "Component 2 of 3");
     assert.equal(maskingUi.present(authoritative, ctx, null).previousComponentDisabled, false);
     assert.equal(maskingUi.present(authoritative, ctx, null).nextComponentDisabled, false);
+    assert.equal(maskingUi.present(authoritative, ctx, null).maskVisibilityLabel, "Hide Mask");
+    assert.equal(maskingUi.present(authoritative, ctx, null).componentVisibilityLabel, "Hide Component");
+    assert.equal(maskingUi.present(authoritative, ctx, null).maskVisibilityAriaLabel, "Hide Mask");
+    assert.equal(maskingUi.present(authoritative, ctx, null).maskVisibilityTitle, "");
+    assert.equal(maskingUi.present(authoritative, ctx, null).componentVisibilityAriaLabel, "Hide Component");
+    assert.equal(maskingUi.present(authoritative, ctx, null).componentVisibilityTitle, "");
+    assert.equal(maskingUi.present(authoritative, ctx, null).maskVisibilityHidden, false);
+    assert.equal(maskingUi.present(authoritative, ctx, null).componentVisibilityHidden, false);
+    const hiddenPresentation = maskingUi.present(Object.assign({}, authoritative, {
+        selectedMaskHidden: true, selectedMaskToolHidden: true
+    }), ctx, null);
+    assert.equal(hiddenPresentation.maskVisibilityLabel, "Mask Hidden");
+    assert.equal(hiddenPresentation.maskVisibilityAriaLabel, "Show Mask");
+    assert.equal(hiddenPresentation.maskVisibilityTitle, "Click to show mask");
+    assert.equal(hiddenPresentation.componentVisibilityLabel, "Component Hidden");
+    assert.equal(hiddenPresentation.componentVisibilityAriaLabel, "Show Component");
+    assert.equal(hiddenPresentation.componentVisibilityTitle, "Click to show component");
+    assert.equal(hiddenPresentation.maskVisibilityHidden, true);
+    assert.equal(hiddenPresentation.componentVisibilityHidden, true);
     const noSelectedComponent = Object.assign({}, authoritative, snapshot({ selectedMaskToolAvailable: false }));
     assert.equal(maskingUi.present(noSelectedComponent, ctx, null).componentPosition,
         "No mask component is selected.");
     assert.equal(maskingUi.present(noSelectedComponent, ctx, null).nextComponentDisabled, true);
+    assert.equal(maskingUi.present(noSelectedComponent, ctx, null).maskVisibilityDisabled, true,
+        "mask visibility must fail closed without the selected component binding");
+    assert.equal(maskingUi.present(noSelectedComponent, ctx, null).componentVisibilityDisabled, true);
     assert.equal(maskingUi.present(Object.assign({}, authoritative, {
         selectedMaskGroupIndex: 1, selectedMaskGroupId: "mask-a", previousAvailable: false
     }), ctx, null).previousDisabled, true);
@@ -1959,13 +2605,31 @@ function testPhotographerPresentationAndSourceContract() {
         "component direction reversal must remain clickable while serialized");
     assert.equal(pendingComponentPresentation.nextDisabled, true,
         "group navigation must be disabled during component navigation");
+    const pendingVisibilityPresentation = maskingUi.present(authoritative, ctx, {
+        activeOperation: { kind: "maskVisibility", hidden: true, operationId: "test-visibility-op" }
+    });
+    assert.equal(pendingVisibilityPresentation.maskVisibilityLabel, "Hide Mask",
+        "pending visibility must not replace the last authoritative label");
+    assert.equal(pendingVisibilityPresentation.status, "Hiding Mask…");
+    assert.equal(pendingVisibilityPresentation.maskVisibilityDisabled, true);
+    assert.equal(pendingVisibilityPresentation.componentVisibilityDisabled, true);
+    assert.equal(pendingVisibilityPresentation.nextDisabled, true);
+    assert.equal(pendingVisibilityPresentation.nextComponentDisabled, true);
     const empty = Object.assign({}, authoritative, {
         maskGroupCount: 0, hasSelectedMaskGroup: false, selectedMaskGroupIndex: null, selectedMaskGroupId: null,
-        previousAvailable: false, nextAvailable: false, selectedMaskToolAvailable: false, selectedMaskToolId: null,
+        selectedMaskHidden: null, previousAvailable: false, nextAvailable: false,
+        selectedMaskToolAvailable: false, selectedMaskToolId: null, selectedMaskToolHidden: null,
         selectedMaskToolCount: null, selectedMaskToolIndex: null,
         previousMaskToolAvailable: false, nextMaskToolAvailable: false
     });
-    assert.equal(maskingUi.present(empty, ctx, null).position, "No masks on this photo.");
+    const emptyPresentation = maskingUi.present(empty, ctx, null);
+    assert.equal(emptyPresentation.position, "No masks available.");
+    assert.equal(emptyPresentation.previousDisabled, true);
+    assert.equal(emptyPresentation.nextDisabled, true);
+    assert.equal(emptyPresentation.previousComponentDisabled, true);
+    assert.equal(emptyPresentation.nextComponentDisabled, true);
+    assert.equal(emptyPresentation.maskVisibilityDisabled, true);
+    assert.equal(emptyPresentation.componentVisibilityDisabled, true);
     const unavailable = Object.assign({}, authoritative, maskingDefinition.unavailableSnapshot("sdk_error"));
     assert.equal(maskingUi.present(unavailable, ctx, null).position, "Lightroom could not report Masking right now.");
     assert.equal(maskingUi.acceptState(authoritative, Object.assign({}, authoritative, { revision: 4 }), ctx), authoritative,
@@ -2015,11 +2679,51 @@ function testPhotographerPresentationAndSourceContract() {
         toolNavigationBlock.indexOf("LrDevelopController.selectMaskTool(targetTool.ID)"));
     assert.match(toolNavigationBlock, /expectedSelectedMaskToolId/,
         "component navigation must bind the authoritative selected component ID");
+    const visibilityBlock = lua.slice(lua.indexOf("local function executeVisibility"),
+        lua.indexOf("local function executeToolNavigation"));
+    assert.match(visibilityBlock, /before\.selectedMaskHidden/,
+        "mask visibility must use authoritative Hidden readback");
+    assert.match(visibilityBlock, /before\.selectedMaskToolHidden/,
+        "component visibility must use authoritative Hidden readback");
+    assert.match(visibilityBlock, /command\.expectedSelectedMaskId/,
+        "visibility commands must bind the selected mask ID");
+    assert.match(visibilityBlock, /command\.expectedSelectedMaskToolId/,
+        "visibility commands must bind the selected component ID");
+    assert.equal((visibilityBlock.match(/LrDevelopController\.toggleHideMask\(/g) || []).length, 1,
+        "production mask visibility must use the proven Lightroom toggle exactly once");
+    assert.equal((visibilityBlock.match(/LrDevelopController\.toggleHideMaskTool\(/g) || []).length, 1,
+        "production component visibility must use the proven Lightroom toggle exactly once");
+    assert.doesNotMatch(lua, /EnableMaskGroupBasedCorrections/,
+        "the master Masking Corrections switch remains deferred");
     assert.match(lua, /LrDevelopController\.goToMasking\(\)/);
     assert.match(lua, /LrDevelopController\.selectTool\("loupe"\)/);
+    const panelBlock = lua.slice(lua.indexOf("local function executePanel"),
+        lua.indexOf("local function executeNavigation"));
+    assert.match(panelBlock,
+        /after\.hasSelectedMaskGroup ~= true or after\.selectedMaskToolAvailable ~= true/,
+    "Open Masking must preserve an already complete authoritative mask/component selection");
+    assert.match(panelBlock, /local targetIndex = 1/,
+        "an unselected post-open inventory must begin with Lightroom's first mask");
+    assert.match(panelBlock, /after\._masks and after\._masks\[targetIndex\]/,
+        "automatic selection must use the fresh post-open getAllMasks inventory");
+    assert.match(panelBlock, /targetMask\.Tools and targetMask\.Tools\[1\]/,
+        "automatic selection must use the first component of the authoritative mask");
+    const postOpenBindingIndex = panelBlock.indexOf("serverBindingMatches(command, command.operationId)",
+        panelBlock.indexOf("local after = settledSnapshot"));
+    const automaticSelectIndex = panelBlock.indexOf("selectMask(targetMask.ID)");
+    assert.ok(postOpenBindingIndex >= 0 && postOpenBindingIndex < automaticSelectIndex,
+        "context must be revalidated after opening and before automatic selection");
+    assert.ok(panelBlock.indexOf("LrDevelopController.selectMask(targetMask.ID)") <
+        panelBlock.indexOf("LrDevelopController.selectMaskTool(targetTool.ID)"));
+    assert.match(panelBlock,
+        /after = settledSnapshot\(command, true, targetMask\.ID, targetTool\.ID\)/,
+    "automatic selection must finish with authoritative mask/component readback");
+    assert.match(panelBlock, /after\.maskGroupCount == 0 and after\.hasSelectedMaskGroup == false/,
+        "a photo without masks must remain an authoritative successful open state");
     assert.match(commandsLua,
-        /masking\.panel\.set[\s\S]*masking\.group\.navigate[\s\S]*masking\.tool\.navigate[\s\S]*Masking\.execute/);
+        /masking\.panel\.set[\s\S]*masking\.group\.navigate[\s\S]*masking\.tool\.navigate[\s\S]*masking\.group\.visibility\.set[\s\S]*masking\.tool\.visibility\.set[\s\S]*Masking\.execute/);
     assert.match(parserLua, /expectedSelectedMaskToolId/);
+    assert.match(parserLua, /expectedHidden/);
     assert.match(feedbackLua, /\/masking\/next[\s\S]*Masking\.sendRequestedSnapshot/);
     assert.match(controllerHtml, /<script src="\/controller-masking\.js"><\/script>/);
     assert.match(electronMain, /requestUrl\.pathname === "\/controller-masking\.js"/);
@@ -2031,6 +2735,46 @@ function testPhotographerPresentationAndSourceContract() {
     assert.match(maskingControllerSource, /driveToolNavigation\(\)/);
     assert.match(maskingControllerSource, /Previous Component/);
     assert.match(maskingControllerSource, /Next Component/);
+    assert.match(maskingControllerSource, /Hide Mask/);
+    assert.match(maskingControllerSource, /Show Mask/);
+    assert.match(maskingControllerSource, /Mask Hidden/);
+    assert.match(maskingControllerSource, /Hide Component/);
+    assert.match(maskingControllerSource, /Show Component/);
+    assert.match(maskingControllerSource, /Component Hidden/);
+    assert.match(maskingControllerSource, /Click to show mask/);
+    assert.match(maskingControllerSource, /Click to show component/);
+    assert.match(maskingControllerSource, /\/api\/masking\/group\/visibility\?hidden=/);
+    assert.match(maskingControllerSource, /\/api\/masking\/tool\/visibility\?hidden=/);
+    assert.match(maskingControllerSource, /createElementNS\(namespace, "svg"\)/,
+        "Masking visibility must use dependency-free inline SVG");
+    assert.match(maskingControllerSource, /masking-eye-open-icon/);
+    assert.match(maskingControllerSource, /masking-eye-off-icon/);
+    const visibilityButtonBlock = maskingControllerSource.slice(
+        maskingControllerSource.indexOf("function createVisibilityButton"),
+        maskingControllerSource.indexOf("function renderVisibilityButton"));
+    assert.equal((visibilityButtonBlock.match(/createVisibilityIcon\(/g) || []).length, 1,
+        "each visibility button must create only one inline SVG icon");
+    assert.match(maskingControllerSource, /replaceChild\(icon, control\.icon\)/,
+        "authoritative visibility changes must replace the single SVG icon");
+    assert.match(maskingControllerSource, /setAttribute\("aria-label", ariaLabel\)/,
+        "visibility actions must retain accessible dynamic labels");
+    assert.doesNotMatch(maskingControllerSource, /\u{1F440}|\u{1F441}/u,
+        "Masking visibility must not use emoji or Unicode eye characters");
+    assert.match(maskingControllerSource, /No masks available\./);
+    assert.doesNotMatch(maskingControllerSource, /className = "masking-visibility"/,
+        "visibility controls must not return to a separate DOM row");
+    assert.match(controllerHtml,
+        /\.masking-navigation,\s*\.masking-component-navigation\s*\{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/,
+    "both Masking control rows must retain three responsive columns");
+    const hiddenVisibilityStyle = controllerHtml.slice(
+        controllerHtml.indexOf("button.masking-visibility-button.masking-visibility-hidden {"),
+        controllerHtml.indexOf("button.masking-visibility-button.masking-visibility-hidden:hover"));
+    assert.match(hiddenVisibilityStyle, /background: #742f3a/,
+        "hidden Masking visibility must use LRBridge's existing dark-red background");
+    assert.match(hiddenVisibilityStyle, /border-color: #9a4452/,
+        "hidden Masking visibility must use LRBridge's existing dark-red border");
+    assert.match(hiddenVisibilityStyle, /color: #ffffff/,
+        "hidden Masking visibility must retain light action text");
     assert.doesNotMatch(maskingControllerSource, /if \(localIntent \|\|/,
         "rapid Masking clicks must not be discarded by the old pending-intent guard");
     for (const forbidden of ["loadstring", "executeTemplate", "deleteMask", "resetMasking", "createNewMask",
@@ -2041,7 +2785,7 @@ function testPhotographerPresentationAndSourceContract() {
         lua.indexOf("local function queryValue"));
     for (const mutation of ["selectMask(", "selectMaskTool(", "goToMasking(", "selectTool(", "setValue(",
         "resetToDefault(", "applyDevelopSettings(", "applyDevelopPreset(", "createNewMask(", "deleteMask(",
-        "invertMask(", "toggleHideMask("]) {
+        "invertMask(", "toggleHideMask(", "toggleHideMaskTool("]) {
         assert.equal(readSnapshotBlock.includes(mutation), false,
             "authoritative Masking state reading must not invoke " + mutation);
     }
@@ -2049,11 +2793,14 @@ function testPhotographerPresentationAndSourceContract() {
 
 (async function run() {
     testStateMachine();
+    testVisibilityStateMachine();
+    testOpenMaskingSelectionSettlement();
     testSemanticRevisionFreshness();
     testLightroom153RuntimeInventoryFixture();
     testPhotographerPresentationAndSourceContract();
     await testRenderedRapidFinalIntentSequences();
     await testRenderedComponentNavigation();
+    await testRenderedVisibilityControls();
     await testRenderedBoundaryClamping();
     await testRenderedDelayedAdmissionAndSettlement();
     await testRenderedOutOfOrderAndContextCancellation();
@@ -2062,7 +2809,7 @@ function testPhotographerPresentationAndSourceContract() {
     await testRenderedOperationErrorOwnership();
     await testHttpAndQueueContract();
     await testHttpSemanticRevisionRace();
-    console.log("Masking authoritative state, serialized rendered navigation, queue, Lightroom source, and controller tests passed.");
+    console.log("Masking authoritative state, visibility, serialized navigation, queue, Lightroom source, and controller tests passed.");
 })().catch(function (error) {
     console.error(error);
     process.exitCode = 1;

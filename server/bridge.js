@@ -340,8 +340,9 @@ function exactQueryFields(req, expected) {
 
 const MASKING_SNAPSHOT_FIELDS = [
     "available", "unavailableReason", "active", "maskGroupCount", "hasSelectedMaskGroup",
-    "selectedMaskGroupIndex", "selectedMaskGroupId", "previousAvailable", "nextAvailable",
-    "selectedMaskToolAvailable", "selectedMaskToolId", "selectedMaskToolCount", "selectedMaskToolIndex",
+    "selectedMaskGroupIndex", "selectedMaskGroupId", "selectedMaskHidden", "previousAvailable", "nextAvailable",
+    "selectedMaskToolAvailable", "selectedMaskToolId", "selectedMaskToolHidden",
+    "selectedMaskToolCount", "selectedMaskToolIndex",
     "previousMaskToolAvailable", "nextMaskToolAvailable"
 ];
 
@@ -368,6 +369,8 @@ function maskingSnapshotFromQuery(query) {
     const previousAvailable = parseMaskingBoolean(query.previousAvailable, false);
     const nextAvailable = parseMaskingBoolean(query.nextAvailable, false);
     const selectedMaskToolAvailable = parseMaskingBoolean(query.selectedMaskToolAvailable, false);
+    const selectedMaskHidden = parseMaskingBoolean(query.selectedMaskHidden, true);
+    const selectedMaskToolHidden = parseMaskingBoolean(query.selectedMaskToolHidden, true);
     const previousMaskToolAvailable = parseMaskingBoolean(query.previousMaskToolAvailable, false);
     const nextMaskToolAvailable = parseMaskingBoolean(query.nextMaskToolAvailable, false);
     const maskGroupCount = query.maskGroupCount === "null" ? null : parseMaskingCounter(query.maskGroupCount);
@@ -379,6 +382,7 @@ function maskingSnapshotFromQuery(query) {
         ? null : parseMaskingCounter(query.selectedMaskToolIndex);
     if (available === undefined || active === undefined || hasSelectedMaskGroup === undefined ||
         previousAvailable === undefined || nextAvailable === undefined || selectedMaskToolAvailable === undefined ||
+        selectedMaskHidden === undefined || selectedMaskToolHidden === undefined ||
         previousMaskToolAvailable === undefined || nextMaskToolAvailable === undefined ||
         (query.maskGroupCount !== "null" && maskGroupCount === null) ||
         (query.selectedMaskGroupIndex !== "null" && selectedMaskGroupIndex === null) ||
@@ -392,10 +396,12 @@ function maskingSnapshotFromQuery(query) {
         hasSelectedMaskGroup: hasSelectedMaskGroup,
         selectedMaskGroupIndex: selectedMaskGroupIndex,
         selectedMaskGroupId: parseMaskingNullableString(query.selectedMaskGroupId),
+        selectedMaskHidden: selectedMaskHidden,
         previousAvailable: previousAvailable,
         nextAvailable: nextAvailable,
         selectedMaskToolAvailable: selectedMaskToolAvailable,
         selectedMaskToolId: parseMaskingNullableString(query.selectedMaskToolId),
+        selectedMaskToolHidden: selectedMaskToolHidden,
         selectedMaskToolCount: selectedMaskToolCount,
         selectedMaskToolIndex: selectedMaskToolIndex,
         previousMaskToolAvailable: previousMaskToolAvailable,
@@ -570,6 +576,8 @@ app.get("/help", function (req, res) {
             setMaskingPanel: "/masking/panel?open=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             navigateMaskGroup: "/masking/group/navigate?direction=next&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             navigateMaskComponent: "/masking/tool/navigate?direction=next&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
+            setSelectedMaskVisibility: "/masking/group/visibility?hidden=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
+            setSelectedMaskComponentVisibility: "/masking/tool/visibility?hidden=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             deprecatedWakeEndpoint: "/wake-lightroom",
             libraryModuleCommand: "/command?command=application.module&module=library"
         },
@@ -1634,6 +1642,22 @@ app.get("/masking/tool/navigate", function (req, res) {
     }
     queueMaskingOperation(req, res, { kind: "toolNavigate", direction: req.query.direction },
         ["direction"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/group/visibility", function (req, res) {
+    if (req.query.hidden !== "true" && req.query.hidden !== "false") {
+        return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    }
+    queueMaskingOperation(req, res, { kind: "maskVisibility", hidden: req.query.hidden === "true" },
+        ["hidden"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/tool/visibility", function (req, res) {
+    if (req.query.hidden !== "true" && req.query.hidden !== "false") {
+        return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    }
+    queueMaskingOperation(req, res, { kind: "toolVisibility", hidden: req.query.hidden === "true" },
+        ["hidden"].concat(MASKING_COMMAND_BINDING_FIELDS));
 });
 
 app.get("/masking/operation-result", function (req, res) {

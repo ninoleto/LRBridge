@@ -26,10 +26,12 @@ const COMMAND_RELEVANT_SNAPSHOT_FIELDS = [
     "hasSelectedMaskGroup",
     "selectedMaskGroupIndex",
     "selectedMaskGroupId",
+    "selectedMaskHidden",
     "previousAvailable",
     "nextAvailable",
     "selectedMaskToolAvailable",
     "selectedMaskToolId",
+    "selectedMaskToolHidden",
     "selectedMaskToolCount",
     "selectedMaskToolIndex",
     "previousMaskToolAvailable",
@@ -49,10 +51,12 @@ function unavailableSnapshot(reason) {
         hasSelectedMaskGroup: null,
         selectedMaskGroupIndex: null,
         selectedMaskGroupId: null,
+        selectedMaskHidden: null,
         previousAvailable: false,
         nextAvailable: false,
         selectedMaskToolAvailable: false,
         selectedMaskToolId: null,
+        selectedMaskToolHidden: null,
         selectedMaskToolCount: null,
         selectedMaskToolIndex: null,
         previousMaskToolAvailable: false,
@@ -78,21 +82,26 @@ function sanitizeSnapshot(input) {
     const selected = input.hasSelectedMaskGroup;
     if (input.active === false) {
         if (selected !== null || input.selectedMaskGroupIndex !== null || input.selectedMaskGroupId !== null ||
+            input.selectedMaskHidden !== null ||
             input.previousAvailable !== false || input.nextAvailable !== false ||
             input.selectedMaskToolAvailable !== false || input.selectedMaskToolId !== null ||
+            input.selectedMaskToolHidden !== null ||
             input.selectedMaskToolCount !== null || input.selectedMaskToolIndex !== null ||
             input.previousMaskToolAvailable !== false || input.nextMaskToolAvailable !== false) return null;
     } else {
         if (typeof selected !== "boolean") return null;
         if (!selected) {
             if (input.selectedMaskGroupIndex !== null || input.selectedMaskGroupId !== null ||
+                input.selectedMaskHidden !== null ||
                 input.previousAvailable !== false || input.nextAvailable !== false ||
                 input.selectedMaskToolAvailable !== false || input.selectedMaskToolId !== null ||
+                input.selectedMaskToolHidden !== null ||
                 input.selectedMaskToolCount !== null || input.selectedMaskToolIndex !== null ||
                 input.previousMaskToolAvailable !== false || input.nextMaskToolAvailable !== false) return null;
         } else {
             if (!Number.isSafeInteger(input.selectedMaskGroupIndex) || input.selectedMaskGroupIndex < 1 ||
-                input.selectedMaskGroupIndex > input.maskGroupCount || !validOpaqueId(input.selectedMaskGroupId)) return null;
+                input.selectedMaskGroupIndex > input.maskGroupCount || !validOpaqueId(input.selectedMaskGroupId) ||
+                typeof input.selectedMaskHidden !== "boolean") return null;
             if (input.previousAvailable !== (input.selectedMaskGroupIndex > 1) ||
                 input.nextAvailable !== (input.selectedMaskGroupIndex < input.maskGroupCount) ||
                 typeof input.selectedMaskToolAvailable !== "boolean" ||
@@ -101,9 +110,11 @@ function sanitizeSnapshot(input) {
             if (input.selectedMaskToolAvailable) {
                 if (!validOpaqueId(input.selectedMaskToolId) || !Number.isSafeInteger(input.selectedMaskToolIndex) ||
                     input.selectedMaskToolIndex < 1 || input.selectedMaskToolIndex > input.selectedMaskToolCount ||
+                    typeof input.selectedMaskToolHidden !== "boolean" ||
                     input.previousMaskToolAvailable !== (input.selectedMaskToolIndex > 1) ||
                     input.nextMaskToolAvailable !== (input.selectedMaskToolIndex < input.selectedMaskToolCount)) return null;
             } else if (input.selectedMaskToolId !== null || input.selectedMaskToolIndex !== null ||
+                input.selectedMaskToolHidden !== null ||
                 input.previousMaskToolAvailable !== false || input.nextMaskToolAvailable !== false) return null;
         }
     }
@@ -116,10 +127,12 @@ function sanitizeSnapshot(input) {
         hasSelectedMaskGroup: selected,
         selectedMaskGroupIndex: input.selectedMaskGroupIndex,
         selectedMaskGroupId: input.selectedMaskGroupId,
+        selectedMaskHidden: input.selectedMaskHidden,
         previousAvailable: input.previousAvailable,
         nextAvailable: input.nextAvailable,
         selectedMaskToolAvailable: input.selectedMaskToolAvailable,
         selectedMaskToolId: input.selectedMaskToolId,
+        selectedMaskToolHidden: input.selectedMaskToolHidden,
         selectedMaskToolCount: input.selectedMaskToolCount,
         selectedMaskToolIndex: input.selectedMaskToolIndex,
         previousMaskToolAvailable: input.previousMaskToolAvailable,
@@ -193,7 +206,8 @@ function createMaskingState(options) {
                 operationId: pendingOperation.operationId,
                 kind: pendingOperation.kind,
                 open: pendingOperation.open,
-                direction: pendingOperation.direction
+                direction: pendingOperation.direction,
+                hidden: pendingOperation.hidden
             } : null,
             lastResult: lastResult ? Object.assign({}, lastResult) : null
         }, snapshot);
@@ -299,6 +313,7 @@ function createMaskingState(options) {
         let kind;
         let open = null;
         let direction = null;
+        let hidden = null;
         if (specification.kind === "panel" && typeof specification.open === "boolean") {
             kind = "panel";
             open = specification.open;
@@ -318,6 +333,14 @@ function createMaskingState(options) {
                 (direction === "previous"
                     ? snapshot.previousMaskToolAvailable !== true
                     : snapshot.nextMaskToolAvailable !== true)) return null;
+        } else if ((specification.kind === "maskVisibility" || specification.kind === "toolVisibility") &&
+            typeof specification.hidden === "boolean") {
+            kind = specification.kind;
+            hidden = specification.hidden;
+            if (snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
+                snapshot.selectedMaskToolAvailable !== true || typeof snapshot.selectedMaskHidden !== "boolean" ||
+                typeof snapshot.selectedMaskToolHidden !== "boolean" ||
+                hidden === (kind === "maskVisibility" ? snapshot.selectedMaskHidden : snapshot.selectedMaskToolHidden)) return null;
         } else return null;
 
         operationCounter += 1;
@@ -329,18 +352,46 @@ function createMaskingState(options) {
             kind: kind,
             open: open,
             direction: direction,
+            hidden: hidden,
             startedAt: now,
             expectedMaskingRevision: revision,
             beforeIndex: snapshot.selectedMaskGroupIndex,
             beforeCount: snapshot.maskGroupCount,
             beforeSelectedMaskId: snapshot.selectedMaskGroupId,
+            beforeMaskHidden: snapshot.selectedMaskHidden,
             beforeToolIndex: snapshot.selectedMaskToolIndex,
             beforeToolCount: snapshot.selectedMaskToolCount,
-            beforeSelectedMaskToolId: snapshot.selectedMaskToolId
+            beforeSelectedMaskToolId: snapshot.selectedMaskToolId,
+            beforeMaskToolHidden: snapshot.selectedMaskToolHidden
         }, binding);
+        let commandName;
+        let operationFields;
+        if (kind === "panel") {
+            commandName = "masking.panel.set";
+            operationFields = { open: open };
+        } else if (kind === "navigate") {
+            commandName = "masking.group.navigate";
+            operationFields = { direction: direction, expectedSelectedMaskId: snapshot.selectedMaskGroupId };
+        } else if (kind === "toolNavigate") {
+            commandName = "masking.tool.navigate";
+            operationFields = {
+                direction: direction,
+                expectedSelectedMaskId: snapshot.selectedMaskGroupId,
+                expectedSelectedMaskToolId: snapshot.selectedMaskToolId
+            };
+        } else {
+            commandName = kind === "maskVisibility"
+                ? "masking.group.visibility.set" : "masking.tool.visibility.set";
+            operationFields = {
+                hidden: hidden,
+                expectedHidden: kind === "maskVisibility"
+                    ? snapshot.selectedMaskHidden : snapshot.selectedMaskToolHidden,
+                expectedSelectedMaskId: snapshot.selectedMaskGroupId,
+                expectedSelectedMaskToolId: snapshot.selectedMaskToolId
+            };
+        }
         return Object.assign({
-            command: kind === "panel" ? "masking.panel.set" :
-                (kind === "navigate" ? "masking.group.navigate" : "masking.tool.navigate"),
+            command: commandName,
             operationId: pendingOperation.operationId,
             expectedActiveModule: "develop",
             expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
@@ -349,14 +400,7 @@ function createMaskingState(options) {
             expectedContextChangedAt: binding.contextChangedAt,
             expectedServerEpoch: serverEpoch,
             expectedMaskingRevision: revision
-        }, kind === "panel" ? { open: open } : kind === "navigate" ? {
-            direction: direction,
-            expectedSelectedMaskId: snapshot.selectedMaskGroupId
-        } : {
-            direction: direction,
-            expectedSelectedMaskId: snapshot.selectedMaskGroupId,
-            expectedSelectedMaskToolId: snapshot.selectedMaskToolId
-        });
+        }, operationFields);
     }
 
     function commandMatches(command, fields) {
@@ -372,7 +416,16 @@ function createMaskingState(options) {
             return command.command === "masking.group.navigate" && command.direction === pendingOperation.direction &&
                 command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId;
         }
-        return command.command === "masking.tool.navigate" && command.direction === pendingOperation.direction &&
+        if (pendingOperation.kind === "toolNavigate") {
+            return command.command === "masking.tool.navigate" && command.direction === pendingOperation.direction &&
+                command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId &&
+                command.expectedSelectedMaskToolId === pendingOperation.beforeSelectedMaskToolId;
+        }
+        return command.command === (pendingOperation.kind === "maskVisibility"
+            ? "masking.group.visibility.set" : "masking.tool.visibility.set") &&
+            command.hidden === pendingOperation.hidden &&
+            command.expectedHidden === (pendingOperation.kind === "maskVisibility"
+                ? pendingOperation.beforeMaskHidden : pendingOperation.beforeMaskToolHidden) &&
             command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId &&
             command.expectedSelectedMaskToolId === pendingOperation.beforeSelectedMaskToolId;
     }
@@ -407,7 +460,13 @@ function createMaskingState(options) {
         let outcome = result.outcome;
         let detail = result.detail || null;
         let reconciled = true;
-        if (outcome === "confirmed" && pendingOperation.kind === "panel" && next.active !== pendingOperation.open) reconciled = false;
+        if (outcome === "confirmed" && pendingOperation.kind === "panel") {
+            if (next.available !== true || next.active !== pendingOperation.open) reconciled = false;
+            if (pendingOperation.open === true &&
+                !((next.maskGroupCount === 0 && next.hasSelectedMaskGroup === false) ||
+                    (next.maskGroupCount > 0 && next.hasSelectedMaskGroup === true &&
+                        next.selectedMaskToolAvailable === true))) reconciled = false;
+        }
         if (result.outcome === "confirmed" && pendingOperation.kind === "navigate") {
             const delta = pendingOperation.direction === "previous" ? -1 : 1;
             if (next.available !== true || next.active !== true || next.hasSelectedMaskGroup !== true ||
@@ -426,6 +485,19 @@ function createMaskingState(options) {
                 next.selectedMaskToolIndex !== pendingOperation.beforeToolIndex + delta ||
                 next.selectedMaskToolId === pendingOperation.beforeSelectedMaskToolId) reconciled = false;
         }
+        const sameVisibilitySelection = Boolean(next && next.available === true && next.active === true &&
+            next.hasSelectedMaskGroup === true && next.maskGroupCount === pendingOperation.beforeCount &&
+            next.selectedMaskGroupIndex === pendingOperation.beforeIndex &&
+            next.selectedMaskGroupId === pendingOperation.beforeSelectedMaskId &&
+            next.selectedMaskToolAvailable === true && next.selectedMaskToolCount === pendingOperation.beforeToolCount &&
+            next.selectedMaskToolIndex === pendingOperation.beforeToolIndex &&
+            next.selectedMaskToolId === pendingOperation.beforeSelectedMaskToolId);
+        if (result.outcome === "confirmed" && pendingOperation.kind === "maskVisibility" &&
+            (!sameVisibilitySelection || next.selectedMaskHidden !== pendingOperation.hidden ||
+                next.selectedMaskToolHidden !== pendingOperation.beforeMaskToolHidden)) reconciled = false;
+        if (result.outcome === "confirmed" && pendingOperation.kind === "toolVisibility" &&
+            (!sameVisibilitySelection || next.selectedMaskHidden !== pendingOperation.beforeMaskHidden ||
+                next.selectedMaskToolHidden !== pendingOperation.hidden)) reconciled = false;
         if (result.outcome === "no_change" && pendingOperation.kind === "panel" &&
             next.active === pendingOperation.open) reconciled = false;
         if (result.outcome === "no_change" && pendingOperation.kind === "navigate" &&
@@ -439,6 +511,10 @@ function createMaskingState(options) {
                 next.selectedMaskToolCount !== pendingOperation.beforeToolCount ||
                 next.selectedMaskToolIndex !== pendingOperation.beforeToolIndex ||
                 next.selectedMaskToolId !== pendingOperation.beforeSelectedMaskToolId)) reconciled = false;
+        if (result.outcome === "no_change" &&
+            (pendingOperation.kind === "maskVisibility" || pendingOperation.kind === "toolVisibility") &&
+            (!sameVisibilitySelection || next.selectedMaskHidden !== pendingOperation.beforeMaskHidden ||
+                next.selectedMaskToolHidden !== pendingOperation.beforeMaskToolHidden)) reconciled = false;
         if (!reconciled) {
             outcome = "failed";
             detail = "Lightroom's Masking result could not be reconciled safely.";
