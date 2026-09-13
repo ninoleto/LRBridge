@@ -16,6 +16,13 @@
     "use strict";
 
     const POLL_MS = 450;
+    const componentCreation = kind => kind === "add" || kind === "subtract";
+    const componentActionLabel = kind => kind === "add" ? "Add Component" : "Subtract from Mask";
+    function selectedComponentHeading(state) {
+        if (!state || state.selectedMaskToolAvailable !== true) return "Selected Component";
+        const type = maskingCorrections.creationType(state.selectedMaskToolType, state.selectedMaskToolSubtype || "");
+        return type ? (type.maskType === "aiSelection" ? "Select " : "") + type.label : "Selected Component";
+    }
     const PRESET_BUTTON_LABEL = "Apply Mask Preset…";
     const PRESET_EXPLANATION = "Applies saved settings to the selected mask. Some Lightroom presets are unavailable, and Lightroom may show Custom or an edited preset name.";
 
@@ -89,12 +96,17 @@
         if (activeOperation.kind === "panel") return serverOperation.open === activeOperation.open;
         if (activeOperation.kind === "create") return serverOperation.maskType === activeOperation.maskType &&
             serverOperation.maskSubtype === activeOperation.maskSubtype;
+        if (componentCreation(activeOperation.kind)) return serverOperation.maskType === activeOperation.maskType &&
+            serverOperation.maskSubtype === activeOperation.maskSubtype &&
+            serverOperation.beforeSelectedMaskId === activeOperation.baseSelectedMaskId;
         if (activeOperation.kind === "maskVisibility" || activeOperation.kind === "toolVisibility") {
             return serverOperation.hidden === activeOperation.hidden;
         }
         if (activeOperation.kind === "pointColorPicker" || activeOperation.kind === "pointColorVisualize") return true;
         if (activeOperation.kind === "preset") return serverOperation.presetId === activeOperation.presetId;
         if (activeOperation.kind === "deleteSelected") return serverOperation.beforeSelectedMaskId === activeOperation.baseSelectedMaskId;
+        if (activeOperation.kind === "deleteComponent" || activeOperation.kind === "invertComponent") return serverOperation.beforeSelectedMaskId === activeOperation.baseSelectedMaskId &&
+            serverOperation.beforeSelectedMaskToolId === activeOperation.baseSelectedMaskToolId;
         if (activeOperation.kind === "deleteAll" || activeOperation.kind === "resetSelected") return true;
         return serverOperation.direction === activeOperation.direction;
     }
@@ -214,7 +226,7 @@
                     typeof confirmed.selectedMaskToolName === "string" &&
                     confirmed.selectedMaskToolName.trim().length > 0
                     ? confirmed.selectedMaskToolName + " — " + componentPosition : componentPosition;
-            } else presentation.componentPosition = "No mask component is selected.";
+            } else presentation.componentPosition = confirmed.selectedMaskToolCount === 0 ? "No components in this mask." : "No mask component is selected.";
         }
 
         if (local.error) {
@@ -230,6 +242,9 @@
             presentation.statusKind = "pending";
             if (operation.kind === "panel") presentation.status = operation.open ? "Opening Masking…" : "Closing Masking…";
             else if (operation.kind === "create") presentation.status = "Requesting a new mask in Lightroom…";
+            else if (componentCreation(operation.kind)) presentation.status = "Requesting " + componentActionLabel(operation.kind) + " in Lightroom…";
+            else if (operation.kind === "deleteComponent") presentation.status = "Deleting the selected component in Lightroom…";
+            else if (operation.kind === "invertComponent") presentation.status = "Inverting the selected component in Lightroom…";
             else if (operation.kind === "navigate") presentation.status = "Updating mask selection…";
             else if (operation.kind === "toolNavigate") presentation.status = "Updating mask component selection…";
             else if (operation.kind === "maskVisibility") {
@@ -374,6 +389,8 @@
             } catch (_) { /* Diagnostics cannot affect the controller. */ }
         }
         let creationFeedback = "";
+        let componentFeedbackBinding = null;
+        let componentFeedbackToolId = null;
         let creationAwaitingInventory = null;
         let creationMenuClose = null;
         let correctionGestureCounter = 0;
@@ -659,9 +676,19 @@
             const selected = Boolean(state && state.available === true && state.active === true &&
                 state.hasSelectedMaskGroup === true);
             controls.create.disabled = actionBlocked || !state || state.available !== true || state.maskGroupCount >= 512;
-            if (controls.create.disabled && creationMenuClose) creationMenuClose(false);
+            controls.add.disabled = controls.subtract.disabled = actionBlocked || !selected ||
+                !Number.isSafeInteger(state.selectedMaskToolCount) || state.selectedMaskToolCount < 1 || state.selectedMaskToolCount >= 2048;
+            if (creationMenuClose) creationMenuClose.validate();
             controls.resetSelected.disabled = actionBlocked || !selected;
             controls.deleteSelected.disabled = actionBlocked || !selected;
+            controls.deleteComponent.disabled = actionBlocked || !selected || state.selectedMaskToolAvailable !== true;
+            const selectedComponent = selected && !contextStale && state.selectedMaskToolAvailable === true;
+            const inversionKnown = selectedComponent && typeof state.selectedMaskToolInverted === "boolean";
+            controls.componentHeading.textContent = selectedComponent ? selectedComponentHeading(state) : "Selected Component";
+            controls.invertCheckboxLabel.hidden = !inversionKnown;
+            controls.invertComponent.hidden = inversionKnown;
+            controls.invertCheckbox.checked = inversionKnown && state.selectedMaskToolInverted;
+            controls.invertCheckbox.disabled = controls.invertComponent.disabled = actionBlocked || !selectedComponent;
             controls.preset.disabled = actionBlocked || !selected || state.selectedMaskToolAvailable !== true;
             controls.preset.textContent = PRESET_BUTTON_LABEL;
             controls.preset.setAttribute("aria-label", PRESET_BUTTON_LABEL);
@@ -686,6 +713,12 @@
         }
 
         function operationFailureMessage(operation, stale, detail) {
+            if (operation.kind === "invertComponent") return stale ? "Photo, mask or component changed during inversion. Refreshing Lightroom feedback." :
+                (detail || "Lightroom could not confirm component inversion. Check the component in Lightroom.");
+            if (operation.kind === "deleteComponent") return stale ? "Photo, mask or component changed during Delete Component. Refreshing Lightroom feedback." :
+                (detail || "Lightroom could not confirm component removal. Check its inventory before another delete.");
+            if (componentCreation(operation.kind)) return stale ? "Photo or selected mask changed during " + componentActionLabel(operation.kind) + "." :
+                (detail || "Lightroom did not confirm " + componentActionLabel(operation.kind) + ". Check the selected mask and its components.");
             if (operation.kind === "create") return stale ? "Photo or Masking context changed during mask creation." :
                 (detail || "Lightroom did not confirm the new mask request.");
             if (operation.kind === "navigate") return stale
@@ -735,7 +768,12 @@
                     deletionSelectionWarning = { message: persistentError, contextKey: presetContextKey(state) };
                 }
             } else {
-                creationFeedback = operation.kind === "deleteAll" ? "All masks deleted; confirmed by Lightroom." :
+                creationFeedback = operation.kind === "deleteComponent" ? result.parentRemoved ?
+                    (state.maskGroupCount === 0 ? "Component deleted; Lightroom removed its parent mask. No masks remain." :
+                        "Component and parent mask deleted; inventory and selection confirmed by Lightroom.") :
+                    result.remainingComponentCount === 0 ? "Component deleted; Lightroom retained the empty parent mask." :
+                        "Component deleted; inventory and selection confirmed by Lightroom." :
+                    operation.kind === "deleteAll" ? "All masks deleted; confirmed by Lightroom." :
                     state.maskGroupCount === 0 ? "Mask deleted; no masks remain. Confirmed by Lightroom." :
                         "Mask deleted; inventory and selection confirmed by Lightroom.";
             }
@@ -762,12 +800,34 @@
         }
 
         function successfulOperation(operation, result) {
-            if (operation.kind === "deleteSelected" || operation.kind === "deleteAll") {
+            if (operation.kind === "invertComponent") {
+                persistentError = "";
+                if (typeof options.onHistoryChanged === "function") options.onHistoryChanged();
+                if (state.selectedMaskGroupId === operation.baseSelectedMaskId && state.selectedMaskToolId === operation.baseSelectedMaskToolId) {
+                    componentFeedbackBinding = toolNavigationBindingKey(state);
+                    componentFeedbackToolId = operation.baseSelectedMaskToolId;
+                    creationFeedback = result.outcome === "confirmed" ? "Component inversion confirmed by Lightroom." :
+                        "Inversion requested; Lightroom did not supply a readable prior inversion state. Check the component in Lightroom.";
+                }
+                setDesiredToConfirmed(state);
+                return;
+            }
+            if (operation.kind === "deleteSelected" || operation.kind === "deleteAll" || operation.kind === "deleteComponent") {
                 completedDeletion(operation, result);
                 return;
             }
             persistentError = "";
             deletionSelectionWarning = null;
+            if (componentCreation(operation.kind)) {
+                componentFeedbackBinding = toolNavigationBindingKey(state);
+                if (typeof options.onHistoryChanged === "function") options.onHistoryChanged();
+                const type = maskingCorrections.creationType(operation.maskType, operation.maskSubtype);
+                creationFeedback = result.outcome === "confirmed" ? componentActionLabel(operation.kind) +
+                    "; component inventory and selection confirmed by Lightroom." : componentActionLabel(operation.kind) +
+                    " — " + type.label + " requested. " + (type.instruction || "Lightroom has not yet confirmed the new component and selection.");
+                setDesiredToConfirmed(state);
+                return;
+            }
             if (operation.kind === "create") {
                 const type = maskingCorrections.creationType(operation.maskType, operation.maskSubtype);
                 creationFeedback = result.outcome === "confirmed" ? "New mask inventory and selection confirmed by Lightroom." :
@@ -832,13 +892,23 @@
                 traceDeletion("matching-result", { activeOperation, result: next.lastResult });
                 const operation = activeOperation;
                 activeOperation = null;
+                if ((operation.kind === "deleteComponent" || operation.kind === "invertComponent") && (next.lastResult.targetMaskId !== operation.baseSelectedMaskId ||
+                    next.lastResult.targetToolId !== operation.baseSelectedMaskToolId)) {
+                    stopNavigation(operationFailureMessage(operation, false));
+                    return;
+                }
+                if (operation.kind === "deleteComponent" && next.lastResult.outcome === "deleted") {
+                    completedDeletion(operation, next.lastResult);
+                    return;
+                }
                 if (operation.kind === "deleteSelected" && next.lastResult.outcome === "deleted") {
                     completedDeletion(operation, next.lastResult);
                     return;
                 }
-                if (next.lastResult.outcome === "confirmed" || operation.kind === "create" && next.lastResult.outcome === "started" ||
+                if (next.lastResult.outcome === "confirmed" || operation.kind === "invertComponent" && next.lastResult.outcome === "requested" ||
+                    (operation.kind === "create" || componentCreation(operation.kind)) && next.lastResult.outcome === "started" ||
                     operation.kind !== "preset" && operation.kind !== "create" && operation.kind !== "deleteSelected" &&
-                    operation.kind !== "deleteAll" && next.lastResult.outcome === "no_change") {
+                    operation.kind !== "deleteAll" && operation.kind !== "deleteComponent" && operation.kind !== "invertComponent" && !componentCreation(operation.kind) && next.lastResult.outcome === "no_change") {
                     successfulOperation(operation, next.lastResult);
                 } else {
                     queuedPreset = null;
@@ -882,10 +952,17 @@
             if (activeOperation && activeOperation.kind === "preset" && accepted.available === true &&
                 activeOperation.bindingKey !== presetFeedbackKey(accepted)) activeOperation = null;
             state = accepted;
+            if (componentFeedbackBinding && (bindingChanged || accepted.available === true &&
+                (componentFeedbackBinding !== toolNavigationBindingKey(accepted) ||
+                    componentFeedbackToolId && componentFeedbackToolId !== accepted.selectedMaskToolId))) {
+                componentFeedbackBinding = null;
+                componentFeedbackToolId = null;
+                creationFeedback = "";
+            }
             reconcileRemovalWarning(state);
             if (deletionSelectionWarning && (deletionSelectionWarning.contextKey !== presetContextKey(accepted) ||
                 accepted.available === true && (accepted.maskGroupCount === 0 ||
-                    accepted.hasSelectedMaskGroup === true && accepted.selectedMaskToolAvailable === true))) {
+                    accepted.hasSelectedMaskGroup === true && (accepted.selectedMaskToolAvailable === true || accepted.selectedMaskToolCount === 0)))) {
                 if (persistentError === deletionSelectionWarning.message) persistentError = "";
                 deletionSelectionWarning = null;
             }
@@ -1018,6 +1095,12 @@
         }
 
         function admissionError(kind, status, value, detail) {
+            if (kind === "invertComponent") return status === 409 ? "Photo, mask or component changed. Component inversion was cancelled." :
+                "Lightroom could not receive component inversion.";
+            if (kind === "deleteComponent") return status === 409 ? "Photo, mask or component changed. Delete Component was cancelled." :
+                "Lightroom could not receive Delete Component.";
+            if (componentCreation(kind)) return status === 409 ? "Photo or selected mask changed. Choose the component type again." :
+                "Lightroom could not receive " + componentActionLabel(kind) + ".";
             if (kind === "create") return status === 409 ? "Photo or Masking state changed. Choose the mask type again." :
                 "Lightroom could not receive the new mask request.";
             if (kind === "preset" && status === 422 && typeof detail === "string" && detail.trim()) {
@@ -1074,8 +1157,8 @@
         }
 
         async function sendOperation(kind, value) {
-            const creationType = kind === "create" && value ? maskingCorrections.creationType(value.maskType, value.maskSubtype) : null;
-            if (kind === "create" && !creationType) return false;
+            const creationType = (kind === "create" || componentCreation(kind)) && value ? maskingCorrections.creationType(value.maskType, value.maskSubtype) : null;
+            if ((kind === "create" || componentCreation(kind)) && !creationType) return false;
             const preset = kind === "preset" ? presets.find(function (entry) { return entry.id === value; }) : null;
             if (kind === "preset" && (!preset || !presetFeedbackKey(state))) return false;
             if (activeOperation || !state || state.available !== true || !sameContext(state, currentContext()) ||
@@ -1083,10 +1166,16 @@
             if (kind === "deleteSelected" && (state.active !== true || state.hasSelectedMaskGroup !== true ||
                 value !== state.selectedMaskGroupId)) return false;
             if (kind === "deleteAll" && state.maskGroupCount < 1) return false;
+            if (kind === "deleteComponent" && (controls.deleteComponent.disabled || state.selectedMaskToolAvailable !== true ||
+                value.maskId !== state.selectedMaskGroupId || value.toolId !== state.selectedMaskToolId)) return false;
+            if (kind === "invertComponent" && (controls.invertComponent.disabled || state.selectedMaskToolAvailable !== true ||
+                value.maskId !== state.selectedMaskGroupId || value.toolId !== state.selectedMaskToolId)) return false;
+            if (componentCreation(kind) && (state.active !== true || state.hasSelectedMaskGroup !== true ||
+                navigationIntentActive || toolNavigationIntentActive || controls[kind].disabled)) return false;
             const query = commandQuery();
             if (!query) return false;
             const requestGeneration = generation;
-            const operation = kind === "create" ? {
+            const operation = kind === "create" || componentCreation(kind) ? {
                 kind: kind, maskType: creationType.maskType, maskSubtype: creationType.maskSubtype,
                 baseMaskGroupCount: state.maskGroupCount, baseSelectedMaskId: state.selectedMaskGroupId,
                 baseRevision: state.revision, operationId: null
@@ -1113,6 +1202,9 @@
                     baseRevision: state.revision,
                     baseMaskGroupCount: state.maskGroupCount,
                     operationId: null
+                } : kind === "deleteComponent" || kind === "invertComponent" ? {
+                    kind, baseRevision: state.revision, baseSelectedMaskId: state.selectedMaskGroupId,
+                    baseSelectedMaskToolId: state.selectedMaskToolId, operationId: null
                 } : kind === "resetSelected" || kind === "deleteSelected" ? {
                     kind: kind,
                     baseRevision: state.revision,
@@ -1150,22 +1242,29 @@
                     operationId: null
                 };
             activeOperation = operation;
+            componentFeedbackToolId = null;
             deletionRemovalWarning = null;
             if (kind === "deleteSelected" || kind === "deleteAll") {
                 deletionTrace = { operation, attempt: ++deletionTraceAttempt, startedAt: Date.now(), sequence: 0, previous: Object.create(null) };
                 traceDeletion("submit", { operation, state: deletionTraceState(state), context: currentContext() });
             }
-            if ((kind === "deleteSelected" || kind === "deleteAll") && typeof options.onCorrectionSubmitted === "function") {
+            if ((kind === "deleteSelected" || kind === "deleteAll" || kind === "deleteComponent" || kind === "invertComponent" || componentCreation(kind)) && typeof options.onCorrectionSubmitted === "function") {
                 options.onCorrectionSubmitted();
             }
             creationFeedback = "";
+            componentFeedbackBinding = null;
             creationAwaitingInventory = null;
             if (kind === "preset") {
                 persistentError = "";
                 setPresetFeedback("Applying " + preset.name + "…", "pending");
             }
             render();
-            const endpoint = kind === "create" ? "/api/masking/create?maskType=" + encodeURIComponent(creationType.maskType) +
+            const endpoint = kind === "deleteComponent" || kind === "invertComponent" ? "/api/masking/component/" +
+                (kind === "invertComponent" ? "invert" : "delete") + "?selectedMaskGroupId=" + encodeURIComponent(operation.baseSelectedMaskId) +
+                "&selectedMaskToolId=" + encodeURIComponent(operation.baseSelectedMaskToolId) + "&" + query
+                : componentCreation(kind) ? "/api/masking/component/" + kind + "?maskType=" + encodeURIComponent(creationType.maskType) +
+                "&maskSubtype=" + encodeURIComponent(creationType.maskSubtype) + "&selectedMaskGroupId=" + encodeURIComponent(operation.baseSelectedMaskId) + "&" + query
+                : kind === "create" ? "/api/masking/create?maskType=" + encodeURIComponent(creationType.maskType) +
                 "&maskSubtype=" + encodeURIComponent(creationType.maskSubtype) + "&" + query : kind === "panel"
                 ? "/api/masking/panel?open=" + encodeURIComponent(value) + "&" + query
                 : kind === "navigate"
@@ -1876,6 +1975,15 @@
             const creation = documentRef.createElement("div");
             creation.className = "masking-create-control";
             const create = createButton(documentRef, "Create New Mask", "positive masking-create-button");
+            const add = createButton(documentRef, "Add", "positive masking-add-button");
+            add.setAttribute("aria-label", componentActionLabel("add"));
+            const subtract = createButton(documentRef, "Subtract", "masking-subtract-button");
+            subtract.setAttribute("aria-label", componentActionLabel("subtract"));
+            const deleteComponent = createButton(documentRef, "Delete Component", "destructive masking-delete-component-button");
+            [add, subtract].forEach(function (button) {
+                button.setAttribute("aria-haspopup", "dialog");
+                button.setAttribute("aria-expanded", "false");
+            });
             create.setAttribute("aria-haspopup", "dialog");
             create.setAttribute("aria-expanded", "false");
             create.disabled = true;
@@ -1897,12 +2005,20 @@
             creationMenu.appendChild(creationHeader);
             creationMenu.appendChild(creationChoices);
             let creationMenuBinding = null;
+            let creationMenuKind = "create";
+            let creationMenuTrigger = create;
             creationMenuClose = function (restoreFocus) {
                 if (creationMenu.open && typeof creationMenu.close === "function") creationMenu.close();
                 creationMenu.hidden = true;
                 creationMenuBinding = null;
-                create.setAttribute("aria-expanded", "false");
-                if (restoreFocus && typeof create.focus === "function") create.focus({ preventScroll: true });
+                creationMenuTrigger.setAttribute("aria-expanded", "false");
+                if (restoreFocus && typeof creationMenuTrigger.focus === "function") creationMenuTrigger.focus({ preventScroll: true });
+            };
+            const pickerBinding = kind => componentCreation(kind) ? toolNavigationBindingKey(state) : navigationBindingKey(state);
+            creationMenuClose.validate = function () {
+                if (!creationMenu.hidden && (creationMenuTrigger.disabled || creationMenuBinding !== pickerBinding(creationMenuKind))) {
+                    creationMenuClose(false);
+                }
             };
             maskingCorrections.creationTypes.forEach(function (type) {
                 if (type.maskType === "brush" || (type.maskType === "rangeMask" && type.maskSubtype === "color")) {
@@ -1919,24 +2035,32 @@
                 if (type.instruction) choice.title = type.instruction;
                 choice.addEventListener("click", function () {
                     const menuBinding = creationMenuBinding;
+                    const kind = creationMenuKind;
                     creationMenuClose(true);
-                    if (!menuBinding || menuBinding !== navigationBindingKey(state) || !sameContext(state, currentContext())) return;
+                    if (!menuBinding || menuBinding !== pickerBinding(kind) || !sameContext(state, currentContext())) return;
                     persistentError = "";
-                    sendOperation("create", type);
+                    sendOperation(kind, type);
                 });
                 creationChoices.appendChild(choice);
             });
-            create.addEventListener("click", function () {
-                if (create.disabled) return;
+            function openCreationMenu(kind, trigger) {
+                if (trigger.disabled) return;
                 const opening = creationMenu.hidden;
                 if (!opening) { creationMenuClose(false); return; }
-                creationMenuBinding = navigationBindingKey(state);
+                creationMenuKind = kind;
+                creationMenuTrigger = trigger;
+                creationMenuBinding = pickerBinding(kind);
+                creationTitle.textContent = kind === "create" ? "Create New Mask" : componentActionLabel(kind);
+                creationMenu.setAttribute("aria-label", kind === "create" ? "Choose new mask type" : componentActionLabel(kind) + " — choose component type");
                 creationMenu.hidden = !opening;
-                create.setAttribute("aria-expanded", String(opening));
+                trigger.setAttribute("aria-expanded", String(opening));
                 if (typeof creationMenu.showModal === "function") creationMenu.showModal();
                 creationChoices.scrollTop = 0;
                 if (typeof creationClose.focus === "function") creationClose.focus({ preventScroll: true });
-            });
+            }
+            create.addEventListener("click", function () { openCreationMenu("create", create); });
+            add.addEventListener("click", function () { openCreationMenu("add", add); });
+            subtract.addEventListener("click", function () { openCreationMenu("subtract", subtract); });
             creationClose.addEventListener("click", function () { creationMenuClose(true); });
             creationMenu.addEventListener("cancel", function (event) {
                 event.preventDefault();
@@ -1995,6 +2119,31 @@
             const componentPosition = documentRef.createElement("div");
             componentPosition.className = "masking-component-position";
             componentPosition.setAttribute("aria-live", "polite");
+            const componentActions = documentRef.createElement("div");
+            componentActions.className = "masking-action-row masking-component-actions";
+            componentActions.appendChild(add);
+            componentActions.appendChild(subtract);
+            componentActions.appendChild(deleteComponent);
+            const componentControls = documentRef.createElement("div");
+            componentControls.className = "masking-component-controls";
+            const componentHeading = documentRef.createElement("h3");
+            componentHeading.className = "masking-component-heading";
+            componentHeading.textContent = "Selected Component";
+            const invertCheckboxLabel = documentRef.createElement("label");
+            invertCheckboxLabel.className = "masking-component-invert-label";
+            const invertCheckbox = documentRef.createElement("input");
+            invertCheckbox.type = "checkbox";
+            invertCheckbox.className = "masking-component-invert-checkbox";
+            invertCheckbox.setAttribute("aria-label", "Invert selected component");
+            invertCheckboxLabel.appendChild(invertCheckbox);
+            const invertText = documentRef.createElement("span");
+            invertText.textContent = "Invert";
+            invertCheckboxLabel.appendChild(invertText);
+            const invertComponent = createButton(documentRef, "Invert Component", "masking-component-invert-button");
+            invertComponent.setAttribute("aria-label", "Invert selected component");
+            componentControls.appendChild(componentHeading);
+            componentControls.appendChild(invertCheckboxLabel);
+            componentControls.appendChild(invertComponent);
             const status = documentRef.createElement("div");
             status.className = "masking-status";
             status.setAttribute("aria-live", "polite");
@@ -2170,6 +2319,8 @@
             body.appendChild(position);
             body.appendChild(componentNavigation);
             body.appendChild(componentPosition);
+            body.appendChild(componentActions);
+            body.appendChild(componentControls);
             body.appendChild(status);
             body.appendChild(corrections);
             section.appendChild(title);
@@ -2205,13 +2356,29 @@
                 if (deleteSelected.disabled || !state) return;
                 sendOperation("deleteSelected", state.selectedMaskGroupId);
             });
-            controls = { title: title, panel: panel, create: create, previous: previous, next: next, position: position,
+            deleteComponent.addEventListener("click", function () {
+                if (deleteComponent.disabled || !state) return;
+                persistentError = "";
+                deletionSelectionWarning = null;
+                sendOperation("deleteComponent", { maskId: state.selectedMaskGroupId, toolId: state.selectedMaskToolId });
+            });
+            function requestComponentInversion() {
+                if (invertComponent.disabled || !state) return;
+                // Keep the native checkbox on its last authoritative value while the operation settles.
+                invertCheckbox.checked = state.selectedMaskToolInverted === true;
+                persistentError = "";
+                sendOperation("invertComponent", { maskId: state.selectedMaskGroupId, toolId: state.selectedMaskToolId });
+            }
+            invertCheckbox.addEventListener("change", requestComponentInversion);
+            invertComponent.addEventListener("click", requestComponentInversion);
+            controls = { title: title, panel: panel, create: create, add: add, subtract: subtract, previous: previous, next: next, position: position,
                 componentPrevious: componentPrevious, componentNext: componentNext,
                 componentPosition: componentPosition, maskVisibility: maskVisibility,
+                componentHeading, invertCheckboxLabel, invertCheckbox, invertComponent,
                 maskVisibilityControl: maskVisibilityControl, componentVisibility: componentVisibility,
                 componentVisibilityControl: componentVisibilityControl, status: status,
                 resetSelected: resetSelected, preset: preset, presetFeedback: presetFeedbackStatus,
-                deleteSelected: deleteSelected, deleteAll: deleteAll };
+                deleteSelected: deleteSelected, deleteAll: deleteAll, deleteComponent: deleteComponent };
             return section;
         }
 
@@ -2236,6 +2403,7 @@
             if (creationMenuClose) { creationMenuClose(false); creationMenuClose.dispose(); }
             creationMenuClose = null;
             creationFeedback = "";
+            componentFeedbackBinding = null;
             creationAwaitingInventory = null;
             generation += 1;
             if (sharedPointColorController) sharedPointColorController.unmount();
@@ -2290,6 +2458,7 @@
                 if (presetContextChanged) closePresetPicker(false);
                 if (presetContextChanged) {
                     creationFeedback = "";
+                    componentFeedbackBinding = null;
                     creationAwaitingInventory = null;
                     if (creationMenuClose) creationMenuClose(false);
                 }

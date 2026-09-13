@@ -40,6 +40,7 @@ const COMMAND_RELEVANT_SNAPSHOT_FIELDS = [
     "selectedMaskToolType",
     "selectedMaskToolSubtype",
     "selectedMaskToolHidden",
+    "selectedMaskToolInverted",
     "selectedMaskToolCount",
     "selectedMaskToolIndex",
     "previousMaskToolAvailable",
@@ -69,6 +70,7 @@ function unavailableSnapshot(reason) {
         selectedMaskToolType: null,
         selectedMaskToolSubtype: null,
         selectedMaskToolHidden: null,
+        selectedMaskToolInverted: null,
         selectedMaskToolCount: null,
         selectedMaskToolIndex: null,
         previousMaskToolAvailable: false,
@@ -108,6 +110,8 @@ function sanitizeSnapshot(input) {
         return unavailableSnapshot(input.unavailableReason);
     }
     if (input.unavailableReason !== null && input.unavailableReason !== undefined) return null;
+    if (input.selectedMaskToolInverted != null && (typeof input.selectedMaskToolInverted !== "boolean" ||
+        input.active !== true || input.hasSelectedMaskGroup !== true || input.selectedMaskToolAvailable !== true)) return null;
     if (typeof input.active !== "boolean" || !Number.isSafeInteger(input.maskGroupCount) ||
         input.maskGroupCount < 0 || input.maskGroupCount > MAX_MASK_GROUPS) return null;
 
@@ -158,7 +162,7 @@ function sanitizeSnapshot(input) {
             if (input.previousAvailable !== (input.selectedMaskGroupIndex > 1) ||
                 input.nextAvailable !== (input.selectedMaskGroupIndex < input.maskGroupCount) ||
                 typeof input.selectedMaskToolAvailable !== "boolean" ||
-                !Number.isSafeInteger(input.selectedMaskToolCount) || input.selectedMaskToolCount < 1 ||
+                !Number.isSafeInteger(input.selectedMaskToolCount) || input.selectedMaskToolCount < 0 ||
                 input.selectedMaskToolCount > MAX_MASK_TOOLS_PER_GROUP) return null;
             if (input.selectedMaskToolAvailable) {
                 if (!validOpaqueId(input.selectedMaskToolId) || !Number.isSafeInteger(input.selectedMaskToolIndex) ||
@@ -202,6 +206,7 @@ function sanitizeSnapshot(input) {
         selectedMaskToolType: validMaskName(input.selectedMaskToolType) ? input.selectedMaskToolType : null,
         selectedMaskToolSubtype: validMaskName(input.selectedMaskToolSubtype) ? input.selectedMaskToolSubtype : null,
         selectedMaskToolHidden: input.selectedMaskToolHidden,
+        selectedMaskToolInverted: typeof input.selectedMaskToolInverted === "boolean" ? input.selectedMaskToolInverted : null,
         selectedMaskToolCount: input.selectedMaskToolCount,
         selectedMaskToolIndex: input.selectedMaskToolIndex,
         previousMaskToolAvailable: input.previousMaskToolAvailable,
@@ -305,6 +310,11 @@ function createMaskingState(options) {
     let outstandingQuery = null;
     let pendingOperation = null;
     let lastResult = null;
+    function componentResultTargets(operation) {
+        return operation && ["deleteComponent", "invertComponent"].includes(operation.kind) ? {
+            targetMaskId: operation.beforeSelectedMaskId, targetToolId: operation.beforeSelectedMaskToolId
+        } : {};
+    }
     let lastPresetDiagnostics = null;
     const presetDiagnosticHistory = [];
     function recordPresetDiagnostics(entry) {
@@ -352,8 +362,9 @@ function createMaskingState(options) {
                 direction: pendingOperation.direction,
                 hidden: pendingOperation.hidden
             }, pendingOperation.kind === "preset" ? { presetId: pendingOperation.presetId } : {},
-            pendingOperation.kind === "deleteSelected" ? { beforeSelectedMaskId: pendingOperation.beforeSelectedMaskId } : {},
-            pendingOperation.kind === "create" ? { maskType: pendingOperation.maskType, maskSubtype: pendingOperation.maskSubtype } : {}) : null,
+            ["deleteSelected", "deleteComponent", "invertComponent", "add", "subtract"].includes(pendingOperation.kind) ? { beforeSelectedMaskId: pendingOperation.beforeSelectedMaskId } : {},
+            ["deleteComponent", "invertComponent"].includes(pendingOperation.kind) ? { beforeSelectedMaskToolId: pendingOperation.beforeSelectedMaskToolId } : {},
+            ["create", "add", "subtract"].includes(pendingOperation.kind) ? { maskType: pendingOperation.maskType, maskSubtype: pendingOperation.maskSubtype } : {}) : null,
             lastResult: lastResult ? Object.assign({}, lastResult) : null,
             correctionFeedbackSequence: correctionFeedbackSequence,
             lastCorrectionResult: lastCorrectionResult ? Object.assign({}, lastCorrectionResult) : null,
@@ -388,6 +399,7 @@ function createMaskingState(options) {
                 });
             }
             lastResult = {
+            ...componentResultTargets(pendingOperation),
                 operationId: pendingOperation.operationId,
                 outcome: "stale",
                 detail: "Lightroom context changed.",
@@ -409,7 +421,7 @@ function createMaskingState(options) {
     function requestRefresh(fields, force) {
         syncContext(fields);
         const now = nowProvider();
-        if (pendingOperation && now - pendingOperation.startedAt > (pendingOperation.kind === "create" ? 60000 : OPERATION_TIMEOUT_MS)) {
+        if (pendingOperation && now - pendingOperation.startedAt > (["create", "add", "subtract"].includes(pendingOperation.kind) ? 60000 : OPERATION_TIMEOUT_MS)) {
             tracePendingDeletion("timeout", { elapsedMs: now - pendingOperation.startedAt });
             if (pendingOperation.kind === "preset") {
                 recordPresetDiagnostics({
@@ -423,6 +435,7 @@ function createMaskingState(options) {
                 });
             }
             lastResult = {
+            ...componentResultTargets(pendingOperation),
                 operationId: pendingOperation.operationId,
                 outcome: "failed",
                 detail: "Lightroom did not confirm the Masking action in time.",
@@ -507,6 +520,13 @@ function createMaskingState(options) {
         if (specification.kind === "create" && maskingCorrections.creationType(specification.maskType, specification.maskSubtype)) {
             kind = "create";
             if (!Number.isSafeInteger(snapshot.maskGroupCount) || snapshot.maskGroupCount >= 512) return null;
+        } else if (["add", "subtract"].includes(specification.kind) &&
+            maskingCorrections.creationType(specification.maskType, specification.maskSubtype)) {
+            kind = specification.kind;
+            if (snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
+                specification.selectedMaskGroupId !== snapshot.selectedMaskGroupId ||
+                !Number.isSafeInteger(snapshot.selectedMaskToolCount) || snapshot.selectedMaskToolCount < 1 ||
+                snapshot.selectedMaskToolCount >= MAX_MASK_TOOLS_PER_GROUP) return null;
         } else if (specification.kind === "panel" && typeof specification.open === "boolean") {
             kind = "panel";
             open = specification.open;
@@ -541,6 +561,11 @@ function createMaskingState(options) {
             kind = "deleteSelected";
             if (snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
                 specification.selectedMaskGroupId !== snapshot.selectedMaskGroupId) return null;
+        } else if (specification.kind === "deleteComponent" || specification.kind === "invertComponent") {
+            kind = specification.kind;
+            if (snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true || snapshot.selectedMaskToolAvailable !== true ||
+                specification.selectedMaskGroupId !== snapshot.selectedMaskGroupId ||
+                specification.selectedMaskToolId !== snapshot.selectedMaskToolId) return null;
         } else if (specification.kind === "resetSelected") {
             kind = "resetSelected";
             if (snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
@@ -589,8 +614,8 @@ function createMaskingState(options) {
         pendingOperation = Object.assign({
             operationId: "mo-" + operationCounter,
             kind: kind,
-            maskType: kind === "create" ? specification.maskType : null,
-            maskSubtype: kind === "create" ? specification.maskSubtype : null,
+            maskType: ["create", "add", "subtract"].includes(kind) ? specification.maskType : null,
+            maskSubtype: ["create", "add", "subtract"].includes(kind) ? specification.maskSubtype : null,
             open: open,
             direction: direction,
             hidden: hidden,
@@ -609,7 +634,8 @@ function createMaskingState(options) {
             beforeToolIndex: snapshot.selectedMaskToolIndex,
             beforeToolCount: snapshot.selectedMaskToolCount,
             beforeSelectedMaskToolId: snapshot.selectedMaskToolId,
-            beforeMaskToolHidden: snapshot.selectedMaskToolHidden
+            beforeMaskToolHidden: snapshot.selectedMaskToolHidden,
+            beforeMaskToolInverted: snapshot.selectedMaskToolInverted
         }, binding);
         let commandName;
         let operationFields;
@@ -617,6 +643,19 @@ function createMaskingState(options) {
             commandName = "masking.create";
             operationFields = { maskType: specification.maskType, maskSubtype: specification.maskSubtype,
                 expectedMaskCount: snapshot.maskGroupCount };
+        } else if (kind === "add" || kind === "subtract") {
+            commandName = "masking.component." + kind;
+            operationFields = { maskType: specification.maskType, maskSubtype: specification.maskSubtype,
+                expectedMaskCount: snapshot.maskGroupCount, expectedSelectedMaskId: snapshot.selectedMaskGroupId,
+                expectedSelectedMaskToolId: snapshot.selectedMaskToolId, expectedMaskToolCount: snapshot.selectedMaskToolCount };
+        } else if (kind === "deleteComponent") {
+            commandName = "masking.component.delete";
+            operationFields = { expectedMaskCount: snapshot.maskGroupCount, expectedMaskToolCount: snapshot.selectedMaskToolCount,
+                expectedSelectedMaskId: snapshot.selectedMaskGroupId, expectedSelectedMaskToolId: snapshot.selectedMaskToolId };
+        } else if (kind === "invertComponent") {
+            commandName = "masking.component.invert";
+            operationFields = { expectedInverted: snapshot.selectedMaskToolInverted,
+                expectedSelectedMaskId: snapshot.selectedMaskGroupId, expectedSelectedMaskToolId: snapshot.selectedMaskToolId };
         } else if (kind === "panel") {
             commandName = "masking.panel.set";
             operationFields = { open: open };
@@ -911,6 +950,14 @@ function createMaskingState(options) {
             return command.command === "masking.create" && command.maskType === pendingOperation.maskType &&
                 command.maskSubtype === pendingOperation.maskSubtype && command.expectedMaskCount === pendingOperation.beforeCount;
         }
+        if (pendingOperation.kind === "add" || pendingOperation.kind === "subtract") {
+            return command.command === "masking.component." + pendingOperation.kind &&
+                command.maskType === pendingOperation.maskType && command.maskSubtype === pendingOperation.maskSubtype &&
+                command.expectedMaskCount === pendingOperation.beforeCount &&
+                command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId &&
+                command.expectedSelectedMaskToolId === pendingOperation.beforeSelectedMaskToolId &&
+                command.expectedMaskToolCount === pendingOperation.beforeToolCount;
+        }
         if (pendingOperation.kind === "panel") {
             return command.command === "masking.panel.set" && command.open === pendingOperation.open;
         }
@@ -931,6 +978,17 @@ function createMaskingState(options) {
             return command.command === "masking.selected.delete" &&
                 command.expectedMaskCount === pendingOperation.beforeCount &&
                 command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId;
+        }
+        if (pendingOperation.kind === "deleteComponent") {
+            return command.command === "masking.component.delete" && command.expectedMaskCount === pendingOperation.beforeCount &&
+                command.expectedMaskToolCount === pendingOperation.beforeToolCount &&
+                command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId &&
+                command.expectedSelectedMaskToolId === pendingOperation.beforeSelectedMaskToolId;
+        }
+        if (pendingOperation.kind === "invertComponent") {
+            return command.command === "masking.component.invert" && command.expectedInverted === pendingOperation.beforeMaskToolInverted &&
+                command.expectedSelectedMaskId === pendingOperation.beforeSelectedMaskId &&
+                command.expectedSelectedMaskToolId === pendingOperation.beforeSelectedMaskToolId;
         }
         if (pendingOperation.kind === "resetSelected") {
             return command.command === "masking.selected.reset" &&
@@ -1017,6 +1075,7 @@ function createMaskingState(options) {
             });
         }
         lastResult = {
+            ...componentResultTargets(pendingOperation),
             operationId: pendingOperation.operationId,
             outcome: "stale",
             detail: detail || "Masking command became stale.",
@@ -1163,10 +1222,33 @@ function createMaskingState(options) {
                 reason, pendingOperation, binding, fields, serverEpoch, revision, deletion: result && result.deletion });
             return false;
         }
-        if (!operationResultMatches(result, fields) || !["confirmed", "deleted", "started", "no_change", "failed", "stale"].includes(result.outcome) ||
-            result.outcome === "started" && pendingOperation.kind !== "create") return rejected("operation-binding-or-outcome");
+        if (!operationResultMatches(result, fields) || !["confirmed", "deleted", "started", "requested", "no_change", "failed", "stale"].includes(result.outcome) ||
+            result.outcome === "requested" && pendingOperation.kind !== "invertComponent" ||
+            result.outcome === "started" && !["create", "add", "subtract"].includes(pendingOperation.kind)) return rejected("operation-binding-or-outcome");
         let removalConfirmed = false;
-        if (result.deletion) {
+        const deletingComponent = pendingOperation.kind === "deleteComponent";
+        const invertingComponent = pendingOperation.kind === "invertComponent";
+        let parentRemoved = false;
+        if (deletingComponent || invertingComponent ? result.targetMaskId !== pendingOperation.beforeSelectedMaskId ||
+            result.targetToolId !== pendingOperation.beforeSelectedMaskToolId : result.targetMaskId != null ||
+            result.targetToolId != null || result.componentDeletion != null) return rejected("component-target-binding");
+        if (invertingComponent && (result.deletion || result.componentDeletion)) return rejected("unexpected-removal-proof");
+        if (deletingComponent && (result.deletion || result.componentDeletion)) {
+            const validIds = (ids, max) => Array.isArray(ids) && ids.length <= max && ids.every(validOpaqueId) && new Set(ids).size === ids.length;
+            const groups = result.deletion, components = result.componentDeletion;
+            if (!groups || !components || !validIds(groups.before, MAX_MASK_GROUPS) || !validIds(groups.after, MAX_MASK_GROUPS) ||
+                !validIds(components.before, MAX_MASK_TOOLS_PER_GROUP) || !validIds(components.after, MAX_MASK_TOOLS_PER_GROUP) ||
+                groups.before.length !== pendingOperation.beforeCount || !groups.before.includes(pendingOperation.beforeSelectedMaskId) ||
+                groups.after.some(id => !groups.before.includes(id)) || components.before.length !== pendingOperation.beforeToolCount ||
+                !components.before.includes(pendingOperation.beforeSelectedMaskToolId) || components.after.includes(pendingOperation.beforeSelectedMaskToolId) ||
+                components.after.length !== components.before.length - 1 || components.after.some(id => !components.before.includes(id))) {
+                return rejected("component-removal-proof");
+            }
+            parentRemoved = !groups.after.includes(pendingOperation.beforeSelectedMaskId);
+            if (parentRemoved ? components.before.length !== 1 || groups.after.length !== groups.before.length - 1 :
+                groups.after.length !== groups.before.length) return rejected("component-parent-proof");
+            removalConfirmed = true;
+        } else if (result.deletion) {
             const before = result.deletion.before, after = result.deletion.after;
             const validIds = ids => Array.isArray(ids) && ids.length <= MAX_MASK_GROUPS &&
                 ids.every(validOpaqueId) && new Set(ids).size === ids.length;
@@ -1176,7 +1258,7 @@ function createMaskingState(options) {
                 after.some(id => !before.includes(id))) return rejected("removal-inventory-proof");
             removalConfirmed = true;
         }
-        if (result.outcome === "deleted" && !removalConfirmed || pendingOperation.kind === "deleteSelected" &&
+        if (result.outcome === "deleted" && !removalConfirmed || (pendingOperation.kind === "deleteSelected" || deletingComponent) &&
             result.outcome === "confirmed" && !removalConfirmed) return rejected("missing-removal-proof");
         const presetOperation = pendingOperation.kind === "preset";
         if ((!presetOperation && result.presetDiagnostics !== null && result.presetDiagnostics !== undefined) ||
@@ -1198,10 +1280,22 @@ function createMaskingState(options) {
         const completedOperation = pendingOperation;
         const next = result.snapshot === null ? null : sanitizeSnapshot(result.snapshot);
         if (result.snapshot !== null && !next) return rejected("invalid-snapshot");
-        if ((result.outcome === "confirmed" || result.outcome === "deleted" || result.outcome === "started" || result.outcome === "no_change") && !next) return rejected("missing-snapshot");
+        if ((result.outcome === "confirmed" || result.outcome === "deleted" || result.outcome === "started" || result.outcome === "requested" || result.outcome === "no_change") && !next) return rejected("missing-snapshot");
         let outcome = result.outcome;
         let detail = result.detail || null;
         let reconciled = !(presetOperation && outcome === "no_change");
+        if (deletingComponent) {
+            if (outcome === "no_change") reconciled = false;
+            if (outcome === "confirmed") reconciled = Boolean(next.available === true &&
+                next.maskGroupCount === result.deletion.after.length &&
+                (next.maskGroupCount === 0 ? next.hasSelectedMaskGroup !== true :
+                    next.active === true && next.hasSelectedMaskGroup === true && result.deletion.after.includes(next.selectedMaskGroupId) &&
+                    (next.selectedMaskGroupId === pendingOperation.beforeSelectedMaskId ?
+                        next.selectedMaskToolCount === result.componentDeletion.after.length &&
+                        (next.selectedMaskToolCount === 0 ? next.selectedMaskToolAvailable === false :
+                            next.selectedMaskToolAvailable === true && result.componentDeletion.after.includes(next.selectedMaskToolId)) :
+                        next.selectedMaskToolAvailable === true || next.selectedMaskToolCount === 0)));
+        }
         if (pendingOperation.kind === "create") {
             const type = maskingCorrections.creationType(pendingOperation.maskType, pendingOperation.maskSubtype);
             if (outcome === "no_change") reconciled = false;
@@ -1212,12 +1306,26 @@ function createMaskingState(options) {
                 !["context_changed", "not_develop", "no_photo"].includes(next.unavailableReason) : next.active === true &&
                 next.maskGroupCount >= pendingOperation.beforeCount && (type.instruction || next.maskGroupCount <= pendingOperation.beforeCount + 1));
         }
+        if (pendingOperation.kind === "add" || pendingOperation.kind === "subtract") {
+            const type = maskingCorrections.creationType(pendingOperation.maskType, pendingOperation.maskSubtype);
+            const sameMask = next && next.available === true && next.active === true &&
+                next.hasSelectedMaskGroup === true && next.maskGroupCount === pendingOperation.beforeCount &&
+                next.selectedMaskGroupId === pendingOperation.beforeSelectedMaskId;
+            if (outcome === "no_change") reconciled = false;
+            if (outcome === "confirmed") reconciled = Boolean(!type.instruction && sameMask &&
+                next.selectedMaskToolCount === pendingOperation.beforeToolCount + 1 &&
+                next.selectedMaskToolAvailable === true && next.selectedMaskToolId !== pendingOperation.beforeSelectedMaskToolId);
+            if (outcome === "started") reconciled = Boolean(next.available !== true ?
+                !["context_changed", "not_develop", "no_photo"].includes(next.unavailableReason) : sameMask &&
+                next.selectedMaskToolCount >= pendingOperation.beforeToolCount &&
+                (type.instruction || next.selectedMaskToolCount <= pendingOperation.beforeToolCount + 1));
+        }
         if (outcome === "confirmed" && pendingOperation.kind === "panel") {
             if (next.available !== true || next.active !== pendingOperation.open) reconciled = false;
             if (pendingOperation.open === true &&
                 !((next.maskGroupCount === 0 && next.hasSelectedMaskGroup === false) ||
                     (next.maskGroupCount > 0 && next.hasSelectedMaskGroup === true &&
-                        next.selectedMaskToolAvailable === true))) reconciled = false;
+                        (next.selectedMaskToolAvailable === true || next.selectedMaskToolCount === 0)))) reconciled = false;
         }
         if (result.outcome === "confirmed" && pendingOperation.kind === "navigate") {
             const delta = pendingOperation.direction === "previous" ? -1 : 1;
@@ -1245,7 +1353,7 @@ function createMaskingState(options) {
             (outcome === "no_change" || outcome === "confirmed" && (next.available !== true ||
                 next.maskGroupCount !== pendingOperation.beforeCount - 1 ||
                 next.selectedMaskGroupId === pendingOperation.beforeSelectedMaskId ||
-                next.maskGroupCount > 0 && (next.hasSelectedMaskGroup !== true || next.selectedMaskToolAvailable !== true ||
+                next.maskGroupCount > 0 && (next.hasSelectedMaskGroup !== true || next.selectedMaskToolAvailable !== true && next.selectedMaskToolCount !== 0 ||
                     !result.deletion.after.includes(next.selectedMaskGroupId)) ||
                 next.maskGroupCount === 0 && next.hasSelectedMaskGroup === true))) reconciled = false;
         if (result.outcome === "confirmed" &&
@@ -1265,6 +1373,16 @@ function createMaskingState(options) {
             next.selectedMaskToolAvailable === true && next.selectedMaskToolCount === pendingOperation.beforeToolCount &&
             next.selectedMaskToolIndex === pendingOperation.beforeToolIndex &&
             next.selectedMaskToolId === pendingOperation.beforeSelectedMaskToolId);
+        if (invertingComponent) {
+            const known = typeof pendingOperation.beforeMaskToolInverted === "boolean";
+            if (outcome === "no_change") reconciled = false;
+            if (outcome === "confirmed" || outcome === "requested") {
+                if (!sameVisibilitySelection || next.selectedMaskHidden !== pendingOperation.beforeMaskHidden ||
+                    next.selectedMaskToolHidden !== pendingOperation.beforeMaskToolHidden) reconciled = false;
+                if (outcome === "confirmed" && (!known || next.selectedMaskToolInverted !== !pendingOperation.beforeMaskToolInverted)) reconciled = false;
+                if (outcome === "requested" && known) reconciled = false;
+            }
+        }
         if (result.outcome === "confirmed" && pendingOperation.kind === "maskVisibility" &&
             (!sameVisibilitySelection || next.selectedMaskHidden !== pendingOperation.hidden ||
                 next.selectedMaskToolHidden !== pendingOperation.beforeMaskToolHidden)) reconciled = false;
@@ -1289,8 +1407,9 @@ function createMaskingState(options) {
             (!sameVisibilitySelection || next.selectedMaskHidden !== pendingOperation.beforeMaskHidden ||
                 next.selectedMaskToolHidden !== pendingOperation.beforeMaskToolHidden)) reconciled = false;
         if (!reconciled) {
-            outcome = "failed";
-            detail = presetOperation ? "Lightroom could not confirm the preset settings. Some settings may have changed." :
+            outcome = deletingComponent && removalConfirmed ? "deleted" : "failed";
+            detail = deletingComponent && removalConfirmed ? "Component deleted; Lightroom's replacement selection could not be confirmed." :
+                presetOperation ? "Lightroom could not confirm the preset settings. Some settings may have changed." :
                 "Lightroom's Masking result could not be reconciled safely.";
         }
         if (next) {
@@ -1300,11 +1419,15 @@ function createMaskingState(options) {
             if (correctionSelectionChanged) correctionSelectionRevision = revision + 1;
         }
         lastResult = {
+            ...componentResultTargets(pendingOperation),
             operationId: completedOperation.operationId,
             outcome: outcome,
             detail: detail,
             completedAt: nowProvider()
         };
+        if (deletingComponent && removalConfirmed) Object.assign(lastResult, {
+            parentRemoved, remainingComponentCount: result.componentDeletion.after.length
+        });
         if (tracing) traceDeletion("settled", { operationId: completedOperation.operationId,
             removalConfirmed, reconciled, submittedOutcome: result.outcome, lastResult });
         if (presetOperation) {
@@ -1339,6 +1462,7 @@ function createMaskingState(options) {
             });
         }
         lastResult = {
+            ...componentResultTargets(pendingOperation),
             operationId: pendingOperation.operationId,
             outcome: "failed",
             detail: detail || "Lightroom's Masking result was invalid.",

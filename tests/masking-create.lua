@@ -13,6 +13,8 @@ selectionCalls, componentCalls = {}, {}
 local sdk = {
     getAllMasks = function() return masks end,
     getSelectedTool = function() return tool end,
+    selectTool = function(value) tool = value end,
+    goToMasking = function() tool = "masking" end,
     getSelectedMask = function() return selectedMask end,
     getSelectedMaskTool = function() return selectedTool end,
     getRange = function() return nil end,
@@ -84,6 +86,60 @@ local sdk = {
         end
     end
 }
+componentCreationCalls = 0
+local function createComponent(kind, maskType, maskSubtype, ...)
+    assert(select("#", ...) == 0, "SDK Add/Subtract takes only maskType and maskSubtype")
+    assert(kind == expectedKind and maskType == expectedType and (maskSubtype or "") == expectedSubtype)
+    assert(selectedMask == "mask-2" and tool == "masking" and uuid == "creation-photo" and moduleName == "develop",
+        "Only mutate the originally selected photo and mask")
+    componentCreationCalls = componentCreationCalls + 1
+    if scenario == "sdk-error" then error("SDK component error") end
+    if scenario == "photo-during" then uuid = "other-photo"; return end
+    if scenario == "module-during" then moduleName = "library"; return end
+    if scenario == "mask-during" then selectedMask, selectedTool = "mask-1", "tool-1"; return end
+    if scenario == "incomplete" then masks[2].Tools = {}; return end
+    if scenario == "automatic" or scenario == "interactive-entry" or scenario == "multiple-interactive" or
+        scenario == "replace-old" or scenario == "wrong-group" or scenario == "old-selected" then
+        table.insert(masks[2].Tools, { ID = "new-component", Type = maskType, Subtype = maskSubtype,
+            Inverted = kind == "subtract", Hidden = false })
+        selectedTool = scenario == "old-selected" and "extra-2" or "new-component"
+        if scenario == "multiple-interactive" then table.insert(masks[2].Tools, { ID = "another-component", Hidden = false }) end
+        if scenario == "replace-old" then masks[2].Tools[1].ID = "replacement" end
+        if scenario == "wrong-group" then masks[1].ID = "replacement-group" end
+    end
+end
+sdk.addToCurrentMask = function(...) return createComponent("add", ...) end
+sdk.subtractFromCurrentMask = function(...) return createComponent("subtract", ...) end
+componentDeletionCalls = 0
+sdk.deleteMaskTool = function(id, ...)
+    assert(select("#", ...) == 0 and id == componentDeleteToolId and selectedMask == componentDeleteMaskId,
+        "deleteMaskTool must receive only the originally selected component ID")
+    componentDeletionCalls = componentDeletionCalls + 1
+    if componentDeleteScenario == "sdk-error" then error("deleteMaskTool failure") end
+    if componentDeleteScenario == "no-change" then return end
+    local maskIndex, toolIndex
+    for index, mask in ipairs(masks) do if mask.ID == selectedMask then
+        maskIndex = index
+        for i, component in ipairs(mask.Tools) do if component.ID == id then toolIndex = i end end
+    end end
+    local parent = masks[maskIndex]
+    table.remove(parent.Tools, componentDeleteScenario == "wrong-component" and (toolIndex == 1 and 2 or 1) or toolIndex)
+    if componentDeleteScenario == "collateral" then table.remove(masks[1].Tools, 1) end
+    if #parent.Tools == 0 and componentDeleteScenario ~= "retain-empty" and componentDeleteScenario ~= "retain-empty-closed" or
+        componentDeleteScenario == "wrong-parent" then
+        table.remove(masks, maskIndex); selectedMask, selectedTool = nil, nil
+    else
+        selectedTool = nil
+    end
+    if componentDeleteScenario == "deleted-selection" then selectedTool = id end
+    if componentDeleteScenario == "empty-selection" then selectedTool = "" end
+    if componentDeleteScenario == "no-mask-selection" or componentDeleteScenario == "user-before-component" then selectedMask = nil end
+    if componentDeleteScenario == "native-selection" then selectedMask, selectedTool = parent.ID, parent.Tools[1].ID end
+    if componentDeleteScenario == "native-other-mask" then selectedMask, selectedTool = "mask-1", "extra-1" end
+    if componentDeleteScenario == "photo-during" then uuid = "other-photo" end
+    if componentDeleteScenario == "module-during" then moduleName = "library" end
+    if componentDeleteScenario == "closed-during" or componentDeleteScenario == "retain-empty-closed" then tool = "loupe" end
+end
 local imports = {
     LrDevelopController = sdk,
     LrApplicationView = { getCurrentModuleName = function() return moduleName end },
@@ -92,6 +148,27 @@ local imports = {
     LrDate = { currentTime = function() return 100 end },
     LrHttp = { get = function(url)
         if url == "http://127.0.0.1:17891/context" then
+            if inversionBeforeWrite then inversionBeforeWrite() end
+            if componentDeleteScenario then
+                if componentDeletionCalls == 0 then
+                    if componentDeleteScenario == "photo-before" then uuid = "other-photo" end
+                    if componentDeleteScenario == "module-before" then moduleName = "library" end
+                    if componentDeleteScenario == "mask-before" then selectedMask, selectedTool = "mask-1", "tool-1" end
+                    if componentDeleteScenario == "component-before" then selectedTool = "component-1" end
+                    if componentDeleteScenario == "inventory-before" then table.insert(masks[2].Tools, { ID = "user-added", Hidden = false }) end
+                else
+                    if componentDeleteScenario == "photo-before-selection" then uuid = "other-photo" end
+                    if componentDeleteScenario == "user-before-selection" then selectedMask, selectedTool = "mask-1", "extra-1" end
+                    if componentDeleteScenario == "user-mask-only" then selectedMask, selectedTool = "mask-1", nil end
+                    if componentDeleteScenario == "user-component" then selectedTool = "component-1" end
+                    if componentDeleteScenario == "user-before-component" and #selectionCalls > 0 then selectedMask, selectedTool = "mask-1", "extra-1" end
+                    if componentDeleteScenario == "inventory-after" then masks[1].Tools[1].ID = "user-changed" end
+                end
+            end
+            if scenario == "mask-before-call" then selectedMask, selectedTool = "mask-1", "tool-1" end
+            if scenario == "component-before-call" then selectedTool = "extra-2" end
+            if scenario == "components-before-call" then table.insert(masks[2].Tools, { ID = "unrelated-new", Hidden = false }) end
+            if scenario == "module-before-call" then moduleName = "library" end
             if deletionCalls > 0 then
                 if scenario == "photo-before-selection" or scenario == "photo-before-component" and #selectionCalls > 0 then uuid = "other-photo" end
                 if scenario == "user-before-selection" or scenario == "user-before-component" and #selectionCalls > 0 then
@@ -125,10 +202,54 @@ function fixtureExecute()
     if scenario == "selection-before" then selectedMask = "mask-1"; selectedTool = "tool-1" end
     if scenario == "count-before" then table.remove(masks, 1) end
     local command = Parser.parse(commandJson)
-    assert(command and (command.command == "masking.create" or command.command == "masking.selected.delete" or
+    assert(command and (command.command == "masking.panel.set" or command.command == "masking.group.navigate" or
+        command.command == "masking.component.invert" or command.command == "masking.component.delete" or command.command == "masking.component.add" or command.command == "masking.component.subtract" or
+        command.command == "masking.create" or command.command == "masking.selected.delete" or
         command.command == "masking.all.delete"), "Parser must preserve the mask command")
     Commands.execute(command)
 end
+function fixtureNoComponentSelection() selectedTool = nil end
+function fixtureInversion(value, mode, maskType, maskSubtype)
+    inversionCalls = 0
+    local target = masks[2].Tools[1]
+    target.Inverted, target.Type, target.Subtype = value, maskType or "brush", maskSubtype
+    local reads = 0
+    inversionBeforeWrite = function()
+        reads = reads + 1
+        if reads ~= 3 then return end
+        if mode == "photo-before" then uuid = "other-photo" end
+        if mode == "mask-before" then selectedMask, selectedTool = "mask-1", "tool-1" end
+        if mode == "component-before" then selectedTool = "extra-2" end
+        if mode == "inverted-before" then target.Inverted = not value end
+    end
+    sdk.getAllMasks = function() return masks end
+    sdk.toggleInvertMaskTool = function(id, ...)
+        inversionCalls = inversionCalls + 1
+        assert(select("#", ...) == 0 and id == "tool-2" and selectedMask == "mask-2" and selectedTool == id)
+        if mode == "sdk-error" then error("SDK inversion error") end
+        if mode == "no-change" then return end
+        if mode == "delayed" then
+            local count = 0
+            sdk.getAllMasks = function() count = count + 1; if count >= 3 then target.Inverted = not value end; return masks end
+            return
+        end
+        if value ~= nil then target.Inverted = not value end
+        if mode == "unreadable-after" then target.Inverted = nil end
+        if mode == "malformed-after" then target.Inverted = "true" end
+        if mode == "photo-during" then uuid = "other-photo" end
+        if mode == "module-during" then moduleName = "library" end
+        if mode == "mask-during" then selectedMask, selectedTool = "mask-1", "tool-1" end
+        if mode == "component-during" then selectedTool = "extra-2" end
+    end
+    sdk.invertMask = function() globalWrites = globalWrites + 1; error("Whole-mask inversion is forbidden") end
+end
+function fixtureInversionPreserved()
+    assert(#masks == 3 and #masks[2].Tools == 2 and masks[2].Tools[2].ID == "extra-2")
+    assert(masks[1].Tools[1].Inverted == nil and masks[2].Tools[2].Inverted == nil and masks[3].Tools[1].Inverted == nil)
+    assert(creationCalls == 0 and deletionCalls == 0 and globalWrites == 0 and #selectionCalls == 0 and #componentCalls == 0)
+end
+function fixtureNativeInvert() masks[2].Tools[1].Inverted = not masks[2].Tools[1].Inverted end
+function fixtureNoMaskSelection() selectedMask, selectedTool = nil, nil end
 function fixtureMasks(count, closed, selectedIndex)
     masks = {}
     for index = 1, count do
@@ -138,6 +259,14 @@ function fixtureMasks(count, closed, selectedIndex)
     end
     selectedMask, selectedTool = "mask-" .. (selectedIndex or count), "tool-" .. (selectedIndex or count)
     tool = closed and "loupe" or "masking"
+end
+function fixtureComponentMasks(maskCount, toolCount, toolIndex, maskIndex)
+    fixtureMasks(maskCount, false, maskIndex)
+    local parent = masks[maskIndex]
+    parent.Tools = {}
+    for index = 1, toolCount do parent.Tools[index] = { ID = "component-" .. index, Type = "brush", Hidden = false } end
+    selectedTool = parent.Tools[toolIndex].ID
+    componentDeleteMaskId, componentDeleteToolId = selectedMask, selectedTool
 end
 function takeResultUrl() local url = resultUrls[#resultUrls]; assert(url); resultUrls = {}; return url end
 function fixtureEnableDeletionTrace()

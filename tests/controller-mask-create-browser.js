@@ -7,6 +7,7 @@ function install(fixture) {
     const c = fixture.creation = { count: 0, active: false, pending: null, last: null, calls: [], hold: false, release: null };
     c.deletes = []; c.history = []; c.historyIndex = 0; c.historyCommands = [];
     c.diagnostics = [];
+    c.componentCalls = []; c.componentCount = 1;
     c.selectionUnavailable = false; c.emptySelectionFrames = 0;
     fixture.handle = function (url, reply) {
         if (url.pathname === "/api/masking/state" && c.stateErrors > 0) {
@@ -26,6 +27,12 @@ function install(fixture) {
             const command = url.searchParams.get("command"); c.historyCommands.push(command);
             const entry = command === "lightroom.undo" ? c.history[--c.historyIndex] : c.history[c.historyIndex++];
             c.count = command === "lightroom.undo" ? entry.before : entry.after;
+            if (entry.componentsBefore) c.componentCount = command === "lightroom.undo" ? entry.componentsBefore : entry.componentsAfter;
+            if (entry.componentIdsBefore) {
+                c.componentIds = (command === "lightroom.undo" ? entry.componentIdsBefore : entry.componentIdsAfter).slice();
+                c.componentSelectedId = command === "lightroom.undo" ? entry.selectedBefore : entry.selectedAfter;
+                c.componentCount = c.componentIds.length;
+            }
             c.selectionUnavailable = false;
             c.last = null; fixture.revision += 1; reply({ ok: true }); return true;
         }
@@ -61,6 +68,71 @@ function install(fixture) {
             }, 180);
             return true;
         }
+        if (url.pathname === "/api/masking/component/delete") {
+            const targetMaskId = "created-" + c.count, targetToolId = c.componentSelectedId;
+            assert.equal(url.searchParams.get("selectedPhotoUuid"), fixture.context.selectedPhotoUuid);
+            assert.equal(url.searchParams.get("selectedMaskGroupId"), targetMaskId);
+            assert.equal(url.searchParams.get("selectedMaskToolId"), targetToolId);
+            assert.equal(url.searchParams.get("stateRevision"), String(fixture.revision));
+            assert.ok(targetToolId && c.componentIds.includes(targetToolId)); assert.equal(c.pending, null);
+            c.componentDeletes.push({ targetMaskId, targetToolId }); fixture.revision += 1;
+            c.pending = { operationId: "mo-" + (300 + c.componentDeletes.length), kind: "deleteComponent",
+                beforeSelectedMaskId: targetMaskId, beforeSelectedMaskToolId: targetToolId };
+            const admission = { ok: true, serverEpoch: "grain-fixture", revision: fixture.revision,
+                operationId: c.pending.operationId, pendingOperation: { ...c.pending } };
+            const before = c.count, ids = c.componentIds.slice(), index = ids.indexOf(targetToolId);
+            const finish = () => {
+                reply(admission);
+                if (c.holdComponentDelete) return;
+                if (c.componentDeleteOutcome !== "stale") {
+                    c.componentIds = ids.filter(id => id !== targetToolId);
+                    c.componentSelectedId = c.componentIds[index] || c.componentIds[index - 1] || null;
+                    if (!c.componentIds.length && !c.retainEmptyParent) {
+                        c.count -= 1;
+                        c.componentIds = c.count ? ["survivor-component"] : [];
+                        c.componentSelectedId = c.componentIds[0] || null;
+                    }
+                    if (c.componentDeleteSelectionFails) c.componentSelectedId = null;
+                    c.componentCount = c.componentIds.length;
+                    c.history.splice(c.historyIndex); c.history.push({ before, after: c.count,
+                        componentIdsBefore: ids, componentIdsAfter: c.componentIds.slice(), selectedBefore: targetToolId, selectedAfter: c.componentSelectedId });
+                    c.historyIndex += 1;
+                }
+                c.last = { operationId: admission.operationId, outcome: c.componentDeleteOutcome || (c.componentDeleteSelectionFails ? "deleted" : "confirmed"),
+                    targetMaskId, targetToolId: c.wrongComponentResultTarget ? "wrong-tool" : targetToolId,
+                    parentRemoved: c.count < before, remainingComponentCount: ids.length - 1,
+                    detail: c.componentDeleteSelectionFails ? "Component deleted, but Lightroom could not select a remaining component. Select a component in Lightroom." : null };
+                c.pending = null; fixture.revision += 1;
+            };
+            if (c.holdComponentDelete) c.releaseComponentDelete = finish; else setTimeout(finish, 180);
+            return true;
+        }
+        if (/^\/api\/masking\/component\/(add|subtract)$/.test(url.pathname)) {
+            assert.equal(url.searchParams.get("selectedPhotoUuid"), fixture.context.selectedPhotoUuid);
+            assert.equal(url.searchParams.get("selectedMaskGroupId"), "created-" + c.count);
+            assert.equal(url.searchParams.get("stateRevision"), String(fixture.revision));
+            const kind = url.pathname.endsWith("/add") ? "add" : "subtract";
+            const type = types.find(t => t.maskType === url.searchParams.get("maskType") && t.maskSubtype === url.searchParams.get("maskSubtype"));
+            assert.ok(type); assert.equal(c.pending, null);
+            c.componentCalls.push({ kind, type }); fixture.revision += 1;
+            c.pending = { operationId: "mo-" + (200 + c.componentCalls.length), kind,
+                maskType: type.maskType, maskSubtype: type.maskSubtype, beforeSelectedMaskId: "created-" + c.count };
+            const admission = { ok: true, serverEpoch: "grain-fixture", revision: fixture.revision,
+                operationId: c.pending.operationId, pendingOperation: { ...c.pending } };
+            const finish = () => {
+                reply(admission);
+                if (c.holdComponent) return;
+                const before = c.componentCount;
+                // Interactive fixture exposes a new entry but does not prove drawing is finished.
+                c.componentCount += 1;
+                c.history.splice(c.historyIndex); c.history.push({ before: c.count, after: c.count,
+                    componentsBefore: before, componentsAfter: c.componentCount }); c.historyIndex += 1;
+                c.last = { operationId: admission.operationId, outcome: type.instruction ? "started" : "confirmed" };
+                c.pending = null; fixture.revision += 1;
+            };
+            if (c.holdComponent) c.releaseComponent = finish; else setTimeout(finish, 180);
+            return true;
+        }
         if (url.pathname === "/api/masking/create") {
             assert.equal(url.searchParams.get("selectedPhotoUuid"), fixture.context.selectedPhotoUuid);
             assert.equal(url.searchParams.get("contextCounter"), String(fixture.context.contextCounter));
@@ -87,9 +159,18 @@ function install(fixture) {
                     selectedMaskGroupIndex: c.count || null, selectedMaskGroupId: c.count ? "created-" + c.count : null,
                     selectedMaskGroupName: c.count ? "Created mask " + c.count : null,
                     selectedMaskHidden: c.count ? false : null, previousAvailable: c.count > 1, nextAvailable: false,
-                    selectedMaskToolAvailable: c.count > 0, selectedMaskToolId: c.count ? "created-tool-" + c.count : null,
-                    selectedMaskToolHidden: c.count ? false : null, selectedMaskToolCount: c.count ? 1 : null,
-                    selectedMaskToolIndex: c.count ? 1 : null, previousMaskToolAvailable: false, nextMaskToolAvailable: false });
+                    selectedMaskToolAvailable: c.count > 0, selectedMaskToolId: c.count ?
+                        (c.componentCount > 1 ? "component-" + c.componentCount : "created-tool-" + c.count) : null,
+                    selectedMaskToolHidden: c.count ? false : null, selectedMaskToolCount: c.count ? c.componentCount : null,
+                    selectedMaskToolIndex: c.count ? c.componentCount : null, previousMaskToolAvailable: c.componentCount > 1, nextMaskToolAvailable: false });
+                if (c.componentIds && c.count > 0) {
+                    const index = c.componentIds.indexOf(c.componentSelectedId);
+                    Object.assign(body, { selectedMaskToolAvailable: index >= 0, selectedMaskToolId: index >= 0 ? c.componentSelectedId : null,
+                        selectedMaskToolName: null, selectedMaskToolType: null, selectedMaskToolSubtype: null,
+                        selectedMaskToolHidden: index >= 0 ? false : null, selectedMaskToolCount: c.componentIds.length,
+                        selectedMaskToolIndex: index >= 0 ? index + 1 : null,
+                        previousMaskToolAvailable: index > 0, nextMaskToolAvailable: index >= 0 && index < c.componentIds.length - 1 });
+                }
                 if (!c.count) body.corrections = [];
                 if (c.selectionUnavailable && c.count > 0) {
                     c.emptySelectionFrames += 1;
@@ -337,9 +418,12 @@ async function verify({ evaluate, waitFor, fixture, setViewport, touch, key, cap
     assert.doesNotMatch(await evaluate("document.querySelector('.masking-status').textContent"), /could not select a remaining mask/,
         "authoritative recovered selection resolves only the deletion-selection warning");
     c.selectionFails = false;
+    const components = await require("./controller-mask-components-browser").verify({ evaluate, waitFor, fixture, setViewport, touch, key });
+    const componentDeletion = await require("./controller-mask-component-delete-browser").verify({ evaluate, waitFor, fixture, setViewport, touch });
+    const componentInversion = await require("./controller-mask-component-invert-browser").verify({ evaluate, waitFor, fixture, setViewport, touch });
     return { choices: 12, touchWidths: [1280, 768, 390, 320], continuousPageGeometry: true, emptyPhoto: true,
         interactive: true, automatic: true, duplicateGuard: true, photoCancellation: true,
         selectedDeletion: true, lastMask: true, deleteAllCancellation: true, deleteAll: true, history: true,
-        emptySelectionFrames: c.emptySelectionFrames, partialSelectionFailure: true };
+        emptySelectionFrames: c.emptySelectionFrames, partialSelectionFailure: true, components, componentDeletion, componentInversion };
 }
 module.exports = { install, verify };

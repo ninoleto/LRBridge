@@ -269,7 +269,9 @@ local function validateInventory(masks)
         end
         maskIds[mask.ID] = true
         local toolCount = denseArrayLength(mask.Tools, MAX_MASK_TOOLS_PER_GROUP)
-        if toolCount == nil or toolCount < 1 then return nil end
+        -- An explicitly reported empty Tools array can survive deletion of the final component.
+        -- Require complete group metadata; incomplete tool-creation placeholders still fail closed.
+        if toolCount == nil or toolCount == 0 and type(mask.Hidden) ~= "boolean" then return nil end
         local normalizedTools = {}
         for toolIndex = 1, toolCount do
             local tool = mask.Tools[toolIndex]
@@ -288,7 +290,8 @@ local function validateInventory(masks)
                 Name = validMaskName(tool.Name) and tool.Name or nil,
                 Type = validMaskName(tool.Type) and tool.Type or nil,
                 Subtype = validMaskName(tool.Subtype) and tool.Subtype or nil,
-                Hidden = tool.Hidden
+                Hidden = tool.Hidden,
+                Inverted = tool.Inverted
             }
         end
         normalized[index] = { ID = mask.ID, Name = validMaskName(mask.Name) and mask.Name or nil,
@@ -398,6 +401,7 @@ local function readSnapshot(expectedPhotoUuid, trace, deletion)
                 return LrDevelopController.getSelectedMaskTool()
             end)
             if maskToolOk ~= true then return unavailable("sdk_error") end
+            if snapshot.selectedMaskToolCount == 0 then selectedMaskToolId = nil end
             if deletion and (selectedMaskToolId == "" or (deletion.toolIds or {})[selectedMaskToolId]) then
                 selectedMaskToolId = nil
             end
@@ -412,6 +416,7 @@ local function readSnapshot(expectedPhotoUuid, trace, deletion)
                         snapshot.selectedMaskToolType = maskTool.Type
                         snapshot.selectedMaskToolSubtype = maskTool.Subtype
                         snapshot.selectedMaskToolHidden = maskTool.Hidden
+                        snapshot.selectedMaskToolInverted = maskTool.Inverted
                         snapshot.selectedMaskToolIndex = toolIndex
                         snapshot.previousMaskToolAvailable = toolIndex > 1
                         snapshot.nextMaskToolAvailable = toolIndex < snapshot.selectedMaskToolCount
@@ -514,6 +519,7 @@ local function appendSnapshot(url, snapshot)
         "&selectedMaskToolType=" .. queryValue(snapshot.selectedMaskToolType) ..
         "&selectedMaskToolSubtype=" .. queryValue(snapshot.selectedMaskToolSubtype) ..
         "&selectedMaskToolHidden=" .. queryValue(snapshot.selectedMaskToolHidden) ..
+        "&selectedMaskToolInverted=" .. queryValue(snapshot.selectedMaskToolInverted) ..
         "&selectedMaskToolCount=" .. queryValue(snapshot.selectedMaskToolCount) ..
         "&selectedMaskToolIndex=" .. queryValue(snapshot.selectedMaskToolIndex) ..
         "&previousMaskToolAvailable=" .. queryValue(snapshot.previousMaskToolAvailable) ..
@@ -567,6 +573,10 @@ end
 local function sendOperationResult(command, outcome, detail, snapshot, presetDiagnostics, deletion)
     local url = "http://127.0.0.1:17891/masking/operation-result?operationId=" .. urlEncode(command.operationId) ..
         "&outcome=" .. urlEncode(outcome) .. "&detail=" .. urlEncode(detail or "") .. resultBindingUrl(command)
+    if command.command == "masking.component.delete" or command.command == "masking.component.invert" then
+        url = url .. "&targetMaskId=" .. urlEncode(command.expectedSelectedMaskId) ..
+            "&targetToolId=" .. urlEncode(command.expectedSelectedMaskToolId)
+    end
     if type(presetDiagnostics) == "string" and string.len(presetDiagnostics) > 0 then
         url = url .. "&presetDiagnostics=" .. urlEncode(presetDiagnostics)
     end
@@ -576,6 +586,13 @@ local function sendOperationResult(command, outcome, detail, snapshot, presetDia
         for _, mask in ipairs(deletion.after) do table.insert(afterIds, (urlEncode(mask.ID))) end
         url = url .. "&deletionBefore=" .. urlEncode(table.concat(beforeIds, ",")) ..
             "&deletionAfter=" .. urlEncode(table.concat(afterIds, ","))
+        if deletion.components then
+            beforeIds, afterIds = {}, {}
+            for _, tool in ipairs(deletion.components.before) do table.insert(beforeIds, (urlEncode(tool.ID))) end
+            for _, tool in ipairs(deletion.components.after) do table.insert(afterIds, (urlEncode(tool.ID))) end
+            url = url .. "&componentBefore=" .. urlEncode(table.concat(beforeIds, ",")) ..
+                "&componentAfter=" .. urlEncode(table.concat(afterIds, ","))
+        end
     end
     local ok, body, headers = LrTasks.pcall(function()
         local requestUrl = appendSnapshot(url, snapshot or unavailable("sdk_error"))
@@ -886,14 +903,15 @@ local function deletedInventoryMatches(before, after, removedId)
     return true
 end
 
-local function settleDeletedSelection(command, before, removedInventory)
+local function settleDeletedSelection(command, before, removedInventory, components)
     local deletion = { maskId = command.expectedSelectedMaskId, toolIds = {} }
     for _, tool in ipairs(before._masks[before.selectedMaskGroupIndex].Tools) do deletion.toolIds[tool.ID] = true end
-    local proof = { before = before._masks, after = removedInventory._masks }
+    local proof = { before = before._masks, after = removedInventory._masks, components = components }
     local neighbor = before._masks[before.selectedMaskGroupIndex + 1] or before._masks[before.selectedMaskGroupIndex - 1]
     local selectedOnce, componentOnce = false, false
     local after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
     local function incomplete(detail)
+        if components then detail = "Component and parent mask deleted. " .. detail end
         sendOperationResult(command, "deleted", detail, after, nil, proof)
         return true -- Removal succeeded; it must never be retried as a deletion failure.
     end
@@ -919,7 +937,8 @@ local function settleDeletedSelection(command, before, removedInventory)
         end
         after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
         if after.available == true and deletedInventoryMatches(before, after, command.expectedSelectedMaskId) then
-            if after.maskGroupCount == 0 or (after.hasSelectedMaskGroup == true and after.selectedMaskToolAvailable == true) then
+            if after.maskGroupCount == 0 or (after.hasSelectedMaskGroup == true and
+                (after.selectedMaskToolAvailable == true or after.selectedMaskToolCount == 0)) then
                 sendOperationResult(command, "confirmed", "", after, nil, proof)
                 return true
             end
@@ -950,6 +969,140 @@ local function settleDeletedSelection(command, before, removedInventory)
     end
     after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
     return incomplete("Mask deleted, but Lightroom did not confirm a replacement mask/component selection. Select a mask in Lightroom.")
+end
+
+local function componentRemovalProof(command, before, after)
+    if after.available ~= true then return nil end
+    local target = before._masks[before.selectedMaskGroupIndex]
+    local groups, parent = {}, nil
+    for _, mask in ipairs(after._masks) do
+        groups[mask.ID] = mask
+        if mask.ID == target.ID then parent = mask end
+    end
+    if #after._masks ~= #before._masks - (parent and 0 or 1) or not parent and #target.Tools ~= 1 then return nil end
+    for _, old in ipairs(before._masks) do
+        local current = groups[old.ID]
+        if old.ID ~= target.ID or parent then
+            if not current or #current.Tools ~= #old.Tools - (old.ID == target.ID and 1 or 0) then return nil end
+            local remaining = {}
+            for _, tool in ipairs(old.Tools) do if tool.ID ~= command.expectedSelectedMaskToolId then remaining[tool.ID] = true end end
+            for _, tool in ipairs(current.Tools) do if not remaining[tool.ID] then return nil end end
+        end
+    end
+    return { before = before._masks, after = after._masks,
+        components = { before = target.Tools, after = parent and parent.Tools or {} }, parentRemoved = parent == nil }
+end
+
+local function settleDeletedComponent(command, before, removedInventory, proof)
+    if proof.parentRemoved then
+        -- The SDK removed the parent. Reuse whole-group recovery without another delete call.
+        return settleDeletedSelection(command, before, removedInventory, proof.components)
+    end
+    local deletion = { maskId = command.expectedSelectedMaskId, toolIds = { [command.expectedSelectedMaskToolId] = true } }
+    local tools = before._masks[before.selectedMaskGroupIndex].Tools
+    local neighbor = tools[before.selectedMaskToolIndex + 1] or tools[before.selectedMaskToolIndex - 1]
+    local maskOnce, toolOnce = false, false
+    local after
+    local function incomplete(detail)
+        sendOperationResult(command, "deleted", detail, after, nil, proof)
+        return true
+    end
+    local function selectionStillMatches(maskId)
+        local maskOk, currentMask = LrTasks.pcall(function() return LrDevelopController.getSelectedMask() end)
+        local toolOk, currentTool = LrTasks.pcall(function() return LrDevelopController.getSelectedMaskTool() end)
+        if not maskOk or not toolOk then return false end
+        if maskId then
+            if currentMask ~= maskId then return false end
+        elseif currentMask ~= nil and currentMask ~= "" then return false end
+        return (currentTool == nil or currentTool == "" or currentTool == command.expectedSelectedMaskToolId) and
+            inDevelop() and selectedPhoto() == before._photo and photoUuid(selectedPhoto()) == command.expectedSelectedPhotoUuid
+    end
+    for _ = 1, 12 do
+        if not serverBindingMatches(command, command.operationId) then
+            after = unavailable("context_changed")
+            return incomplete("Component deleted; replacement selection cancelled because Lightroom context changed.")
+        end
+        local inventory = readInventory(command.expectedSelectedPhotoUuid)
+        if not componentRemovalProof(command, before, inventory) then
+            after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
+            return incomplete("Component deleted; the inventory changed before replacement selection finished.")
+        end
+        after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
+        if after.available == true and componentRemovalProof(command, before, after) then
+            if after.hasSelectedMaskGroup == true and (after.selectedMaskToolAvailable == true or after.selectedMaskToolCount == 0) then
+                sendOperationResult(command, "confirmed", "", after, nil, proof)
+                return true
+            end
+            if after.active ~= true then return incomplete("Component deleted; Masking closed before selection was confirmed.") end
+            if after.hasSelectedMaskGroup == true then
+                if after.selectedMaskGroupId ~= command.expectedSelectedMaskId then
+                    return incomplete("Component deleted; the newer mask selection was preserved. Select a component in Lightroom.")
+                end
+                if neighbor and not toolOnce and selectionStillMatches(command.expectedSelectedMaskId) then
+                    toolOnce = true
+                    local ok = LrTasks.pcall(function() LrDevelopController.selectMaskTool(neighbor.ID) end)
+                    if not ok then
+                        after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
+                        return incomplete("Component deleted, but Lightroom could not select a remaining component. Select a component in Lightroom.")
+                    end
+                end
+            elseif not maskOnce and selectionStillMatches(nil) then
+                maskOnce = true
+                local ok = LrTasks.pcall(function() LrDevelopController.selectMask(command.expectedSelectedMaskId) end)
+                if not ok then
+                    after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
+                    return incomplete("Component deleted, but Lightroom could not select its parent mask. Select a mask in Lightroom.")
+                end
+            end
+        end
+        LrTasks.sleep(0.05)
+    end
+    after = readSnapshot(command.expectedSelectedPhotoUuid, nil, deletion)
+    return incomplete("Component deleted, but Lightroom did not confirm a replacement selection. Select a component in Lightroom.")
+end
+
+local function executeComponentDelete(command)
+    if not validOpaqueId(command.expectedSelectedMaskId) or not validOpaqueId(command.expectedSelectedMaskToolId) or
+        not validInteger(command.expectedMaskCount) or command.expectedMaskCount < 1 or
+        not validInteger(command.expectedMaskToolCount) or command.expectedMaskToolCount < 1 then error("Invalid Delete Component command") end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+    if activeCorrectionGesture ~= nil then stopActiveCorrectionGesture() end
+    local before = readSnapshot(command.expectedSelectedPhotoUuid)
+    if before.available ~= true or before.active ~= true or before.hasSelectedMaskGroup ~= true or before.selectedMaskToolAvailable ~= true or
+        before.selectedMaskGroupId ~= command.expectedSelectedMaskId or before.selectedMaskToolId ~= command.expectedSelectedMaskToolId or
+        before.maskGroupCount ~= command.expectedMaskCount or before.selectedMaskToolCount ~= command.expectedMaskToolCount then
+        sendOperationResult(command, "stale", "The selected photo, mask or component changed before deletion.", before)
+        return false
+    end
+    -- SDK 15.3 names the tool-ID parameter under an ambiguous (id, param) heading.
+    -- Use the ID call convention shared with selectMaskTool/deleteMask; never retry with another signature.
+    if not inDevelop() or selectedPhoto() ~= before._photo or photoUuid(selectedPhoto()) ~= command.expectedSelectedPhotoUuid or
+        LrDevelopController.getSelectedMask() ~= command.expectedSelectedMaskId or
+        LrDevelopController.getSelectedMaskTool() ~= command.expectedSelectedMaskToolId then
+        sendOperationResult(command, "stale", "The selected photo, mask or component changed before deletion.", unavailable("context_changed"))
+        return false
+    end
+    local ok = LrTasks.pcall(function() LrDevelopController.deleteMaskTool(command.expectedSelectedMaskToolId) end)
+    if not ok then
+        sendOperationResult(command, "failed", "Lightroom could not delete the selected component.", readSnapshot(command.expectedSelectedPhotoUuid))
+        return false
+    end
+    for _ = 1, 12 do
+        local after = readInventory(command.expectedSelectedPhotoUuid)
+        if after.unavailableReason == "context_changed" or after.unavailableReason == "not_develop" or after.unavailableReason == "no_photo" then
+            sendOperationResult(command, "stale", "Lightroom context changed during component deletion.", after)
+            return false
+        end
+        local proof = componentRemovalProof(command, before, after)
+        if proof then return settleDeletedComponent(command, before, after, proof) end
+        LrTasks.sleep(0.05)
+    end
+    sendOperationResult(command, "failed", "Lightroom did not confirm removal of the selected component. Check its inventory before another delete.",
+        readSnapshot(command.expectedSelectedPhotoUuid))
+    return false
 end
 
 local function executeSelectedDelete(command)
@@ -1510,6 +1663,69 @@ local function settledSnapshot(command, expectedActive, expectedMaskId, expected
     return lastSnapshot
 end
 
+local function executeComponentInvert(command)
+    if not validOpaqueId(command.expectedSelectedMaskId) or not validOpaqueId(command.expectedSelectedMaskToolId) or
+        (command.expectedInverted ~= nil and type(command.expectedInverted) ~= "boolean") then
+        error("Invalid component inversion command")
+    end
+    local function matches(snapshot)
+        return snapshot.available == true and snapshot.active == true and snapshot.hasSelectedMaskGroup == true and
+            snapshot.selectedMaskToolAvailable == true and snapshot.selectedMaskGroupId == command.expectedSelectedMaskId and
+            snapshot.selectedMaskToolId == command.expectedSelectedMaskToolId
+    end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+    local before = readSnapshot(command.expectedSelectedPhotoUuid)
+    if not matches(before) or before.selectedMaskToolInverted ~= command.expectedInverted then
+        sendOperationResult(command, "stale", "The component or its inversion changed before the command ran.", before)
+        return false
+    end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+    -- HTTP binding reads may yield. Recheck native selection and baseline immediately before the one SDK write.
+    local current = readSnapshot(command.expectedSelectedPhotoUuid)
+    if not matches(current) or current.selectedMaskToolInverted ~= command.expectedInverted or
+        current.maskGroupCount ~= before.maskGroupCount or current.selectedMaskToolCount ~= before.selectedMaskToolCount or
+        LrDevelopController.getSelectedMask() ~= command.expectedSelectedMaskId or
+        LrDevelopController.getSelectedMaskTool() ~= command.expectedSelectedMaskToolId then
+        sendOperationResult(command, "stale", "The selected component changed before inversion.", current)
+        return false
+    end
+    -- The SDK's generated (id, param) heading describes a single tool ID; no mask ID or receiver argument.
+    LrDevelopController.toggleInvertMaskTool(command.expectedSelectedMaskToolId)
+    local after = unavailable("sdk_error")
+    for attempt = 1, 12 do
+        if not serverBindingMatches(command, command.operationId) then
+            sendOperationResult(command, "stale", "Lightroom context changed during inversion.", unavailable("context_changed"))
+            return false
+        end
+        after = readSnapshot(command.expectedSelectedPhotoUuid)
+        if after.available == true and not matches(after) then
+            sendOperationResult(command, "stale", "The selected mask or component changed during inversion.", after)
+            return false
+        end
+        if matches(after) and after.maskGroupCount == before.maskGroupCount and
+            after.selectedMaskToolCount == before.selectedMaskToolCount and after.selectedMaskHidden == before.selectedMaskHidden and
+            after.selectedMaskToolHidden == before.selectedMaskToolHidden then
+            if command.expectedInverted == nil then
+                sendOperationResult(command, "requested", "Inversion requested; Lightroom did not supply a readable prior inversion state.", after)
+                return true
+            end
+            if after.selectedMaskToolInverted == not command.expectedInverted then
+                sendOperationResult(command, "confirmed", "Component inversion confirmed by Lightroom.", after)
+                return true
+            end
+        end
+        if attempt < 12 then LrTasks.sleep(0.05) end
+    end
+    sendOperationResult(command, "failed", "Lightroom did not confirm component inversion. Check the component in Lightroom.", after)
+    return false
+end
+
 local function executeVisibility(command, component)
     if type(command.hidden) ~= "boolean" or type(command.expectedHidden) ~= "boolean" or
         command.hidden == command.expectedHidden or not validOpaqueId(command.expectedSelectedMaskId) or
@@ -1649,13 +1865,13 @@ local function executePanel(command)
     if command.open then LrDevelopController.goToMasking() else LrDevelopController.selectTool("loupe") end
     local after = settledSnapshot(command, command.open, nil)
     if command.open and after.available == true and after.active == true and after.maskGroupCount > 0 and
-        (after.hasSelectedMaskGroup ~= true or after.selectedMaskToolAvailable ~= true) then
+        (after.hasSelectedMaskGroup ~= true or after.selectedMaskToolAvailable ~= true and after.selectedMaskToolCount ~= 0) then
         local targetIndex = 1
         if after.hasSelectedMaskGroup == true then targetIndex = after.selectedMaskGroupIndex end
         local targetMask = after._masks and after._masks[targetIndex] or nil
         local targetTool = targetMask and targetMask.Tools and targetMask.Tools[1] or nil
         if type(targetMask) ~= "table" or not validOpaqueId(targetMask.ID) or
-            type(targetTool) ~= "table" or not validOpaqueId(targetTool.ID) then
+            (#targetMask.Tools > 0 and (type(targetTool) ~= "table" or not validOpaqueId(targetTool.ID))) then
             sendOperationResult(command, "failed", "The first available mask could not be reconciled.",
                 unavailable("invalid_inventory"))
             return false
@@ -1665,14 +1881,18 @@ local function executePanel(command)
             return false
         end
         LrDevelopController.selectMask(targetMask.ID)
-        LrDevelopController.selectMaskTool(targetTool.ID)
-        after = settledSnapshot(command, true, targetMask.ID, targetTool.ID)
+        if targetTool then
+            LrDevelopController.selectMaskTool(targetTool.ID)
+            after = settledSnapshot(command, true, targetMask.ID, targetTool.ID)
+        else
+            after = settledSnapshot(command, true, targetMask.ID)
+        end
     end
     local openSelectionReady = not command.open
     if command.open and after.available == true then
         openSelectionReady = (after.maskGroupCount == 0 and after.hasSelectedMaskGroup == false) or
             (after.maskGroupCount > 0 and after.hasSelectedMaskGroup == true and
-                after.selectedMaskToolAvailable == true)
+                (after.selectedMaskToolAvailable == true or after.selectedMaskToolCount == 0))
     end
     if after.available == true and after.active == command.open and openSelectionReady then
         sendOperationResult(command, "confirmed", "", after)
@@ -1784,8 +2004,8 @@ local function executeNavigation(command)
     end
     local targetMask = before._masks[targetIndex]
     local targetTool = targetMask and targetMask.Tools and targetMask.Tools[1] or nil
-    if type(targetMask) ~= "table" or not validOpaqueId(targetMask.ID) or type(targetTool) ~= "table" or
-        not validOpaqueId(targetTool.ID) then
+    if type(targetMask) ~= "table" or not validOpaqueId(targetMask.ID) or
+        (#targetMask.Tools > 0 and (type(targetTool) ~= "table" or not validOpaqueId(targetTool.ID))) then
         sendOperationResult(command, "failed", "The adjacent mask could not be reconciled.", unavailable("invalid_inventory"))
         return false
     end
@@ -1794,7 +2014,7 @@ local function executeNavigation(command)
         return false
     end
     LrDevelopController.selectMask(targetMask.ID)
-    LrDevelopController.selectMaskTool(targetTool.ID)
+    if targetTool then LrDevelopController.selectMaskTool(targetTool.ID) end
     local after = settledSnapshot(command, true, targetMask.ID)
     if after.available == true and after.active == true and after.selectedMaskGroupIndex == targetIndex and
         after.selectedMaskGroupId == targetMask.ID then
@@ -1802,6 +2022,108 @@ local function executeNavigation(command)
         return true
     end
     sendOperationResult(command, "failed", "Lightroom did not confirm the mask selection.", after)
+    return false
+end
+
+local function executeComponentCreation(command)
+    local subtypes = {
+        brush = { [""] = true }, gradient = { [""] = true }, radialGradient = { [""] = true },
+        rangeMask = { color = true, luminance = true, depth = true },
+        aiSelection = { subject = true, sky = true, background = true, objects = true, people = true, landscape = true }
+    }
+    local subtype = command.maskSubtype or ""
+    if not subtypes[command.maskType] or not subtypes[command.maskType][subtype] or
+        not validOpaqueId(command.expectedSelectedMaskId) or
+        command.expectedSelectedMaskToolId ~= nil and not validOpaqueId(command.expectedSelectedMaskToolId) or
+        not validInteger(command.expectedMaskCount) or command.expectedMaskCount < 1 or command.expectedMaskCount > MAX_MASK_GROUPS or
+        not validInteger(command.expectedMaskToolCount) or command.expectedMaskToolCount < 1 or
+        command.expectedMaskToolCount >= MAX_MASK_TOOLS_PER_GROUP then error("Invalid mask component request") end
+    if not serverBindingMatches(command, command.operationId) then
+        sendOperationResult(command, "stale", "Lightroom context changed.", unavailable("context_changed"))
+        return false
+    end
+    -- Read after the yielding server checks. Never select a mask to make an old request fit.
+    local before = readSnapshot(command.expectedSelectedPhotoUuid)
+    if before.available ~= true or before.active ~= true or before.hasSelectedMaskGroup ~= true or
+        before.selectedMaskGroupId ~= command.expectedSelectedMaskId or before.maskGroupCount ~= command.expectedMaskCount or
+        before.selectedMaskToolId ~= command.expectedSelectedMaskToolId or before.selectedMaskToolCount ~= command.expectedMaskToolCount then
+        sendOperationResult(command, "stale", "The selected mask or its components changed before Add/Subtract.", before)
+        return false
+    end
+    local existingGroups, existingTools = {}, {}
+    for _, mask in ipairs(before._masks) do
+        existingGroups[mask.ID] = {}
+        for _, component in ipairs(mask.Tools) do existingGroups[mask.ID][component.ID] = true end
+    end
+    existingTools = existingGroups[command.expectedSelectedMaskId]
+    -- These documented methods take type/subtype, not a mask ID. Recheck identity immediately before calling.
+    if not inDevelop() or photoUuid(selectedPhoto()) ~= command.expectedSelectedPhotoUuid or
+        LrDevelopController.getSelectedTool() ~= "masking" or
+        LrDevelopController.getSelectedMask() ~= command.expectedSelectedMaskId or
+        LrDevelopController.getSelectedMaskTool() ~= command.expectedSelectedMaskToolId then
+        sendOperationResult(command, "stale", "The selected photo or mask changed before Add/Subtract.", unavailable("context_changed"))
+        return false
+    end
+    if command.command == "masking.component.add" then
+        LrDevelopController.addToCurrentMask(command.maskType, subtype ~= "" and subtype or nil)
+    else
+        LrDevelopController.subtractFromCurrentMask(command.maskType, subtype ~= "" and subtype or nil)
+    end
+    local automatic = command.maskType == "aiSelection" and
+        (subtype == "subject" or subtype == "sky" or subtype == "background")
+    local after
+    for attempt = 1, (automatic and 50 or 12) do
+        after = readSnapshot(command.expectedSelectedPhotoUuid)
+        if after.available == true and after.selectedMaskGroupId == command.expectedSelectedMaskId and after.selectedMaskToolCount == 0 then
+            -- Add/Subtract still treats a temporarily empty target as unfinished tool inventory.
+            after = unavailable("invalid_inventory")
+        end
+        if after.unavailableReason == "context_changed" or after.unavailableReason == "not_develop" or
+            after.unavailableReason == "no_photo" then
+            sendOperationResult(command, "stale", "Lightroom context changed during Add/Subtract.", after)
+            return false
+        end
+        if after.available == true then
+            if after.active ~= true or after.selectedMaskGroupId ~= command.expectedSelectedMaskId then
+                sendOperationResult(command, "stale", "The selected mask changed during Add/Subtract.", after)
+                return false
+            end
+            local retained = after.maskGroupCount == before.maskGroupCount
+            for _, mask in ipairs(after._masks) do
+                local old = existingGroups[mask.ID]
+                if not old then retained = false else
+                    local seen = {}
+                    for _, component in ipairs(mask.Tools) do
+                        seen[component.ID] = true
+                        if mask.ID ~= command.expectedSelectedMaskId and not old[component.ID] then retained = false end
+                    end
+                    for id in pairs(old) do if not seen[id] then retained = false end end
+                end
+            end
+            if not retained or automatic and after.selectedMaskToolCount > before.selectedMaskToolCount + 1 then break end
+            if automatic and after.selectedMaskToolCount == before.selectedMaskToolCount + 1 and
+                after.selectedMaskToolAvailable == true and not existingTools[after.selectedMaskToolId] then
+                sendOperationResult(command, "confirmed", "Component inventory and selection confirmed by Lightroom.", after)
+                return true
+            end
+            if not automatic then
+                -- A tool entry does not prove the photographer finished drawing or selecting.
+                sendOperationResult(command, "started", "Component tool requested; complete drawing or selection in Lightroom.", after)
+                return true
+            end
+            if attempt == 50 then
+                sendOperationResult(command, "started", "Waiting for Lightroom to confirm the new component and selection.", after)
+                return true
+            end
+        end
+        LrTasks.sleep(0.1)
+    end
+    if after and after.available ~= true and inDevelop() and photoUuid(selectedPhoto()) == command.expectedSelectedPhotoUuid and
+        LrDevelopController.getSelectedTool() == "masking" and LrDevelopController.getSelectedMask() == command.expectedSelectedMaskId then
+        sendOperationResult(command, "started", "Waiting for Lightroom component inventory and selection feedback.", after)
+        return true
+    end
+    sendOperationResult(command, "failed", "Lightroom did not confirm Add/Subtract. Check the selected mask and its components.", after)
     return false
 end
 
@@ -1903,6 +2225,11 @@ function Masking.execute(command)
             return executeRefineSaturation(command)
         end
         if string.sub(command.command, 1, 19) == "masking.tone_curve." then return executeToneCurve(command, curveTrace) end
+        if command.command == "masking.component.delete" then return executeComponentDelete(command) end
+        if command.command == "masking.component.invert" then return executeComponentInvert(command) end
+        if command.command == "masking.component.add" or command.command == "masking.component.subtract" then
+            return executeComponentCreation(command)
+        end
         if command.command == "masking.create" then return executeCreate(command) end
         if command.command == "masking.panel.set" then return executePanel(command) end
         if command.command == "masking.group.navigate" then return executeNavigation(command) end

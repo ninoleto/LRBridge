@@ -368,6 +368,11 @@ function parseMaskingCounter(value) {
     return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
+function maskingSnapshotFields(query) {
+    return MASKING_SNAPSHOT_FIELDS.concat(Object.prototype.hasOwnProperty.call(query, "selectedMaskToolInverted")
+        ? ["selectedMaskToolInverted"] : []);
+}
+
 function parseMaskingBoolean(value, nullable) {
     if (value === "true") return true;
     if (value === "false") return false;
@@ -471,6 +476,8 @@ function maskingSnapshotFromQuery(query) {
     const selectedMaskToolAvailable = parseMaskingBoolean(query.selectedMaskToolAvailable, false);
     const selectedMaskHidden = parseMaskingBoolean(query.selectedMaskHidden, true);
     const selectedMaskToolHidden = parseMaskingBoolean(query.selectedMaskToolHidden, true);
+    const selectedMaskToolInverted = query.selectedMaskToolInverted === undefined ? null :
+        parseMaskingBoolean(query.selectedMaskToolInverted, true);
     const previousMaskToolAvailable = parseMaskingBoolean(query.previousMaskToolAvailable, false);
     const nextMaskToolAvailable = parseMaskingBoolean(query.nextMaskToolAvailable, false);
     const maskGroupCount = query.maskGroupCount === "null" ? null : parseMaskingCounter(query.maskGroupCount);
@@ -497,7 +504,7 @@ function maskingSnapshotFromQuery(query) {
     }
     if (available === undefined || active === undefined || hasSelectedMaskGroup === undefined ||
         previousAvailable === undefined || nextAvailable === undefined || selectedMaskToolAvailable === undefined ||
-        selectedMaskHidden === undefined || selectedMaskToolHidden === undefined ||
+        selectedMaskHidden === undefined || selectedMaskToolHidden === undefined || selectedMaskToolInverted === undefined ||
         previousMaskToolAvailable === undefined || nextMaskToolAvailable === undefined ||
         (query.maskGroupCount !== "null" && maskGroupCount === null) ||
         (query.selectedMaskGroupIndex !== "null" && selectedMaskGroupIndex === null) ||
@@ -522,6 +529,7 @@ function maskingSnapshotFromQuery(query) {
         selectedMaskToolType: parseMaskingNullableString(query.selectedMaskToolType),
         selectedMaskToolSubtype: parseMaskingNullableString(query.selectedMaskToolSubtype),
         selectedMaskToolHidden: selectedMaskToolHidden,
+        selectedMaskToolInverted: selectedMaskToolInverted,
         selectedMaskToolCount: selectedMaskToolCount,
         selectedMaskToolIndex: selectedMaskToolIndex,
         previousMaskToolAvailable: previousMaskToolAvailable,
@@ -1736,7 +1744,7 @@ app.get("/masking/next", function (req, res) {
 app.get("/masking/query-result", function (req, res) {
     const bindingFields = ["requestId", "expectedServerEpoch", "expectedMaskingRevision", "expectedActiveModule",
         "expectedSelectedPhotoUuid", "expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt"];
-    if (!exactQueryFields(req, bindingFields.concat(MASKING_SNAPSHOT_FIELDS))) {
+    if (!exactQueryFields(req, bindingFields.concat(maskingSnapshotFields(req.query)))) {
         return res.status(400).json({ ok: false, error: "Invalid Masking query result" });
     }
     const snapshot = maskingSnapshotFromQuery(req.query);
@@ -1823,6 +1831,17 @@ app.get("/masking/create", function (req, res) {
         ["maskType", "maskSubtype"].concat(MASKING_COMMAND_BINDING_FIELDS));
 });
 
+["add", "subtract"].forEach(function (kind) {
+    app.get("/masking/component/" + kind, function (req, res) {
+        if (!maskingCorrections.creationType(req.query.maskType, req.query.maskSubtype)) {
+            return res.status(400).json({ ok: false, error: "Unsupported Masking type" });
+        }
+        queueMaskingOperation(req, res, { kind, maskType: req.query.maskType, maskSubtype: req.query.maskSubtype,
+            selectedMaskGroupId: req.query.selectedMaskGroupId },
+        ["maskType", "maskSubtype", "selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS));
+    });
+});
+
 app.get("/masking/panel", function (req, res) {
     if (req.query.open !== "true" && req.query.open !== "false") {
         return res.status(400).json({ ok: false, error: "Invalid Masking command" });
@@ -1870,6 +1889,18 @@ app.get("/masking/all/delete", function (req, res) {
 app.get("/masking/selected/delete", function (req, res) {
     queueMaskingOperation(req, res, { kind: "deleteSelected", selectedMaskGroupId: req.query.selectedMaskGroupId },
         ["selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/component/delete", function (req, res) {
+    queueMaskingOperation(req, res, { kind: "deleteComponent", selectedMaskGroupId: req.query.selectedMaskGroupId,
+        selectedMaskToolId: req.query.selectedMaskToolId },
+    ["selectedMaskGroupId", "selectedMaskToolId"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/component/invert", function (req, res) {
+    queueMaskingOperation(req, res, { kind: "invertComponent", selectedMaskGroupId: req.query.selectedMaskGroupId,
+        selectedMaskToolId: req.query.selectedMaskToolId },
+    ["selectedMaskGroupId", "selectedMaskToolId"].concat(MASKING_COMMAND_BINDING_FIELDS));
 });
 
 app.get("/masking/selected/reset", function (req, res) {
@@ -2140,7 +2171,7 @@ app.get("/masking/correction-result", function (req, res) {
         "expectedContextChangedAt"];
     const correctionSequence = parseMaskingCounter(req.query.correctionSequence);
     const expectedValue = req.query.expectedValue === "null" ? null : parseStrictFiniteNumber(req.query.expectedValue);
-    if (!exactQueryFields(req, resultFields.concat(MASKING_SNAPSHOT_FIELDS)) || correctionSequence === null ||
+    if (!exactQueryFields(req, resultFields.concat(maskingSnapshotFields(req.query))) || correctionSequence === null ||
         (expectedValue === null && req.query.expectedValue !== "null") ||
         !["confirmed", "failed", "stale"].includes(req.query.outcome) || req.query.detail.length > 300 ||
         /[\u0000-\u001f\u007f]/.test(req.query.detail)) {
@@ -2181,7 +2212,7 @@ app.get("/masking/edit-result", function (req, res) {
         "expectedServerEpoch", "expectedMaskingRevision", "expectedActiveModule", "expectedSelectedPhotoUuid",
         "expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt"];
     const editSequence = parseMaskingCounter(req.query.editSequence);
-    if (!exactQueryFields(req, resultFields.concat(MASKING_SNAPSHOT_FIELDS)) || editSequence === null ||
+    if (!exactQueryFields(req, resultFields.concat(maskingSnapshotFields(req.query))) || editSequence === null ||
         !["confirmed", "failed", "stale"].includes(req.query.outcome) || req.query.detail.length > 300 ||
         /[\u0000-\u001f\u007f]/.test(req.query.detail)) {
         return res.status(400).json({ ok: false, error: "Invalid Masking edit result" });
@@ -2230,10 +2261,15 @@ app.get("/masking/operation-result", function (req, res) {
     const hasPresetDiagnostics = Object.prototype.hasOwnProperty.call(req.query, "presetDiagnostics");
     const hasDeletionProof = Object.prototype.hasOwnProperty.call(req.query, "deletionBefore") ||
         Object.prototype.hasOwnProperty.call(req.query, "deletionAfter");
-    const expectedResultFields = resultFields.concat(MASKING_SNAPSHOT_FIELDS,
-        hasPresetDiagnostics ? ["presetDiagnostics"] : [], hasDeletionProof ? ["deletionBefore", "deletionAfter"] : []);
+    const hasComponentProof = Object.prototype.hasOwnProperty.call(req.query, "componentBefore") ||
+        Object.prototype.hasOwnProperty.call(req.query, "componentAfter");
+    const hasComponentTarget = Object.prototype.hasOwnProperty.call(req.query, "targetMaskId") ||
+        Object.prototype.hasOwnProperty.call(req.query, "targetToolId");
+    const expectedResultFields = resultFields.concat(maskingSnapshotFields(req.query),
+        hasPresetDiagnostics ? ["presetDiagnostics"] : [], hasDeletionProof ? ["deletionBefore", "deletionAfter"] : [],
+        hasComponentProof ? ["componentBefore", "componentAfter"] : [], hasComponentTarget ? ["targetMaskId", "targetToolId"] : []);
     if (!exactQueryFields(req, expectedResultFields) ||
-        !["confirmed", "deleted", "started", "no_change", "failed", "stale"].includes(req.query.outcome) ||
+        !["confirmed", "deleted", "started", "requested", "no_change", "failed", "stale"].includes(req.query.outcome) ||
         req.query.detail.length > 300 || /[\u0000-\u001f\u007f]/.test(req.query.detail) ||
         hasPresetDiagnostics && (req.query.presetDiagnostics.length < 1 || req.query.presetDiagnostics.length > 12000 ||
             /[\u0000-\u0009\u000b-\u001f\u007f]/.test(req.query.presetDiagnostics))) {
@@ -2241,11 +2277,18 @@ app.get("/masking/operation-result", function (req, res) {
     }
     const snapshot = maskingSnapshotFromQuery(req.query);
     let deletion = null;
+    let componentDeletion = null;
     if (hasDeletionProof) {
         try {
             const decodeIds = value => value === "" ? [] : value.split(",").map(decodeURIComponent);
             deletion = { before: decodeIds(req.query.deletionBefore), after: decodeIds(req.query.deletionAfter) };
         } catch (error) { return reply(400, { ok: false, error: "Invalid deletion inventory" }, "proof-decoding"); }
+    }
+    if (hasComponentProof) {
+        try {
+            const decodeIds = value => value === "" ? [] : value.split(",").map(decodeURIComponent);
+            componentDeletion = { before: decodeIds(req.query.componentBefore), after: decodeIds(req.query.componentAfter) };
+        } catch (_) { return reply(400, { ok: false, error: "Invalid component inventory" }, "component-proof-decoding"); }
     }
     const result = {
         operationId: req.query.operationId,
@@ -2260,6 +2303,9 @@ app.get("/masking/operation-result", function (req, res) {
         expectedContextChangedAt: parseMaskingCounter(req.query.expectedContextChangedAt),
         snapshot: snapshot,
         deletion: deletion,
+        componentDeletion,
+        targetMaskId: hasComponentTarget ? req.query.targetMaskId : null,
+        targetToolId: hasComponentTarget ? req.query.targetToolId : null,
         presetDiagnostics: hasPresetDiagnostics ? req.query.presetDiagnostics : null
     };
     if (!snapshot || result.expectedMaskingRevision === null || result.expectedContextCounter === null ||

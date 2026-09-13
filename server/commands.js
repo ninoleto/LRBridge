@@ -184,6 +184,10 @@ function validateCommand(command) {
         ,"develop_preset.apply"
         ,"develop_preset.amount.set"
         ,"masking.create"
+        ,"masking.component.add"
+        ,"masking.component.subtract"
+        ,"masking.component.delete"
+        ,"masking.component.invert"
         ,"masking.panel.set"
         ,"masking.group.navigate"
         ,"masking.tool.navigate"
@@ -295,7 +299,8 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedFeedbackId) && command.expectedFeedbackId > 0;
     }
 
-    if (command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+    if (command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
+        command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
         command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
         command.command === "masking.tool.visibility.set") {
         const visibility = command.command === "masking.group.visibility.set" ||
@@ -303,7 +308,8 @@ function validateCommand(command) {
         const navigation = command.command === "masking.group.navigate" || command.command === "masking.tool.navigate";
         const toolNavigation = command.command === "masking.tool.navigate";
         const creation = command.command === "masking.create";
-        if (Object.keys(command).length !== (creation ? 12 : visibility ? 13 : (toolNavigation ? 12 : (navigation ? 11 : 10))) ||
+        const component = command.command === "masking.component.add" || command.command === "masking.component.subtract";
+        if (Object.keys(command).length !== (component ? 15 : creation ? 12 : visibility ? 13 : (toolNavigation ? 12 : (navigation ? 11 : 10))) ||
             typeof command.operationId !== "string" || !/^mo-\d{1,15}$/.test(command.operationId) ||
             command.expectedActiveModule !== "develop" ||
             typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
@@ -315,7 +321,7 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedMaskingRevision) === false || command.expectedMaskingRevision < 1) return false;
         if (creation) return Boolean(maskingCorrections.creationType(command.maskType, command.maskSubtype)) &&
             Number.isSafeInteger(command.expectedMaskCount) && command.expectedMaskCount >= 0 && command.expectedMaskCount < 512;
-        if (!visibility && !navigation) return typeof command.open === "boolean";
+        if (!component && !visibility && !navigation) return typeof command.open === "boolean";
         const validMaskId = typeof command.expectedSelectedMaskId === "string" &&
             command.expectedSelectedMaskId.length >= 1 && command.expectedSelectedMaskId.length <= 256 &&
             !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId);
@@ -323,18 +329,24 @@ function validateCommand(command) {
             command.expectedSelectedMaskToolId.length >= 1 && command.expectedSelectedMaskToolId.length <= 256 &&
             !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId);
         if (!validMaskId) return false;
+        if (component) return Boolean(maskingCorrections.creationType(command.maskType, command.maskSubtype)) &&
+            Number.isSafeInteger(command.expectedMaskCount) && command.expectedMaskCount >= 1 && command.expectedMaskCount <= 512 &&
+            Number.isSafeInteger(command.expectedMaskToolCount) && command.expectedMaskToolCount >= 1 && command.expectedMaskToolCount < 2048 &&
+            (command.expectedSelectedMaskToolId === null || validToolId);
         if (visibility) return validToolId && typeof command.hidden === "boolean" &&
             typeof command.expectedHidden === "boolean" && command.hidden !== command.expectedHidden;
         if (command.direction !== "previous" && command.direction !== "next") return false;
         return !toolNavigation || validToolId;
     }
 
-    if (command.command === "masking.all.delete" || command.command === "masking.selected.delete" || command.command === "masking.selected.reset" ||
+    if (command.command === "masking.all.delete" || command.command === "masking.component.invert" || command.command === "masking.component.delete" || command.command === "masking.selected.delete" || command.command === "masking.selected.reset" ||
         command.command === "masking.preset.apply") {
         const deleteAll = command.command === "masking.all.delete";
         const deleteSelected = command.command === "masking.selected.delete";
+        const deleteComponent = command.command === "masking.component.delete";
+        const invertComponent = command.command === "masking.component.invert";
         const preset = command.command === "masking.preset.apply";
-        if (Object.keys(command).length !== (deleteSelected ? 11 : (preset ? 16 : 10)) ||
+        if (Object.keys(command).length !== (invertComponent ? 12 : deleteComponent ? 13 : deleteSelected ? 11 : (preset ? 16 : 10)) ||
             typeof command.operationId !== "string" || !/^mo-\d{1,15}$/.test(command.operationId) ||
             command.expectedActiveModule !== "develop" ||
             typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
@@ -350,6 +362,14 @@ function validateCommand(command) {
             command.expectedSelectedMaskId.length > 256 || /[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId)) return false;
         if (deleteSelected) return Number.isSafeInteger(command.expectedMaskCount) &&
             command.expectedMaskCount >= 1 && command.expectedMaskCount <= 512;
+        if (invertComponent) return (typeof command.expectedInverted === "boolean" || command.expectedInverted === null) &&
+            typeof command.expectedSelectedMaskToolId === "string" && command.expectedSelectedMaskToolId.length >= 1 &&
+            command.expectedSelectedMaskToolId.length <= 256 && !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId);
+        if (deleteComponent) return Number.isSafeInteger(command.expectedMaskCount) && command.expectedMaskCount >= 1 &&
+            command.expectedMaskCount <= 512 && Number.isSafeInteger(command.expectedMaskToolCount) &&
+            command.expectedMaskToolCount >= 1 && command.expectedMaskToolCount <= 2048 &&
+            typeof command.expectedSelectedMaskToolId === "string" && command.expectedSelectedMaskToolId.length >= 1 &&
+            command.expectedSelectedMaskToolId.length <= 256 && !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId);
         if (!preset) return true;
         if (typeof command.expectedSelectedMaskToolId !== "string" || command.expectedSelectedMaskToolId.length < 1 ||
             command.expectedSelectedMaskToolId.length > 256 || /[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId)) return false;
@@ -809,9 +829,10 @@ function tryEnqueueCommand(command) {
         }
         return admissionResult(ADMISSION_INVALID);
     }
-    if ((command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+    if ((command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
+        command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
         command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
-        command.command === "masking.tool.visibility.set" || command.command === "masking.all.delete" || command.command === "masking.selected.delete" ||
+        command.command === "masking.tool.visibility.set" || command.command === "masking.all.delete" || command.command === "masking.component.invert" || command.command === "masking.component.delete" || command.command === "masking.selected.delete" ||
         command.command === "masking.selected.reset" || command.command === "masking.preset.apply" ||
         command.command.startsWith("masking.point_color.") || command.command.startsWith("masking.tone_curve.") ||
         command.command.startsWith("masking.correction.")) &&
@@ -1235,10 +1256,11 @@ function isProtectedCommand(command) {
         command.command === "tone_curve.reset" || command.command === "tone_curve.gesture.cancel" ||
         command.command === "tone_curve.refine_saturation.reset" ||
         command.command === "tone_curve.refine_saturation.gesture.cancel" ||
+        command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
         command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
         command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
         command.command === "masking.tool.visibility.set" || command.command === "masking.correction.gesture.cancel" ||
-        command.command === "masking.correction.reset" || command.command === "masking.all.delete" || command.command === "masking.selected.delete" ||
+        command.command === "masking.correction.reset" || command.command === "masking.all.delete" || command.command === "masking.component.invert" || command.command === "masking.component.delete" || command.command === "masking.selected.delete" ||
         command.command === "masking.selected.reset" || command.command === "masking.tone_curve.gesture.cancel" ||
         command.command === "masking.tone_curve.reset" ||
         command.command === "masking.tone_curve.refine_saturation.gesture.cancel" ||
@@ -1300,9 +1322,10 @@ function getNextCommand() {
             }
             continue;
         }
-        if ((command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+        if ((command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
+        command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
             command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
-            command.command === "masking.tool.visibility.set" || command.command === "masking.all.delete" || command.command === "masking.selected.delete" ||
+            command.command === "masking.tool.visibility.set" || command.command === "masking.all.delete" || command.command === "masking.component.invert" || command.command === "masking.component.delete" || command.command === "masking.selected.delete" ||
             command.command === "masking.selected.reset" || command.command === "masking.preset.apply" ||
             command.command.startsWith("masking.point_color.") || command.command.startsWith("masking.tone_curve.") ||
             command.command.startsWith("masking.correction.")) &&
@@ -1375,6 +1398,8 @@ function getQueueDiagnostics(nowMs) {
         ,"develop_presets.inventory.request": 0
         ,"develop_preset.apply": 0
         ,"develop_preset.amount.set": 0
+        ,"masking.component.add": 0
+        ,"masking.component.subtract": 0
         ,"masking.create": 0
         ,"masking.panel.set": 0
         ,"masking.group.navigate": 0
@@ -1382,6 +1407,8 @@ function getQueueDiagnostics(nowMs) {
         ,"masking.group.visibility.set": 0
         ,"masking.tool.visibility.set": 0
         ,"masking.all.delete": 0
+        ,"masking.component.delete": 0
+        ,"masking.component.invert": 0
         ,"masking.selected.delete": 0
         ,"masking.selected.reset": 0
         ,"masking.preset.apply": 0
@@ -1490,10 +1517,11 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
                     pendingByCommand["tone_curve.refine_saturation.reset"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.cancel"] +
+                    pendingByCommand["masking.component.add"] + pendingByCommand["masking.component.subtract"] +
                     pendingByCommand["masking.create"] + pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"] +
                     pendingByCommand["masking.tool.navigate"] + pendingByCommand["masking.group.visibility.set"] +
                     pendingByCommand["masking.tool.visibility.set"] +
-                    pendingByCommand["masking.all.delete"] + pendingByCommand["masking.selected.delete"] + pendingByCommand["masking.selected.reset"] +
+                    pendingByCommand["masking.all.delete"] + pendingByCommand["masking.component.invert"] + pendingByCommand["masking.component.delete"] + pendingByCommand["masking.selected.delete"] + pendingByCommand["masking.selected.reset"] +
                     pendingByCommand["masking.preset.apply"] +
                     pendingByCommand["masking.point_color.tool.select"] +
                     pendingByCommand["masking.point_color.range_visualization.toggle"] +

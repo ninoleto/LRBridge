@@ -970,6 +970,12 @@
         }
 
         .masking-create-control { position: relative; }
+        .masking-component-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .masking-component-heading { flex-basis: 100%; margin: 0; font-size: 16px; line-height: 24px; }
+        .masking-component-invert-label, .masking-component-invert-button { box-sizing: border-box; min-height: 56px; padding: 12px 18px; }
+        .masking-component-invert-label { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; }
+        .masking-component-invert-label[hidden], .masking-component-invert-button[hidden] { display: none; }
+        .masking-component-invert-checkbox { width: 22px; height: 22px; margin: 0; }
         .masking-action-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
         .masking-action-row > button, .masking-create-button { min-height: 56px; padding: 12px 18px; }
         .masking-action-row .masking-delete-all-button { margin-inline-start: 16px; }
