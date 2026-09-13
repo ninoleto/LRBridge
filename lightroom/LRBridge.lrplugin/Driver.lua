@@ -1,4 +1,5 @@
 local LrApplicationView = import "LrApplicationView"
+local LrApplication = import "LrApplication"
 local LrDevelopController = import "LrDevelopController"
 local LrTasks = import "LrTasks"
 local DevelopCategorical = require "DevelopCategorical"
@@ -119,7 +120,22 @@ local sliderMap = {
     LensBlurHighlightsBoost = "LensBlurHighlightsBoost",
 }
 
-local function prepareDevelopSlider(developSlider)
+local function prepareDevelopSlider(developSlider, command)
+
+    if command and command.preserveMaskingPanel == true then
+        if developSlider ~= "GrainSize" and developSlider ~= "GrainFrequency" then return false end
+        if LrApplicationView.getCurrentModuleName() ~= "develop" then return false end
+        local tool = LrDevelopController.getSelectedTool()
+        if tool ~= "masking" and tool ~= "local_point_color" then return false end
+        local catalog = LrApplication.activeCatalog()
+        local photo = catalog and catalog:getTargetPhoto()
+        if photo == nil or type(command.expectedSelectedPhotoUuid) ~= "string" or
+            photo:getRawMetadata("uuid") ~= command.expectedSelectedPhotoUuid then return false end
+        -- Both revealPanel APIs scroll. Keep this Masking write in place and use
+        -- the SDK's default (false) automatic reveal mode, without selecting tools.
+        LrDevelopController.revealAdjustedControls(false)
+        return true
+    end
 
     LrApplicationView.switchToModule("develop")
     LrTasks.sleep(0.2)
@@ -133,6 +149,7 @@ local function prepareDevelopSlider(developSlider)
         LrDevelopController.revealPanel(developSlider)
     end
     LrTasks.sleep(0.05)
+    return true
 
 end
 
@@ -160,7 +177,7 @@ function Driver.adjustSlider(slider, amount)
 
 end
 
-function Driver.setSlider(slider, value)
+function Driver.setSlider(slider, value, command)
 
     local developSlider = slider == "CropConstrainToWarp" and "CropConstrainToWarp" or sliderMap[slider]
 
@@ -176,7 +193,7 @@ function Driver.setSlider(slider, value)
         return false
     end
 
-    prepareDevelopSlider(developSlider)
+    if not prepareDevelopSlider(developSlider, command) then return false end
 
     if slider == "HDRMaxValue" then
         local startOk = LrTasks.pcall(function()
@@ -203,7 +220,7 @@ function Driver.setSlider(slider, value)
 
 end
 
-function Driver.resetSlider(slider)
+function Driver.resetSlider(slider, command)
 
     if slider == "HDREditMode" then
         return false
@@ -219,7 +236,7 @@ function Driver.resetSlider(slider)
         return false
     end
 
-    prepareDevelopSlider(developSlider)
+    if not prepareDevelopSlider(developSlider, command) then return false end
 
     LrDevelopController.resetToDefault(developSlider)
 

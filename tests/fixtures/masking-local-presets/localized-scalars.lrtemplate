@@ -1,0 +1,10 @@
+s = {
+    id = "fixture-localized",
+    title = ZSTR "$$$/AgCameraRaw/Localized/Fixture=Localized Scalar Fixture",
+    type = "LocalizedAdjustmentPreset",
+    value = {
+        exposure2012 = 0.25,
+        clarity2012 = -0.15,
+        toningLuminance = 0,
+    },
+}

@@ -43,6 +43,65 @@ function sanitizeNestedRange(value) {
     return result;
 }
 
+function sanitizePointColorCollection(input) {
+    if (!Array.isArray(input) || Object.keys(input).length !== input.length || input.length > 8) return null;
+    const result = [];
+    for (const inputSwatch of input) {
+        if (!inputSwatch || typeof inputSwatch !== "object" || Array.isArray(inputSwatch)) return null;
+        const swatch = {};
+        for (const source of ["SrcHue", "SrcSat", "SrcLum"]) {
+            const value = inputSwatch[source];
+            const maximum = source === "SrcHue" ? 6 : 1;
+            if (!Number.isFinite(value) || value < 0 || value > maximum) return null;
+            swatch[source] = value;
+        }
+        for (const field of fields) {
+            const value = inputSwatch[field];
+            const range = ranges[field];
+            if (!Number.isFinite(value) || value < range[0] || value > range[1]) return null;
+            swatch[field] = value;
+        }
+        for (const rangeName of rangeNames) {
+            const nested = sanitizeNestedRange(inputSwatch[rangeName]);
+            if (!nested) return null;
+            swatch[rangeName] = nested;
+        }
+        result.push(swatch);
+    }
+    return result;
+}
+
+function closePresetNumber(left, right) {
+    return Number.isFinite(left) && Number.isFinite(right) &&
+        Math.abs(left - right) <= Math.max(0.000001, Math.abs(right) * 0.000001);
+}
+
+function normalizedPresetSourceEquivalent(current, expected) {
+    return closePresetNumber(current, expected) || closePresetNumber(current, Math.round(expected * 100) / 100);
+}
+
+function presetCollectionsEquivalent(left, right) {
+    const current = sanitizePointColorCollection(left);
+    const expected = sanitizePointColorCollection(right);
+    if (!current || !expected || current.length !== expected.length) return false;
+    for (let index = 0; index < current.length; index += 1) {
+        const currentSwatch = current[index];
+        const expectedSwatch = expected[index];
+        for (const source of ["SrcHue", "SrcSat", "SrcLum"]) {
+            if (!normalizedPresetSourceEquivalent(currentSwatch[source], expectedSwatch[source])) return false;
+        }
+        for (const field of fields) {
+            if (!closePresetNumber(currentSwatch[field], expectedSwatch[field])) return false;
+        }
+        for (const rangeName of rangeNames) {
+            for (const boundary of boundaries) {
+                if (!closePresetNumber(currentSwatch[rangeName][boundary], expectedSwatch[rangeName][boundary])) return false;
+            }
+        }
+    }
+    return true;
+}
+
 function unavailableState() { return { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false }; }
 
 function cloneState(value) {
@@ -51,47 +110,50 @@ function cloneState(value) {
     return copy;
 }
 
+function sanitizePointColorSnapshot(input, retainedSelected) {
+    if (!input || typeof input !== "object" || Array.isArray(input) || typeof input.available !== "boolean" ||
+        !Number.isInteger(input.swatchCount) || input.swatchCount < 0 || input.swatchCount > 8 ||
+        !Number.isInteger(input.selectedIndex) || input.selectedIndex < 0 || input.selectedIndex > 8 ||
+        typeof input.selectionTransient !== "boolean") return null;
+    const result = { available: input.available, swatchCount: input.swatchCount, selectedIndex: input.selectedIndex, selectionTransient: input.selectionTransient };
+    if (!input.available) return input.swatchCount === 0 && input.selectedIndex === 0 && !input.selectionTransient ? result : null;
+    if (input.swatchCount === 0) return input.selectedIndex === 0 && !input.selectionTransient ? result : null;
+    if (input.selectedIndex === 0) {
+        if (!input.selectionTransient) return null;
+        if (!retainedSelected) return result;
+        const retained = cloneState(retainedSelected);
+        retained.swatchCount = input.swatchCount;
+        retained.selectedIndex = 0;
+        retained.selectionTransient = true;
+        retained.displaySelectedIndex = retainedSelected.selectedIndex;
+        return retained;
+    }
+    if (input.selectionTransient || input.selectedIndex > input.swatchCount) return null;
+    for (const field of fields) {
+        const value = input[field]; const range = ranges[field];
+        if (typeof value !== "number" || !Number.isFinite(value) || value < range[0] || value > range[1]) return null;
+        result[field] = value;
+    }
+    for (const rangeName of rangeNames) {
+        const nested = sanitizeNestedRange(input[rangeName]);
+        if (!nested) return null;
+        result[rangeName] = nested;
+        const marker = effectiveMarker(nested, input[markerFields[rangeName]]);
+        if (marker !== null) result[markerFields[rangeName]] = marker;
+    }
+    return result;
+}
+
 function createPointColorState() {
     let state = unavailableState();
     let requestPending = false;
     let lastRequestAt = 0;
     let contextCounter = null;
     let retainedSelected = null;
-    function sanitize(input) {
-        if (!input || typeof input !== "object" || Array.isArray(input) || typeof input.available !== "boolean" ||
-            !Number.isInteger(input.swatchCount) || input.swatchCount < 0 || input.swatchCount > 8 ||
-            !Number.isInteger(input.selectedIndex) || input.selectedIndex < 0 || input.selectedIndex > 8 ||
-            typeof input.selectionTransient !== "boolean") return null;
-        const result = { available: input.available, swatchCount: input.swatchCount, selectedIndex: input.selectedIndex, selectionTransient: input.selectionTransient };
-        if (!input.available) return input.swatchCount === 0 && input.selectedIndex === 0 && !input.selectionTransient ? result : null;
-        if (input.swatchCount === 0) return input.selectedIndex === 0 && !input.selectionTransient ? result : null;
-        if (input.selectedIndex === 0) {
-            if (!input.selectionTransient) return null;
-            if (!retainedSelected) return result;
-            const retained = cloneState(retainedSelected);
-            retained.swatchCount = input.swatchCount; retained.selectedIndex = 0; retained.selectionTransient = true;
-            retained.displaySelectedIndex = retainedSelected.selectedIndex;
-            return retained;
-        }
-        if (input.selectionTransient) return null;
-        for (const field of fields) {
-            const value = input[field]; const range = ranges[field];
-            if (typeof value !== "number" || !Number.isFinite(value) || value < range[0] || value > range[1]) return null;
-            result[field] = value;
-        }
-        for (const rangeName of rangeNames) {
-            const nested = sanitizeNestedRange(input[rangeName]);
-            if (!nested) return null;
-            result[rangeName] = nested;
-            const marker = effectiveMarker(nested, input[markerFields[rangeName]]);
-            if (marker !== null) result[markerFields[rangeName]] = marker;
-        }
-        return result;
-    }
     return {
         get: function () { return cloneState(state); },
         update: function (input) {
-            const next = sanitize(input); if (!next) return false;
+            const next = sanitizePointColorSnapshot(input, retainedSelected); if (!next) return false;
             state = next;
             if (next.swatchCount === 0 || !next.available) retainedSelected = null;
             else if (next.selectedIndex > 0 && !next.selectionTransient) retainedSelected = cloneState(next);
@@ -108,4 +170,7 @@ function validValue(field, value) { const range = ranges[field]; return !!range 
 function validRangeValue(rangeName, boundary, value) { return rangeNames.includes(rangeName) && boundaries.includes(boundary) && typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1; }
 function validRangeTranslation(rangeName, value) { return rangeNames.includes(rangeName) && !!sanitizeNestedRange(value); }
 
-module.exports = { createPointColorState, fields, ranges, rangeNames, boundaries, markerFields, markerEpsilon, minimumFullRangeWidth, widthEpsilon, linearToDisplay, getPointColorRangeMarker, effectiveMarker, rangeContainsMarker, safeFullRangeWidth, sanitizeNestedRange, validValue, validRangeValue, validRangeTranslation };
+module.exports = { createPointColorState, sanitizePointColorSnapshot, sanitizePointColorCollection,
+    presetCollectionsEquivalent, fields, ranges, rangeNames, boundaries, markerFields, markerEpsilon,
+    minimumFullRangeWidth, widthEpsilon, linearToDisplay, getPointColorRangeMarker, effectiveMarker,
+    rangeContainsMarker, safeFullRangeWidth, sanitizeNestedRange, validValue, validRangeValue, validRangeTranslation };

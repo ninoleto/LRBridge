@@ -1,0 +1,8 @@
+{
+  "provenance": "Lightroom Classic 15.3 public LRBridge API probe, 2026-09-12. Successful current Blue edit, NOT a reproduction of the earlier reported failure. Raw SDK values were flat numeric arrays; exact comparison matched on the first read. setValue and stopTracking(true) succeeded. Original arrays restored and verified.",
+  "baseline": [0, 0, 150, 121, 255, 255],
+  "target": [0, 0, 150, 122, 255, 255],
+  "updateSequence": 75,
+  "endSequence": 76,
+  "restoreSequence": 77
+}

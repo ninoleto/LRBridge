@@ -20,6 +20,9 @@ const developCategoricalDefinition = require("./develop-categorical-state");
 const profileNativeDefinition = require("./profile-native-state");
 const developPresetsDefinition = require("./develop-presets");
 const maskingDefinition = require("./masking-state");
+const deletionDiagnosticsDefinition = require("./masking-deletion-diagnostics");
+const maskingCorrections = require("../app/controller-masking-corrections");
+const localAdjustmentPresetsDefinition = require("./local-adjustment-presets");
 
 const HTTP_PORT = 17891;
 const WS_PORT = 17890;
@@ -95,7 +98,16 @@ const profileNative = profileNativeDefinition.createProfileNativeState(profileBa
 const developPresets = developPresetsDefinition.createDevelopPresetState({
     configPath: options.developPresetConfigPath
 });
-const masking = maskingDefinition.createMaskingState(options.maskingStateOptions);
+const localAdjustmentPresets = localAdjustmentPresetsDefinition.createInventory({
+    directory: options.localAdjustmentPresetDirectory,
+    preferencesDirectory: options.localAdjustmentPreferencesDirectory,
+    preferencesPath: options.localAdjustmentPreferencesPath,
+    nativeValues: options.localAdjustmentNativeValues
+});
+const deletionDiagnostics = deletionDiagnosticsDefinition.create();
+const masking = maskingDefinition.createMaskingState(Object.assign({}, options.maskingStateOptions, {
+    onDeletionDiagnostic: (event, data) => deletionDiagnostics.record(event, data)
+}));
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -340,10 +352,14 @@ function exactQueryFields(req, expected) {
 
 const MASKING_SNAPSHOT_FIELDS = [
     "available", "unavailableReason", "active", "maskGroupCount", "hasSelectedMaskGroup",
-    "selectedMaskGroupIndex", "selectedMaskGroupId", "selectedMaskHidden", "previousAvailable", "nextAvailable",
-    "selectedMaskToolAvailable", "selectedMaskToolId", "selectedMaskToolHidden",
+    "selectedMaskGroupIndex", "selectedMaskGroupId", "selectedMaskGroupName", "selectedMaskHidden",
+    "previousAvailable", "nextAvailable",
+    "selectedMaskToolAvailable", "selectedMaskToolId", "selectedMaskToolName", "selectedMaskToolType",
+    "selectedMaskToolSubtype", "selectedMaskToolHidden",
     "selectedMaskToolCount", "selectedMaskToolIndex",
-    "previousMaskToolAvailable", "nextMaskToolAvailable"
+    "previousMaskToolAvailable", "nextMaskToolAvailable", "corrections", "pointColor", "pointColorPreset",
+    "curvesAvailable",
+    "localCurveRgb", "localCurveRed", "localCurveGreen", "localCurveBlue"
 ];
 
 function parseMaskingCounter(value) {
@@ -360,6 +376,90 @@ function parseMaskingBoolean(value, nullable) {
 
 function parseMaskingNullableString(value) {
     return value === "null" ? null : value;
+}
+
+function parseMaskingCorrections(value) {
+    if (typeof value !== "string" || value.length > 8192) return null;
+    if (value === "") return [];
+    const numberPattern = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+    const parsed = [];
+    for (const entry of value.split(";")) {
+        const fields = entry.split(",");
+        if (fields.length !== 4 || !Object.prototype.hasOwnProperty.call(maskingCorrections.byParameter, fields[0]) ||
+            !numberPattern.test(fields[1]) || !numberPattern.test(fields[2]) || !numberPattern.test(fields[3])) return null;
+        parsed.push({ parameter: fields[0], value: Number(fields[1]), min: Number(fields[2]), max: Number(fields[3]) });
+    }
+    return maskingCorrections.sanitizeCorrections(parsed);
+}
+
+function parseMaskingPointColor(value) {
+    if (typeof value !== "string" || value.length > 2048) return null;
+    const parts = value.split(",");
+    if (parts.length < 4) return null;
+    const available = parseMaskingBoolean(parts[0], false);
+    const swatchCount = parseMaskingCounter(parts[1]);
+    const selectedIndex = parseMaskingCounter(parts[2]);
+    const selectionTransient = parseMaskingBoolean(parts[3], false);
+    if (available === undefined || swatchCount === null || selectedIndex === null || selectionTransient === undefined) return null;
+    const result = { available, swatchCount, selectedIndex, selectionTransient };
+    if (!available || selectedIndex === 0) return parts.length === 4 ? result : null;
+    if (parts.length !== 24) return null;
+    const scalarFields = ["HueShift", "SatScale", "LumScale", "Variance", "RangeAmount"];
+    let offset = 4;
+    for (const field of scalarFields) {
+        const parsed = parseStrictFiniteNumber(parts[offset]);
+        if (parsed === null) return null;
+        result[field] = parsed;
+        offset += 1;
+    }
+    for (const rangeName of pointColorDefinition.rangeNames) {
+        const range = {};
+        for (const boundary of pointColorDefinition.boundaries) {
+            const parsed = parseStrictFiniteNumber(parts[offset]);
+            if (parsed === null) return null;
+            range[boundary] = parsed;
+            offset += 1;
+        }
+        result[rangeName] = range;
+    }
+    for (const rangeName of pointColorDefinition.rangeNames) {
+        if (parts[offset] !== "null") {
+            const parsed = parseStrictFiniteNumber(parts[offset]);
+            if (parsed === null) return null;
+            result[pointColorDefinition.markerFields[rangeName]] = parsed;
+        }
+        offset += 1;
+    }
+    return result;
+}
+
+function parseMaskingPointColorPreset(value) {
+    if (value === "null") return null;
+    if (typeof value !== "string" || value.length > 8192) return undefined;
+    const parts = value.split(",");
+    const count = parseMaskingCounter(parts[0]);
+    if (count === null || count > 8 || parts.length !== 1 + count * 20) return undefined;
+    const collection = [];
+    let offset = 1;
+    for (let index = 0; index < count; index += 1) {
+        const swatch = {};
+        for (const field of ["SrcHue", "SrcSat", "SrcLum"].concat(pointColorDefinition.fields)) {
+            const parsed = parseStrictFiniteNumber(parts[offset++]);
+            if (parsed === null) return undefined;
+            swatch[field] = parsed;
+        }
+        for (const rangeName of pointColorDefinition.rangeNames) {
+            const range = {};
+            for (const boundary of pointColorDefinition.boundaries) {
+                const parsed = parseStrictFiniteNumber(parts[offset++]);
+                if (parsed === null) return undefined;
+                range[boundary] = parsed;
+            }
+            swatch[rangeName] = range;
+        }
+        collection.push(swatch);
+    }
+    return pointColorDefinition.sanitizePointColorCollection(collection) || undefined;
 }
 
 function maskingSnapshotFromQuery(query) {
@@ -380,6 +480,21 @@ function maskingSnapshotFromQuery(query) {
         ? null : parseMaskingCounter(query.selectedMaskToolCount);
     const selectedMaskToolIndex = query.selectedMaskToolIndex === "null"
         ? null : parseMaskingCounter(query.selectedMaskToolIndex);
+    const corrections = parseMaskingCorrections(query.corrections);
+    const pointColor = parseMaskingPointColor(query.pointColor);
+    const pointColorPresetCollection = parseMaskingPointColorPreset(query.pointColorPreset);
+    const curvesAvailable = parseMaskingBoolean(query.curvesAvailable, false);
+    let curves = null;
+    if (curvesAvailable !== undefined) {
+        curves = { available: curvesAvailable };
+        const curveFields = { rgb: "localCurveRgb", red: "localCurveRed", green: "localCurveGreen", blue: "localCurveBlue" };
+        for (const channel of pointCurveDefinition.CHANNELS) {
+            if (curvesAvailable) {
+                curves[channel] = pointCurveDefinition.parseCurve(query[curveFields[channel]]);
+                if (!curves[channel]) curves = null;
+            } else if (query[curveFields[channel]] !== "") curves = null;
+        }
+    }
     if (available === undefined || active === undefined || hasSelectedMaskGroup === undefined ||
         previousAvailable === undefined || nextAvailable === undefined || selectedMaskToolAvailable === undefined ||
         selectedMaskHidden === undefined || selectedMaskToolHidden === undefined ||
@@ -387,7 +502,8 @@ function maskingSnapshotFromQuery(query) {
         (query.maskGroupCount !== "null" && maskGroupCount === null) ||
         (query.selectedMaskGroupIndex !== "null" && selectedMaskGroupIndex === null) ||
         (query.selectedMaskToolCount !== "null" && selectedMaskToolCount === null) ||
-        (query.selectedMaskToolIndex !== "null" && selectedMaskToolIndex === null)) return null;
+        (query.selectedMaskToolIndex !== "null" && selectedMaskToolIndex === null) || corrections === null ||
+        pointColor === null || pointColorPresetCollection === undefined || curves === null) return null;
     return {
         available: available,
         unavailableReason: parseMaskingNullableString(query.unavailableReason),
@@ -396,16 +512,24 @@ function maskingSnapshotFromQuery(query) {
         hasSelectedMaskGroup: hasSelectedMaskGroup,
         selectedMaskGroupIndex: selectedMaskGroupIndex,
         selectedMaskGroupId: parseMaskingNullableString(query.selectedMaskGroupId),
+        selectedMaskGroupName: parseMaskingNullableString(query.selectedMaskGroupName),
         selectedMaskHidden: selectedMaskHidden,
         previousAvailable: previousAvailable,
         nextAvailable: nextAvailable,
         selectedMaskToolAvailable: selectedMaskToolAvailable,
         selectedMaskToolId: parseMaskingNullableString(query.selectedMaskToolId),
+        selectedMaskToolName: parseMaskingNullableString(query.selectedMaskToolName),
+        selectedMaskToolType: parseMaskingNullableString(query.selectedMaskToolType),
+        selectedMaskToolSubtype: parseMaskingNullableString(query.selectedMaskToolSubtype),
         selectedMaskToolHidden: selectedMaskToolHidden,
         selectedMaskToolCount: selectedMaskToolCount,
         selectedMaskToolIndex: selectedMaskToolIndex,
         previousMaskToolAvailable: previousMaskToolAvailable,
-        nextMaskToolAvailable: nextMaskToolAvailable
+        nextMaskToolAvailable: nextMaskToolAvailable,
+        corrections: corrections,
+        pointColor: pointColor,
+        pointColorPresetCollection: pointColorPresetCollection,
+        curves: curves
     };
 }
 
@@ -578,6 +702,8 @@ app.get("/help", function (req, res) {
             navigateMaskComponent: "/masking/tool/navigate?direction=next&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             setSelectedMaskVisibility: "/masking/group/visibility?hidden=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             setSelectedMaskComponentVisibility: "/masking/tool/visibility?hidden=true&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
+            setSelectedMaskCorrection: "/masking/correction/gesture/end?gestureId=mg-ID&parameter=local_Exposure&value=1&selectedMaskGroupId=MASK&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
+            resetSelectedMaskCorrection: "/masking/correction/reset?parameter=local_Exposure&selectedMaskGroupId=MASK&selectedPhotoUuid=UUID&contextCounter=1&developCounter=1&contextChangedAt=1&serverEpoch=EPOCH&stateRevision=1",
             deprecatedWakeEndpoint: "/wake-lightroom",
             libraryModuleCommand: "/command?command=application.module&module=library"
         },
@@ -630,6 +756,50 @@ app.get("/diagnostics/queue", function (req, res) {
         commands.getQueueDiagnostics(),
         { pointCurveGestures: pointCurve.getGestureDiagnostics() }
     ));
+});
+
+app.get("/diagnostics/masking-deletion", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json(Object.assign({ ok: true,
+        state: deletionDiagnosticsDefinition.summarize(masking.getPublicState()) }, deletionDiagnostics.read()));
+});
+
+// The controller's existing GET proxy carries this bounded diagnostic report.
+// This route cannot acknowledge or change a Masking operation.
+app.get("/diagnostics/masking-deletion-browser", function (req, res) {
+    if (!exactQueryFields(req, ["report"]) || req.query.report.length > 8000) {
+        return res.status(400).json({ ok: false, error: "Invalid deletion diagnostic" });
+    }
+    let report;
+    try { report = JSON.parse(req.query.report); } catch (_) { /* Invalid report below. */ }
+    if (!report || report.version !== deletionDiagnosticsDefinition.VERSION ||
+        !["deleteSelected", "deleteAll"].includes(report.kind) || typeof report.client !== "string" ||
+        report.client.length > 80 || !Number.isSafeInteger(report.sequence) ||
+        typeof report.event !== "string" || report.event.length > 80) {
+        return res.status(400).json({ ok: false, error: "Invalid deletion diagnostic" });
+    }
+    deletionDiagnostics.record("browser", report);
+    res.set("Cache-Control", "no-store").json({ ok: true });
+});
+
+const maskingPresetExecutionTraces = [];
+app.post("/diagnostics/masking-preset-trace", express.text({ type: "text/plain", limit: "64kb" }), function (req, res) {
+    if (!exactQueryFields(req, []) || typeof req.body !== "string" || req.body.length > 60000 ||
+        !/^mask-preset-trace operation=mo-\d+ sequence=1 /.test(req.body) ||
+        /[\u0000-\u0009\u000b-\u001f\u007f]/.test(req.body)) {
+        return res.status(400).json({ ok: false, error: "Invalid preset trace" });
+    }
+    // Diagnostic transport cannot acknowledge, settle, or alter a Masking operation.
+    maskingPresetExecutionTraces.push({ receivedAt: Date.now(), report: req.body });
+    if (maskingPresetExecutionTraces.length > 64) maskingPresetExecutionTraces.shift();
+    res.set("Cache-Control", "no-store").json({ ok: true });
+});
+
+app.get("/diagnostics/masking-preset", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json(Object.assign({ ok: true,
+        diagnostics: masking.getLastPresetDiagnostics(), executionTraces: maskingPresetExecutionTraces },
+        masking.getPresetDiagnosticState()));
 });
 
 app.get("/context", function (req, res) {
@@ -1607,6 +1777,10 @@ function queueMaskingOperation(req, res, specification, expectedFields) {
         return res.status(409).set("Cache-Control", "no-store").json({ ok: false, error: "Masking command was rejected" });
     }
     const state = masking.getPublicState();
+    if (specification.kind === "deleteSelected" || specification.kind === "deleteAll") {
+        deletionDiagnostics.record("admitted", { operationId: command.operationId, command,
+            state: deletionDiagnosticsDefinition.summarize(state) });
+    }
     res.set("Cache-Control", "no-store").json({
         ok: true,
         operationId: command.operationId,
@@ -1619,6 +1793,35 @@ function queueMaskingOperation(req, res, specification, expectedFields) {
 const MASKING_COMMAND_BINDING_FIELDS = [
     "selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt", "serverEpoch", "stateRevision"
 ];
+
+function queueMaskingEdit(req, res, specification, expectedFields) {
+    if (!exactQueryFields(req, expectedFields)) return res.status(400).json({ ok: false, error: "Invalid Masking edit" });
+    const suppliedBinding = maskingBindingFromRequest(req);
+    if (!suppliedBinding) return res.status(400).json({ ok: false, error: "Invalid Masking edit" });
+    const command = masking.beginEdit(specification, suppliedBinding, context.getContextFields());
+    if (!command) return res.status(409).set("Cache-Control", "no-store").json({
+        ok: false, error: "Masking edit state changed or the requested control is unavailable"
+    });
+    const admission = queueCommand(command);
+    if (!admission.accepted) {
+        masking.rejectCommand(command, admission.status === commands.ADMISSION_QUEUE_FULL
+            ? "The command queue is full." : "The Masking edit was rejected.");
+        if (admission.status === commands.ADMISSION_QUEUE_FULL) return rejectQueueFull(res, admission.queueLength);
+        return res.status(409).json({ ok: false, error: "Masking edit was rejected" });
+    }
+    res.set("Cache-Control", "no-store").json({
+        ok: true, editSequence: command.editSequence, coalesced: admission.coalesced === true,
+        serverEpoch: masking.getPublicState().serverEpoch, revision: masking.getPublicState().revision
+    });
+}
+
+app.get("/masking/create", function (req, res) {
+    if (!maskingCorrections.creationType(req.query.maskType, req.query.maskSubtype)) {
+        return res.status(400).json({ ok: false, error: "Unsupported Masking type" });
+    }
+    queueMaskingOperation(req, res, { kind: "create", maskType: req.query.maskType, maskSubtype: req.query.maskSubtype },
+        ["maskType", "maskSubtype"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
 
 app.get("/masking/panel", function (req, res) {
     if (req.query.open !== "true" && req.query.open !== "false") {
@@ -1660,20 +1863,299 @@ app.get("/masking/tool/visibility", function (req, res) {
         ["hidden"].concat(MASKING_COMMAND_BINDING_FIELDS));
 });
 
-app.get("/masking/operation-result", function (req, res) {
-    const resultFields = ["operationId", "outcome", "detail", "expectedServerEpoch", "expectedMaskingRevision",
+app.get("/masking/all/delete", function (req, res) {
+    queueMaskingOperation(req, res, { kind: "deleteAll" }, MASKING_COMMAND_BINDING_FIELDS);
+});
+
+app.get("/masking/selected/delete", function (req, res) {
+    queueMaskingOperation(req, res, { kind: "deleteSelected", selectedMaskGroupId: req.query.selectedMaskGroupId },
+        ["selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/selected/reset", function (req, res) {
+    queueMaskingOperation(req, res, { kind: "resetSelected", selectedMaskGroupId: req.query.selectedMaskGroupId },
+        ["selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/preset/apply", function (req, res) {
+    const fields = ["preset", "selectedMaskGroupId", "selectedMaskToolId"].concat(MASKING_COMMAND_BINDING_FIELDS);
+    if (!exactQueryFields(req, fields)) return res.status(400).json({ ok: false, error: "Invalid Masking command" });
+    const resolved = localAdjustmentPresets.resolveWithStatus(req.query.preset);
+    if (resolved.status !== "ok" || !resolved.preset || resolved.preset.kind !== "file") {
+        return res.status(422).set("Cache-Control", "no-store").json({ ok: false,
+            error: "That mask preset is unavailable or contains settings this application path cannot apply." });
+    }
+    queueMaskingOperation(req, res, { kind: "preset", presetId: resolved.preset.id,
+        presetKind: resolved.preset.kind, presetFile: resolved.preset.file || null,
+        presetParameter: null,
+        presetValue: null,
+        selectedMaskGroupId: req.query.selectedMaskGroupId, selectedMaskToolId: req.query.selectedMaskToolId }, fields);
+});
+
+app.get("/masking/presets", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        presets: localAdjustmentPresets.menu().map(function (preset) {
+            return { id: preset.id, name: preset.name, kind: preset.kind, supported: true, unavailableReason: null };
+        })
+    });
+});
+
+const MASKING_EDIT_FIELDS = ["selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS);
+
+app.get("/masking/point-color/value", function (req, res) {
+    const value = parseStrictFiniteNumber(req.query.value);
+    if (value === null) return res.status(400).json({ ok: false, error: "Invalid mask Point Color value" });
+    queueMaskingEdit(req, res, { kind: "pointValue", field: req.query.field, value: value,
+        selectedIndex: parseMaskingCounter(req.query.selectedIndex), selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["field", "value", "selectedIndex"].concat(MASKING_EDIT_FIELDS));
+});
+
+app.get("/masking/point-color/range", function (req, res) {
+    const value = parseStrictFiniteNumber(req.query.value);
+    if (value === null) return res.status(400).json({ ok: false, error: "Invalid mask Point Color range" });
+    queueMaskingEdit(req, res, { kind: "pointRange", range: req.query.range, boundary: req.query.boundary,
+        value: value, selectedIndex: parseMaskingCounter(req.query.selectedIndex),
+        selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["range", "boundary", "value", "selectedIndex"].concat(MASKING_EDIT_FIELDS));
+});
+
+app.get("/masking/point-color/range/translate", function (req, res) {
+    const values = {};
+    for (const boundary of pointColorDefinition.boundaries) {
+        values[boundary] = parseStrictFiniteNumber(req.query[boundary]);
+        if (values[boundary] === null) return res.status(400).json({ ok: false, error: "Invalid mask Point Color range" });
+    }
+    queueMaskingEdit(req, res, { kind: "pointTranslate", range: req.query.range, values: values,
+        selectedIndex: parseMaskingCounter(req.query.selectedIndex), selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["range", "selectedIndex"].concat(pointColorDefinition.boundaries, MASKING_EDIT_FIELDS));
+});
+
+app.get("/masking/point-color/sample", function (req, res) {
+    queueMaskingEdit(req, res, { kind: "pointSelect", selectedIndex: parseMaskingCounter(req.query.selectedIndex),
+        selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["selectedIndex"].concat(MASKING_EDIT_FIELDS));
+});
+
+app.get("/masking/point-color/tool/select", function (req, res) {
+    queueMaskingOperation(req, res, {
+        kind: "pointColorPicker",
+        selectedMaskGroupId: req.query.selectedMaskGroupId
+    }, ["selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+app.get("/masking/point-color/range-visualization/toggle", function (req, res) {
+    queueMaskingOperation(req, res, {
+        kind: "pointColorVisualize",
+        selectedMaskGroupId: req.query.selectedMaskGroupId
+    }, ["selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS));
+});
+
+function maskingToneCurveName(curves) {
+    // Native mask captures: a built-in requires its exact RGB point array and
+    // unedited colour channels. Read only this selected mask's SDK snapshot.
+    const linear = pointCurveDefinition.serializeCurve(pointCurveDefinition.PRESET_CURVES.Linear);
+    if (["red", "green", "blue"].some(channel => pointCurveDefinition.serializeCurve(curves[channel]) !== linear)) {
+        return "Custom";
+    }
+    const rgb = pointCurveDefinition.serializeCurve(curves.rgb);
+    return Object.keys(pointCurveDefinition.PRESET_CURVES).find(name =>
+        pointCurveDefinition.serializeCurve(pointCurveDefinition.PRESET_CURVES[name]) === rgb) || "Custom";
+}
+
+function maskingToneCurveState() {
+    const state = masking.getPublicState();
+    const refine = maskingCorrections.correctionFor(state.corrections, "local_RefineSaturation");
+    if (state.available !== true || state.active !== true || state.hasSelectedMaskGroup !== true ||
+        !state.curves || state.curves.available !== true || !refine) return { available: false };
+    return {
+        available: true,
+        selectedPhotoUuid: state.selectedPhotoUuid,
+        contextCounter: state.contextCounter,
+        developCounter: state.developCounter,
+        contextChangedAt: state.contextChangedAt,
+        revision: state.revision,
+        updatedAt: state.capturedAt || 0,
+        serverEpoch: state.serverEpoch,
+        maskingRevision: state.revision,
+        selectedMaskGroupId: state.selectedMaskGroupId,
+        editFeedbackSequence: state.editFeedbackSequence,
+        lastEditResult: state.lastEditResult,
+        name: maskingToneCurveName(state.curves),
+        refineSaturation: { value: refine.value, min: refine.min, max: refine.max },
+        curves: { rgb: state.curves.rgb.slice(), red: state.curves.red.slice(),
+            green: state.curves.green.slice(), blue: state.curves.blue.slice() }
+    };
+}
+
+app.get("/masking/tone-curve/state", function (req, res) {
+    if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
+    res.set("Cache-Control", "no-store").json({ ok: true, pointCurve: maskingToneCurveState() });
+});
+
+const MASKING_TONE_BINDING_FIELDS = MASKING_COMMAND_BINDING_FIELDS.concat(["selectedMaskGroupId"]);
+
+function maskingCurveGesture(req, res, phase) {
+    const carriesPoints = phase === "update" || phase === "end";
+    const baseline = phase === "cancel" ? null : pointCurveDefinition.parseCurve(req.query.baseline);
+    const points = carriesPoints ? pointCurveDefinition.parseCurve(req.query.points) : null;
+    if (phase !== "cancel" && !baseline || carriesPoints && !points) return res.status(400).json({ ok: false, error: "Invalid mask curve" });
+    queueMaskingEdit(req, res, { kind: "curveGesture", phase: phase, channel: req.query.channel,
+        gestureId: req.query.gestureId, baseline: baseline, points: points,
+        selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["channel", "gestureId"].concat(phase === "cancel" ? [] : ["baseline"],
+        carriesPoints ? ["points"] : [], MASKING_TONE_BINDING_FIELDS));
+}
+
+app.get("/masking/tone-curve/gesture/begin", function (req, res) { maskingCurveGesture(req, res, "begin"); });
+app.get("/masking/tone-curve/gesture/update", function (req, res) { maskingCurveGesture(req, res, "update"); });
+app.get("/masking/tone-curve/gesture/end", function (req, res) { maskingCurveGesture(req, res, "end"); });
+app.get("/masking/tone-curve/gesture/cancel", function (req, res) { maskingCurveGesture(req, res, "cancel"); });
+
+app.get("/masking/tone-curve/reset", function (req, res) {
+    const baseline = pointCurveDefinition.parseCurve(req.query.baseline);
+    if (!baseline) return res.status(400).json({ ok: false, error: "Invalid mask curve reset" });
+    queueMaskingEdit(req, res, { kind: "curveReset", channel: req.query.channel, baseline: baseline,
+        selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["channel", "baseline"].concat(MASKING_TONE_BINDING_FIELDS));
+});
+
+app.get("/masking/tone-curve/preset", function (req, res) {
+    const baseline = pointCurveDefinition.parseCurve(req.query.baseline);
+    if (!baseline) return res.status(400).json({ ok: false, error: "Invalid mask curve preset" });
+    queueMaskingEdit(req, res, { kind: "curvePreset", channel: "rgb", preset: req.query.preset,
+        baseline: baseline, selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["preset", "baseline"].concat(MASKING_TONE_BINDING_FIELDS));
+});
+
+function maskingRefineGesture(req, res, phase) {
+    const baseline = phase === "cancel" ? null : parseStrictFiniteNumber(req.query.baseline);
+    const carriesValue = phase === "update" || phase === "end";
+    const value = carriesValue ? parseStrictFiniteNumber(req.query.value) : null;
+    if (phase !== "cancel" && baseline === null || carriesValue && value === null) {
+        return res.status(400).json({ ok: false, error: "Invalid mask Refine Saturation edit" });
+    }
+    queueMaskingEdit(req, res, { kind: "refine", phase: phase, baseline: baseline, value: value,
+        gestureId: req.query.gestureId, selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["gestureId"].concat(phase === "cancel" ? [] : ["baseline"],
+        carriesValue ? ["value"] : [], MASKING_TONE_BINDING_FIELDS));
+}
+
+app.get("/masking/tone-curve/refine-saturation/gesture/begin", function (req, res) { maskingRefineGesture(req, res, "begin"); });
+app.get("/masking/tone-curve/refine-saturation/gesture/update", function (req, res) { maskingRefineGesture(req, res, "update"); });
+app.get("/masking/tone-curve/refine-saturation/gesture/end", function (req, res) { maskingRefineGesture(req, res, "end"); });
+app.get("/masking/tone-curve/refine-saturation/gesture/cancel", function (req, res) { maskingRefineGesture(req, res, "cancel"); });
+app.get("/masking/tone-curve/refine-saturation/reset", function (req, res) {
+    const baseline = parseStrictFiniteNumber(req.query.baseline);
+    if (baseline === null) return res.status(400).json({ ok: false, error: "Invalid mask Refine Saturation reset" });
+    queueMaskingEdit(req, res, { kind: "refine", phase: "reset", baseline: baseline,
+        selectedMaskGroupId: req.query.selectedMaskGroupId },
+    ["baseline"].concat(MASKING_TONE_BINDING_FIELDS));
+});
+
+function queueMaskingCorrection(req, res, specification, expectedFields) {
+    if (!exactQueryFields(req, expectedFields)) {
+        return res.status(400).json({ ok: false, error: "Invalid Masking correction command" });
+    }
+    const suppliedBinding = maskingBindingFromRequest(req);
+    if (!suppliedBinding) return res.status(400).json({ ok: false, error: "Invalid Masking correction command" });
+    const command = masking.beginCorrection(specification, suppliedBinding, context.getContextFields());
+    if (!command) {
+        return res.status(409).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Masking correction state changed or the requested parameter is unavailable"
+        });
+    }
+    const admission = queueCommand(command);
+    if (!admission.accepted) {
+        masking.rejectCommand(command, admission.status === commands.ADMISSION_QUEUE_FULL
+            ? "The command queue is full." : "The Masking correction command was rejected.");
+        if (admission.status === commands.ADMISSION_QUEUE_FULL) return rejectQueueFull(res, admission.queueLength);
+        return res.status(409).set("Cache-Control", "no-store").json({
+            ok: false,
+            error: "Masking correction command was rejected"
+        });
+    }
+    res.set("Cache-Control", "no-store").json({
+        ok: true,
+        correctionSequence: command.correctionSequence,
+        coalesced: admission.coalesced === true,
+        serverEpoch: masking.getPublicState().serverEpoch,
+        revision: masking.getPublicState().revision
+    });
+}
+
+function correctionSpecification(req, kind) {
+    const value = kind === "gestureUpdate" || kind === "gestureEnd"
+        ? parseStrictFiniteNumber(req.query.value) : null;
+    if ((kind === "gestureUpdate" || kind === "gestureEnd") && value === null) return null;
+    return {
+        kind: kind,
+        parameter: req.query.parameter,
+        selectedMaskGroupId: req.query.selectedMaskGroupId,
+        gestureId: req.query.gestureId,
+        value: value
+    };
+}
+
+const MASKING_CORRECTION_FIELDS = ["parameter", "selectedMaskGroupId"].concat(MASKING_COMMAND_BINDING_FIELDS);
+
+app.get("/masking/correction/gesture/begin", function (req, res) {
+    queueMaskingCorrection(req, res, correctionSpecification(req, "gestureBegin"),
+        ["gestureId"].concat(MASKING_CORRECTION_FIELDS));
+});
+
+app.get("/masking/correction/gesture/update", function (req, res) {
+    const specification = correctionSpecification(req, "gestureUpdate");
+    if (!specification) return res.status(400).json({ ok: false, error: "Invalid Masking correction command" });
+    queueMaskingCorrection(req, res, specification,
+        ["gestureId", "value"].concat(MASKING_CORRECTION_FIELDS));
+});
+
+app.get("/masking/correction/gesture/end", function (req, res) {
+    const specification = correctionSpecification(req, "gestureEnd");
+    if (!specification) return res.status(400).json({ ok: false, error: "Invalid Masking correction command" });
+    queueMaskingCorrection(req, res, specification,
+        ["gestureId", "value"].concat(MASKING_CORRECTION_FIELDS));
+});
+
+app.get("/masking/correction/gesture/cancel", function (req, res) {
+    queueMaskingCorrection(req, res, correctionSpecification(req, "gestureCancel"),
+        ["gestureId"].concat(MASKING_CORRECTION_FIELDS));
+});
+
+app.get("/masking/correction/reset", function (req, res) {
+    queueMaskingCorrection(req, res, {
+        kind: "reset",
+        parameter: req.query.parameter,
+        selectedMaskGroupId: req.query.selectedMaskGroupId
+    }, MASKING_CORRECTION_FIELDS);
+});
+
+app.get("/masking/correction-result", function (req, res) {
+    const resultFields = ["correctionSequence", "gestureId", "kind", "parameter", "outcome", "detail",
+        "expectedValue", "expectedSelectedMaskId", "expectedServerEpoch", "expectedMaskingRevision",
         "expectedActiveModule", "expectedSelectedPhotoUuid", "expectedContextCounter", "expectedDevelopCounter",
         "expectedContextChangedAt"];
-    if (!exactQueryFields(req, resultFields.concat(MASKING_SNAPSHOT_FIELDS)) ||
-        !["confirmed", "no_change", "failed", "stale"].includes(req.query.outcome) ||
-        req.query.detail.length > 300 || /[\u0000-\u001f\u007f]/.test(req.query.detail)) {
-        return res.status(400).json({ ok: false, error: "Invalid Masking operation result" });
+    const correctionSequence = parseMaskingCounter(req.query.correctionSequence);
+    const expectedValue = req.query.expectedValue === "null" ? null : parseStrictFiniteNumber(req.query.expectedValue);
+    if (!exactQueryFields(req, resultFields.concat(MASKING_SNAPSHOT_FIELDS)) || correctionSequence === null ||
+        (expectedValue === null && req.query.expectedValue !== "null") ||
+        !["confirmed", "failed", "stale"].includes(req.query.outcome) || req.query.detail.length > 300 ||
+        /[\u0000-\u001f\u007f]/.test(req.query.detail)) {
+        return res.status(400).json({ ok: false, error: "Invalid Masking correction result" });
     }
     const snapshot = maskingSnapshotFromQuery(req.query);
     const result = {
-        operationId: req.query.operationId,
+        correctionSequence: correctionSequence,
+        gestureId: req.query.gestureId || null,
+        kind: req.query.kind,
+        parameter: req.query.parameter,
         outcome: req.query.outcome,
         detail: req.query.detail || null,
+        expectedValue: expectedValue,
+        expectedSelectedMaskId: req.query.expectedSelectedMaskId,
         expectedServerEpoch: req.query.expectedServerEpoch,
         expectedMaskingRevision: parseMaskingCounter(req.query.expectedMaskingRevision),
         expectedActiveModule: req.query.expectedActiveModule,
@@ -1685,16 +2167,113 @@ app.get("/masking/operation-result", function (req, res) {
     };
     if (!snapshot || result.expectedMaskingRevision === null || result.expectedContextCounter === null ||
         result.expectedDevelopCounter === null || result.expectedContextChangedAt === null) {
-        return res.status(400).json({ ok: false, error: "Invalid Masking operation result" });
+        return res.status(400).json({ ok: false, error: "Invalid Masking correction result" });
+    }
+    if (!masking.acceptCorrectionResult(result, context.getContextFields())) {
+        return res.status(409).json({ ok: false, error: "Stale or unreconciled Masking correction result" });
+    }
+    masking.requestRefresh(context.getContextFields(), true);
+    res.set("Cache-Control", "no-store").json({ ok: true, revision: masking.getPublicState().revision });
+});
+
+app.get("/masking/edit-result", function (req, res) {
+    const resultFields = ["editSequence", "kind", "outcome", "detail", "expectedSelectedMaskId",
+        "expectedServerEpoch", "expectedMaskingRevision", "expectedActiveModule", "expectedSelectedPhotoUuid",
+        "expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt"];
+    const editSequence = parseMaskingCounter(req.query.editSequence);
+    if (!exactQueryFields(req, resultFields.concat(MASKING_SNAPSHOT_FIELDS)) || editSequence === null ||
+        !["confirmed", "failed", "stale"].includes(req.query.outcome) || req.query.detail.length > 300 ||
+        /[\u0000-\u001f\u007f]/.test(req.query.detail)) {
+        return res.status(400).json({ ok: false, error: "Invalid Masking edit result" });
+    }
+    const result = {
+        editSequence: editSequence,
+        kind: req.query.kind,
+        outcome: req.query.outcome,
+        detail: req.query.detail || null,
+        expectedSelectedMaskId: req.query.expectedSelectedMaskId,
+        expectedServerEpoch: req.query.expectedServerEpoch,
+        expectedMaskingRevision: parseMaskingCounter(req.query.expectedMaskingRevision),
+        expectedActiveModule: req.query.expectedActiveModule,
+        expectedSelectedPhotoUuid: req.query.expectedSelectedPhotoUuid,
+        expectedContextCounter: parseMaskingCounter(req.query.expectedContextCounter),
+        expectedDevelopCounter: parseMaskingCounter(req.query.expectedDevelopCounter),
+        expectedContextChangedAt: parseMaskingCounter(req.query.expectedContextChangedAt),
+        snapshot: maskingSnapshotFromQuery(req.query)
+    };
+    if (result.expectedMaskingRevision === null || result.expectedContextCounter === null ||
+        result.expectedDevelopCounter === null || result.expectedContextChangedAt === null || !result.snapshot ||
+        !masking.acceptEditResult(result, context.getContextFields())) {
+        return res.status(409).json({ ok: false, error: "Stale or unreconciled Masking edit result" });
+    }
+    masking.requestRefresh(context.getContextFields(), true);
+    res.set("Cache-Control", "no-store").json({ ok: true, revision: masking.getPublicState().revision });
+});
+
+app.get("/masking/operation-result", function (req, res) {
+    const beforeResult = masking.getPublicState();
+    const traceDeletion = beforeResult.pendingOperation &&
+        ["deleteSelected", "deleteAll"].includes(beforeResult.pendingOperation.kind) ||
+        deletionDiagnostics.hasOperation(req.query.operationId) ||
+        Object.prototype.hasOwnProperty.call(req.query, "deletionBefore") ||
+        Object.prototype.hasOwnProperty.call(req.query, "deletionAfter");
+    if (traceDeletion) deletionDiagnostics.record("result-received", { operationId: req.query.operationId,
+        query: req.query, state: deletionDiagnosticsDefinition.summarize(beforeResult), context: context.getContextFields() });
+    function reply(status, body, stage) {
+        if (traceDeletion) deletionDiagnostics.record("result-response", { operationId: req.query.operationId,
+            status, body, stage, state: deletionDiagnosticsDefinition.summarize(masking.getPublicState()) });
+        return res.status(status).set("Cache-Control", "no-store").json(body);
+    }
+    const resultFields = ["operationId", "outcome", "detail", "expectedServerEpoch", "expectedMaskingRevision",
+        "expectedActiveModule", "expectedSelectedPhotoUuid", "expectedContextCounter", "expectedDevelopCounter",
+        "expectedContextChangedAt"];
+    const hasPresetDiagnostics = Object.prototype.hasOwnProperty.call(req.query, "presetDiagnostics");
+    const hasDeletionProof = Object.prototype.hasOwnProperty.call(req.query, "deletionBefore") ||
+        Object.prototype.hasOwnProperty.call(req.query, "deletionAfter");
+    const expectedResultFields = resultFields.concat(MASKING_SNAPSHOT_FIELDS,
+        hasPresetDiagnostics ? ["presetDiagnostics"] : [], hasDeletionProof ? ["deletionBefore", "deletionAfter"] : []);
+    if (!exactQueryFields(req, expectedResultFields) ||
+        !["confirmed", "deleted", "started", "no_change", "failed", "stale"].includes(req.query.outcome) ||
+        req.query.detail.length > 300 || /[\u0000-\u001f\u007f]/.test(req.query.detail) ||
+        hasPresetDiagnostics && (req.query.presetDiagnostics.length < 1 || req.query.presetDiagnostics.length > 12000 ||
+            /[\u0000-\u0009\u000b-\u001f\u007f]/.test(req.query.presetDiagnostics))) {
+        return reply(400, { ok: false, error: "Invalid Masking operation result" }, "query-fields-or-outcome");
+    }
+    const snapshot = maskingSnapshotFromQuery(req.query);
+    let deletion = null;
+    if (hasDeletionProof) {
+        try {
+            const decodeIds = value => value === "" ? [] : value.split(",").map(decodeURIComponent);
+            deletion = { before: decodeIds(req.query.deletionBefore), after: decodeIds(req.query.deletionAfter) };
+        } catch (error) { return reply(400, { ok: false, error: "Invalid deletion inventory" }, "proof-decoding"); }
+    }
+    const result = {
+        operationId: req.query.operationId,
+        outcome: req.query.outcome,
+        detail: req.query.detail || null,
+        expectedServerEpoch: req.query.expectedServerEpoch,
+        expectedMaskingRevision: parseMaskingCounter(req.query.expectedMaskingRevision),
+        expectedActiveModule: req.query.expectedActiveModule,
+        expectedSelectedPhotoUuid: req.query.expectedSelectedPhotoUuid,
+        expectedContextCounter: parseMaskingCounter(req.query.expectedContextCounter),
+        expectedDevelopCounter: parseMaskingCounter(req.query.expectedDevelopCounter),
+        expectedContextChangedAt: parseMaskingCounter(req.query.expectedContextChangedAt),
+        snapshot: snapshot,
+        deletion: deletion,
+        presetDiagnostics: hasPresetDiagnostics ? req.query.presetDiagnostics : null
+    };
+    if (!snapshot || result.expectedMaskingRevision === null || result.expectedContextCounter === null ||
+        result.expectedDevelopCounter === null || result.expectedContextChangedAt === null) {
+        return reply(400, { ok: false, error: "Invalid Masking operation result" }, "snapshot-or-binding-parsing");
     }
     if (!masking.finishOperation(result, context.getContextFields())) {
         if (masking.rejectResult(result, context.getContextFields(), "Lightroom returned invalid Masking state.")) {
             masking.requestRefresh(context.getContextFields(), true);
         }
-        return res.status(409).json({ ok: false, error: "Stale or unreconciled Masking operation result" });
+        return reply(409, { ok: false, error: "Stale or unreconciled Masking operation result" }, "finish-rejected");
     }
     masking.requestRefresh(context.getContextFields(), true);
-    res.set("Cache-Control", "no-store").json({ ok: true, revision: masking.getPublicState().revision });
+    reply(200, { ok: true, revision: masking.getPublicState().revision }, "finished");
 });
 
 app.get("/lens-blur/next", function (req, res) {
@@ -2403,13 +2982,24 @@ app.get("/adjust", function (req, res) {
     queueOrReject(res, command);
 });
 
+function validGrainNavigationQuery(query) {
+    if (query.preserveMaskingPanel === undefined) {
+        return query.selectedPhotoUuid === undefined && query.contextCounter === undefined;
+    }
+    const fields = context.getContextFields();
+    return query.preserveMaskingPanel === "true" && ["GrainSize", "GrainFrequency"].includes(query.slider) &&
+        fields.activeModule === "develop" && typeof query.selectedPhotoUuid === "string" &&
+        query.selectedPhotoUuid.length > 0 && query.selectedPhotoUuid === fields.selectedPhotoUuid &&
+        query.contextCounter === String(fields.contextCounter);
+}
+
 app.get("/set", function (req, res) {
     const slider = req.query.slider;
-    const allowedFields = new Set(["slider", "value"]);
+    const allowedFields = new Set(["slider", "value", "preserveMaskingPanel", "selectedPhotoUuid", "contextCounter"]);
     const hasExtraField = Object.keys(req.query).some(function (field) {
         return !allowedFields.has(field);
     });
-    const value = hasExtraField ? null : slider === "CropConstrainToWarp"
+    const value = hasExtraField || !validGrainNavigationQuery(req.query) ? null : slider === "CropConstrainToWarp"
         ? (/^[01]$/.test(req.query.value || "") ? Number(req.query.value) : null)
         : sliders.parseAbsoluteValue(slider, req.query.value);
 
@@ -2427,6 +3017,7 @@ app.get("/set", function (req, res) {
         slider: slider,
         value: value
     };
+    if (req.query.preserveMaskingPanel === "true") command.preserveMaskingPanel = true;
 
     queueOrReject(res, command);
 });
@@ -2445,7 +3036,9 @@ app.get("/action", function (req, res) {
 app.get("/reset", function (req, res) {
     const slider = req.query.slider;
 
-    if (Object.keys(req.query).length !== 1 || !sliders.exists(slider)) {
+    const allowedFields = new Set(["slider", "preserveMaskingPanel", "selectedPhotoUuid", "contextCounter"]);
+    if (Object.keys(req.query).some(field => !allowedFields.has(field)) ||
+        !validGrainNavigationQuery(req.query) || !sliders.exists(slider)) {
         res.status(400).json({
             ok: false,
             error: "Unknown slider",
@@ -2458,6 +3051,7 @@ app.get("/reset", function (req, res) {
         command: "develop.reset",
         slider: slider
     };
+    if (req.query.preserveMaskingPanel === "true") command.preserveMaskingPanel = true;
 
     queueOrReject(res, command);
 });

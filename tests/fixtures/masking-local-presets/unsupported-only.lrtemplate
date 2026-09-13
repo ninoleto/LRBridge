@@ -1,0 +1,8 @@
+s = {
+    title = "Unsupported Only",
+    type = "LocalizedAdjustmentPreset",
+    value = {
+        futureAdjustment = 0.75,
+        toningLuminance = 0,
+    },
+}

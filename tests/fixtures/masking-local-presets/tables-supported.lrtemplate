@@ -1,0 +1,26 @@
+s = {
+    title = "Supported Tables",
+    type = "LocalizedAdjustmentPreset",
+    value = {
+        exposure2012 = 0.5,
+        maincurve = { "0,0", "64,52", "128,128", "255,255", },
+        redcurve = { "0,0", "128,140", "255,255", },
+        greencurve = { "0,0", "128,128", "255,255", },
+        bluecurve = { "0,0", "128,116", "255,255", },
+        pointColors = {
+            {
+                HueRange = { LowerNone = 0.1, LowerFull = 0.3, UpperFull = 0.7, UpperNone = 0.9, },
+                HueShift = 0.2,
+                LumRange = { LowerNone = 0.05, LowerFull = 0.2, UpperFull = 0.8, UpperNone = 0.95, },
+                LumScale = -0.1,
+                RangeAmount = 0.5,
+                SatRange = { LowerNone = 0.1, LowerFull = 0.25, UpperFull = 0.75, UpperNone = 0.9, },
+                SatScale = 0.15,
+                SrcHue = 1.25,
+                SrcLum = 0.4,
+                SrcSat = 0.5,
+                Variance = 0.05,
+            },
+        },
+    },
+}

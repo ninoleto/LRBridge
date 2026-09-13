@@ -41,6 +41,16 @@ local function parseIntegerField(json, fieldName)
     return tonumber(value)
 end
 
+local function parseNumberField(json, fieldName)
+    local keyPattern = '"' .. fieldName .. '"%s*:'
+    local count = 0
+    for _ in string.gmatch(json, keyPattern) do count = count + 1 end
+    if count ~= 1 then return nil end
+    local value = string.match(json, keyPattern .. '%s*([%-]?%d+%.?%d*)%s*[,}]')
+    if value == nil then return nil end
+    return tonumber(value)
+end
+
 local function parseIntegerArrayField(json, fieldName)
     local keyPattern = '"' .. fieldName .. '"%s*:'
     local count = 0
@@ -83,7 +93,16 @@ function Parser.parse(json)
     local commitId = string.match(json, [["commitId":"([^"]+)"]])
     local channel = string.match(json, [["channel":"([^"]+)"]])
     local gestureId = string.match(json, [["gestureId":"([^"]+)"]])
+    local parameter = parseStringField(json, "parameter")
+    local correctionSequence = parseIntegerField(json, "correctionSequence")
+    local editSequence = parseIntegerField(json, "editSequence")
     local preset = string.match(json, [["preset":"([^"]+)"]])
+    local presetKind = parseStringField(json, "presetKind")
+    local presetFile = parseStringField(json, "presetFile")
+    local maskType = parseStringField(json, "maskType")
+    local maskSubtype = parseStringField(json, "maskSubtype")
+    local presetParameter = parseStringField(json, "presetParameter")
+    local presetValue = parseNumberField(json, "presetValue")
     local requestId = parseStringField(json, "requestId")
     local operationId = parseStringField(json, "operationId")
     local operationKind = parseStringField(json, "operationKind")
@@ -93,11 +112,13 @@ function Parser.parse(json)
     local expectedActiveModule = parseStringField(json, "expectedActiveModule")
     local expectedSelectedPhotoUuid = string.match(json, [["expectedSelectedPhotoUuid":"([^"]+)"]])
     local expectedSelectedIndex = string.match(json, [["expectedSelectedIndex":([%-]?%d+)]])
+    local selectedIndex = parseIntegerField(json, "selectedIndex")
     local expectedContextCounter = string.match(json, [["expectedContextCounter":([%-]?%d+)]])
     local expectedDevelopCounter = string.match(json, [["expectedDevelopCounter":([%-]?%d+)]])
     local expectedContextChangedAt = string.match(json, [["expectedContextChangedAt":([%-]?%d+)]])
     local expectedServerEpoch = parseStringField(json, "expectedServerEpoch")
     local expectedMaskingRevision = parseIntegerField(json, "expectedMaskingRevision")
+    local expectedMaskCount = parseIntegerField(json, "expectedMaskCount")
     local expectedSelectedMaskId = parseStringField(json, "expectedSelectedMaskId")
     local expectedSelectedMaskToolId = parseStringField(json, "expectedSelectedMaskToolId")
     local expectedHidden = parseBooleanField(json, "expectedHidden")
@@ -169,8 +190,14 @@ function Parser.parse(json)
         return nil
     end
 
+    local preserveMaskingPanel = parseBooleanField(json, "preserveMaskingPanel")
+    if string.find(json, '"preserveMaskingPanel"%s*:') and
+        (preserveMaskingPanel ~= true or (command ~= "develop.set" and command ~= "develop.reset") or
+            (slider ~= "GrainSize" and slider ~= "GrainFrequency")) then return nil end
+
     return {
         command = command,
+        preserveMaskingPanel = preserveMaskingPanel,
         slider = slider,
         action = action,
         target = target,
@@ -203,12 +230,22 @@ function Parser.parse(json)
         ,UpperFull = upperFull
         ,UpperNone = upperNone
         ,expectedSelectedIndex = expectedSelectedIndex
+        ,selectedIndex = selectedIndex
         ,expectedContextCounter = expectedContextCounter
         ,profileGeneration = profileGeneration
         ,commitId = commitId
         ,channel = channel
         ,gestureId = gestureId
+        ,parameter = parameter
+        ,correctionSequence = correctionSequence
+        ,editSequence = editSequence
         ,preset = preset
+        ,presetKind = presetKind
+        ,presetFile = presetFile
+        ,maskType = maskType
+        ,maskSubtype = maskSubtype
+        ,presetParameter = presetParameter
+        ,presetValue = presetValue
         ,requestId = requestId
         ,operationId = operationId
         ,operationKind = operationKind
@@ -222,6 +259,7 @@ function Parser.parse(json)
         ,expectedContextChangedAt = expectedContextChangedAt
         ,expectedServerEpoch = expectedServerEpoch
         ,expectedMaskingRevision = expectedMaskingRevision
+        ,expectedMaskCount = expectedMaskCount
         ,expectedSelectedMaskId = expectedSelectedMaskId
         ,expectedSelectedMaskToolId = expectedSelectedMaskToolId
         ,expectedHidden = expectedHidden

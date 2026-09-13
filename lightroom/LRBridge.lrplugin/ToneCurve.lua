@@ -68,6 +68,32 @@ local function copyCurve(points)
     return copy
 end
 
+local function normalizeCurveValue(value)
+    if type(value) ~= "table" then return nil end
+    local length = #value
+    if length < 2 or length > 256 then return nil end
+    local points = {}
+    if type(value[1]) == "string" then
+        for index = 1, length do
+            if type(value[index]) ~= "string" then return nil end
+            local x, y = string.match(value[index], "^(%d+),(%d+)$")
+            if x == nil then return nil end
+            points[#points + 1] = tonumber(x)
+            points[#points + 1] = tonumber(y)
+        end
+    else
+        for index = 1, length do points[index] = value[index] end
+    end
+    if not validCurve(points) then return nil end
+    return points
+end
+
+local function curvesEqual(left, right)
+    if not validCurve(left) or not validCurve(right) or #left ~= #right then return false end
+    for index = 1, #left do if left[index] ~= right[index] then return false end end
+    return true
+end
+
 local function selectedPhoto()
     local catalog = LrApplication.activeCatalog()
     if catalog == nil then return nil end
@@ -398,6 +424,19 @@ end
 
 function ToneCurve.serializeCurve(points)
     return serializeCurve(points)
+end
+
+function ToneCurve.normalizeCurveValue(value)
+    return normalizeCurveValue(value)
+end
+
+function ToneCurve.curvesEqual(left, right)
+    return curvesEqual(left, right)
+end
+
+function ToneCurve.copyCurve(points)
+    if not validCurve(points) then return nil end
+    return copyCurve(points)
 end
 
 return ToneCurve

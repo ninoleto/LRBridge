@@ -1,0 +1,155 @@
+{
+  "provenance": "Lightroom Classic 15.3, manual native Point Curve names paired with two fresh stable mask-specific SDK snapshots; 2026-09-12. No global name field or Web-selected name used.",
+  "samples": [
+    {
+      "capturedAt": "2026-09-12T21:43:19.296Z",
+      "name": "Linear",
+      "curves": {
+        "available": true,
+        "rgb": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "red": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "green": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "blue": [
+          0,
+          0,
+          255,
+          255
+        ]
+      }
+    },
+    {
+      "capturedAt": "2026-09-12T21:43:31.480Z",
+      "name": "Medium Contrast",
+      "curves": {
+        "available": true,
+        "rgb": [
+          0,
+          0,
+          32,
+          22,
+          64,
+          56,
+          128,
+          128,
+          192,
+          196,
+          255,
+          255
+        ],
+        "red": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "green": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "blue": [
+          0,
+          0,
+          255,
+          255
+        ]
+      }
+    },
+    {
+      "capturedAt": "2026-09-12T21:43:39.044Z",
+      "name": "Strong Contrast",
+      "curves": {
+        "available": true,
+        "rgb": [
+          0,
+          0,
+          32,
+          16,
+          64,
+          50,
+          128,
+          128,
+          192,
+          202,
+          255,
+          255
+        ],
+        "red": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "green": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "blue": [
+          0,
+          0,
+          255,
+          255
+        ]
+      }
+    },
+    {
+      "capturedAt": "2026-09-12T21:44:17.142Z",
+      "name": "Custom",
+      "curves": {
+        "available": true,
+        "rgb": [
+          0,
+          0,
+          32,
+          16,
+          64,
+          50,
+          128,
+          128,
+          192,
+          202,
+          255,
+          255
+        ],
+        "red": [
+          0,
+          0,
+          113,
+          138,
+          255,
+          255
+        ],
+        "green": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "blue": [
+          0,
+          0,
+          255,
+          255
+        ]
+      }
+    }
+  ]
+}

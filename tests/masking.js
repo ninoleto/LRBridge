@@ -6,6 +6,8 @@ const path = require("node:path");
 const commands = require("../server/commands");
 const maskingDefinition = require("../server/masking-state");
 const maskingUi = require("../app/controller-masking");
+const maskingCorrections = require("../app/controller-masking-corrections");
+const localAdjustmentPresets = require("../server/local-adjustment-presets");
 const { createBridge } = require("../server/bridge");
 
 const root = path.join(__dirname, "..");
@@ -49,9 +51,10 @@ function normalizeRuntimeInventoryFixture(inventory) {
                     (typeof tool.MaskSubCategoryID !== "number" || !Number.isFinite(tool.MaskSubCategoryID))) ||
                 Object.keys(tool).some(function (key) { return !RUNTIME_TOOL_FIELDS.has(key); })) return null;
             toolIds.add(tool.ID);
-            tools.push({ ID: tool.ID, Hidden: tool.Hidden });
+            tools.push({ ID: tool.ID, Name: tool.Name, Type: tool.Type, Subtype: tool.Subtype,
+                Hidden: tool.Hidden });
         }
-        normalized.push({ ID: mask.ID, Hidden: mask.Hidden, Tools: tools });
+        normalized.push({ ID: mask.ID, Name: mask.Name, Hidden: mask.Hidden, Tools: tools });
     }
     return normalized;
 }
@@ -71,23 +74,38 @@ function snapshot(overrides) {
     const value = Object.assign({
         available: true, unavailableReason: null, active: true, maskGroupCount: 3,
         hasSelectedMaskGroup: true, selectedMaskGroupIndex: 2, selectedMaskGroupId: "mask-b",
+        selectedMaskGroupName: null,
         selectedMaskHidden: false,
         previousAvailable: true, nextAvailable: true, selectedMaskToolAvailable: true,
-        selectedMaskToolId: "tool-b2", selectedMaskToolHidden: false,
+        selectedMaskToolId: "tool-b2", selectedMaskToolName: "Brush 2", selectedMaskToolType: "brush",
+        selectedMaskToolSubtype: null, selectedMaskToolHidden: false,
         selectedMaskToolCount: 3, selectedMaskToolIndex: 2,
-        previousMaskToolAvailable: true, nextMaskToolAvailable: true
+        previousMaskToolAvailable: true, nextMaskToolAvailable: true, corrections: [],
+        pointColor: { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false },
+        pointColorPresetCollection: null,
+        curves: { available: false }
     }, overrides || {});
     if (value.active !== true || value.hasSelectedMaskGroup !== true) {
+        value.selectedMaskGroupName = null;
         value.selectedMaskHidden = null;
         value.selectedMaskToolAvailable = false;
         value.selectedMaskToolId = null;
+        value.selectedMaskToolName = null;
+        value.selectedMaskToolType = null;
+        value.selectedMaskToolSubtype = null;
         value.selectedMaskToolHidden = null;
         value.selectedMaskToolCount = null;
         value.selectedMaskToolIndex = null;
         value.previousMaskToolAvailable = false;
         value.nextMaskToolAvailable = false;
+        value.pointColor = { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false };
+        value.pointColorPresetCollection = null;
+        value.curves = { available: false };
     } else if (value.selectedMaskToolAvailable !== true) {
         value.selectedMaskToolId = null;
+        value.selectedMaskToolName = null;
+        value.selectedMaskToolType = null;
+        value.selectedMaskToolSubtype = null;
         value.selectedMaskToolHidden = null;
         value.selectedMaskToolIndex = null;
         value.previousMaskToolAvailable = false;
@@ -138,6 +156,11 @@ class FakeElement {
         this._className = "";
         this._textContent = "";
         this.classList = new FakeClassList();
+        this.value = "";
+        this.min = "";
+        this.max = "";
+        this.step = "";
+        this.style = { values: new Map(), setProperty(name, value) { this.values.set(name, String(value)); } };
     }
     get className() { return this._className; }
     set className(value) {
@@ -157,6 +180,11 @@ class FakeElement {
         this.children.push(child);
         return child;
     }
+    replaceChildren() {
+        for (const child of this.children) child.parentElement = null;
+        this.children = [];
+        for (const child of arguments) this.appendChild(child);
+    }
     replaceChild(nextChild, previousChild) {
         const index = this.children.indexOf(previousChild);
         if (index < 0) throw new Error("Previous child was not found");
@@ -171,6 +199,7 @@ class FakeElement {
         if (index >= 0) this.parentElement.children.splice(index, 1);
         this.parentElement = null;
     }
+    focus() { this.ownerDocument.activeElement = this; }
     setAttribute(name, value) {
         this.attributes.set(name, String(value));
         if (name === "class") this.className = value;
@@ -186,9 +215,15 @@ class FakeElement {
         for (const listener of this.listeners.get("click") || []) listener(event);
         return true;
     }
+    dispatch(type, fields) {
+        const event = Object.assign({ type: type, target: this, preventDefault() {} }, fields || {});
+        for (const listener of this.listeners.get(type) || []) listener(event);
+        return event;
+    }
 }
 
 class FakeDocument {
+    constructor() { this.activeElement = null; }
     createElement(tagName) { return new FakeElement(tagName, this); }
     createElementNS(namespaceURI, tagName) {
         const element = new FakeElement(tagName, this);
@@ -251,6 +286,8 @@ function renderedControllerState(options) {
         contextChangedAt: fields.contextChangedAt,
         pendingOperation: options.pendingOperation || null,
         lastResult: options.lastResult || null,
+        correctionFeedbackSequence: options.correctionFeedbackSequence || 0,
+        lastCorrectionResult: options.lastCorrectionResult || null,
         available: true,
         unavailableReason: null,
         active: active,
@@ -263,17 +300,26 @@ function renderedControllerState(options) {
         nextAvailable: index !== null && index < count,
         selectedMaskToolAvailable: toolIndex !== null,
         selectedMaskToolId: toolIndex === null ? null : "tool-" + index + "-" + toolIndex,
+        selectedMaskToolName: toolIndex === null ? null :
+            (options.toolName === undefined ? "Brush " + toolIndex : options.toolName),
+        selectedMaskToolType: toolIndex === null ? null :
+            (options.toolType === undefined ? "brush" : options.toolType),
+        selectedMaskToolSubtype: toolIndex === null ? null :
+            (options.toolSubtype === undefined ? null : options.toolSubtype),
         selectedMaskToolHidden: toolIndex === null ? null : options.toolHidden === true,
         selectedMaskToolCount: toolCount,
         selectedMaskToolIndex: toolIndex,
         previousMaskToolAvailable: toolIndex !== null && toolIndex > 1,
-        nextMaskToolAvailable: toolIndex !== null && toolIndex < toolCount
+        nextMaskToolAvailable: toolIndex !== null && toolIndex < toolCount,
+        corrections: options.corrections || [],
+        currentPreset: options.currentPreset || null
     };
 }
 
 async function createRenderedMaskingHarness(options) {
     options = options || {};
     const documentObject = new FakeDocument();
+    if (typeof options.initializeDocument === "function") options.initializeDocument(documentObject);
     const host = documentObject.createElement("div");
     let currentContext = options.context || context();
     let authoritative = renderedControllerState({
@@ -285,8 +331,12 @@ async function createRenderedMaskingHarness(options) {
         index: options.index,
         toolCount: options.toolCount,
         toolIndex: options.toolIndex,
+        toolName: options.toolName,
+        toolType: options.toolType,
+        toolSubtype: options.toolSubtype,
         maskHidden: options.maskHidden,
-        toolHidden: options.toolHidden
+        toolHidden: options.toolHidden,
+        corrections: options.corrections
     });
     let pendingServerOperation = null;
     let operationCounter = 0;
@@ -306,7 +356,8 @@ async function createRenderedMaskingHarness(options) {
         const panel = parsed.pathname === "/api/masking/panel";
         const maskVisibility = parsed.pathname === "/api/masking/group/visibility";
         const toolVisibility = parsed.pathname === "/api/masking/tool/visibility";
-        if (!navigation && !toolNavigation && !panel && !maskVisibility && !toolVisibility) {
+        const correction = parsed.pathname.startsWith("/api/masking/correction/");
+        if (!navigation && !toolNavigation && !panel && !maskVisibility && !toolVisibility && !correction) {
             throw new Error("Unexpected Masking request: " + requestPath);
         }
         const record = {
@@ -320,6 +371,10 @@ async function createRenderedMaskingHarness(options) {
             contextChangedAt: Number(parsed.searchParams.get("contextChangedAt")),
             serverEpoch: parsed.searchParams.get("serverEpoch"),
             stateRevision: Number(parsed.searchParams.get("stateRevision")),
+            parameter: parsed.searchParams.get("parameter"),
+            selectedMaskGroupId: parsed.searchParams.get("selectedMaskGroupId"),
+            gestureId: parsed.searchParams.get("gestureId"),
+            value: parsed.searchParams.has("value") ? Number(parsed.searchParams.get("value")) : null,
             responseStatus: null,
             responseBody: null
         };
@@ -342,6 +397,18 @@ async function createRenderedMaskingHarness(options) {
                 error: "Masking state changed or the requested action is unavailable"
             };
             return jsonResponse(record.responseBody, record.responseStatus);
+        }
+        if (correction) {
+            operationCounter += 1;
+            record.responseStatus = 200;
+            record.responseBody = {
+                ok: true,
+                correctionSequence: operationCounter,
+                coalesced: false,
+                serverEpoch: authoritative.serverEpoch,
+                revision: authoritative.revision
+            };
+            return jsonResponse(record.responseBody);
         }
         assert.equal(pendingServerOperation, null, "the rendered controller overlapped Lightroom operations");
         operationCounter += 1;
@@ -397,6 +464,7 @@ async function createRenderedMaskingHarness(options) {
     const controller = maskingUi.createController({
         document: documentObject,
         fetch: fetchImpl,
+        createSharedDevelopSliderControl: options.createSharedDevelopSliderControl,
         getContext: function () { return currentContext; },
         setInterval: function () { return 1; },
         clearInterval: function () {}
@@ -443,8 +511,12 @@ async function createRenderedMaskingHarness(options) {
             index: overrides.index === undefined ? selectedIndex : overrides.index,
             toolCount: overrides.toolCount === undefined ? authoritative.selectedMaskToolCount : overrides.toolCount,
             toolIndex: overrides.toolIndex === undefined ? selectedToolIndex : overrides.toolIndex,
+            toolName: overrides.toolName,
+            toolType: overrides.toolType,
+            toolSubtype: overrides.toolSubtype,
             maskHidden: overrides.maskHidden === undefined ? maskHidden : overrides.maskHidden,
             toolHidden: overrides.toolHidden === undefined ? toolHidden : overrides.toolHidden,
+            corrections: overrides.corrections === undefined ? authoritative.corrections : overrides.corrections,
             lastResult: {
                 operationId: operation.operationId,
                 outcome: outcome,
@@ -487,6 +559,20 @@ async function createRenderedMaskingHarness(options) {
         maskVisibility: control("masking-mask-visibility-button"),
         componentVisibility: control("masking-component-visibility-button"),
         status: control("masking-status"),
+        correction: function (parameter) {
+            const row = findElement(host, function (element) {
+                return element.dataset && element.dataset.maskingCorrection === parameter;
+            });
+            return row ? {
+                row: row, name: row.children[0], range: row.children[1], number: row.children[2],
+                decrement: row.children[3], increment: row.children[4], reset: row.children[5], status: row.children[6]
+            } : null;
+        },
+        correctionGroup: function (name) {
+            return findElement(host, function (element) {
+                return element.dataset && element.dataset.maskingCorrectionGroup === name;
+            });
+        },
         commandRequests: commandRequests,
         admissions: admissions,
         stateResponses: stateResponses,
@@ -996,13 +1082,90 @@ function testSemanticRevisionFreshness() {
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot()), true);
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskToolId: "tool-new" })), false,
         "selected tool changes must remain command-relevant semantic changes");
+    assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskToolName: "Renamed Brush" })), false,
+        "selected component renames must advance the authoritative semantic revision");
+    assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskToolType: "sky" })), false,
+        "selected component type changes must advance the authoritative semantic revision");
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({
         selectedMaskToolCount: 4, nextMaskToolAvailable: true
     })), false, "component inventory changes must advance the semantic revision");
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskHidden: true })), false,
         "selected mask visibility changes must advance the semantic revision");
+    assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskGroupName: "Renamed" })), false,
+        "selected mask renames must advance the authoritative semantic revision");
     assert.equal(maskingDefinition.sameSemanticSnapshot(snapshot(), snapshot({ selectedMaskToolHidden: true })), false,
         "selected component visibility changes must advance the semantic revision");
+}
+
+function testPresetIdentityUnavailableWithoutNativeSdkState() {
+    const fields = context();
+    const machine = maskingDefinition.createMaskingState({
+        serverEpoch: "mask-preset-provenance",
+        presetResolver: function () {
+            throw new Error("obsolete correction-value resolver must never be called");
+        },
+        presetIdentityResolver: function () {
+            throw new Error("obsolete preset provenance resolver must never be called");
+        }
+    });
+    function valueFor(maskIndex, exposure) {
+        const suffix = maskIndex === 1 ? "a" : "b";
+        return snapshot({
+            maskGroupCount: 2,
+            selectedMaskGroupIndex: maskIndex,
+            selectedMaskGroupId: "mask-" + suffix,
+            selectedMaskGroupName: "Mask " + suffix.toUpperCase(),
+            previousAvailable: maskIndex > 1,
+            nextAvailable: maskIndex < 2,
+            selectedMaskToolId: "tool-" + suffix + "1",
+            selectedMaskToolName: maskIndex === 1 ? "Brush 1" : "Sky 1",
+            selectedMaskToolType: maskIndex === 1 ? "brush" : "sky",
+            selectedMaskToolCount: 1,
+            selectedMaskToolIndex: 1,
+            previousMaskToolAvailable: false,
+            nextMaskToolAvailable: false,
+            corrections: [{ parameter: "local_Exposure", value: exposure, min: -4, max: 4 }]
+        });
+    }
+    function publish(value, currentFields) {
+        currentFields = currentFields || fields;
+        assert.equal(machine.requestRefresh(currentFields, true), true);
+        const request = machine.takeRequest();
+        assert.equal(machine.acceptQueryResult(Object.assign({}, request, { snapshot: value }), currentFields), true);
+        return machine.getPublicState();
+    }
+
+    machine.syncContext(fields);
+    let state = publish(valueFor(1, 1));
+    assert.equal(state.currentPreset, null,
+        "matching correction values must never be published as native preset identity");
+    assert.equal(state.presetIdentityAvailable, false);
+    assert.equal(state.presetIdentityReason, "unsupported_sdk");
+    state = publish(valueFor(1, 1.25));
+    assert.equal(state.currentPreset, null,
+        "correction changes must never synthesize an edited preset label");
+
+    state = publish(valueFor(2, 0.4));
+    assert.equal(state.currentPreset, null,
+        "mask changes must clear to unavailable identity rather than retaining a label");
+    state = publish(valueFor(1, 1.25));
+    assert.equal(state.currentPreset, null,
+        "returning to a mask must not restore cached preset provenance");
+    state = publish(snapshot({
+        maskGroupCount: 0, hasSelectedMaskGroup: false,
+        selectedMaskGroupIndex: null, selectedMaskGroupId: null, selectedMaskGroupName: null,
+        selectedMaskHidden: null, previousAvailable: false, nextAvailable: false,
+        selectedMaskToolAvailable: false, selectedMaskToolId: null, selectedMaskToolName: null,
+        selectedMaskToolType: null, selectedMaskToolSubtype: null, selectedMaskToolHidden: null,
+        selectedMaskToolCount: null, selectedMaskToolIndex: null,
+        previousMaskToolAvailable: false, nextMaskToolAvailable: false,
+        corrections: [], pointColor: { available: false, swatchCount: 0, selectedIndex: 0,
+            selectionTransient: false }, pointColorPresetCollection: null, curves: { available: false }
+    }));
+    assert.equal(state.currentPreset, null);
+    state = publish(valueFor(1, 0.3));
+    assert.equal(state.currentPreset, null);
+    assert.equal(Object.prototype.hasOwnProperty.call(state, "pointColorPresetCollection"), false);
 }
 
 function testLightroom153RuntimeInventoryFixture() {
@@ -1030,11 +1193,15 @@ function testLightroom153RuntimeInventoryFixture() {
         maskGroupCount: normalized.length,
         selectedMaskGroupIndex: selectedIndex + 1,
         selectedMaskGroupId: runtimeInventoryFixture.selectedMaskId,
+        selectedMaskGroupName: normalized[selectedIndex].Name,
         selectedMaskHidden: normalized[selectedIndex].Hidden,
         previousAvailable: selectedIndex > 0,
         nextAvailable: selectedIndex + 1 < normalized.length,
         selectedMaskToolAvailable: true,
         selectedMaskToolId: runtimeInventoryFixture.selectedMaskToolId,
+        selectedMaskToolName: normalized[selectedIndex].Tools[0].Name,
+        selectedMaskToolType: normalized[selectedIndex].Tools[0].Type,
+        selectedMaskToolSubtype: normalized[selectedIndex].Tools[0].Subtype,
         selectedMaskToolHidden: normalized[selectedIndex].Tools[0].Hidden,
         selectedMaskToolCount: normalized[selectedIndex].Tools.length,
         selectedMaskToolIndex: 1,
@@ -1045,23 +1212,28 @@ function testLightroom153RuntimeInventoryFixture() {
     const ctx = context();
     const authoritative = Object.assign({ ok: true, serverEpoch: "runtime-fixture", revision: 1 }, ctx, runtimeSnapshot);
     let presentation = maskingUi.present(authoritative, ctx, null);
-    assert.equal(presentation.position, "Mask 2 of 2");
+    assert.equal(presentation.position, "Mask B — Mask 2 of 2");
+    assert.equal(presentation.componentPosition, "Tool B1 — Component 1 of 1");
     assert.equal(presentation.previousDisabled, false);
     assert.equal(presentation.nextDisabled, true, "Next must remain bounded at the captured final group");
     presentation = maskingUi.present(Object.assign({}, authoritative, {
         selectedMaskGroupIndex: 1,
         selectedMaskGroupId: normalized[0].ID,
+        selectedMaskGroupName: normalized[0].Name,
         selectedMaskHidden: normalized[0].Hidden,
         previousAvailable: false,
         nextAvailable: true,
         selectedMaskToolId: normalized[0].Tools[0].ID,
+        selectedMaskToolName: normalized[0].Tools[0].Name,
+        selectedMaskToolType: normalized[0].Tools[0].Type,
+        selectedMaskToolSubtype: normalized[0].Tools[0].Subtype,
         selectedMaskToolHidden: normalized[0].Tools[0].Hidden,
         selectedMaskToolCount: normalized[0].Tools.length,
         selectedMaskToolIndex: 1,
         previousMaskToolAvailable: false,
         nextMaskToolAvailable: false
     }), ctx, null);
-    assert.equal(presentation.position, "Mask 1 of 2");
+    assert.equal(presentation.position, "Mask A — Mask 1 of 2");
     assert.equal(presentation.previousDisabled, true, "Previous must remain bounded at the first group");
     assert.equal(presentation.nextDisabled, false);
     assert.equal(JSON.stringify(runtimeInventoryFixture), before,
@@ -1078,6 +1250,7 @@ function testLightroom153RuntimeInventoryFixture() {
         maskGroupCount: normalizedMultiComponent.length,
         selectedMaskGroupIndex: selectedIndex + 1,
         selectedMaskGroupId: runtimeInventoryFixture.selectedMaskId,
+        selectedMaskGroupName: normalizedMultiComponent[selectedIndex].Name,
         selectedMaskHidden: normalizedMultiComponent[selectedIndex].Hidden,
         previousAvailable: selectedIndex > 0,
         nextAvailable: selectedIndex + 1 < normalizedMultiComponent.length,
@@ -1131,6 +1304,179 @@ function testLightroom153RuntimeInventoryFixture() {
         assert.equal(normalizeRuntimeInventoryFixture(inventory), null,
             "malformed runtime inventory fixture " + index + " must fail closed");
     });
+}
+
+function representativeCorrections(exposureValue) {
+    return [
+        { parameter: "local_Amount", value: 100, min: 0, max: 200 },
+        { parameter: "local_Exposure", value: exposureValue === undefined ? 0.25 : exposureValue, min: -4, max: 4 },
+        { parameter: "local_Temperature", value: 8, min: -100, max: 100 },
+        { parameter: "local_ToningHue", value: 0, min: 0, max: 360 },
+        { parameter: "local_ToningSaturation", value: 0, min: 0, max: 100 },
+        { parameter: "local_ToningLuminance", value: 0, min: -100, max: 100 },
+        { parameter: "local_Texture", value: 0, min: -100, max: 100 },
+        { parameter: "local_Sharpness", value: 20, min: 0, max: 150 }
+    ];
+}
+
+function correctionResult(command, value, resultSnapshot, overrides) {
+    return Object.assign({
+        correctionSequence: command.correctionSequence,
+        gestureId: command.gestureId || null,
+        kind: command.command,
+        parameter: command.parameter,
+        outcome: "confirmed",
+        detail: null,
+        expectedValue: value,
+        expectedSelectedMaskId: command.expectedSelectedMaskId,
+        expectedServerEpoch: command.expectedServerEpoch,
+        expectedMaskingRevision: command.expectedMaskingRevision,
+        expectedActiveModule: command.expectedActiveModule,
+        expectedSelectedPhotoUuid: command.expectedSelectedPhotoUuid,
+        expectedContextCounter: command.expectedContextCounter,
+        expectedDevelopCounter: command.expectedDevelopCounter,
+        expectedContextChangedAt: command.expectedContextChangedAt,
+        snapshot: resultSnapshot
+    }, overrides || {});
+}
+
+function testCorrectionMetadataAndStateMachine() {
+    assert.deepEqual(maskingCorrections.groups, ["Amount", "Tone", "Color", "Effects", "Detail"]);
+    assert.equal(maskingCorrections.supportedDefinitions.length, 23,
+        "all runtime-compatible candidates must remain audited internally");
+    assert.equal(maskingCorrections.definitions.length, 20,
+        "the three misleading Toning controls must be excluded from the visible definitions");
+    assert.equal(new Set(maskingCorrections.supportedDefinitions.map(function (entry) { return entry.parameter; })).size, 23);
+    assert.equal(maskingCorrections.byParameter.local_ToningLuminance.legacyProcessVersion, 2,
+        "the SDK's Process Version 2-only toning luminance candidate must remain explicitly classified");
+    assert.equal(maskingCorrections.sanitizeCorrections([
+        { parameter: "local_Exposure", value: 1, min: -4, max: 4 }
+    ])[0].max, 4);
+    assert.equal(maskingCorrections.sanitizeCorrections([
+        { parameter: "local_Exposure", value: 5, min: -4, max: 4 }
+    ]), null, "values outside Lightroom's reported native range must fail closed");
+    assert.equal(maskingCorrections.sanitizeCorrections([
+        { parameter: "local_NotReal", value: 0, min: -1, max: 1 }
+    ]), null, "unknown local parameters must fail closed");
+
+    const fields = context();
+    const machine = maskingDefinition.createMaskingState({ serverEpoch: "mask-corrections" });
+    machine.syncContext(fields);
+    machine.requestRefresh(fields, true);
+    let query = machine.takeRequest();
+    assert.equal(machine.acceptQueryResult(Object.assign({}, query, {
+        snapshot: snapshot({ corrections: representativeCorrections() })
+    }), fields), true);
+    let state = machine.getPublicState();
+    const initialCorrectionBinding = suppliedBinding(state);
+    const update = machine.beginCorrection({
+        kind: "gestureUpdate", gestureId: "mg-state-test", parameter: "local_Exposure", value: 0.75,
+        selectedMaskGroupId: "mask-b"
+    }, suppliedBinding(state), fields);
+    assert.ok(update);
+    assert.equal(update.command, "masking.correction.gesture.update");
+    assert.equal(update.expectedSelectedMaskId, "mask-b");
+    assert.equal(commands.validateCommand(update), true);
+    assert.equal(machine.commandMatches(update, fields), true);
+    assert.equal(machine.beginCorrection({
+        kind: "gestureEnd", gestureId: "mg-bad", parameter: "local_Exposure", value: 9,
+        selectedMaskGroupId: "mask-b"
+    }, suppliedBinding(state), fields), null, "out-of-native-range writes must be rejected before queueing");
+    assert.equal(machine.beginCorrection({
+        kind: "reset", parameter: "local_Grain", selectedMaskGroupId: "mask-b"
+    }, suppliedBinding(state), fields), null, "runtime-unavailable parameters must remain unavailable");
+
+    machine.requestRefresh(fields, true);
+    query = machine.takeRequest();
+    assert.equal(machine.acceptQueryResult(Object.assign({}, query, {
+        snapshot: snapshot({
+            selectedMaskToolIndex: 3, selectedMaskToolId: "tool-b3", nextMaskToolAvailable: false,
+            corrections: representativeCorrections()
+        })
+    }), fields), true);
+    assert.equal(machine.commandMatches(update, fields), true,
+        "component navigation must not rebind group correction commands");
+    const continuedUpdate = machine.beginCorrection({
+        kind: "gestureUpdate", gestureId: "mg-state-test", parameter: "local_Exposure", value: 0.8,
+        selectedMaskGroupId: "mask-b"
+    }, initialCorrectionBinding, fields);
+    assert.ok(continuedUpdate,
+        "a correction gesture must survive a later semantic revision while its photo, context, group, and range still match");
+    assert.equal(machine.commandMatches(continuedUpdate, fields), true);
+
+    state = machine.getPublicState();
+    const reset = machine.beginCorrection({
+        kind: "reset", parameter: "local_Exposure", selectedMaskGroupId: "mask-b"
+    }, suppliedBinding(state), fields);
+    assert.ok(reset);
+    const updatedSnapshot = snapshot({
+        selectedMaskToolIndex: 3, selectedMaskToolId: "tool-b3", nextMaskToolAvailable: false,
+        corrections: representativeCorrections(0.75)
+    });
+    assert.equal(machine.acceptCorrectionResult(correctionResult(update, 0.75, updatedSnapshot), fields), true,
+        "immediate Lightroom correction feedback must be accepted authoritatively");
+    assert.equal(machine.getPublicState().corrections[1].value, 0.75);
+    assert.equal(machine.acceptCorrectionResult(correctionResult(update, 0.75, updatedSnapshot), fields), false,
+        "duplicate or out-of-order correction feedback must be rejected");
+    assert.equal(machine.acceptCorrectionResult(correctionResult(reset, null, snapshot({
+        selectedMaskToolIndex: 3, selectedMaskToolId: "tool-b3", nextMaskToolAvailable: false,
+        corrections: representativeCorrections(0)
+    }), { expectedServerEpoch: "mask-restarted" }), fields), false,
+    "correction feedback from a previous server epoch must be rejected");
+    assert.equal(machine.acceptCorrectionResult(correctionResult(reset, null, snapshot({
+        selectedMaskToolIndex: 3, selectedMaskToolId: "tool-b3", nextMaskToolAvailable: false,
+        corrections: representativeCorrections(0)
+    })), fields), true, "reset settlement must use Lightroom's returned native default");
+    assert.equal(machine.getPublicState().corrections[1].value, 0);
+    assert.equal(machine.getPublicState().lastCorrectionResult.outcome, "confirmed");
+
+    state = machine.getPublicState();
+    const stale = machine.beginCorrection({
+        kind: "gestureEnd", gestureId: "mg-stale-test", parameter: "local_Exposure", value: 1,
+        selectedMaskGroupId: "mask-b"
+    }, suppliedBinding(state), fields);
+    machine.requestRefresh(fields, true);
+    query = machine.takeRequest();
+    assert.equal(machine.acceptQueryResult(Object.assign({}, query, {
+        snapshot: snapshot({
+            selectedMaskGroupIndex: 3, selectedMaskGroupId: "mask-c", nextAvailable: false,
+            selectedMaskToolIndex: 1, selectedMaskToolId: "tool-c1", previousMaskToolAvailable: false,
+            nextMaskToolAvailable: true, corrections: representativeCorrections(-1)
+        })
+    }), fields), true);
+    assert.equal(machine.commandMatches(stale, fields), false,
+        "a pending write must never follow selection into a different mask group");
+    assert.equal(machine.beginCorrection({
+        kind: "gestureEnd", gestureId: "mg-old-revision", parameter: "local_Exposure", value: -0.5,
+        selectedMaskGroupId: "mask-c"
+    }, initialCorrectionBinding, fields), null,
+    "a revision captured before a mask-group change must not be reusable even when the current group is supplied");
+    assert.equal(machine.acceptCorrectionResult(correctionResult(stale, 1, updatedSnapshot), fields), false,
+        "late feedback from the previous mask group must be rejected");
+    assert.equal(machine.acceptCorrectionResult(correctionResult(stale, 1, updatedSnapshot, {
+        correctionSequence: stale.correctionSequence + 99
+    }), fields), false, "future feedback sequences must fail closed");
+
+    const photoMachine = maskingDefinition.createMaskingState({ serverEpoch: "mask-photo-switch" });
+    photoMachine.syncContext(fields);
+    photoMachine.requestRefresh(fields, true);
+    query = photoMachine.takeRequest();
+    photoMachine.acceptQueryResult(Object.assign({}, query, {
+        snapshot: snapshot({ corrections: representativeCorrections() })
+    }), fields);
+    const photoState = photoMachine.getPublicState();
+    const photoCommand = photoMachine.beginCorrection({
+        kind: "gestureEnd", gestureId: "mg-photo-switch", parameter: "local_Exposure", value: 0.5,
+        selectedMaskGroupId: "mask-b"
+    }, suppliedBinding(photoState), fields);
+    const nextPhoto = context({ selectedPhotoUuid: "photo-2", contextCounter: 8, developCounter: 13,
+        contextChangedAt: 2234 });
+    photoMachine.syncContext(nextPhoto);
+    assert.equal(photoMachine.commandMatches(photoCommand, nextPhoto), false,
+        "switching photos must cancel a pending selected-mask correction");
+    assert.equal(photoMachine.acceptCorrectionResult(correctionResult(photoCommand, 0.5,
+        snapshot({ corrections: representativeCorrections(0.5) })), nextPhoto), false,
+    "feedback from the previous photo must never settle in the new photo context");
 }
 
 async function settleAllRenderedNavigation(harness) {
@@ -1241,17 +1587,374 @@ async function testRenderedRapidFinalIntentSequences() {
 
 }
 
+async function testPresetInventorySurvivesContextGenerationChange() {
+    const documentObject = new FakeDocument();
+    const host = documentObject.createElement("div");
+    const inventory = deferred();
+    let presetInventoryRequests = 0;
+    let currentContext = context();
+    let state = renderedControllerState({ context: currentContext, count: 1, toolCount: 1 });
+    const controller = maskingUi.createController({
+        document: documentObject,
+        getContext: function () { return currentContext; },
+        setInterval: function () { return 1; },
+        clearInterval: function () {},
+        fetch: function (requestPath) {
+            const pathname = new URL(requestPath, "http://controller.test").pathname;
+            if (pathname === "/api/masking/state") return Promise.resolve(jsonResponse(state));
+            if (pathname === "/api/masking/presets") {
+                presetInventoryRequests += 1;
+                if (presetInventoryRequests === 1) return inventory.promise;
+                return Promise.resolve(jsonResponse({
+                    ok: true,
+                    presets: [
+                        { id: "lp-burnfixture", name: "Burn (Darken)", kind: "file", supported: true, unavailableReason: null },
+                        { id: "lp-ninonew", name: "nino_new", kind: "file", supported: true, unavailableReason: null }
+                    ]
+                }));
+            }
+            throw new Error("Unexpected Masking request: " + requestPath);
+        }
+    });
+    try {
+        controller.activate(host);
+        await flushAsync();
+        const preset = findElement(host, function (element) {
+            return element.classList.contains("masking-preset-button");
+        });
+        assert.ok(preset);
+        assert.equal(preset.disabled, false, "the touch picker must be openable while its inventory is loading");
+        assert.equal(preset.textContent, "Apply Mask Preset…");
+        assert.equal(preset.tagName, "BUTTON", "Masking presets must not use a native HTML select");
+        assert.equal(preset.getAttribute("aria-haspopup"), "dialog");
+
+        currentContext = context({ contextCounter: 8, developCounter: 13, contextChangedAt: 2345 });
+        state = renderedControllerState({ context: currentContext, revision: 2, count: 1, toolCount: 1 });
+        controller.updateContext(currentContext);
+        await flushAsync();
+        inventory.resolve(jsonResponse({
+            ok: true,
+            presets: [
+                { id: "lp-burnfixture", name: "Burn (Darken)", kind: "file", supported: true, unavailableReason: null },
+                { id: "lp-dodgefixture", name: "Dodge (Lighten)", kind: "file", supported: true, unavailableReason: null }
+            ]
+        }));
+        await flushAsync();
+
+        assert.equal(controller.getInteractionState().presetRequestInFlight, false,
+            "a context generation change must release the completed inventory request");
+        assert.equal(preset.disabled, false,
+            "a valid idle selected mask must enable presets after inventory arrives");
+        assert.equal(preset.textContent, "Apply Mask Preset…",
+            "the main picker button must not claim an unavailable native preset identity");
+        preset.click();
+        await flushAsync();
+        const dialog = findElement(host, function (element) {
+            return element.classList.contains("masking-preset-picker");
+        });
+        const list = findElement(dialog, function (element) {
+            return element.classList.contains("masking-preset-picker-list");
+        });
+        assert.ok(dialog && list);
+        assert.equal(dialog.hidden, false);
+        assert.equal(preset.getAttribute("aria-expanded"), "true");
+        assert.deepEqual(list.children.filter(function (element) {
+            return element.classList.contains("masking-preset-picker-group");
+        }).map(function (element) { return element.textContent; }),
+        ["Installed and saved presets"],
+        "the touch picker must separate native and saved presets");
+        const rows = list.children.filter(function (element) { return Boolean(element.dataset.presetId); });
+        assert.deepEqual(rows.map(function (row) { return row.textContent; }), ["Burn (Darken)", "nino_new"],
+            "opening the picker must refresh additions and removals without restarting LRBridge");
+        assert.equal(presetInventoryRequests, 2);
+        assert.equal(documentObject.activeElement, rows[0], "opening must focus the first inventory row");
+        assert.equal(rows[0].getAttribute("aria-disabled"), "false");
+        rows[0].dispatch("keydown", { key: "ArrowDown" });
+        assert.equal(documentObject.activeElement, rows[1], "ArrowDown must move keyboard focus within the picker");
+        const focusedRow = rows[1];
+        const firstRow = rows[0];
+        list.scrollTop = 777;
+        for (let poll = 0; poll < 4; poll += 1) {
+            state = Object.assign({}, state, {
+                revision: state.revision + 1,
+                currentPreset: poll % 2 === 0
+                    ? { id: "lp-burnfixture", name: "Burn (Darken)", source: "reconciled", edited: false }
+                    : { id: "lp-ninonew", name: "nino_new", source: "provenance", edited: true }
+            });
+            await controller.refresh();
+            await flushAsync();
+            assert.equal(list.scrollTop, 777, "Masking polls must preserve the open picker scroll position");
+            assert.equal(documentObject.activeElement, focusedRow,
+                "Masking polls must not move focus inside the open picker");
+            assert.equal(list.children.filter(function (element) {
+                return Boolean(element.dataset.presetId);
+            })[0], firstRow, "Masking polls must not rebuild preset rows");
+        }
+        dialog.dispatch("keydown", { key: "Escape" });
+        assert.equal(dialog.hidden, true);
+        assert.equal(documentObject.activeElement, preset, "Escape must dismiss and restore focus to the opener");
+        preset.click();
+        await flushAsync();
+        dialog.dispatch("click", { target: dialog });
+        assert.equal(dialog.hidden, true, "backdrop/outside clicks must dismiss the picker");
+    } finally {
+        controller.deactivate();
+    }
+}
+
+async function testRenderedCorrectionControls() {
+    const harness = await createRenderedMaskingHarness({
+        index: 2, count: 3, toolIndex: 1, toolCount: 2, corrections: representativeCorrections()
+    });
+    try {
+        const exposure = harness.correction("local_Exposure");
+        const temperature = harness.correction("local_Temperature");
+        const hiddenToning = ["local_ToningHue", "local_ToningSaturation", "local_ToningLuminance"]
+            .map(function (parameter) { return harness.correction(parameter); });
+        assert.ok(exposure && temperature);
+        assert.deepEqual(hiddenToning, [null, null, null],
+            "Masking Toning Hue, Saturation, and Luminance must not render visible controls");
+        assert.equal(exposure.row.hidden, false);
+        assert.equal(exposure.row.children.length, 7,
+            "each correction must retain the generic label/range/editor/step/reset/status structure");
+        assert.equal(exposure.name.textContent, "Exposure");
+        assert.equal(exposure.range.min, "-4");
+        assert.equal(exposure.range.max, "4");
+        assert.equal(exposure.range.step, "0.01");
+        assert.equal(exposure.number.value, "0.25");
+        assert.equal(exposure.reset.disabled, false);
+        assert.equal(temperature.range.step, "1");
+        for (const groupName of maskingCorrections.groups) {
+            const group = harness.correctionGroup(groupName);
+            assert.ok(group && group.hidden === false, groupName + " correction group must be rendered");
+            assert.equal(group.children[0].textContent, groupName);
+        }
+
+        exposure.range.dispatch("pointerdown", { pointerId: 1 });
+        exposure.range.value = "0.40";
+        exposure.range.dispatch("input");
+        exposure.range.value = "0.65";
+        exposure.range.dispatch("input");
+        exposure.range.value = "0.90";
+        exposure.range.dispatch("input");
+        exposure.range.dispatch("pointerup", { pointerId: 1 });
+        await flushAsync(20);
+        const dragRequests = harness.commandRequests.filter(function (request) {
+            return request.parameter === "local_Exposure";
+        });
+        assert.equal(dragRequests[0].path, "/api/masking/correction/gesture/begin");
+        assert.equal(dragRequests[dragRequests.length - 1].path, "/api/masking/correction/gesture/end");
+        assert.equal(dragRequests[dragRequests.length - 1].value, 0.9,
+            "pointer completion must flush the final slider value");
+        assert.equal(dragRequests.every(function (request) {
+            return request.selectedMaskGroupId === "mask-2" && request.selectedPhotoUuid === "photo-1" &&
+                request.contextCounter === 7 && request.developCounter === 12 && request.serverEpoch === "mask-rendered";
+        }), true, "every correction request must carry the full authoritative group and context binding");
+        const dragEnd = dragRequests[dragRequests.length - 1].responseBody.correctionSequence;
+        let authoritative = harness.getAuthoritative();
+        await harness.publish(Object.assign({}, authoritative, {
+            revision: authoritative.revision + 1,
+            correctionFeedbackSequence: dragEnd,
+            lastCorrectionResult: {
+                sequence: dragEnd, gestureId: dragRequests[dragRequests.length - 1].gestureId,
+                parameter: "local_Exposure", maskGroupId: "mask-2", kind: "masking.correction.gesture.end",
+                outcome: "confirmed", detail: null, completedAt: Date.now()
+            },
+            corrections: representativeCorrections(0.9)
+        }));
+        assert.equal(exposure.number.value, "0.90");
+        assert.equal(exposure.status.textContent, "");
+
+        const beforeUntouchedEditor = harness.commandRequests.length;
+        exposure.number.dispatch("focus");
+        exposure.number.dispatch("blur");
+        await flushAsync(4);
+        assert.equal(harness.commandRequests.length, beforeUntouchedEditor,
+            "focusing and blurring an unchanged rounded editor must not write over Lightroom's authoritative value");
+
+        const beforeStepRequests = harness.commandRequests.length;
+        exposure.increment.click();
+        exposure.increment.click();
+        exposure.decrement.click();
+        assert.equal(exposure.number.value, "0.91", "plus/minus must accumulate from the displayed desired value");
+        await new Promise(function (resolve) { setTimeout(resolve, 390); });
+        await flushAsync(20);
+        const stepRequests = harness.commandRequests.slice(beforeStepRequests);
+        assert.deepEqual(stepRequests.map(function (request) { return request.path; }), [
+            "/api/masking/correction/gesture/begin", "/api/masking/correction/gesture/end"
+        ]);
+        assert.equal(stepRequests[1].value, 0.91);
+
+        assert.equal(harness.componentNext.disabled, true,
+            "component navigation must wait for Lightroom to settle an admitted correction");
+        authoritative = harness.getAuthoritative();
+        await harness.publish(Object.assign({}, authoritative, {
+            revision: authoritative.revision + 1,
+            correctionFeedbackSequence: stepRequests[1].responseBody.correctionSequence,
+            lastCorrectionResult: {
+                sequence: stepRequests[1].responseBody.correctionSequence,
+                gestureId: stepRequests[1].gestureId, parameter: "local_Exposure", maskGroupId: "mask-2",
+                kind: "masking.correction.gesture.end", outcome: "confirmed", detail: null, completedAt: Date.now()
+            },
+            corrections: representativeCorrections(0.91)
+        }));
+
+        harness.componentNext.click();
+        assert.equal(exposure.range.disabled, true,
+            "correction inputs must be disabled while a Masking navigation operation is pending");
+        await flushAsync(12);
+        await harness.settle("confirmed", "", { corrections: representativeCorrections(0.91) });
+        assert.equal(exposure.number.value, "0.91",
+            "component navigation must preserve the selected group's authoritative correction value");
+
+        exposure.number.dispatch("focus");
+        exposure.number.value = "1.25";
+        exposure.number.dispatch("keydown", { key: "Enter" });
+        await flushAsync(20);
+        authoritative = harness.getAuthoritative();
+        await harness.publish(renderedControllerState({
+            context: context(), serverEpoch: authoritative.serverEpoch, revision: authoritative.revision + 2,
+            index: 3, count: 3, toolIndex: 1, toolCount: 2, corrections: representativeCorrections(-1)
+        }));
+        assert.equal(exposure.number.value, "-1.00",
+            "a newly selected mask must never display a pending value from the previous group");
+
+        const beforeResetRequests = harness.commandRequests.length;
+        exposure.reset.click();
+        await flushAsync(20);
+        assert.equal(harness.commandRequests.slice(beforeResetRequests).some(function (request) {
+            return request.path === "/api/masking/correction/reset" && request.parameter === "local_Exposure" &&
+                request.selectedMaskGroupId === "mask-3";
+        }), true, "individual Reset must target the currently selected group and parameter");
+
+        authoritative = harness.getAuthoritative();
+        const resetRequest = harness.commandRequests[harness.commandRequests.length - 1];
+        await harness.publish(Object.assign({}, authoritative, {
+            correctionFeedbackSequence: resetRequest.responseBody.correctionSequence,
+            lastCorrectionResult: {
+                sequence: resetRequest.responseBody.correctionSequence, gestureId: null,
+                parameter: "local_Exposure", maskGroupId: "mask-3",
+                kind: "masking.correction.reset", outcome: "failed",
+                detail: "Lightroom could not reset Exposure.", completedAt: Date.now()
+            }
+        }));
+        assert.equal(exposure.status.textContent, "Lightroom could not reset Exposure.",
+            "photographer-facing Lightroom failures must remain visible on the affected row");
+
+        exposure.number.dispatch("focus");
+        exposure.number.value = "99";
+        exposure.number.dispatch("keydown", { key: "Enter" });
+        assert.match(exposure.status.textContent, /Enter a value from -4\.00 to 4\.00/);
+    } finally {
+        harness.close();
+    }
+}
+
+async function testGrainPendingFeedback() {
+    const harness = await createRenderedMaskingHarness({
+        index: 2, count: 3, toolIndex: 1, toolCount: 2,
+        corrections: [{ parameter: "local_Grain", value: 27, min: 0, max: 100 }]
+    });
+    try {
+        const before = harness.controller.getState();
+        const nextContext = Object.assign({}, context(), { developCounter: before.developCounter + 1 });
+        const pending = Object.assign({}, before, nextContext, maskingDefinition.unavailableSnapshot("context_changed"),
+            { revision: before.revision + 1, capturedAt: null });
+        harness.stateResponses.push(pending);
+        await harness.replaceContext(nextContext, { index: 2, count: 3, toolIndex: 1, toolCount: 2,
+            revision: before.revision + 2, corrections: before.corrections });
+        const amount = harness.correction("local_Grain");
+        assert.equal(harness.controller.getState(), before, "pending SDK refresh retains only the previous display binding");
+        assert.equal(amount.row.hidden, false);
+        assert.equal(harness.correctionGroup("Effects").hidden, false);
+        assert.equal(amount.range.disabled, true, "old mask values must be disabled until authoritative feedback");
+        await harness.publish(pending);
+        assert.equal(harness.controller.getState(), before, "repeated context_changed polls must not collapse the section");
+        const fresh = renderedControllerState({ context: nextContext, index: 2, count: 3, toolIndex: 1, toolCount: 2,
+            revision: before.revision + 2, corrections: before.corrections });
+        await harness.publish(fresh);
+        assert.equal(amount.range.disabled, false);
+        const failure = Object.assign({}, fresh, maskingDefinition.unavailableSnapshot("invalid_inventory"),
+            { revision: fresh.revision + 1, capturedAt: Date.now() });
+        await harness.publish(failure);
+        assert.equal(harness.controller.getState().unavailableReason, "invalid_inventory",
+            "genuine unavailable SDK feedback must remain visible instead of being treated as a pending refresh");
+        assert.equal(amount.range.disabled, true);
+        const otherPhoto = Object.assign({}, nextContext, { selectedPhotoUuid: "photo-b", contextCounter: nextContext.contextCounter + 1 });
+        harness.stateResponses.push(Object.assign({}, pending, otherPhoto));
+        await harness.replaceContext(otherPhoto);
+        assert.equal(harness.controller.getState().selectedPhotoUuid, "photo-b");
+        assert.equal(amount.row.hidden, true, "navigation must discard the previous photograph's display");
+    } finally {
+        harness.close();
+    }
+}
+
+async function testSharedGrainControls() {
+    const created = [];
+    let documentObject = null;
+    const harness = await createRenderedMaskingHarness({
+        index: 2,
+        count: 3,
+        toolIndex: 1,
+        toolCount: 2,
+        corrections: [{ parameter: "local_Grain", value: 27, min: 0, max: 100 }],
+        createSharedDevelopSliderControl: function (sliderId) {
+            if (!documentObject) throw new Error("Masking shared Grain test document was not initialized");
+            const row = documentObject.createElement("div");
+            row.className = "develop-slider-row";
+            row.dataset.sliderId = sliderId;
+            const label = documentObject.createElement("div");
+            label.textContent = sliderId === "GrainSize" ? "Grain Size" : "Grain Roughness";
+            row.appendChild(label);
+            created.push(row);
+            return row;
+        },
+        initializeDocument: function (value) { documentObject = value; }
+    });
+    try {
+        const effects = harness.correctionGroup("Effects");
+        const grainRows = effects.children.filter(function (child) {
+            return child.dataset && (child.dataset.maskingCorrection === "local_Grain" ||
+                child.dataset.maskingSharedGrain);
+        });
+        assert.deepEqual(grainRows.map(function (row) {
+            return row.dataset.maskingCorrection || row.dataset.maskingSharedGrain;
+        }), ["local_Grain", "GrainSize", "GrainFrequency"],
+        "selected-mask Grain Amount must be followed by the two established global Grain sliders");
+        assert.equal(grainRows[0].children[0].textContent, "Amount");
+        assert.equal(grainRows[1].children[0].textContent, "Size");
+        assert.equal(grainRows[2].children[0].textContent, "Roughness");
+        const note = effects.children.find(function (child) {
+            return child.classList.contains("masking-shared-grain-note");
+        });
+        assert.ok(note);
+        assert.equal(note.textContent, "Size and Roughness are global settings shared across all Grain tools.");
+        const before = created.slice();
+        const authoritative = harness.getAuthoritative();
+        await harness.publish(renderedControllerState({
+            context: context(), serverEpoch: authoritative.serverEpoch, revision: authoritative.revision + 1,
+            index: 3, count: 3, toolIndex: 1, toolCount: 1,
+            corrections: [{ parameter: "local_Grain", value: 4, min: 0, max: 100 }]
+        }));
+        assert.deepEqual(created, before,
+            "switching masks must retain the shared global Grain control instances rather than recreate per-mask state");
+    } finally {
+        harness.close();
+    }
+}
+
 async function testRenderedComponentNavigation() {
     let harness = await createRenderedMaskingHarness({ index: 2, count: 4, toolIndex: 1, toolCount: 5 });
     try {
-        assert.equal(harness.componentPosition.textContent, "Component 1 of 5");
+        assert.equal(harness.componentPosition.textContent, "Brush 1 — Component 1 of 5");
         assert.equal(harness.componentPrevious.disabled, true);
         harness.componentNext.click();
         harness.componentNext.click();
         harness.componentNext.click();
         assert.equal(harness.status.textContent, "Moving to Component 4…");
         assert.equal(harness.componentPosition.textContent, "Component 1 of 5",
-            "component intent must not replace confirmed Lightroom state");
+            "component intent must not retain the previous component name while Lightroom is loading");
         assert.equal(harness.commandRequests.length, 1, "rapid component clicks must not overlap commands");
         assert.equal(harness.next.disabled, true, "group navigation must be blocked during component navigation");
         assert.equal(harness.panel.disabled, true, "panel changes must be blocked during component navigation");
@@ -1260,7 +1963,7 @@ async function testRenderedComponentNavigation() {
         assert.equal(harness.controller.getState().selectedMaskToolIndex, 4);
         assert.equal(harness.controller.getState().selectedMaskGroupIndex, 2,
             "component navigation must remain inside the selected mask");
-        assert.equal(harness.componentPosition.textContent, "Component 4 of 5");
+        assert.equal(harness.componentPosition.textContent, "Brush 4 — Component 4 of 5");
     } finally {
         harness.close();
     }
@@ -1359,7 +2062,7 @@ async function testRenderedComponentNavigation() {
         }), { index: 2, count: 4, toolIndex: 4, toolCount: 5, revision: 1 });
         assert.equal(harness.commandRequests.length, 1,
             "a photo change must cancel remaining component intent immediately");
-        assert.equal(harness.componentPosition.textContent, "Component 4 of 5");
+        assert.equal(harness.componentPosition.textContent, "Brush 4 — Component 4 of 5");
     } finally {
         harness.close();
     }
@@ -1386,6 +2089,36 @@ async function testRenderedComponentNavigation() {
         await settleAllRenderedNavigation(harness);
         assert.deepEqual(harness.commandRequests.map(function (request) { return request.path; }),
             ["/api/masking/group/navigate"]);
+    } finally {
+        harness.close();
+    }
+
+    harness = await createRenderedMaskingHarness({
+        index: 2, count: 4, toolIndex: 1, toolCount: 3, toolName: "Brush 1", toolType: "brush"
+    });
+    try {
+        let authoritative = harness.getAuthoritative();
+        await harness.publish(renderedControllerState({
+            context: context(), serverEpoch: authoritative.serverEpoch, revision: authoritative.revision + 1,
+            index: 2, count: 4, toolIndex: 2, toolCount: 3, toolName: "Sky 1", toolType: "sky"
+        }));
+        assert.equal(harness.componentPosition.textContent, "Sky 1 — Component 2 of 3",
+            "direct Lightroom component selection must publish the selected inventory name");
+        assert.equal(harness.controller.getState().selectedMaskToolType, "sky");
+        authoritative = harness.getAuthoritative();
+        await harness.publish(Object.assign({}, authoritative, {
+            revision: authoritative.revision + 1, selectedMaskToolName: "Sky renamed"
+        }));
+        assert.equal(harness.componentPosition.textContent, "Sky renamed — Component 2 of 3",
+            "an authoritative component rename must replace the displayed name");
+        authoritative = harness.getAuthoritative();
+        await harness.publish(renderedControllerState({
+            context: context(), serverEpoch: authoritative.serverEpoch, revision: authoritative.revision + 1,
+            index: 3, count: 4, toolIndex: 1, toolCount: 2,
+            toolName: "Background 1", toolType: "background"
+        }));
+        assert.equal(harness.componentPosition.textContent, "Background 1 — Component 1 of 2",
+            "switching masks must use the new mask's selected component name");
     } finally {
         harness.close();
     }
@@ -1969,17 +2702,61 @@ function queryString(values) {
 }
 
 function snapshotFields(value) {
+    const serializedCorrections = (value.corrections || []).map(function (entry) {
+        return [entry.parameter, entry.value, entry.min, entry.max].join(",");
+    }).join(";");
+    const pointColor = value.pointColor || { available: false, swatchCount: 0, selectedIndex: 0, selectionTransient: false };
+    const serializedPointColor = [pointColor.available, pointColor.swatchCount, pointColor.selectedIndex,
+        pointColor.selectionTransient];
+    if (pointColor.available && pointColor.selectedIndex > 0) {
+        ["HueShift", "SatScale", "LumScale", "Variance", "RangeAmount"].forEach(function (field) {
+            serializedPointColor.push(pointColor[field]);
+        });
+        ["HueRange", "SatRange", "LumRange"].forEach(function (rangeName) {
+            ["LowerNone", "LowerFull", "UpperFull", "UpperNone"].forEach(function (boundary) {
+                serializedPointColor.push(pointColor[rangeName][boundary]);
+            });
+        });
+        ["HueRangeMarker", "SatRangeMarker", "LumRangeMarker"].forEach(function (field) {
+            serializedPointColor.push(pointColor[field] === undefined ? "null" : pointColor[field]);
+        });
+    }
+    const presetCollection = value.pointColorPresetCollection;
+    const serializedPresetCollection = presetCollection === undefined || presetCollection === null ? "null" :
+        [presetCollection.length].concat(presetCollection.flatMap(function (swatch) {
+            const fields = [swatch.SrcHue, swatch.SrcSat, swatch.SrcLum, swatch.HueShift, swatch.SatScale,
+                swatch.LumScale, swatch.Variance, swatch.RangeAmount];
+            ["HueRange", "SatRange", "LumRange"].forEach(function (rangeName) {
+                ["LowerNone", "LowerFull", "UpperFull", "UpperNone"].forEach(function (boundary) {
+                    fields.push(swatch[rangeName][boundary]);
+                });
+            });
+            return fields;
+        })).join(",");
+    const curves = value.curves || { available: false };
     return {
         available: value.available, unavailableReason: value.unavailableReason, active: value.active,
         maskGroupCount: value.maskGroupCount, hasSelectedMaskGroup: value.hasSelectedMaskGroup,
         selectedMaskGroupIndex: value.selectedMaskGroupIndex, selectedMaskGroupId: value.selectedMaskGroupId,
+        selectedMaskGroupName: value.selectedMaskGroupName,
         selectedMaskHidden: value.selectedMaskHidden,
         previousAvailable: value.previousAvailable, nextAvailable: value.nextAvailable,
         selectedMaskToolAvailable: value.selectedMaskToolAvailable, selectedMaskToolId: value.selectedMaskToolId,
+        selectedMaskToolName: value.selectedMaskToolName,
+        selectedMaskToolType: value.selectedMaskToolType,
+        selectedMaskToolSubtype: value.selectedMaskToolSubtype,
         selectedMaskToolHidden: value.selectedMaskToolHidden,
         selectedMaskToolCount: value.selectedMaskToolCount, selectedMaskToolIndex: value.selectedMaskToolIndex,
         previousMaskToolAvailable: value.previousMaskToolAvailable,
-        nextMaskToolAvailable: value.nextMaskToolAvailable
+        nextMaskToolAvailable: value.nextMaskToolAvailable,
+        corrections: serializedCorrections,
+        pointColor: serializedPointColor.join(","),
+        pointColorPreset: serializedPresetCollection,
+        curvesAvailable: curves.available,
+        localCurveRgb: curves.available ? curves.rgb.join(",") : "",
+        localCurveRed: curves.available ? curves.red.join(",") : "",
+        localCurveGreen: curves.available ? curves.green.join(",") : "",
+        localCurveBlue: curves.available ? curves.blue.join(",") : ""
     };
 }
 
@@ -2018,9 +2795,555 @@ async function submitQueryResult(port, request, value) {
     return get(port, "/masking/query-result?" + queryString(queryResultFields(request, value)));
 }
 
-async function submitOperationResult(port, command, outcome, value) {
-    return get(port, "/masking/operation-result?" + queryString(Object.assign(
-        commandResultFields(command), { outcome: outcome, detail: "" }, snapshotFields(value))));
+async function submitOperationResult(port, command, outcome, value, detail, presetDiagnostics) {
+    const fields = Object.assign(commandResultFields(command), { outcome: outcome, detail: detail || "" },
+        snapshotFields(value));
+    if (presetDiagnostics !== undefined) fields.presetDiagnostics = presetDiagnostics;
+    return get(port, "/masking/operation-result?" + queryString(fields));
+}
+
+function correctionRequestPath(kind, parameter, value, binding, gestureId) {
+    const fields = {
+        parameter: parameter,
+        selectedMaskGroupId: binding.selectedMaskGroupId,
+        selectedPhotoUuid: binding.selectedPhotoUuid,
+        contextCounter: binding.contextCounter,
+        developCounter: binding.developCounter,
+        contextChangedAt: binding.contextChangedAt,
+        serverEpoch: binding.serverEpoch,
+        stateRevision: binding.revision
+    };
+    if (kind !== "reset") fields.gestureId = gestureId;
+    if (kind === "update" || kind === "end") fields.value = value;
+    return "/masking/correction/" + (kind === "reset" ? "reset" : "gesture/" + kind) +
+        "?" + queryString(fields);
+}
+
+async function submitCorrectionResult(port, command, value, resultSnapshot, overrides) {
+    return get(port, "/masking/correction-result?" + queryString(Object.assign({
+        correctionSequence: command.correctionSequence,
+        gestureId: command.gestureId || "",
+        kind: command.command,
+        parameter: command.parameter,
+        outcome: "confirmed",
+        detail: "",
+        expectedValue: value === undefined ? null : value,
+        expectedSelectedMaskId: command.expectedSelectedMaskId,
+        expectedServerEpoch: command.expectedServerEpoch,
+        expectedMaskingRevision: command.expectedMaskingRevision,
+        expectedActiveModule: command.expectedActiveModule,
+        expectedSelectedPhotoUuid: command.expectedSelectedPhotoUuid,
+        expectedContextCounter: command.expectedContextCounter,
+        expectedDevelopCounter: command.expectedDevelopCounter,
+        expectedContextChangedAt: command.expectedContextChangedAt
+    }, snapshotFields(resultSnapshot), overrides || {})));
+}
+
+function availablePointColorSnapshot() {
+    const range = { LowerNone: 0, LowerFull: 0.2, UpperFull: 0.54, UpperNone: 0.87 };
+    return {
+        available: true, swatchCount: 1, selectedIndex: 1, selectionTransient: false,
+        HueShift: 0, SatScale: 0, LumScale: 0, Variance: 0, RangeAmount: 0.5,
+        HueRange: Object.assign({}, range), SatRange: Object.assign({}, range),
+        LumRange: Object.assign({}, range), HueRangeMarker: 0.5, SatRangeMarker: 0.4,
+        LumRangeMarker: 0.4
+    };
+}
+
+async function testPointColorHttpRequestShapes() {
+    commands.resetQueueForTests();
+    const bridge = createBridge({
+        httpPort: 0, wsPort: 0, httpHost: "127.0.0.1", wsHost: "127.0.0.1", shutdownGraceMs: 40,
+        maskingStateOptions: { serverEpoch: "mask-point-http" }
+    });
+    await bridge.start();
+    const port = bridge.getHttpServer().address().port;
+    try {
+        let response = await get(port, "/context/update?" + queryString({
+            activeModule: "develop", selectedPhotoUuid: "photo-point-color",
+            selectedPhotoPath: "C:/point-color.dng", developFingerprint: "point-color-fingerprint-1"
+        }));
+        assert.equal(response.status, 200);
+        const request = (await get(port, "/masking/next")).body.request;
+        assert.ok(request);
+        response = await submitQueryResult(port, request, snapshot({ pointColor: availablePointColorSnapshot() }));
+        assert.equal(response.status, 200);
+        const state = (await get(port, "/masking/state")).body;
+        const bindingQuery = maskingUi.pointColorBindingQuery({
+            selectedPhotoUuid: state.selectedPhotoUuid,
+            contextCounter: state.contextCounter,
+            developCounter: state.developCounter,
+            contextChangedAt: state.contextChangedAt,
+            serverEpoch: state.serverEpoch,
+            maskingRevision: state.revision,
+            selectedMaskGroupId: state.selectedMaskGroupId
+        });
+        async function admitBrowserPath(browserPath) {
+            const bridgePath = browserPath.replace(/^\/api/, "");
+            const admission = await get(port, bridgePath);
+            assert.equal(admission.status, 200, admission.body && admission.body.error);
+            const command = (await get(port, "/next")).body.command;
+            assert.ok(command, "the admitted browser request must survive queue dequeue validation");
+            assert.equal(commands.validateCommand(command), true);
+            return command;
+        }
+
+        const scalar = await admitBrowserPath("/api/masking/point-color/value?field=HueShift&value=0.2&" +
+            "selectedIndex=1&" + bindingQuery);
+        assert.deepEqual(Object.keys(scalar).sort(), ["command", "editSequence", "expectedActiveModule",
+            "expectedContextChangedAt", "expectedContextCounter", "expectedDevelopCounter",
+            "expectedMaskingRevision", "expectedSelectedIndex", "expectedSelectedMaskId",
+            "expectedSelectedPhotoUuid", "expectedServerEpoch", "field", "value"].sort());
+        assert.equal(scalar.command, "masking.point_color.value.set");
+        assert.equal(scalar.expectedSelectedPhotoUuid, state.selectedPhotoUuid);
+
+        const reset = await admitBrowserPath("/api/masking/point-color/value?field=HueShift&value=0&" +
+            "selectedIndex=1&" + bindingQuery);
+        assert.equal(reset.command, "masking.point_color.value.set",
+            "Point Color Reset must retain the scalar command shape");
+        assert.equal(reset.value, 0);
+
+        const boundary = await admitBrowserPath("/api/masking/point-color/range?range=HueRange&" +
+            "boundary=LowerNone&value=0.05&selectedIndex=1&" + bindingQuery);
+        assert.deepEqual(Object.keys(boundary).sort(), ["boundary", "command", "editSequence",
+            "expectedActiveModule", "expectedContextChangedAt", "expectedContextCounter",
+            "expectedDevelopCounter", "expectedMaskingRevision", "expectedSelectedIndex",
+            "expectedSelectedMaskId", "expectedSelectedPhotoUuid", "expectedServerEpoch", "range", "value"].sort());
+        assert.equal(boundary.command, "masking.point_color.range.set");
+
+        const translation = await admitBrowserPath("/api/masking/point-color/range/translate?range=HueRange&" +
+            "LowerNone=0.1&LowerFull=0.25&UpperFull=0.65&UpperNone=0.9&selectedIndex=1&" + bindingQuery);
+        assert.deepEqual(Object.keys(translation).sort(), ["LowerFull", "LowerNone", "UpperFull", "UpperNone",
+            "command", "editSequence", "expectedActiveModule", "expectedContextChangedAt",
+            "expectedContextCounter", "expectedDevelopCounter", "expectedMaskingRevision",
+            "expectedSelectedIndex", "expectedSelectedMaskId", "expectedSelectedPhotoUuid",
+            "expectedServerEpoch", "range"].sort());
+        assert.equal(translation.command, "masking.point_color.range.translate");
+        assert.equal(commands.getNextCommand(), null);
+    } finally {
+        commands.resetQueueForTests();
+        await bridge.stop();
+    }
+}
+
+async function testMaskToneCurvePresetFeedback() {
+    commands.resetQueueForTests();
+    let currentTime = Date.now();
+    const bridge = createBridge({ httpPort: 0, wsPort: 0, httpHost: "127.0.0.1", wsHost: "127.0.0.1",
+        shutdownGraceMs: 40, maskingStateOptions: { serverEpoch: "mask-curve-names", now: () => currentTime } });
+    await bridge.start();
+    const port = bridge.getHttpServer().address().port;
+    const samples = require("./fixtures/mask-tone-curve-native.json").samples;
+    const curvesFor = name => clone(samples.find(sample => sample.name === name).curves);
+    const makeSnapshot = (curves, overrides) => snapshot(Object.assign({ curves,
+        corrections: [{ parameter: "local_RefineSaturation", value: 100, min: 0, max: 100 }] }, overrides));
+    async function feedback(value) {
+        currentTime += 1000;
+        await get(port, "/masking/state");
+        const request = (await get(port, "/masking/next")).body.request;
+        assert.ok(request, "a fresh mask snapshot query must be available");
+        const response = await submitQueryResult(port, request, value);
+        assert.equal(response.status, 200);
+        return request;
+    }
+    async function name() { return (await get(port, "/masking/tone-curve/state")).body.pointCurve.name; }
+    try {
+        assert.equal((await get(port, "/context/update?" + queryString({ activeModule: "develop",
+            selectedPhotoUuid: "photo-mask-names", selectedPhotoPath: "C:/mask-names.dng",
+            developFingerprint: "mask-names-1" }))).status, 200);
+        for (const sample of samples) {
+            await feedback(makeSnapshot(sample.curves));
+            assert.equal(await name(), sample.name, "native captured " + sample.name + " must flow from the mask SDK arrays");
+        }
+        for (const channel of ["rgb", "red", "green", "blue"]) {
+            const manual = curvesFor("Strong Contrast");
+            manual[channel] = [0, 0, 113, 138, 255, 255];
+            await feedback(makeSnapshot(manual));
+            assert.equal(await name(), "Custom", "a manual " + channel + " edit cannot retain a built-in name");
+        }
+        const nearMatch = curvesFor("Medium Contrast");
+        nearMatch.rgb[3] += 1;
+        await feedback(makeSnapshot(nearMatch));
+        assert.equal(await name(), "Custom", "built-in name matching must use exact coordinates");
+        const extraAnchor = curvesFor("Linear");
+        extraAnchor.rgb = [0, 0, 128, 128, 255, 255];
+        await feedback(makeSnapshot(extraAnchor));
+        assert.equal(await name(), "Custom", "a visually linear edited curve is not the exact Linear built-in array");
+        await feedback(makeSnapshot(curvesFor("Linear")));
+        let latestSnapshot = null;
+        for (const preset of ["Medium Contrast", "Strong Contrast", "Linear"]) {
+            const state = (await get(port, "/masking/state")).body;
+            const previousName = await name();
+            const admission = await get(port, "/masking/tone-curve/preset?" + queryString({ preset,
+                baseline: state.curves.rgb.join(","), selectedMaskGroupId: state.selectedMaskGroupId,
+                selectedPhotoUuid: state.selectedPhotoUuid, contextCounter: state.contextCounter,
+                developCounter: state.developCounter, contextChangedAt: state.contextChangedAt,
+                serverEpoch: state.serverEpoch, stateRevision: state.revision }));
+            assert.equal(admission.status, 200);
+            const command = (await get(port, "/next")).body.command;
+            assert.equal(command.command, "masking.tone_curve.preset.set");
+            assert.equal(await name(), previousName, "Web admission cannot change authoritative name feedback");
+            latestSnapshot = makeSnapshot(curvesFor(preset));
+            const fields = commandResultFields(command);
+            delete fields.operationId;
+            Object.assign(fields, { editSequence: command.editSequence, kind: command.command,
+                outcome: "confirmed", detail: "", expectedSelectedMaskId: command.expectedSelectedMaskId },
+                snapshotFields(latestSnapshot));
+            assert.equal((await get(port, "/masking/edit-result?" + queryString(fields))).status, 200);
+            assert.equal(await name(), preset, "Web preset name must come from confirmed returned arrays");
+        }
+        const oldRequest = await feedback(latestSnapshot);
+        await feedback(makeSnapshot(curvesFor("Medium Contrast"), { selectedMaskGroupId: "mask-c" }));
+        assert.equal(await name(), "Medium Contrast");
+        assert.equal((await submitQueryResult(port, oldRequest, latestSnapshot)).status, 409);
+        assert.equal(await name(), "Medium Contrast", "late old-mask feedback cannot overwrite the current name");
+    } finally { await bridge.stop(); commands.resetQueueForTests(); }
+}
+
+async function testMaskToneCurveHttpLuaWritePath() {
+    commands.resetQueueForTests();
+    const bridge = createBridge({
+        httpPort: 0, wsPort: 0, httpHost: "127.0.0.1", wsHost: "127.0.0.1", shutdownGraceMs: 40,
+        maskingStateOptions: { serverEpoch: "mask-curve-http" }
+    });
+    await bridge.start();
+    const port = bridge.getHttpServer().address().port;
+    const baseline = [0, 0, 64, 58, 192, 200, 255, 255];
+    const fields = {
+        rgb: "local_Maincurve", red: "local_Redcurve",
+        green: "local_Greencurve", blue: "local_Bluecurve"
+    };
+    try {
+        let response = await get(port, "/context/update?" + queryString({
+            activeModule: "develop", selectedPhotoUuid: "photo-mask-curve",
+            selectedPhotoPath: "C:/mask-curve.dng", developFingerprint: "mask-curve-fingerprint-1"
+        }));
+        assert.equal(response.status, 200);
+        const request = (await get(port, "/masking/next")).body.request;
+        assert.ok(request);
+        response = await submitQueryResult(port, request, snapshot({
+            corrections: [{ parameter: "local_RefineSaturation", value: 100, min: 0, max: 100 }],
+            curves: { available: true, rgb: baseline, red: baseline, green: baseline, blue: baseline }
+        }));
+        assert.equal(response.status, 200);
+        const state = (await get(port, "/masking/state")).body;
+        const binding = queryString({
+            selectedMaskGroupId: state.selectedMaskGroupId,
+            selectedPhotoUuid: state.selectedPhotoUuid,
+            contextCounter: state.contextCounter,
+            developCounter: state.developCounter,
+            contextChangedAt: state.contextChangedAt,
+            serverEpoch: state.serverEpoch,
+            stateRevision: state.revision
+        });
+        async function admit(pathname) {
+            const admission = await get(port, pathname);
+            assert.equal(admission.status, 200, admission.body && admission.body.error);
+            const dequeued = (await get(port, "/next")).body.command;
+            assert.ok(dequeued, "the mask curve request must survive /next dequeue validation");
+            assert.equal(commands.validateCommand(dequeued), true);
+            assert.equal(dequeued.expectedSelectedMaskId, state.selectedMaskGroupId);
+            assert.equal(dequeued.expectedSelectedPhotoUuid, state.selectedPhotoUuid);
+            assert.equal(dequeued.expectedContextCounter, state.contextCounter);
+            assert.equal(dequeued.expectedDevelopCounter, state.developCounter);
+            assert.equal(dequeued.expectedContextChangedAt, state.contextChangedAt);
+            assert.equal(dequeued.expectedServerEpoch, state.serverEpoch);
+            return dequeued;
+        }
+        const operationTargets = [
+            ["drag", "rgb", [0, 0, 65, 59, 192, 200, 255, 255]],
+            ["input", "red", [0, 0, 66, 58, 192, 200, 255, 255]],
+            ["output", "green", [0, 0, 64, 59, 192, 200, 255, 255]],
+            ["add", "blue", [0, 0, 32, 28, 64, 58, 192, 200, 255, 255]],
+            ["delete", "rgb", [0, 0, 192, 200, 255, 255]]
+        ];
+        for (const [operation, channel, points] of operationTargets) {
+            const gestureId = "curve_http_" + operation;
+            const begin = await admit("/masking/tone-curve/gesture/begin?" + queryString({
+                channel: channel, gestureId: gestureId, baseline: baseline.join(",")
+            }) + "&" + binding);
+            assert.equal(begin.command, "masking.tone_curve.gesture.begin");
+            assert.equal(begin.field, fields[channel]);
+            const end = await admit("/masking/tone-curve/gesture/end?" + queryString({
+                channel: channel, gestureId: gestureId, baseline: baseline.join(","), points: points.join(",")
+            }) + "&" + binding);
+            assert.equal(end.command, "masking.tone_curve.gesture.end", operation);
+            assert.equal(end.field, fields[channel], operation);
+            assert.deepEqual(end.expectedPoints, baseline, operation);
+            assert.deepEqual(end.points, points, operation);
+        }
+        for (const channel of Object.keys(fields)) {
+            const reset = await admit("/masking/tone-curve/reset?" + queryString({
+                channel: channel, baseline: baseline.join(",")
+            }) + "&" + binding);
+            assert.equal(reset.command, "masking.tone_curve.reset");
+            assert.equal(reset.field, fields[channel]);
+        }
+        const preset = await admit("/masking/tone-curve/preset?" + queryString({
+            preset: "Medium Contrast", baseline: baseline.join(",")
+        }) + "&" + binding);
+        assert.equal(preset.command, "masking.tone_curve.preset.set");
+        assert.equal(preset.field, "local_Maincurve");
+        assert.deepEqual(preset.points, [0, 0, 32, 22, 64, 56, 128, 128, 192, 196, 255, 255]);
+
+        const refineId = "refine_http_mask";
+        const refineBegin = await admit("/masking/tone-curve/refine-saturation/gesture/begin?" + queryString({
+            gestureId: refineId, baseline: 100
+        }) + "&" + binding);
+        assert.equal(refineBegin.field, "local_RefineSaturation");
+        const refineUpdate = await admit("/masking/tone-curve/refine-saturation/gesture/update?" + queryString({
+            gestureId: refineId, baseline: 100, value: 75
+        }) + "&" + binding);
+        assert.equal(refineUpdate.command, "masking.tone_curve.refine_saturation.gesture.update");
+        assert.equal(refineUpdate.value, 75);
+        const refineEnd = await admit("/masking/tone-curve/refine-saturation/gesture/end?" + queryString({
+            gestureId: refineId, baseline: 100, value: 75
+        }) + "&" + binding);
+        assert.equal(refineEnd.command, "masking.tone_curve.refine_saturation.gesture.end");
+        const refineReset = await admit("/masking/tone-curve/refine-saturation/reset?" +
+            queryString({ baseline: 100 }) + "&" + binding);
+        assert.equal(refineReset.command, "masking.tone_curve.refine_saturation.reset");
+    } finally {
+        commands.resetQueueForTests();
+        await bridge.stop();
+    }
+}
+
+async function testLocalPresetHttpCommandPath() {
+    commands.resetQueueForTests();
+    const fixtureDirectory = path.join(__dirname, "fixtures", "masking-local-presets");
+    const nativeValues = Object.create(null);
+    localAdjustmentPresets.NATIVE_CORRECTION_PRESETS.forEach(function (entry) {
+        if (entry.preference) nativeValues[entry.preference] = 0.25;
+    });
+    const bridge = createBridge({
+        httpPort: 0, wsPort: 0, httpHost: "127.0.0.1", wsHost: "127.0.0.1", shutdownGraceMs: 40,
+        localAdjustmentPresetDirectory: fixtureDirectory,
+        localAdjustmentNativeValues: nativeValues,
+        maskingStateOptions: { serverEpoch: "mask-preset-http" }
+    });
+    await bridge.start();
+    const port = bridge.getHttpServer().address().port;
+    try {
+        let response = await get(port, "/context/update?" + queryString({
+            activeModule: "develop", selectedPhotoUuid: "photo-mask-preset",
+            selectedPhotoPath: "C:/mask-preset.dng", developFingerprint: "mask-preset-fingerprint-1"
+        }));
+        assert.equal(response.status, 200);
+        const request = (await get(port, "/masking/next")).body.request;
+        assert.ok(request);
+        response = await submitQueryResult(port, request, snapshot({
+            corrections: [{ parameter: "local_Exposure", value: 1, min: -4, max: 4 }]
+        }));
+        assert.equal(response.status, 200);
+
+        const inventoryResponse = await get(port, "/masking/presets");
+        assert.equal(inventoryResponse.status, 200);
+        assert.equal(Object.prototype.hasOwnProperty.call(inventoryResponse.body, "selected"), false);
+        assert.equal(inventoryResponse.body.presets.some(function (preset) {
+            return preset.name === "Custom" || preset.name === "Save Current Settings as New Preset…" ||
+                preset.name === "Restore Default Presets";
+        }), false, "inventory must not publish a guessed state marker or unsupported native commands");
+        assert.equal(inventoryResponse.body.presets.filter(preset => preset.kind === "builtin").length, 0);
+        assert.ok(inventoryResponse.body.presets.some(function (preset) {
+            return preset.name === "Burn (Darken)";
+        }), "the action inventory includes installed Adobe preset files");
+        assert.equal(inventoryResponse.body.presets.every(function (preset) {
+            return preset.supported === true && preset.unavailableReason === null;
+        }), true, "only executable saved presets enter the action inventory");
+
+        const state = (await get(port, "/masking/state")).body;
+        assert.equal(state.currentPreset, null,
+            "matching correction values must never be converted into a claimed native preset label");
+        assert.equal(state.presetIdentityAvailable, false);
+        assert.equal(state.presetIdentityReason, "unsupported_sdk");
+
+        response = await get(port, "/masking/preset/apply?" + queryString({
+            preset: localAdjustmentPresets.presetId("live-burn-darken.lrtemplate"),
+            selectedMaskGroupId: state.selectedMaskGroupId,
+            selectedMaskToolId: state.selectedMaskToolId,
+            selectedPhotoUuid: state.selectedPhotoUuid,
+            contextCounter: state.contextCounter,
+            developCounter: state.developCounter,
+            contextChangedAt: state.contextChangedAt,
+            serverEpoch: state.serverEpoch,
+            stateRevision: state.revision
+        }));
+        assert.equal(response.status, 200);
+        assert.ok(response.body.pendingOperation, "admission must remain pending until Lightroom confirms");
+        const command = (await get(port, "/next")).body.command;
+        assert.equal(command.command, "masking.preset.apply");
+        assert.equal(command.expectedSelectedMaskToolId, state.selectedMaskToolId);
+        response = await submitOperationResult(port, command, "confirmed", snapshot({
+            corrections: [{ parameter: "local_Exposure", value: -0.3, min: -4, max: 4 }]
+        }));
+        assert.equal(response.status, 200);
+        let completed = bridge.getMaskingState();
+        assert.equal(completed.lastResult.outcome, "confirmed");
+        assert.equal(completed.currentPreset, null);
+        assert.equal(completed.corrections.find(entry => entry.parameter === "local_Exposure").value, -0.3);
+        function applyQuery(current, overrides) {
+            return "/masking/preset/apply?" + queryString(Object.assign({
+                preset: localAdjustmentPresets.presetId("live-burn-darken.lrtemplate"),
+                selectedMaskGroupId: current.selectedMaskGroupId, selectedMaskToolId: current.selectedMaskToolId,
+                selectedPhotoUuid: current.selectedPhotoUuid, contextCounter: current.contextCounter,
+                developCounter: current.developCounter, contextChangedAt: current.contextChangedAt,
+                serverEpoch: current.serverEpoch, stateRevision: current.revision
+            }, overrides || {}));
+        }
+        for (const definition of localAdjustmentPresets.NATIVE_CORRECTION_PRESETS) {
+            response = await get(port, applyQuery(completed, { preset: definition.id }));
+            assert.equal(response.status, 422, definition.name + " must be excluded before queue admission");
+            assert.equal((await get(port, "/next")).body.command, null);
+            assert.equal(bridge.getMaskingState().revision, completed.revision);
+            assert.equal(commands.validateCommand(Object.assign({}, command, {
+                preset: definition.id, presetKind: "builtin", presetFile: null,
+                presetParameter: definition.parameter, presetValue: 0.25 * definition.scale
+            })), false, "old builtin commands cannot enter the queue");
+        }
+        assert.equal((await get(port, applyQuery(completed, {
+            preset: localAdjustmentPresets.presetId("tables-and-unsupported.lrtemplate")
+        }))).status, 422, "mixed supported/unsupported content must fail before queue admission");
+        assert.equal((await get(port, "/next")).body.command, null);
+        assert.equal((await get(port, applyQuery(completed, { preset: "lp-native-custom" }))).status, 422);
+        assert.equal((await get(port, applyQuery(completed, { selectedMaskToolId: "wrong-component" }))).status, 409);
+        assert.equal((await get(port, applyQuery(completed, { serverEpoch: "old-server" }))).status, 409);
+        assert.equal((await get(port, applyQuery(completed))).status, 200);
+        assert.equal((await get(port, applyQuery(completed))).status, 409, "pending preset application must serialize");
+        const failedCommand = (await get(port, "/next")).body.command;
+        response = await submitOperationResult(port, failedCommand, "failed", snapshot(), "Some settings may remain changed.");
+        assert.equal(response.status, 200);
+        assert.equal(bridge.getMaskingState().lastResult.outcome, "failed");
+        assert.match(bridge.getMaskingState().lastResult.detail, /Some settings may remain changed/);
+        assert.equal((await submitOperationResult(port, command, "confirmed", snapshot())).status, 409,
+            "an older completion cannot overwrite a newer failure");
+        assert.equal((await get(port, applyQuery(bridge.getMaskingState()))).status, 200, "retry after failure");
+        const switched = (await get(port, "/next")).body.command;
+        response = await submitOperationResult(port, switched, "confirmed", snapshot({ selectedMaskToolId: "other-component" }));
+        assert.equal(response.status, 200);
+        assert.equal(bridge.getMaskingState().lastResult.outcome, "failed", "component changes invalidate confirmation");
+        assert.equal((await get(port, applyQuery(bridge.getMaskingState()))).status, 200);
+        const previousPhoto = (await get(port, "/next")).body.command;
+        await get(port, "/context/update?" + queryString({ activeModule: "develop", selectedPhotoUuid: "new-photo",
+            selectedPhotoPath: "C:/new-photo.dng", developFingerprint: "new-fingerprint" }));
+        assert.equal((await submitOperationResult(port, previousPhoto, "confirmed", snapshot())).status, 409);
+        assert.equal(bridge.getMaskingState().currentPreset, null);
+
+    } finally {
+        commands.resetQueueForTests();
+        await bridge.stop();
+    }
+}
+
+async function testCorrectionHttpQueueAndFeedback() {
+    commands.resetQueueForTests();
+    const bridge = createBridge({
+        httpPort: 0, wsPort: 0, httpHost: "127.0.0.1", wsHost: "127.0.0.1", shutdownGraceMs: 40,
+        maskingStateOptions: { serverEpoch: "mask-correction-http" }
+    });
+    await bridge.start();
+    const port = bridge.getHttpServer().address().port;
+    try {
+        let response = await get(port, "/context/update?" + queryString({
+            activeModule: "develop", selectedPhotoUuid: "photo-corrections", selectedPhotoPath: "C:/corrections.dng",
+            developFingerprint: "correction-fingerprint-1"
+        }));
+        assert.equal(response.status, 200);
+        let request = (await get(port, "/masking/next")).body.request;
+        assert.ok(request);
+        response = await submitQueryResult(port, request, snapshot({ corrections: representativeCorrections() }));
+        assert.equal(response.status, 200);
+        let state = (await get(port, "/masking/state")).body;
+        const binding = Object.assign({ selectedMaskGroupId: state.selectedMaskGroupId }, suppliedBinding(state));
+        const gestureId = "mg-http-coalesce";
+        response = await get(port, correctionRequestPath("end", "local_Exposure", "NaN", binding, gestureId));
+        assert.equal(response.status, 400);
+        response = await get(port, correctionRequestPath("end", "local_Exposure", 0.5,
+            Object.assign({}, binding, { selectedMaskGroupId: "mask-other" }), gestureId));
+        assert.equal(response.status, 409);
+        response = await get(port, correctionRequestPath("begin", "local_Exposure", null, binding, gestureId));
+        assert.equal(response.status, 200);
+        response = await get(port, correctionRequestPath("update", "local_Exposure", 0.5, binding, gestureId));
+        assert.equal(response.status, 200);
+        response = await get(port, correctionRequestPath("update", "local_Exposure", 0.75, binding, gestureId));
+        assert.equal(response.status, 200);
+        assert.equal(response.body.coalesced, true);
+        response = await get(port, correctionRequestPath("end", "local_Exposure", 1.25, binding, gestureId));
+        assert.equal(response.status, 200);
+        assert.equal(response.body.coalesced, true);
+        let diagnostics = commands.getQueueDiagnostics();
+        assert.equal(diagnostics.queue.pending.byCommand["masking.correction.gesture.begin"], 1);
+        assert.equal(diagnostics.queue.pending.byCommand["masking.correction.gesture.update"], 0);
+        assert.equal(diagnostics.queue.pending.byCommand["masking.correction.gesture.end"], 1);
+        assert.ok(diagnostics.counters.coalescedCommands >= 2,
+            "rapid correction values must coalesce to the final pending write");
+        const begin = commands.getNextCommand();
+        const end = commands.getNextCommand();
+        assert.equal(begin.command, "masking.correction.gesture.begin");
+        assert.equal(end.command, "masking.correction.gesture.end");
+        assert.equal(end.value, 1.25);
+        assert.equal(end.expectedSelectedMaskId, "mask-b");
+        assert.equal(commands.getNextCommand(), null);
+
+        response = await submitCorrectionResult(port, end, 1.25,
+            snapshot({ corrections: representativeCorrections(1.25) }));
+        assert.equal(response.status, 200, "immediate Lightroom readback must settle through the correction endpoint");
+        state = (await get(port, "/masking/state")).body;
+        assert.equal(maskingCorrections.correctionFor(state.corrections, "local_Exposure").value, 1.25);
+        assert.equal(state.lastCorrectionResult.sequence, end.correctionSequence);
+        assert.equal(state.lastCorrectionResult.outcome, "confirmed");
+        response = await submitCorrectionResult(port, end, 1.25,
+            snapshot({ corrections: representativeCorrections(0.5) }));
+        assert.equal(response.status, 409, "duplicate and out-of-order immediate feedback must be rejected");
+
+        state = (await get(port, "/masking/state")).body;
+        let nextBinding = Object.assign({ selectedMaskGroupId: state.selectedMaskGroupId }, suppliedBinding(state));
+        response = await get(port, correctionRequestPath("reset", "local_Exposure", null, nextBinding));
+        assert.equal(response.status, 200);
+        const reset = commands.getNextCommand();
+        assert.equal(reset.command, "masking.correction.reset");
+        response = await submitCorrectionResult(port, reset, undefined,
+            snapshot({ corrections: representativeCorrections(0) }));
+        assert.equal(response.status, 200);
+        assert.equal(maskingCorrections.correctionFor((await get(port, "/masking/state")).body.corrections,
+            "local_Exposure").value, 0, "individual reset must settle to Lightroom's native returned default");
+
+        state = (await get(port, "/masking/state")).body;
+        nextBinding = Object.assign({ selectedMaskGroupId: state.selectedMaskGroupId }, suppliedBinding(state));
+        response = await get(port, correctionRequestPath("reset", "local_Grain", null, nextBinding));
+        assert.equal(response.status, 409, "runtime-unsupported parameters must not enter the queue");
+
+        response = await get(port, correctionRequestPath("end", "local_Exposure", 2, nextBinding, "mg-old-mask"));
+        assert.equal(response.status, 200);
+        await new Promise(function (resolve) { setTimeout(resolve, 420); });
+        await get(port, "/masking/state");
+        request = (await get(port, "/masking/next")).body.request;
+        assert.ok(request);
+        response = await submitQueryResult(port, request, snapshot({
+            selectedMaskGroupIndex: 3, selectedMaskGroupId: "mask-c", nextAvailable: false,
+            selectedMaskToolIndex: 1, selectedMaskToolId: "tool-c1", previousMaskToolAvailable: false,
+            corrections: representativeCorrections(-1)
+        }));
+        assert.equal(response.status, 200);
+        assert.equal(commands.getNextCommand(), null,
+            "a queued correction must be discarded if another mask is selected before dequeue");
+
+        state = (await get(port, "/masking/state")).body;
+        nextBinding = Object.assign({ selectedMaskGroupId: state.selectedMaskGroupId }, suppliedBinding(state));
+        response = await get(port, correctionRequestPath("end", "local_Exposure", -0.5,
+            nextBinding, "mg-old-context"));
+        assert.equal(response.status, 200);
+        response = await get(port, "/context/update?" + queryString({
+            activeModule: "library", selectedPhotoUuid: "photo-corrections", selectedPhotoPath: "C:/corrections.dng",
+            developFingerprint: "correction-fingerprint-2"
+        }));
+        assert.equal(response.status, 200);
+        assert.equal(commands.getNextCommand(), null,
+            "photo/module context cancellation must discard pending Masking correction writes");
+    } finally {
+        commands.resetQueueForTests();
+        await bridge.stop();
+    }
 }
 
 function operationRequestPath(kind, value, binding) {
@@ -2548,9 +3871,16 @@ function testPhotographerPresentationAndSourceContract() {
     const ctx = context();
     const authoritative = Object.assign({ ok: true, serverEpoch: "epoch", revision: 5 }, ctx, snapshot());
     assert.equal(maskingUi.present(authoritative, ctx, null).position, "Mask 2 of 3");
+    const namedAuthoritative = Object.assign({}, authoritative, { selectedMaskGroupName: "MOJA JEBENA MASKA!" });
+    assert.equal(maskingUi.present(namedAuthoritative, ctx, null).position, "MOJA JEBENA MASKA! — Mask 2 of 3");
     assert.equal(maskingUi.present(authoritative, ctx, null).panelLabel, "Close Masking");
     assert.equal(maskingUi.present(authoritative, ctx, null).previousDisabled, false);
-    assert.equal(maskingUi.present(authoritative, ctx, null).componentPosition, "Component 2 of 3");
+    assert.equal(maskingUi.present(authoritative, ctx, null).componentPosition, "Brush 2 — Component 2 of 3");
+    const namelessComponent = Object.assign({}, authoritative, { selectedMaskToolName: null });
+    assert.equal(maskingUi.present(namelessComponent, ctx, null).componentPosition, "Component 2 of 3",
+        "generic component position is the fallback only when Lightroom provides no usable name");
+    assert.equal(maskingUi.present(authoritative, context({ selectedPhotoUuid: "another-photo" }), null).componentPosition, "",
+        "a context change must clear the previous component name immediately");
     assert.equal(maskingUi.present(authoritative, ctx, null).previousComponentDisabled, false);
     assert.equal(maskingUi.present(authoritative, ctx, null).nextComponentDisabled, false);
     assert.equal(maskingUi.present(authoritative, ctx, null).maskVisibilityLabel, "Hide Mask");
@@ -2589,6 +3919,11 @@ function testPhotographerPresentationAndSourceContract() {
     });
     assert.equal(pendingPresentation.position, "Mask 2 of 3",
         "pending intent must not replace confirmed Lightroom position");
+    assert.equal(maskingUi.present(namedAuthoritative, ctx, {
+        activeOperation: { kind: "navigate", direction: "next", operationId: "test-op" },
+        desiredMaskGroupIndex: 3,
+        navigationIntentActive: true
+    }).position, "Mask 2 of 3", "mask navigation must not leak the previous mask's name while loading");
     assert.equal(pendingPresentation.status, "Moving to Mask 3…");
     assert.equal(pendingPresentation.previousDisabled, false,
         "reverse direction must remain clickable while navigation is serialized");
@@ -2618,7 +3953,8 @@ function testPhotographerPresentationAndSourceContract() {
     const empty = Object.assign({}, authoritative, {
         maskGroupCount: 0, hasSelectedMaskGroup: false, selectedMaskGroupIndex: null, selectedMaskGroupId: null,
         selectedMaskHidden: null, previousAvailable: false, nextAvailable: false,
-        selectedMaskToolAvailable: false, selectedMaskToolId: null, selectedMaskToolHidden: null,
+        selectedMaskToolAvailable: false, selectedMaskToolId: null, selectedMaskToolName: null,
+        selectedMaskToolType: null, selectedMaskToolSubtype: null, selectedMaskToolHidden: null,
         selectedMaskToolCount: null, selectedMaskToolIndex: null,
         previousMaskToolAvailable: false, nextMaskToolAvailable: false
     });
@@ -2642,13 +3978,20 @@ function testPhotographerPresentationAndSourceContract() {
     const parserLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/Parser.lua"), "utf8");
     const feedbackLua = fs.readFileSync(path.join(root, "lightroom/LRBridge.lrplugin/FeedbackPolling.lua"), "utf8");
     const maskingControllerSource = fs.readFileSync(path.join(root, "app/controller-masking.js"), "utf8");
+    const maskingCorrectionsSource = fs.readFileSync(path.join(root, "app/controller-masking-corrections.js"), "utf8");
     const controllerHtml = fs.readFileSync(path.join(root, "app/controller.html"), "utf8");
     const electronMain = fs.readFileSync(path.join(root, "app/main.js"), "utf8");
     assert.equal(fs.existsSync(path.join(root, "lightroom/LRBridge.lrplugin/MaskingDiagnostic.lua")), false,
         "the one-shot runtime diagnostic module must be removed after evidence capture");
     assert.equal(lua.includes("MaskingDiagnostic"), false,
         "the one-shot runtime diagnostic import and capture hook must be removed");
-    assert.equal(lua.includes("io.open"), false, "Masking production state must not contain temporary file logging");
+    const deletionTraceStart = lua.indexOf("local function traceDeletion(");
+    const deletionTraceEnd = lua.indexOf("local function sendOperationResult(", deletionTraceStart);
+    const deletionTrace = lua.slice(deletionTraceStart, deletionTraceEnd);
+    assert.match(deletionTrace, /command.command ~= "masking.selected.delete" and command.command ~= "masking.all.delete" then return end/,
+        "the newly authorized diagnostic must be scoped to deletion commands");
+    assert.equal((lua.slice(0, deletionTraceStart) + lua.slice(deletionTraceEnd)).includes("io.open"), false,
+        "no temporary file logging outside the authorized deletion evidence helper");
     assert.ok(lua.indexOf("getSelectedTool") < lua.indexOf("getAllMasks"));
     assert.ok(lua.indexOf("getAllMasks") < lua.indexOf("getSelectedMask"));
     assert.match(lua, /denseArrayLength\(mask\.Tools, MAX_MASK_TOOLS_PER_GROUP\)/,
@@ -2657,6 +4000,19 @@ function testPhotographerPresentationAndSourceContract() {
         "mask and tool arrays must remain dense rather than accepting missing navigation entries");
     assert.match(lua, /local groupFields = \{ ID = true, Name = true, Hidden = true, Tools = true \}/,
         "only the observed Lightroom 15.3 group metadata may be tolerated");
+    assert.match(lua, /Name = validMaskName\(mask\.Name\) and mask\.Name or nil/,
+        "the authoritative getAllMasks inventory must preserve each usable Lightroom mask name");
+    assert.match(lua, /snapshot\.selectedMaskGroupName = mask\.Name/,
+        "the selected mask's authoritative name must be published with its identity");
+    assert.match(lua, /&selectedMaskGroupName=/,
+        "mask names must cross the same context-bound snapshot feedback path as mask IDs");
+    assert.match(lua, /snapshot\.selectedMaskToolName = maskTool\.Name/,
+        "the selected component's authoritative Lightroom inventory name must be published");
+    assert.match(lua, /snapshot\.selectedMaskToolType = maskTool\.Type/);
+    assert.match(lua, /snapshot\.selectedMaskToolSubtype = maskTool\.Subtype/);
+    assert.match(lua, /&selectedMaskToolName=/);
+    assert.match(lua, /&selectedMaskToolType=/);
+    assert.match(lua, /&selectedMaskToolSubtype=/);
     assert.match(lua, /MaskSubCategoryID = true/,
         "the observed optional tool subcategory metadata must remain explicitly allowlisted");
     assert.match(lua, /not validOpaqueId\(tool\.ID\) or toolIds\[tool\.ID\] == true/,
@@ -2697,6 +4053,22 @@ function testPhotographerPresentationAndSourceContract() {
         "the master Masking Corrections switch remains deferred");
     assert.match(lua, /LrDevelopController\.goToMasking\(\)/);
     assert.match(lua, /LrDevelopController\.selectTool\("loupe"\)/);
+    for (const definition of maskingCorrections.definitions) {
+        assert.match(lua, new RegExp('"' + definition.parameter + '"'),
+            definition.parameter + " must remain in the Lightroom runtime capability probe");
+        assert.match(maskingCorrectionsSource, new RegExp('parameter: "' + definition.parameter + '"'));
+    }
+    assert.match(lua, /LrDevelopController\.getRange\(parameter\)/,
+        "correction ranges must come from Lightroom rather than a hardcoded registry");
+    assert.match(lua, /LrDevelopController\.getValue\(parameter\)/,
+        "correction values must come from Lightroom for the selected group");
+    assert.match(lua, /LrDevelopController\.setValue\(command\.parameter, command\.value\)/);
+    assert.match(lua, /LrDevelopController\.resetToDefault\(command\.parameter\)/);
+    assert.match(lua, /LrDevelopController\.startTracking\(command\.parameter\)/);
+    assert.match(lua, /LrDevelopController\.stopTracking\(true\)/,
+        "local correction gesture closure must identify a local parameter");
+    assert.doesNotMatch(maskingCorrectionsSource, /default\s*:/,
+        "the controller must not invent correction defaults");
     const panelBlock = lua.slice(lua.indexOf("local function executePanel"),
         lua.indexOf("local function executeNavigation"));
     assert.match(panelBlock,
@@ -2722,11 +4094,16 @@ function testPhotographerPresentationAndSourceContract() {
         "a photo without masks must remain an authoritative successful open state");
     assert.match(commandsLua,
         /masking\.panel\.set[\s\S]*masking\.group\.navigate[\s\S]*masking\.tool\.navigate[\s\S]*masking\.group\.visibility\.set[\s\S]*masking\.tool\.visibility\.set[\s\S]*Masking\.execute/);
+    assert.match(commandsLua, /string\.sub\(command\.command, 1, 19\) == "masking\.correction\."[\s\S]*Masking\.execute/);
     assert.match(parserLua, /expectedSelectedMaskToolId/);
     assert.match(parserLua, /expectedHidden/);
+    assert.match(parserLua, /correctionSequence/);
+    assert.match(parserLua, /parameter = parameter/);
     assert.match(feedbackLua, /\/masking\/next[\s\S]*Masking\.sendRequestedSnapshot/);
     assert.match(controllerHtml, /<script src="\/controller-masking\.js"><\/script>/);
+    assert.match(controllerHtml, /<script src="\/controller-masking-corrections\.js"><\/script>/);
     assert.match(electronMain, /requestUrl\.pathname === "\/controller-masking\.js"/);
+    assert.match(electronMain, /requestUrl\.pathname === "\/controller-masking-corrections\.js"/);
     assert.match(maskingControllerSource, /desiredMaskGroupIndex/);
     assert.match(maskingControllerSource, /navigationIntentActive/);
     assert.match(maskingControllerSource, /driveNavigation\(\)/);
@@ -2745,6 +4122,18 @@ function testPhotographerPresentationAndSourceContract() {
     assert.match(maskingControllerSource, /Click to show component/);
     assert.match(maskingControllerSource, /\/api\/masking\/group\/visibility\?hidden=/);
     assert.match(maskingControllerSource, /\/api\/masking\/tool\/visibility\?hidden=/);
+    assert.match(maskingControllerSource, /\/api\/masking\/correction\/gesture\//);
+    assert.match(maskingControllerSource, /\/api\/masking\/correction\/reset\?/);
+    assert.match(maskingControllerSource, /masking-correction-group/);
+    assert.match(maskingControllerSource, /develop-slider-row masking-correction-row/,
+        "Masking corrections must reuse generic slider row structure");
+    assert.match(maskingControllerSource, /\["GrainSize", "GrainFrequency"\]/,
+        "Masking Effects must embed the two established global Grain parameters");
+    assert.match(maskingControllerSource, /Size and Roughness are global settings shared across all Grain tools\./);
+    assert.match(controllerHtml, /createSharedDevelopSliderControl:[\s\S]*developSliderDefinitions\.find[\s\S]*createDevelopSliderControl\(definition\)/,
+        "shared Masking Grain rows must be built from the canonical global slider definitions and controller");
+    assert.match(controllerHtml, /connectedDevelopSliderControls\(slider\)\.forEach/,
+        "authoritative global feedback must update every connected instance of a shared Grain slider");
     assert.match(maskingControllerSource, /createElementNS\(namespace, "svg"\)/,
         "Masking visibility must use dependency-free inline SVG");
     assert.match(maskingControllerSource, /masking-eye-open-icon/);
@@ -2777,10 +4166,14 @@ function testPhotographerPresentationAndSourceContract() {
         "hidden Masking visibility must retain light action text");
     assert.doesNotMatch(maskingControllerSource, /if \(localIntent \|\|/,
         "rapid Masking clicks must not be discarded by the old pending-intent guard");
-    for (const forbidden of ["loadstring", "executeTemplate", "deleteMask", "resetMasking", "createNewMask",
+    for (const forbidden of ["loadstring", "executeTemplate",
         "LrShell", "keystroke", "mouse_event", "SendKeys"]) {
-        assert.equal(lua.includes(forbidden), false, "Masking Phase 1 must not use " + forbidden);
+        assert.equal(lua.includes(forbidden), false, "Masking must not use " + forbidden);
     }
+    assert.match(lua, /LrDevelopController\.resetMasking\(\)/,
+        "Delete All Masks must use Lightroom's native resetMasking operation");
+    assert.match(lua, /LrDevelopController\.deleteMask\(command.expectedSelectedMaskId\)/,
+        "Delete Mask must target the whole selected group by its bound ID");
     const readSnapshotBlock = lua.slice(lua.indexOf("local function readSnapshot"),
         lua.indexOf("local function queryValue"));
     for (const mutation of ["selectMask(", "selectMaskTool(", "goToMasking(", "selectTool(", "setValue(",
@@ -2792,13 +4185,54 @@ function testPhotographerPresentationAndSourceContract() {
 }
 
 (async function run() {
+    if (process.argv.includes("--operations-only")) {
+        testStateMachine();
+        testVisibilityStateMachine();
+        testOpenMaskingSelectionSettlement();
+        testSemanticRevisionFreshness();
+        testCorrectionMetadataAndStateMachine();
+        testPhotographerPresentationAndSourceContract();
+        await testRenderedCorrectionControls();
+        await testRenderedPanelOperationsStaySeparate();
+        await testRenderedOperationErrorOwnership();
+        await testCorrectionHttpQueueAndFeedback();
+        await testHttpAndQueueContract();
+        await testHttpSemanticRevisionRace();
+        console.log("Existing Masking operation, correction, HTTP/queue, settlement and stale-context checks passed.");
+        return;
+    }
+    if (process.argv.includes("--grain-only")) {
+        await testSharedGrainControls();
+        await testGrainPendingFeedback();
+        console.log("Masking shared Grain rows, pending SDK display, error and navigation safeguards passed.");
+        return;
+    }
+    if (process.argv.includes("--tone-curve-only")) {
+        await testMaskToneCurvePresetFeedback();
+        await testMaskToneCurveHttpLuaWritePath();
+        console.log("Mask Tone Curve native-name feedback, Web settlement, mask switching and HTTP guards passed.");
+        return;
+    }
+    if (process.argv.includes("--presets-only")) {
+        testPresetIdentityUnavailableWithoutNativeSdkState();
+        await testPresetInventorySurvivesContextGenerationChange();
+        await testLocalPresetHttpCommandPath();
+        console.log("Focused saved-preset application, all 18 native-choice exclusions, settlement and context protections passed.");
+        return;
+    }
     testStateMachine();
     testVisibilityStateMachine();
     testOpenMaskingSelectionSettlement();
     testSemanticRevisionFreshness();
+    testPresetIdentityUnavailableWithoutNativeSdkState();
     testLightroom153RuntimeInventoryFixture();
+    testCorrectionMetadataAndStateMachine();
     testPhotographerPresentationAndSourceContract();
+    await testPresetInventorySurvivesContextGenerationChange();
     await testRenderedRapidFinalIntentSequences();
+    await testRenderedCorrectionControls();
+    await testSharedGrainControls();
+    await testGrainPendingFeedback();
     await testRenderedComponentNavigation();
     await testRenderedVisibilityControls();
     await testRenderedBoundaryClamping();
@@ -2807,9 +4241,14 @@ function testPhotographerPresentationAndSourceContract() {
     await testRenderedPersistentErrorsAndRecovery();
     await testRenderedPanelOperationsStaySeparate();
     await testRenderedOperationErrorOwnership();
+    await testPointColorHttpRequestShapes();
+    await testMaskToneCurveHttpLuaWritePath();
+    await testMaskToneCurvePresetFeedback();
+    await testLocalPresetHttpCommandPath();
+    await testCorrectionHttpQueueAndFeedback();
     await testHttpAndQueueContract();
     await testHttpSemanticRevisionRace();
-    console.log("Masking authoritative state, visibility, serialized navigation, queue, Lightroom source, and controller tests passed.");
+    console.log("Masking navigation, visibility, authoritative corrections, queue, Lightroom source, and controller tests passed.");
 })().catch(function (error) {
     console.error(error);
     process.exitCode = 1;

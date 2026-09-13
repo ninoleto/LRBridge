@@ -4,6 +4,11 @@
 
 ### Added
 
+- Added authoritative Masking corrections, compatible saved adjustment presets, and shared Point Color/Refine and Tone Curve controls, retaining SDK context and stale-feedback protections.
+- Added Masking Grain Amount plus globally shared Size/Roughness, with Lightroom-style grouping and the shared-value explanation.
+- Added one shared sticky Undo/Redo pair across Web Controller pages using Lightroom's authoritative history availability.
+- Added a responsive touch-friendly Create New Mask picker with Lightroom's 12 labels and order, plus Delete Mask and counted-confirmation Delete All Masks actions.
+
 - Replaced the Web Controller's relative Develop button grids with 93 reusable metadata-driven absolute slider controls, synchronized numeric inputs, individual Reset buttons, and authoritative Lightroom feedback with an explicit unavailable state.
 - Corrected generic slider initialization so every new feedback request ID receives a complete snapshot even when Lightroom values are unchanged. Active-photo changes now invalidate old values and distinguish Loading, explicit Unavailable, and feedback errors; runtime SDK ranges are returned with each available value.
 - Improved generic slider editing with signed-decimal text fields, step-based `−`/`+` buttons, larger range thumbs, and a metadata-driven logarithmic Temperature visual scale while preserving actual Lightroom values and linear Tint behavior.
@@ -19,6 +24,9 @@
 - Added an isolated `LrApplicationView` dispatcher for module, primary-view, application-action, and secondary-view control.
 
 ### Changed
+
+- Masking Grain adjustments preserve Lightroom panel position and Web viewport stability. Routine same-context Tone Curve feedback updates silently in place with stable graph/status layout.
+- Selected-mask deletion now confirms complete inventory removal and recovers a surviving mask/component selection. The admission response includes its selected-mask target so Web retains the operation until authoritative confirmation; obsolete warning recovery preserves unrelated errors. The user confirmed deletion, automatic replacement selection and the final success message in the tested live case.
 
 - Hardened `/set` and `/reset` validation and added latest-state queue coalescing per Develop slider. Relative `/adjust` ordering remains unchanged, and rapid Temperature/Tint interaction retains the existing Auto Tone / Auto White Balance cooldown.
 - Fixed Lightroom polling parsing so string `value` and `scope` fields survive queue JSON transport for Photo Treatment and Show in Explorer.

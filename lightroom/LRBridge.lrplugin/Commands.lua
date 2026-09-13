@@ -79,9 +79,13 @@ function Commands.execute(command)
     if command.command == "develop_presets.inventory.request" then DevelopPresets.refreshInventory(command.requestId); return end
     if command.command == "develop_preset.apply" then DevelopPresets.apply(command); return end
     if command.command == "develop_preset.amount.set" then DevelopPresets.setAmount(command); return end
-    if command.command == "masking.panel.set" or command.command == "masking.group.navigate" or
+    if command.command == "masking.create" or command.command == "masking.panel.set" or command.command == "masking.group.navigate" or
         command.command == "masking.tool.navigate" or command.command == "masking.group.visibility.set" or
-        command.command == "masking.tool.visibility.set" then Masking.execute(command); return end
+        command.command == "masking.tool.visibility.set" or command.command == "masking.all.delete" or command.command == "masking.selected.delete" or
+        command.command == "masking.selected.reset" or command.command == "masking.preset.apply" or
+        string.sub(command.command, 1, 20) == "masking.point_color." or
+        string.sub(command.command, 1, 19) == "masking.tone_curve." or
+        string.sub(command.command, 1, 19) == "masking.correction." then Masking.execute(command); return end
 
     if command.command == "develop.adjust" then
 
@@ -97,7 +101,8 @@ function Commands.execute(command)
 
         Driver.setSlider(
             command.slider,
-            command.value
+            command.value,
+            command
         )
 
         return
@@ -106,7 +111,8 @@ function Commands.execute(command)
     if command.command == "develop.reset" then
 
         Driver.resetSlider(
-            command.slider
+            command.slider,
+            command
         )
 
         return

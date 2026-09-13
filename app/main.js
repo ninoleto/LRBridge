@@ -28,9 +28,11 @@ const controllerColorGradingPath = path.join(__dirname, "controller-color-gradin
 const controllerLensBlurPath = path.join(__dirname, "controller-lens-blur.js");
 const controllerDenoiseStatePath = path.join(__dirname, "controller-denoise-state.js");
 const controllerDevelopCategoricalPath = path.join(__dirname, "controller-develop-categorical.js");
+const controllerPointColorPath = path.join(__dirname, "controller-point-color.js");
 const controllerToneCurvePath = path.join(__dirname, "controller-tone-curve.js");
 const controllerSectionCollapsePath = path.join(__dirname, "controller-section-collapse.js");
 const controllerDevelopPresetsPath = path.join(__dirname, "controller-develop-presets.js");
+const controllerMaskingCorrectionsPath = path.join(__dirname, "controller-masking-corrections.js");
 const controllerMaskingPath = path.join(__dirname, "controller-masking.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
@@ -414,6 +416,12 @@ async function handleControllerRequest(request, response) {
         return;
     }
 
+    if (requestUrl.pathname === "/controller-point-color.js") {
+        const script = fs.readFileSync(controllerPointColorPath, "utf8");
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
+        return;
+    }
+
     if (requestUrl.pathname === "/controller-section-collapse.js") {
         const script = fs.readFileSync(controllerSectionCollapsePath, "utf8");
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
@@ -428,6 +436,12 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/controller-masking.js") {
         const script = fs.readFileSync(controllerMaskingPath, "utf8");
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-masking-corrections.js") {
+        const script = fs.readFileSync(controllerMaskingCorrectionsPath, "utf8");
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
         return;
     }
@@ -576,12 +590,10 @@ async function handleControllerRequest(request, response) {
     }
 
     if (requestUrl.pathname === "/api/reset") {
-        const slider = requestUrl.searchParams.get("slider") || "";
-
         await proxyControllerRequest(
             request,
             response,
-            "/reset?slider=" + encodeURIComponent(slider)
+            "/reset" + requestUrl.search
         );
 
         return;

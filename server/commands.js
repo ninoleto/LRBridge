@@ -8,6 +8,8 @@ const context = require("./context");
 const developCategorical = require("./develop-categorical-state");
 const profileSdkRegistry = require("./profile-sdk-registry");
 const pointCurve = require("./point-curve-state");
+const maskingCorrections = require("../app/controller-masking-corrections");
+const localPresets = require("./local-adjustment-presets");
 
 const commandQueue = [];
 let latestResult = null;
@@ -181,6 +183,7 @@ function validateCommand(command) {
         ,"develop_presets.inventory.request"
         ,"develop_preset.apply"
         ,"develop_preset.amount.set"
+        ,"masking.create"
         ,"masking.panel.set"
         ,"masking.group.navigate"
         ,"masking.tool.navigate"
@@ -292,14 +295,15 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedFeedbackId) && command.expectedFeedbackId > 0;
     }
 
-    if (command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+    if (command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
         command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
         command.command === "masking.tool.visibility.set") {
         const visibility = command.command === "masking.group.visibility.set" ||
             command.command === "masking.tool.visibility.set";
         const navigation = command.command === "masking.group.navigate" || command.command === "masking.tool.navigate";
         const toolNavigation = command.command === "masking.tool.navigate";
-        if (Object.keys(command).length !== (visibility ? 13 : (toolNavigation ? 12 : (navigation ? 11 : 10))) ||
+        const creation = command.command === "masking.create";
+        if (Object.keys(command).length !== (creation ? 12 : visibility ? 13 : (toolNavigation ? 12 : (navigation ? 11 : 10))) ||
             typeof command.operationId !== "string" || !/^mo-\d{1,15}$/.test(command.operationId) ||
             command.expectedActiveModule !== "develop" ||
             typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
@@ -309,6 +313,8 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedContextChangedAt) === false || command.expectedContextChangedAt < 0 ||
             typeof command.expectedServerEpoch !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) ||
             Number.isSafeInteger(command.expectedMaskingRevision) === false || command.expectedMaskingRevision < 1) return false;
+        if (creation) return Boolean(maskingCorrections.creationType(command.maskType, command.maskSubtype)) &&
+            Number.isSafeInteger(command.expectedMaskCount) && command.expectedMaskCount >= 0 && command.expectedMaskCount < 512;
         if (!visibility && !navigation) return typeof command.open === "boolean";
         const validMaskId = typeof command.expectedSelectedMaskId === "string" &&
             command.expectedSelectedMaskId.length >= 1 && command.expectedSelectedMaskId.length <= 256 &&
@@ -321,6 +327,149 @@ function validateCommand(command) {
             typeof command.expectedHidden === "boolean" && command.hidden !== command.expectedHidden;
         if (command.direction !== "previous" && command.direction !== "next") return false;
         return !toolNavigation || validToolId;
+    }
+
+    if (command.command === "masking.all.delete" || command.command === "masking.selected.delete" || command.command === "masking.selected.reset" ||
+        command.command === "masking.preset.apply") {
+        const deleteAll = command.command === "masking.all.delete";
+        const deleteSelected = command.command === "masking.selected.delete";
+        const preset = command.command === "masking.preset.apply";
+        if (Object.keys(command).length !== (deleteSelected ? 11 : (preset ? 16 : 10)) ||
+            typeof command.operationId !== "string" || !/^mo-\d{1,15}$/.test(command.operationId) ||
+            command.expectedActiveModule !== "develop" ||
+            typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
+            command.expectedSelectedPhotoUuid.length > 200 ||
+            !Number.isSafeInteger(command.expectedContextCounter) || command.expectedContextCounter < 0 ||
+            !Number.isSafeInteger(command.expectedDevelopCounter) || command.expectedDevelopCounter < 0 ||
+            !Number.isSafeInteger(command.expectedContextChangedAt) || command.expectedContextChangedAt < 0 ||
+            typeof command.expectedServerEpoch !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) ||
+            !Number.isSafeInteger(command.expectedMaskingRevision) || command.expectedMaskingRevision < 1) return false;
+        if (deleteAll) return Number.isSafeInteger(command.expectedMaskCount) &&
+            command.expectedMaskCount >= 1 && command.expectedMaskCount <= 512;
+        if (typeof command.expectedSelectedMaskId !== "string" || command.expectedSelectedMaskId.length < 1 ||
+            command.expectedSelectedMaskId.length > 256 || /[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId)) return false;
+        if (deleteSelected) return Number.isSafeInteger(command.expectedMaskCount) &&
+            command.expectedMaskCount >= 1 && command.expectedMaskCount <= 512;
+        if (!preset) return true;
+        if (typeof command.expectedSelectedMaskToolId !== "string" || command.expectedSelectedMaskToolId.length < 1 ||
+            command.expectedSelectedMaskToolId.length > 256 || /[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId)) return false;
+        if (typeof command.preset !== "string" || !/^[A-Za-z0-9_-]{1,80}$/.test(command.preset)) return false;
+        if (command.presetKind === "file") {
+            return typeof command.presetFile === "string" && command.presetFile.length <= 180 &&
+                /^[^"\\/\u0000-\u001f\u007f]+\.lrtemplate$/i.test(command.presetFile) &&
+                command.presetParameter === null && command.presetValue === null;
+        }
+        return command.presetKind === "builtin" && command.presetFile === null &&
+            typeof command.presetParameter === "string" &&
+            Object.prototype.hasOwnProperty.call(maskingCorrections.byParameter, command.presetParameter) &&
+            localPresets.validBuiltinPreset(command.preset, command.presetParameter, command.presetValue);
+    }
+
+    if (command.command === "masking.point_color.tool.select" ||
+        command.command === "masking.point_color.range_visualization.toggle") {
+        return Object.keys(command).length === 11 &&
+            typeof command.operationId === "string" && /^mo-\d{1,15}$/.test(command.operationId) &&
+            command.expectedActiveModule === "develop" &&
+            typeof command.expectedSelectedPhotoUuid === "string" && command.expectedSelectedPhotoUuid.length >= 1 &&
+            command.expectedSelectedPhotoUuid.length <= 200 &&
+            Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
+            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0 &&
+            Number.isSafeInteger(command.expectedContextChangedAt) && command.expectedContextChangedAt >= 0 &&
+            typeof command.expectedServerEpoch === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) &&
+            Number.isSafeInteger(command.expectedMaskingRevision) && command.expectedMaskingRevision >= 1 &&
+            typeof command.expectedSelectedMaskId === "string" && command.expectedSelectedMaskId.length >= 1 &&
+            command.expectedSelectedMaskId.length <= 256 && !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId) &&
+            typeof command.expectedSelectedMaskToolId === "string" && command.expectedSelectedMaskToolId.length >= 1 &&
+            command.expectedSelectedMaskToolId.length <= 256 && !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskToolId);
+    }
+
+    if (command.command === "masking.correction.gesture.begin" ||
+        command.command === "masking.correction.gesture.update" ||
+        command.command === "masking.correction.gesture.end" ||
+        command.command === "masking.correction.gesture.cancel" || command.command === "masking.correction.reset") {
+        const gesture = command.command !== "masking.correction.reset";
+        const carriesValue = command.command === "masking.correction.gesture.update" ||
+            command.command === "masking.correction.gesture.end";
+        if (Object.keys(command).length !== (gesture ? (carriesValue ? 13 : 12) : 11) ||
+            !Number.isSafeInteger(command.correctionSequence) || command.correctionSequence < 1 ||
+            !Object.prototype.hasOwnProperty.call(maskingCorrections.byParameter, command.parameter) ||
+            typeof command.expectedSelectedMaskId !== "string" || command.expectedSelectedMaskId.length < 1 ||
+            command.expectedSelectedMaskId.length > 256 || /[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId) ||
+            command.expectedActiveModule !== "develop" ||
+            typeof command.expectedSelectedPhotoUuid !== "string" || command.expectedSelectedPhotoUuid.length < 1 ||
+            command.expectedSelectedPhotoUuid.length > 200 ||
+            !Number.isSafeInteger(command.expectedContextCounter) || command.expectedContextCounter < 0 ||
+            !Number.isSafeInteger(command.expectedDevelopCounter) || command.expectedDevelopCounter < 0 ||
+            !Number.isSafeInteger(command.expectedContextChangedAt) || command.expectedContextChangedAt < 0 ||
+            typeof command.expectedServerEpoch !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) ||
+            !Number.isSafeInteger(command.expectedMaskingRevision) || command.expectedMaskingRevision < 1) return false;
+        if (gesture && (typeof command.gestureId !== "string" ||
+            !/^mg-[A-Za-z0-9_-]{1,60}$/.test(command.gestureId))) return false;
+        return !carriesValue || Number.isFinite(command.value);
+    }
+
+    if (command.command.startsWith("masking.point_color.") || command.command.startsWith("masking.tone_curve.")) {
+        const validBase = Number.isSafeInteger(command.editSequence) && command.editSequence >= 1 &&
+            typeof command.expectedSelectedMaskId === "string" && command.expectedSelectedMaskId.length >= 1 &&
+            command.expectedSelectedMaskId.length <= 256 && !/[\u0000-\u001f\u007f]/.test(command.expectedSelectedMaskId) &&
+            command.expectedActiveModule === "develop" && typeof command.expectedSelectedPhotoUuid === "string" &&
+            command.expectedSelectedPhotoUuid.length >= 1 && command.expectedSelectedPhotoUuid.length <= 200 &&
+            Number.isSafeInteger(command.expectedContextCounter) && command.expectedContextCounter >= 0 &&
+            Number.isSafeInteger(command.expectedDevelopCounter) && command.expectedDevelopCounter >= 0 &&
+            Number.isSafeInteger(command.expectedContextChangedAt) && command.expectedContextChangedAt >= 0 &&
+            typeof command.expectedServerEpoch === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(command.expectedServerEpoch) &&
+            Number.isSafeInteger(command.expectedMaskingRevision) && command.expectedMaskingRevision >= 1;
+        if (!validBase) return false;
+        if (command.command === "masking.point_color.value.set") {
+            return Object.keys(command).length === 13 && pointColor.validValue(command.field, command.value) &&
+                Number.isSafeInteger(command.expectedSelectedIndex) && command.expectedSelectedIndex >= 1 &&
+                command.expectedSelectedIndex <= 8;
+        }
+        if (command.command === "masking.point_color.range.set") {
+            return Object.keys(command).length === 14 && pointColor.validRangeValue(command.range, command.boundary, command.value) &&
+                Number.isSafeInteger(command.expectedSelectedIndex) && command.expectedSelectedIndex >= 1 &&
+                command.expectedSelectedIndex <= 8;
+        }
+        if (command.command === "masking.point_color.range.translate") {
+            const translated = { LowerNone: command.LowerNone, LowerFull: command.LowerFull,
+                UpperFull: command.UpperFull, UpperNone: command.UpperNone };
+            return Object.keys(command).length === 16 && pointColor.validRangeTranslation(command.range, translated) &&
+                pointColor.safeFullRangeWidth(translated) && Number.isSafeInteger(command.expectedSelectedIndex) &&
+                command.expectedSelectedIndex >= 1 && command.expectedSelectedIndex <= 8;
+        }
+        if (command.command === "masking.point_color.sample.select") {
+            return Object.keys(command).length === 11 && Number.isSafeInteger(command.selectedIndex) &&
+                command.selectedIndex >= 1 && command.selectedIndex <= 8;
+        }
+        const curveGesture = command.command.match(/^masking\.tone_curve\.gesture\.(begin|update|end|cancel)$/);
+        if (curveGesture) {
+            const carriesPoints = curveGesture[1] === "update" || curveGesture[1] === "end";
+            return Object.keys(command).length === (carriesPoints ? 15 : 14) && pointCurve.validChannel(command.channel) &&
+                command.field === ({ rgb: "local_Maincurve", red: "local_Redcurve", green: "local_Greencurve",
+                    blue: "local_Bluecurve" })[command.channel] &&
+                pointCurve.GESTURE_ID_PATTERN.test(command.gestureId || "") &&
+                pointCurve.validCurveArray(command.expectedPoints) &&
+                (!carriesPoints || pointCurve.validCurveArray(command.points));
+        }
+        if (command.command === "masking.tone_curve.reset") {
+            return Object.keys(command).length === 13 && pointCurve.validChannel(command.channel) &&
+                command.field === ({ rgb: "local_Maincurve", red: "local_Redcurve", green: "local_Greencurve",
+                    blue: "local_Bluecurve" })[command.channel] && pointCurve.validCurveArray(command.expectedPoints);
+        }
+        if (command.command === "masking.tone_curve.preset.set") {
+            return Object.keys(command).length === 15 && command.channel === "rgb" && command.field === "local_Maincurve" &&
+                Boolean(pointCurve.presetCurve(command.preset)) && pointCurve.validCurveArray(command.expectedPoints) &&
+                pointCurve.validCurveArray(command.points);
+        }
+        const refineGesture = command.command.match(/^masking\.tone_curve\.refine_saturation\.gesture\.(begin|update|end|cancel)$/);
+        if (refineGesture) {
+            const carriesValue = refineGesture[1] === "update" || refineGesture[1] === "end";
+            return Object.keys(command).length === (carriesValue ? 14 : 13) && command.field === "local_RefineSaturation" &&
+                pointCurve.GESTURE_ID_PATTERN.test(command.gestureId || "") && Number.isFinite(command.expectedValue) &&
+                (!carriesValue || Number.isFinite(command.value));
+        }
+        return command.command === "masking.tone_curve.refine_saturation.reset" && Object.keys(command).length === 12 &&
+            command.field === "local_RefineSaturation" && Number.isFinite(command.expectedValue);
     }
 
     if (command.command === "point_color.value.set") {
@@ -564,6 +713,11 @@ function validateCommand(command) {
         return Object.keys(command).length === 2;
     }
 
+    const preserveMaskingPanel = Object.prototype.hasOwnProperty.call(command, "preserveMaskingPanel");
+    if (preserveMaskingPanel && (command.preserveMaskingPanel !== true ||
+        !["develop.set", "develop.reset"].includes(command.command) ||
+        !["GrainSize", "GrainFrequency"].includes(command.slider))) return false;
+
     if (!sliders.exists(command.slider)) {
         console.log("Unknown slider");
         return false;
@@ -588,7 +742,7 @@ function validateCommand(command) {
     if (
         command.command === "develop.set" &&
         (
-            Object.keys(command).length !== 3 ||
+            Object.keys(command).length !== (preserveMaskingPanel ? 4 : 3) ||
             !sliders.isValidAbsoluteValue(command.slider, command.value)
         )
     ) {
@@ -598,7 +752,7 @@ function validateCommand(command) {
 
     if (
         command.command === "develop.reset" &&
-        Object.keys(command).length !== 2
+        Object.keys(command).length !== (preserveMaskingPanel ? 3 : 2)
     ) {
         return false;
     }
@@ -626,14 +780,15 @@ function enqueueCommand(command) {
 function isContextBoundDevelopCommand(command) {
     if (!command || (command.command !== "develop.set" && command.command !== "develop.reset")) return false;
     const definition = sliders.getById(command.slider);
-    return definition !== null && definition.contextBoundRuntimeRange === true;
+    return definition !== null && (definition.contextBoundRuntimeRange === true || command.preserveMaskingPanel === true);
 }
 
 function bindContextBoundDevelopCommand(command) {
     if (!isContextBoundDevelopCommand(command)) return command;
     const fields = context.getContextFields();
     if (fields.activeModule !== "develop" || fields.selectedPhotoKey === null ||
-        sliders.getRuntimeRange(command.slider) === null) return null;
+        (sliders.getById(command.slider).contextBoundRuntimeRange === true &&
+            sliders.getRuntimeRange(command.slider) === null)) return null;
     return Object.assign({}, command, {
         expectedContextCounter: fields.contextCounter,
         expectedSelectedPhotoKey: fields.selectedPhotoKey,
@@ -654,9 +809,12 @@ function tryEnqueueCommand(command) {
         }
         return admissionResult(ADMISSION_INVALID);
     }
-    if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+    if ((command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
         command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
-        command.command === "masking.tool.visibility.set") &&
+        command.command === "masking.tool.visibility.set" || command.command === "masking.all.delete" || command.command === "masking.selected.delete" ||
+        command.command === "masking.selected.reset" || command.command === "masking.preset.apply" ||
+        command.command.startsWith("masking.point_color.") || command.command.startsWith("masking.tone_curve.") ||
+        command.command.startsWith("masking.correction.")) &&
         (!maskingAdmissionProvider || !maskingAdmissionProvider.matches(command, context.getContextFields()))) {
         if (maskingAdmissionProvider && typeof maskingAdmissionProvider.onRejected === "function") {
             maskingAdmissionProvider.onRejected(command, "Masking context changed during queue admission.");
@@ -714,6 +872,93 @@ function tryEnqueueCommand(command) {
                 pending.expectedContextCounter === command.expectedContextCounter &&
                 pending.expectedServerEpoch === command.expectedServerEpoch) {
                 return replacePendingAt(index, command, admittedAt, "Coalesced native Preset Amount:");
+            }
+        }
+    }
+
+    if (command.command.startsWith("masking.correction.")) {
+        const admittedAt = Date.now();
+        const sameCorrection = function (pending) {
+            return pending && typeof pending.command === "string" && pending.command.startsWith("masking.correction.") &&
+                pending.parameter === command.parameter && pending.expectedSelectedMaskId === command.expectedSelectedMaskId &&
+                pending.expectedSelectedPhotoUuid === command.expectedSelectedPhotoUuid &&
+                pending.expectedContextCounter === command.expectedContextCounter &&
+                pending.expectedServerEpoch === command.expectedServerEpoch;
+        };
+        if (command.command === "masking.correction.reset") {
+            removePending(sameCorrection);
+        } else if (command.command === "masking.correction.gesture.update" ||
+            command.command === "masking.correction.gesture.end" ||
+            command.command === "masking.correction.gesture.cancel") {
+            const matchingIndexes = [];
+            for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+                const pending = commandQueue[index];
+                const replaceable = pending.command === "masking.correction.gesture.update" ||
+                    (command.command === "masking.correction.gesture.cancel" &&
+                        (pending.command === "masking.correction.gesture.begin" ||
+                            pending.command === "masking.correction.gesture.end" ||
+                            pending.command === "masking.correction.gesture.cancel"));
+                if (sameCorrection(pending) && pending.gestureId === command.gestureId && replaceable) {
+                    matchingIndexes.push(index);
+                }
+            }
+            if (matchingIndexes.length > 0) {
+                for (const index of matchingIndexes) {
+                    commandQueue.splice(index, 1);
+                    queueEntryMetadata.splice(index, 1);
+                }
+                commandQueue.push(command);
+                queueEntryMetadata.push({ enqueuedAt: admittedAt });
+                coalescedCommands += 1;
+                lastCoalescedAt = admittedAt;
+                console.log("Coalesced Masking correction gesture:", command);
+                return admissionResult(ADMISSION_COALESCED);
+            }
+        }
+    }
+
+    if (command.command.startsWith("masking.point_color.")) {
+        const admittedAt = Date.now();
+        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            const pending = commandQueue[index];
+            const sameTarget = command.command === "masking.point_color.value.set"
+                ? pending.field === command.field
+                : command.command === "masking.point_color.range.set"
+                    ? pending.range === command.range && pending.boundary === command.boundary
+                    : command.command === "masking.point_color.range.translate"
+                        ? pending.range === command.range : false;
+            if (sameTarget && pending.command === command.command &&
+                pending.expectedSelectedMaskId === command.expectedSelectedMaskId &&
+                pending.expectedSelectedIndex === command.expectedSelectedIndex &&
+                pending.expectedServerEpoch === command.expectedServerEpoch) {
+                return replacePendingAt(index, command, admittedAt, "Coalesced mask Point Color edit:");
+            }
+        }
+    }
+
+    if (command.command.startsWith("masking.tone_curve.gesture.") ||
+        command.command.startsWith("masking.tone_curve.refine_saturation.gesture.")) {
+        const phase = command.command.substring(command.command.lastIndexOf(".") + 1);
+        if (phase === "update" || phase === "end" || phase === "cancel") {
+            const admittedAt = Date.now();
+            for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+                const pending = commandQueue[index];
+                const pendingPhase = typeof pending.command === "string"
+                    ? pending.command.substring(pending.command.lastIndexOf(".") + 1) : "";
+                const sameFamily = command.command.includes("refine_saturation") === pending.command.includes("refine_saturation");
+                if (sameFamily && pending.command.startsWith("masking.tone_curve.") &&
+                    ["begin", "update", "end", "cancel"].includes(pendingPhase) &&
+                    pending.gestureId === command.gestureId && pending.channel === command.channel &&
+                    pending.expectedSelectedMaskId === command.expectedSelectedMaskId &&
+                    pending.expectedServerEpoch === command.expectedServerEpoch) {
+                    commandQueue.splice(index, 1);
+                    queueEntryMetadata.splice(index, 1);
+                    commandQueue.push(command);
+                    queueEntryMetadata.push({ enqueuedAt: admittedAt });
+                    coalescedCommands += 1;
+                    lastCoalescedAt = admittedAt;
+                    return admissionResult(ADMISSION_COALESCED);
+                }
             }
         }
     }
@@ -990,9 +1235,14 @@ function isProtectedCommand(command) {
         command.command === "tone_curve.reset" || command.command === "tone_curve.gesture.cancel" ||
         command.command === "tone_curve.refine_saturation.reset" ||
         command.command === "tone_curve.refine_saturation.gesture.cancel" ||
-        command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+        command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
         command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
-        command.command === "masking.tool.visibility.set";
+        command.command === "masking.tool.visibility.set" || command.command === "masking.correction.gesture.cancel" ||
+        command.command === "masking.correction.reset" || command.command === "masking.all.delete" || command.command === "masking.selected.delete" ||
+        command.command === "masking.selected.reset" || command.command === "masking.tone_curve.gesture.cancel" ||
+        command.command === "masking.tone_curve.reset" ||
+        command.command === "masking.tone_curve.refine_saturation.gesture.cancel" ||
+        command.command === "masking.tone_curve.refine_saturation.reset";
 }
 
 function pointCurveCommandBindingMatches(command) {
@@ -1014,7 +1264,7 @@ function contextBoundDevelopCommandMatches(command) {
         fields.contextCounter === command.expectedContextCounter &&
         fields.selectedPhotoKey === command.expectedSelectedPhotoKey &&
         fields.selectedPhotoUuid === command.expectedSelectedPhotoUuid &&
-        sliders.getRuntimeRange(command.slider) !== null;
+        (sliders.getById(command.slider).contextBoundRuntimeRange !== true || sliders.getRuntimeRange(command.slider) !== null);
 }
 
 function admissionResult(status) {
@@ -1050,9 +1300,12 @@ function getNextCommand() {
             }
             continue;
         }
-        if ((command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
+        if ((command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
             command.command === "masking.tool.navigate" || command.command === "masking.group.visibility.set" ||
-            command.command === "masking.tool.visibility.set") &&
+            command.command === "masking.tool.visibility.set" || command.command === "masking.all.delete" || command.command === "masking.selected.delete" ||
+            command.command === "masking.selected.reset" || command.command === "masking.preset.apply" ||
+            command.command.startsWith("masking.point_color.") || command.command.startsWith("masking.tone_curve.") ||
+            command.command.startsWith("masking.correction.")) &&
             (!maskingAdmissionProvider || !maskingAdmissionProvider.matches(command, context.getContextFields()))) {
             if (maskingAdmissionProvider && typeof maskingAdmissionProvider.onRejected === "function") {
                 maskingAdmissionProvider.onRejected(command, "Masking context changed before dequeue.");
@@ -1122,11 +1375,38 @@ function getQueueDiagnostics(nowMs) {
         ,"develop_presets.inventory.request": 0
         ,"develop_preset.apply": 0
         ,"develop_preset.amount.set": 0
+        ,"masking.create": 0
         ,"masking.panel.set": 0
         ,"masking.group.navigate": 0
         ,"masking.tool.navigate": 0
         ,"masking.group.visibility.set": 0
         ,"masking.tool.visibility.set": 0
+        ,"masking.all.delete": 0
+        ,"masking.selected.delete": 0
+        ,"masking.selected.reset": 0
+        ,"masking.preset.apply": 0
+        ,"masking.point_color.value.set": 0
+        ,"masking.point_color.range.set": 0
+        ,"masking.point_color.range.translate": 0
+        ,"masking.point_color.sample.select": 0
+        ,"masking.point_color.tool.select": 0
+        ,"masking.point_color.range_visualization.toggle": 0
+        ,"masking.tone_curve.gesture.begin": 0
+        ,"masking.tone_curve.gesture.update": 0
+        ,"masking.tone_curve.gesture.end": 0
+        ,"masking.tone_curve.gesture.cancel": 0
+        ,"masking.tone_curve.reset": 0
+        ,"masking.tone_curve.preset.set": 0
+        ,"masking.tone_curve.refine_saturation.gesture.begin": 0
+        ,"masking.tone_curve.refine_saturation.gesture.update": 0
+        ,"masking.tone_curve.refine_saturation.gesture.end": 0
+        ,"masking.tone_curve.refine_saturation.gesture.cancel": 0
+        ,"masking.tone_curve.refine_saturation.reset": 0
+        ,"masking.correction.gesture.begin": 0
+        ,"masking.correction.gesture.update": 0
+        ,"masking.correction.gesture.end": 0
+        ,"masking.correction.gesture.cancel": 0
+        ,"masking.correction.reset": 0
     };
 
     for (const command of commandQueue) {
@@ -1201,15 +1481,28 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.preset.set"] +
                     pendingByCommand["develop_presets.inventory.request"] +
                     pendingByCommand["develop_preset.apply"] +
-                    pendingByCommand["develop_preset.amount.set"],
+                    pendingByCommand["develop_preset.amount.set"] +
+                    pendingByCommand["masking.correction.gesture.begin"] +
+                    pendingByCommand["masking.correction.gesture.update"] +
+                    pendingByCommand["masking.correction.gesture.end"],
                 protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
                     pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"] +
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
                     pendingByCommand["tone_curve.refine_saturation.reset"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.cancel"] +
-                    pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"] +
+                    pendingByCommand["masking.create"] + pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"] +
                     pendingByCommand["masking.tool.navigate"] + pendingByCommand["masking.group.visibility.set"] +
-                    pendingByCommand["masking.tool.visibility.set"],
+                    pendingByCommand["masking.tool.visibility.set"] +
+                    pendingByCommand["masking.all.delete"] + pendingByCommand["masking.selected.delete"] + pendingByCommand["masking.selected.reset"] +
+                    pendingByCommand["masking.preset.apply"] +
+                    pendingByCommand["masking.point_color.tool.select"] +
+                    pendingByCommand["masking.point_color.range_visualization.toggle"] +
+                    pendingByCommand["masking.correction.gesture.cancel"] +
+                    pendingByCommand["masking.correction.reset"] +
+                    pendingByCommand["masking.tone_curve.gesture.cancel"] +
+                    pendingByCommand["masking.tone_curve.reset"] +
+                    pendingByCommand["masking.tone_curve.refine_saturation.gesture.cancel"] +
+                    pendingByCommand["masking.tone_curve.refine_saturation.reset"],
                 byCommand: pendingByCommand
             }
         },

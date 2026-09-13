@@ -1,0 +1,111 @@
+{
+  "source": "Paired native Exposure SDK measurement 2026-09-12; original capture 019; no intervening bridge operation or context change",
+  "before": {
+    "values": {
+      "local_Amount": 73,
+      "local_Exposure": 0,
+      "local_Contrast": 0,
+      "local_Highlights": 17,
+      "local_Shadows": 17,
+      "local_Whites": 0,
+      "local_Blacks": 0,
+      "local_Temperature": 17,
+      "local_Tint": 0,
+      "local_Hue": 17,
+      "local_Saturation": 0,
+      "local_RefineSaturation": 61,
+      "local_ToningHue": 0,
+      "local_ToningSaturation": 0,
+      "local_ToningLuminance": 0,
+      "local_Texture": 0,
+      "local_Clarity": 0,
+      "local_Dehaze": 0,
+      "local_Grain": 0,
+      "local_Sharpness": 0,
+      "local_LuminanceNoise": 17,
+      "local_Moire": 0,
+      "local_Defringe": 17
+    },
+    "curves": {
+      "local_Maincurve": [
+        0,
+        0,
+        125,
+        130,
+        255,
+        255
+      ],
+      "local_Redcurve": [
+        0,
+        0,
+        255,
+        255
+      ],
+      "local_Greencurve": [
+        0,
+        0,
+        255,
+        255
+      ],
+      "local_Bluecurve": [
+        0,
+        0,
+        255,
+        255
+      ]
+    }
+  },
+  "after": {
+    "values": {
+      "local_Amount": 100,
+      "local_Exposure": 1,
+      "local_Contrast": 0,
+      "local_Highlights": 0,
+      "local_Shadows": 0,
+      "local_Whites": 0,
+      "local_Blacks": 0,
+      "local_Temperature": 0,
+      "local_Tint": 0,
+      "local_Hue": 0,
+      "local_Saturation": 0,
+      "local_RefineSaturation": 100,
+      "local_ToningHue": 0,
+      "local_ToningSaturation": 0,
+      "local_ToningLuminance": 0,
+      "local_Texture": 0,
+      "local_Clarity": 0,
+      "local_Dehaze": 0,
+      "local_Grain": 0,
+      "local_Sharpness": 0,
+      "local_LuminanceNoise": 0,
+      "local_Moire": 0,
+      "local_Defringe": 0
+    },
+    "curves": {
+      "local_Maincurve": [
+        0,
+        0,
+        255,
+        255
+      ],
+      "local_Redcurve": [
+        0,
+        0,
+        255,
+        255
+      ],
+      "local_Greencurve": [
+        0,
+        0,
+        255,
+        255
+      ],
+      "local_Bluecurve": [
+        0,
+        0,
+        255,
+        255
+      ]
+    }
+  }
+}

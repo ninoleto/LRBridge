@@ -1,0 +1,7 @@
+s = {
+    title = "Absent Fields",
+    type = "LocalizedAdjustmentPreset",
+    value = {
+        saturation = -0.2,
+    },
+}

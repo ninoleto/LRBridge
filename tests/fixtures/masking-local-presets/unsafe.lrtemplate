@@ -1,0 +1,5 @@
+s = {
+    title = "Unsafe",
+    type = "LocalizedAdjustmentPreset",
+    value = os.execute("do-not-run"),
+}

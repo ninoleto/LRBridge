@@ -102,7 +102,7 @@ assert.equal(
     "Only Temperature and HDR Limit may use nonlinear visual scaling"
 );
 
-assert.match(controller, /function createDevelopSliderControl\(definition\)/);
+assert.match(controller, /function createDevelopSliderControl\(definition, navigationOptions\)/);
 assert.match(controller, /fetch\("\/api\/sliders", \{ cache: "no-store" \}\)/);
 assert.match(controller, /definition\.feedbackSupported === true/);
 assert.match(controller, /control\.range\.min = String\(control\.definition\.min\)/);
@@ -432,10 +432,9 @@ assert.equal((controller.match(/redoButton\.textContent = "Redo"/g) || []).lengt
     "Exactly one Redo button must be created");
 assert.match(controller, /topButton\.textContent = "↑ Top"/);
 assert.match(controller, /topButton\.setAttribute\("aria-label", "Back to top"\)/);
-assert.match(controller, /jumpGroup\.append\(label, mainButton\)[\s\S]*historyGroup\.append\(undoButton, redoButton\)[\s\S]*topGroup\.append\(secondSeparator, topButton\)[\s\S]*buttons\.append\(jumpGroup, firstSeparator, historyGroup, topGroup\)/,
-    "Toolbar must keep Jump, history, and Top in three ordered groups");
-assert.equal((controller.match(/className = "slider-jump-separator/g) || []).length, 2,
-    "Exactly two structural toolbar separators must be created");
+assert.match(controller, /buttons\.append\(jumpGroup, topGroup\)/, "Jump navigation must not create tab-specific history controls");
+assert.equal((controller.match(/className = "slider-jump-separator/g) || []).length, 1,
+    "Only the Top separator remains in tab navigation");
 assert.equal((controller.match(/setAttribute\("aria-hidden", "true"\)/g) || []).length >= 2, true,
     "Toolbar separators must be hidden from assistive technology");
 assert.match(controller, /\.slider-jump-top-group \{\s*display: none;/,
@@ -481,24 +480,24 @@ const historyCooldownEnd = controller.indexOf("async function requestHistoryStat
 assert.notEqual(historyCooldownStart, -1);
 assert.notEqual(historyCooldownEnd, -1);
 const historyCooldownBlock = controller.slice(historyCooldownStart, historyCooldownEnd);
-const historyButtonUpdateStart = historyCooldownBlock.indexOf("function updateSliderJumpHistoryButtons()");
+const historyButtonUpdateStart = historyCooldownBlock.indexOf("function updateHistoryButtons()");
 const historyButtonUpdateEnd = historyCooldownBlock.indexOf("function startHistoryActionCooldown()", historyButtonUpdateStart);
 assert.notEqual(historyButtonUpdateStart, -1);
 assert.notEqual(historyButtonUpdateEnd, -1);
 const historyButtonUpdate = historyCooldownBlock.slice(historyButtonUpdateStart, historyButtonUpdateEnd);
 assert.match(historyButtonUpdate,
-    /sliderJumpUndoButton\.disabled = busy \|\| !historyState\.available \|\| !historyState\.canUndo/,
+    /historyUndoButton\.disabled = busy \|\| !historyState\.available \|\| !historyState\.canUndo/,
     "Undo availability must combine the cooldown with authoritative canUndo");
 assert.match(historyButtonUpdate,
-    /sliderJumpRedoButton\.disabled = busy \|\| !historyState\.available \|\| !historyState\.canRedo/,
+    /historyRedoButton\.disabled = busy \|\| !historyState\.available \|\| !historyState\.canRedo/,
     "Redo availability must combine the cooldown with authoritative canRedo");
-assert.match(historyButtonUpdate, /sliderJumpUndoButton\.textContent = busy \? "Busy " \+ remainingSeconds : "Undo"/);
-assert.match(historyButtonUpdate, /sliderJumpRedoButton\.textContent = busy \? "Busy " \+ remainingSeconds : "Redo"/);
+assert.match(historyButtonUpdate, /historyUndoButton\.textContent = remainingMs > 0 \? "Busy " \+ remainingSeconds : "Undo"/);
+assert.match(historyButtonUpdate, /historyRedoButton\.textContent = remainingMs > 0 \? "Busy " \+ remainingSeconds : "Redo"/);
 assert.match(controller,
-    /async function requestHistoryState\(\)[\s\S]*historyState = data\.state; updateSliderJumpHistoryButtons\(\)/,
+    /async function requestHistoryState\(\)[\s\S]*historyState = data\.state; updateHistoryButtons\(\)/,
     "Every authoritative history-state response must update the Web Controller buttons");
 assert.match(controller,
-    /async function requestLiveFeedbackSnapshot\(forceAll\)[\s\S]*if \(activeTab === "sliders"\) requestHistoryState\(\)/,
+    /setInterval\(function \(\) \{[\s\S]*requestHistoryState\(\);[\s\S]*requestLiveFeedbackSnapshot\(false\)/,
     "The existing live-feedback loop must continuously refresh Lightroom history state");
 assert.match(controller,
     /async function runLightroomHistoryCommand\(command\)[\s\S]*sendCommand\("\/api\/command\?command="[\s\S]*requestHistoryState\(\)/,
@@ -514,6 +513,9 @@ assert.match(controller,
     const context = {
         undo,
         redo,
+        maskingController: { getInteractionState() { return {}; } },
+        heartbeatWasStale: false,
+        activeSliderInteractions: new Set(),
         Date: { now() { return now; } },
         setInterval(callback, delay) {
             intervalId += 1;
@@ -524,14 +526,14 @@ assert.match(controller,
         requestHistoryState() { historyRefreshes += 1; }
     };
     require("node:vm").runInNewContext(`
-        let sliderJumpUndoButton = this.undo;
-        let sliderJumpRedoButton = this.redo;
+        let historyUndoButton = this.undo;
+        let historyRedoButton = this.redo;
         ${historyCooldownBlock}
         this.cooldown = {
             start: startHistoryActionCooldown,
             active: isHistoryActionCooldownActive,
             timer: function () { return historyActionCooldownTimer; },
-            setHistory: function (state) { historyState = state; updateSliderJumpHistoryButtons(); }
+            setHistory: function (state) { historyState = state; updateHistoryButtons(); }
         };`, context);
 
     context.cooldown.setHistory({ available: true, canUndo: true, canRedo: true });
@@ -636,10 +638,10 @@ assert.match(controller, /function isTreatmentControllerTab\(tab\) \{\s*return t
     "Treatment UI must be scoped to Develop Sliders and Presets only");
 assert.match(controller, /if \(isTreatmentControllerTab\(activeTab\)\) requestTreatmentState\(\)/,
     "Both treatment presentations must reuse the existing Develop feedback cadence");
-assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1);
+assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestHistoryState\(\);\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1);
 assert.doesNotMatch(controller + bridge + mainProcess + photo + feedback, /ToneCurvePV2012/);
 const hdrModeControlBlock = controller.match(
-    /function createHDRModeControl\(definition\)[\s\S]*?function createDevelopSliderControl\(definition\)/
+    /function createHDRModeControl\(definition\)[\s\S]*?function createDevelopSliderControl\(definition, navigationOptions\)/
 )[0];
 const hdrModeSubmitBlock = hdrModeControlBlock.match(/function submit\(value\) \{[\s\S]*?const offButton/)[0];
 assert.match(hdrModeSubmitBlock, /control\.pending = true;[\s\S]*control\.desiredValue = value/,
@@ -814,7 +816,7 @@ assert.match(toneCurveBlock, /createDevelopSliderControl\([\s\S]*requestLiveFeed
     "Tone Curve must render cached controls before requesting fresh feedback");
 assert.match(toneCurveBlock, /parametricPanel\.appendChild\(createParametricCurveGraph\(\)\)/,
     "The Parametric tab must render its authoritative graph before scalar controls");
-assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1,
+assert.equal((controller.match(/setInterval\(function \(\) \{\s*requestHistoryState\(\);\s*requestLiveFeedbackSnapshot\(false\)/g) || []).length, 1,
     "Generic Develop feedback must retain exactly one snapshot timer");
 assert.match(controller, /Object\.keys\(developSliderControls\)\.filter\(function \(slider\) \{\s*return developSliderControls\[slider\]\.row\.isConnected;/,
     "Forced feedback snapshots must use only connected rendered controls");
@@ -969,6 +971,7 @@ assert.match(controller, /Object\.keys\(developSliderControls\)\.filter\(functio
         activeTab: "sliders",
         currentDevelopRefreshClassification: "develop-revision",
         console: { debug(...args) { diagnosticEvents.push(args); } },
+        connectedDevelopSliderControls() { return [control]; },
         isDevelopSliderInteracting() { return false; },
         cancelDevelopSliderStep() {}
     };
@@ -1011,6 +1014,31 @@ function extractFunctions(firstName, nextName) {
     assert.notEqual(start, -1);
     assert.notEqual(end, -1);
     return controller.slice(start, end);
+}
+
+{
+    const first = { definition: { id: "GrainSize" } };
+    const second = { definition: { id: "GrainSize" } };
+    const updated = [];
+    const context = {
+        connectedDevelopSliderControls(sliderId) {
+            assert.equal(sliderId, "GrainSize");
+            return [first, second];
+        },
+        applyDevelopSliderFeedbackIfChanged(control, result) {
+            updated.push({ control, result });
+        }
+    };
+    require("node:vm").runInNewContext(
+        extractFunctions("applyFeedbackSnapshot", "logFeedbackSnapshotFailure") +
+        "\nthis.applyFeedbackSnapshot = applyFeedbackSnapshot;",
+        context
+    );
+    const feedback = { available: true, value: 45, range: { min: 0, max: 100 } };
+    context.applyFeedbackSnapshot({ results: { GrainSize: feedback } });
+    assert.deepEqual(updated.map(function (entry) { return entry.control; }), [first, second],
+        "one authoritative Grain feedback result must update every connected UI instance");
+    assert.equal(updated.every(function (entry) { return entry.result === feedback; }), true);
 }
 
 const scaleContext = {
@@ -1175,7 +1203,7 @@ assert.match(query, /LrDevelopController\.getRange\(param\)/);
 assert.match(driver, /Tint = "Tint"/);
 assert.match(driver, /setValue\(developSlider, value\)/);
 assert.match(parser, /value = string\.match\(json, \[\["value":\(\[%\-\]\?%d\+%\.\?%d\*\)\]\]\)/);
-assert.match(luaCommands, /Driver\.setSlider\(\s*command\.slider,\s*command\.value\s*\)/);
+assert.match(luaCommands, /Driver\.setSlider\(\s*command\.slider,\s*command\.value,\s*command\s*\)/);
 
 console.log("Generic Develop slider metadata, controller, Builder, and feedback contracts passed.");
 console.log("Validated 111 definitions and 110 authoritative-feedback definitions.");

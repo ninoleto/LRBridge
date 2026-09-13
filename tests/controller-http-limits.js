@@ -75,6 +75,7 @@ function loadControllerServerForTest(onUpstreamRequest) {
     let source = fs.readFileSync(path.join(root, "app", "main.js"), "utf8");
     source = source.slice(0, source.indexOf("const gotLock = app.requestSingleInstanceLock();"));
     source = source.replace("const controllerPort = 17892;", "const controllerPort = 0;");
+    source = source.replace('const controllerListenHost = "0.0.0.0";', 'const controllerListenHost = "127.0.0.1";');
     source += "\nmodule.exports = { handleControllerRequestError, startControllerServer, getControllerServer: function () { return controllerServer; } };\n";
 
     const electron = {
@@ -495,7 +496,32 @@ async function testHumanHelpRouteThroughControllerServer() {
     }
 }
 
+async function testGrainNavigationProxy() {
+    const received = [];
+    const controller = loadControllerServerForTest(request => received.push(request.pathAndQuery));
+    controller.startControllerServer();
+    const server = controller.getControllerServer();
+    if (!server.listening) await new Promise(resolve => server.once("listening", resolve));
+    try {
+        const port = server.address().port;
+        for (const endpoint of ["/set?slider=GrainSize&value=37", "/reset?slider=GrainFrequency"]) {
+            for (const scope of ["", "&preserveMaskingPanel=true&selectedPhotoUuid=grain-photo&contextCounter=7"]) {
+                const result = await request(port, { path: "/api" + endpoint + scope });
+                assert.equal(result.statusCode, 200);
+                assert.equal(received.at(-1), endpoint + scope, "proxy must retain Grain navigation scope and photo binding");
+            }
+        }
+    } finally {
+        if (server.listening) await closeServer(server);
+    }
+}
+
 async function main() {
+    if (process.argv.includes("--grain-only")) {
+        await testGrainNavigationProxy();
+        console.log("Controller Grain set/reset proxy preserves scoped navigation and photo binding.");
+        return;
+    }
     testConstantsDefaultsAndPreservedProperties();
     testOverridesValidationAndAtomicity();
     testSourceIntegrationAndProductionCompatibility();
@@ -504,6 +530,7 @@ async function main() {
     await testDevelopPresetConfigurationPostBoundary();
     await testHttpCompatibilityAndVolume();
     await testHumanHelpRouteThroughControllerServer();
+    await testGrainNavigationProxy();
     console.log("Web Controller HTTP limit tests passed.");
 }
 
