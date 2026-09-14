@@ -479,6 +479,8 @@ function testProductionConfiguration() {
     assert.match(mainSource, /const controllerPort = 17892;/);
     assert.match(mainSource, /const controllerListenHost = "0\.0\.0\.0";/);
     assert.match(mainSource, /controllerServer\.listen\(controllerPort, controllerListenHost/);
+    assert.match(mainSource, /const controllerRemovePath = path\.join\(__dirname, "controller-remove\.js"\)/);
+    assert.match(mainSource, /requestUrl\.pathname === "\/controller-remove\.js"[\s\S]*?readFileSync\(controllerRemovePath/);
     assert.match(bridgeSource, /const WS_PORT = 17890;/);
     assert.match(bridgeSource, /const HTTP_PORT = 17891;/);
 }

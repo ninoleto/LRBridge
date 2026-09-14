@@ -108,6 +108,8 @@ const deletionDiagnostics = deletionDiagnosticsDefinition.create();
 const masking = maskingDefinition.createMaskingState(Object.assign({}, options.maskingStateOptions, {
     onDeletionDiagnostic: (event, data) => deletionDiagnostics.record(event, data)
 }));
+const remove = require("./remove-state").createRemoveState({ getContext: context.getContextFields });
+commands.setRemoveAdmissionProvider(remove);
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -1727,6 +1729,8 @@ app.get("/develop-categorical/upright-tool", function (req, res) {
         developCategorical.requestRefresh(Date.now(), true);
     });
 });
+
+require("./remove-routes")(app, remove, commands, exactQueryFields, parseStrictFiniteNumber);
 
 app.get("/masking/state", function (req, res) {
     if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });

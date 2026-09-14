@@ -118,6 +118,8 @@ function Parser.parse(json)
     local expectedContextChangedAt = string.match(json, [["expectedContextChangedAt":([%-]?%d+)]])
     local expectedServerEpoch = parseStringField(json, "expectedServerEpoch")
     local expectedMaskingRevision = parseIntegerField(json, "expectedMaskingRevision")
+    local expectedRemoveRevision = parseIntegerField(json, "expectedRemoveRevision")
+    local expectedRemoveMode = parseStringField(json, "expectedRemoveMode")
     local expectedMaskCount = parseIntegerField(json, "expectedMaskCount")
     local expectedMaskToolCount = parseIntegerField(json, "expectedMaskToolCount")
     local expectedSelectedMaskId = parseStringField(json, "expectedSelectedMaskId")
@@ -174,6 +176,16 @@ function Parser.parse(json)
     if expectedDevelopCounter then expectedDevelopCounter = tonumber(expectedDevelopCounter) end
     if expectedContextChangedAt then expectedContextChangedAt = tonumber(expectedContextChangedAt) end
     if expectedValue then expectedValue = tonumber(expectedValue) end
+    if command == "remove.brush.set" or command == "remove.panel.set" or command == "remove.repair.action" or command == "remove.repair.fill.set" or command == "remove.repair.param.set" then
+        -- Remove preferences include strict booleans and enums as well as numbers.
+        local function preferenceValue(name)
+            local boolean = parseBooleanField(json, name)
+            if boolean ~= nil then return boolean end
+            return parseNumberField(json, name) or parseStringField(json, name)
+        end
+        value = preferenceValue("value")
+        expectedValue = preferenceValue("expectedValue")
+    end
     if profileGeneration then profileGeneration = tonumber(profileGeneration) end
     if lowerNone then lowerNone = tonumber(lowerNone) end
     if lowerFull then lowerFull = tonumber(lowerFull) end
@@ -261,6 +273,8 @@ function Parser.parse(json)
         ,expectedContextChangedAt = expectedContextChangedAt
         ,expectedServerEpoch = expectedServerEpoch
         ,expectedMaskingRevision = expectedMaskingRevision
+        ,expectedRemoveRevision = expectedRemoveRevision
+        ,expectedRemoveMode = expectedRemoveMode
         ,expectedMaskCount = expectedMaskCount
         ,expectedMaskToolCount = expectedMaskToolCount
         ,expectedSelectedMaskId = expectedSelectedMaskId

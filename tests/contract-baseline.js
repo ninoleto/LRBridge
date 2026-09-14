@@ -210,7 +210,12 @@ function validateStaticContract() {
     assert.equal(new Set(controllerSliderReferences).size, controllerSliderReferences.length, "Web Controller slider definitions must be unique");
     assert.deepEqual(sorted(controllerSliderReferences), sorted(expectedControllerSliders), "Web Controller slider definitions drifted");
     assert.equal(new Set(controllerActionReferences).size, controllerActionReferences.length, "Web Controller action definitions must be unique");
-    assert.deepEqual(sorted(controllerActionReferences), sorted(fixture.actions), "Web Controller action definitions drifted");
+    // Healing opening now uses the bound remove.panel.set lifecycle; the legacy HTTP action remains supported.
+    assert.deepEqual(sorted(controllerActionReferences), sorted(fixture.actions.filter(action => action !== "selectHealingTool")),
+        "Web Controller action definitions drifted");
+    const healingActions = controllerToolTabs.find(tab => tab.id === "healing").actions;
+    assert.deepEqual(Array.from(healingActions, item => [item.action, item.button, item.standalone]),
+        [["resetSpotRemoval", "Reset Spot Removal", true]], "Healing uses one standalone whole-spot Reset");
     const protectedCheatsheetExcludedSliders = fixture.protectedCheatsheetExcludedSliders || [];
     for (const id of expectedControllerSliders.filter(function (id) {
         return !protectedCheatsheetExcludedSliders.includes(id);

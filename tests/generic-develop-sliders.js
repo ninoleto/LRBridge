@@ -514,6 +514,7 @@ assert.match(controller,
         undo,
         redo,
         maskingController: { getInteractionState() { return {}; } },
+        removeController: { busy: false, isInteracting() { return this.busy; } },
         heartbeatWasStale: false,
         activeSliderInteractions: new Set(),
         Date: { now() { return now; } },
@@ -539,6 +540,11 @@ assert.match(controller,
     context.cooldown.setHistory({ available: true, canUndo: true, canRedo: true });
     assert.equal(undo.disabled, false);
     assert.equal(redo.disabled, false);
+    context.removeController.busy = true;
+    context.cooldown.setHistory({ available: true, canUndo: true, canRedo: true });
+    assert.equal(undo.disabled, true, "Remove operations block shared Undo");
+    assert.equal(redo.disabled, true, "Remove operations block shared Redo");
+    context.removeController.busy = false;
     context.cooldown.start();
     assert.equal(context.cooldown.active(), true);
     assert.equal(undo.disabled, true, "Undo must disable immediately after a slider submission");

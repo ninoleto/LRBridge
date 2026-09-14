@@ -386,7 +386,7 @@ async function runTransportTests() {
     }
 }
 
-runTransportTests().then(function () {
+(process.argv.includes("--remove-only") ? require("./remove-preferences").verify() : runTransportTests()).then(function () {
     console.log("Develop categorical control tests passed.");
 }).catch(function (error) {
     console.error(error);

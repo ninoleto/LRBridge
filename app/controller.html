@@ -970,6 +970,26 @@
         }
 
         .masking-create-control { position: relative; }
+        .remove-brush-status { height: 48px; line-height: 16px; font-size: 12px; color: #9fb0bf; overflow: hidden; }
+        .remove-brush-row [aria-disabled="true"] { opacity: 0.5; }
+        .remove-mode-tabs { display: flex; max-width: 360px; }
+        .remove-mode-tabs .color-mixer-view-button { flex: 1; min-width: 0; min-height: 44px; }
+        .remove-mode-controls { min-height: 112px; }
+        .remove-preference-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; min-height: 44px; margin-bottom: 8px; }
+        .remove-preference-row input[type="checkbox"] { width: 24px; height: 24px; margin: 0; }
+        .remove-preference-row select { width: auto; min-height: 44px; min-width: 140px; font-size: 16px; }
+        .remove-reset-defaults { color: #9fb0bf; font-size: 12px; line-height: 18px; min-height: 36px; }
+        .remove-reset-status { min-height: 18px; line-height: 18px; }
+        .remove-action-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+        .remove-action-row > button { flex: 0 0 auto; width: auto; min-height: 44px; white-space: nowrap; }
+        .remove-action-row [data-remove-panel] { display: inline-grid; }
+        .remove-action-row [data-remove-panel]::before { content: "Close Healing Tool"; visibility: hidden; grid-area: 1 / 1; }
+        .remove-action-row [data-remove-panel] > span { grid-area: 1 / 1; }
+        .remove-selected-repair { margin: 16px 0; }
+        .remove-selected-repair h3 { font-size: 16px; margin: 0 0 8px; }
+        .remove-repair-selection { min-height: 20px; margin-bottom: 8px; }
+        .remove-repair-status { height: 48px; font-size: 12px; line-height: 16px; color: #9fb0bf; overflow: hidden; }
+        @media (max-width: 760px) { .remove-mode-controls { min-height: 180px; } }
         .masking-component-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .masking-component-heading { flex-basis: 100%; margin: 0; font-size: 16px; line-height: 24px; }
         .masking-component-invert-label, .masking-component-invert-button { box-sizing: border-box; min-height: 56px; padding: 12px 18px; }
@@ -3488,6 +3508,7 @@
     <script src="/controller-develop-presets.js"></script>
     <script src="/controller-masking-corrections.js"></script>
     <script src="/controller-masking.js"></script>
+    <script src="/controller-remove.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -3855,14 +3876,11 @@
                         "title": "Healing",
                         "actions": [
                                 {
-                                        "label": "Healing Tool",
-                                        "action": "selectHealingTool",
-                                        "button": "Select"
-                                },
-                                {
                                         "label": "Reset Spot Removal",
                                         "action": "resetSpotRemoval",
-                                        "button": "Reset"
+                                        "button": "Reset Spot Removal",
+                                        "className": "positive masking-panel-button",
+                                        "standalone": true
                                 }
                         ]
                 },
@@ -4453,7 +4471,7 @@
         function historyInteractionBlocked() {
             const maskingInteraction = maskingController.getInteractionState();
             return heartbeatWasStale || historyCommandInFlight || activeSliderInteractions.size > 0 ||
-                Boolean(maskingInteraction.activeOperation || maskingInteraction.correctionBusy);
+                Boolean(maskingInteraction.activeOperation || maskingInteraction.correctionBusy) || removeController.isInteracting();
         }
 
         function initializeHistoryToolbar() {
@@ -5400,6 +5418,15 @@
                 return createPresetTreatmentPresentation("develop-preset-treatment-row");
             }
         });
+        const removeController = LRBridgeControllerRemove.createController({
+            document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
+            isBlocked: function () { return heartbeatWasStale || historyCommandInFlight; },
+            getContext: function () {
+                return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter, developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt };
+            }
+        });
         const maskingController = LRBridgeControllerMasking.createController({
             document: document,
             fetch: fetch.bind(window),
@@ -5772,6 +5799,7 @@
                 lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;
                 developPresetController.updateContext();
                 maskingController.updateContext(data);
+                removeController.updateContext();
                 pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
@@ -6329,16 +6357,16 @@
 
         function addActionRow(groupElement, item) {
             const row = document.createElement("div");
-            row.className = "action-row";
+            row.className = item.standalone ? "masking-panel-row" : "action-row";
 
             const name = document.createElement("div");
             name.className = "slider-name";
             name.textContent = item.label;
 
             const status = document.createElement("div");
-            status.className = "switch-status";
+            status.className = item.standalone ? "switch-status remove-reset-status" : "switch-status";
 
-            row.appendChild(name);
+            if (!item.standalone) row.appendChild(name);
 
             const actionButton = makeButton(item.button || "Send", item.className || "positive", function () {
                 if (isAutoActionCooldownActiveFor(item.action)) {
@@ -6363,6 +6391,11 @@
             });
             registerAutoActionButton(item.action, actionButton);
 
+            if (item.standalone) {
+                groupElement.appendChild(actionButton);
+                groupElement.parentElement.appendChild(status);
+                return;
+            }
             row.appendChild(actionButton);
             row.appendChild(status);
 
@@ -11964,10 +11997,13 @@
 
             groupElement.appendChild(title);
 
-            for (const item of tab.actions) {
-                addActionRow(groupElement, item);
+            if (tab.id === "healing") {
+                removeController.activate(groupElement, function (parent) {
+                    for (const item of tab.actions) addActionRow(parent, item);
+                });
+            } else {
+                for (const item of tab.actions) addActionRow(groupElement, item);
             }
-
             decorateToolsCollapsibleWhole(groupElement, title, "tools." + sectionSlug, tab.title);
             content.appendChild(groupElement);
         }
@@ -12002,6 +12038,7 @@
             colorGradingController.deactivate();
             pointCurveController.deactivate();
             maskingController.deactivate();
+            removeController.deactivate();
             deactivateDevelopFeedbackPolling();
             clearContent();
             content.hidden = colorGradingActive;

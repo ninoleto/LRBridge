@@ -6,10 +6,11 @@ const source = fs.readFileSync(require("node:path").join(__dirname, "../app/cont
 const block = source.slice(source.indexOf("        let historyUndoButton ="), source.indexOf("        function disconnectSliderJumpDockObserver()"));
 
 (async () => {
-    let calls = 0, mutations = 0, release = null, fail = false, maskBusy = false, refreshes = 0;
+    let calls = 0, mutations = 0, release = null, fail = false, maskBusy = false, removeBusy = false, refreshes = 0;
     const c = { Date, Math, Boolean, Number, encodeURIComponent, setInterval() { return 1; }, clearInterval() {},
         heartbeatWasStale: false, activeSliderInteractions: new Set(), undo: {}, redo: {},
         maskingController: { getInteractionState: () => ({ correctionBusy: maskBusy }), refresh() { refreshes += 1; } },
+        removeController: { isInteracting: () => removeBusy },
         pollControllerContext() { refreshes += 1; }, requestLiveFeedbackSnapshot() { refreshes += 1; },
         async fetch() {
             calls += 1;
@@ -38,7 +39,9 @@ const block = source.slice(source.indexOf("        let historyUndoButton ="), so
     fail = false; c.api.ready();
     c.heartbeatWasStale = true; c.api.update(); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
     c.heartbeatWasStale = false; maskBusy = true; c.api.update(); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
-    maskBusy = false; c.activeSliderInteractions.add("GrainSize"); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
+    maskBusy = false; removeBusy = true; c.api.update(); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
+    assert.equal(c.undo.disabled, true, "Remove preference editing blocks shared history during the operation");
+    removeBusy = false; c.activeSliderInteractions.add("GrainSize"); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
     c.activeSliderInteractions.clear(); c.api.ready();
     await Promise.all([c.api.run("lightroom.undo"), c.api.run("lightroom.undo")]);
     assert.equal(mutations, 1); assert.equal(refreshes, 3);

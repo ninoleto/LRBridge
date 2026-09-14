@@ -16,6 +16,7 @@ local DevelopCategorical = require "DevelopCategorical"
 local ToneCurve = require "ToneCurve"
 local DevelopPresets = require "DevelopPresets"
 local Masking = require "Masking"
+local Remove = require "Remove"
 
 local function getPortableRoot()
 
@@ -928,6 +929,11 @@ LrTasks.startAsyncTask(function()
         local maskingRequest = LrHttp.get("http://127.0.0.1:17891/masking/next")
         if string.find(maskingRequest or "", [["request":{]], 1, true) then
             Masking.sendRequestedSnapshot(maskingRequest)
+        end
+
+        local removeRequest = LrHttp.get("http://127.0.0.1:17891/remove/next")
+        if string.find(removeRequest or "", [["request":{]], 1, true) then
+            Remove.sendRequestedSnapshot(removeRequest)
         end
 
         LrTasks.sleep(0.1)
