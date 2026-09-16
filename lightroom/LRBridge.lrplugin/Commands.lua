@@ -15,6 +15,8 @@ local Profile = require "Profile"
 local DevelopPresets = require "DevelopPresets"
 local Masking = require "Masking"
 local Remove = require "Remove"
+local Reflections = require "Reflections"
+local People = require "People"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -37,10 +39,13 @@ function Commands.execute(command)
         return
     end
     if command.command == "remove.brush.set" then Remove.setBrushPreference(command); return end
+    if command.command == "remove.dust.off" or command.command == "remove.dust.on" or command.command == "remove.dust.close" then Remove.setDust(command); return end
     if command.command == "remove.panel.set" then Remove.setPanel(command); return end
     if command.command == "remove.repair.action" then Remove.repairAction(command); return end
     if command.command == "remove.repair.fill.set" then Remove.setRepairFill(command); return end
     if command.command == "remove.repair.param.set" then Remove.setRepairParameter(command); return end
+    if command.command == "reflections.set" then Reflections.set(command); return end
+    if command.command == "people.action" then People.execute(command); return end
 
     if command.command == "color_grading.wheel.set" then ColorGrading.setWheel(command.region, command.hue, command.saturation); return end
     if command.command == "color_grading.value.set" then ColorGrading.setValue(command.control, command.value); return end

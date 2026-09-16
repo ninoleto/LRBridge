@@ -3,14 +3,14 @@ const definition = require("./remove-state");
 module.exports = function installRemoveRoutes(app, state, commands, exact, number) {
     const clientFields = ["selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt", "serverEpoch", "stateRevision", "mode"];
     const snapshotFields = ["available", "reason", "selectedTool", "repair"].concat(definition.preferenceFields);
-    const booleanFields = ["available", "useGenerativeAI", "detectObjects", "visualizeSpots", "otherPreferencesPreserved", "repairRemovalConfirmed", "repairEditConfirmed"];
+    const booleanFields = ["dustApply", "available", "useGenerativeAI", "detectObjects", "visualizeSpots", "otherPreferencesPreserved", "repairRemovalConfirmed", "repairEditConfirmed"];
     const numericFields = ["brushSize", "brushFeather", "visualizationThreshold", ...Object.keys(definition.repairParameters), "expectedRemoveRevision",
         "expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt", "contextCounter", "developCounter", "contextChangedAt", "stateRevision"];
     function parse(query) {
         const out = {};
         for (const [key, value] of Object.entries(query)) {
-            if (key === "repair") {
-                try { out.repair = typeof value === "string" && value.length < 12000 ? JSON.parse(value) : null; } catch (_) { out.repair = null; }
+            if (key === "repair" || key === "dust") {
+                try { out[key] = typeof value === "string" && value.length < 12000 ? JSON.parse(value) : null; } catch (_) { out[key] = null; }
                 continue;
             }
             const typeKey = key === "value" ? query.field : key;
@@ -35,13 +35,14 @@ module.exports = function installRemoveRoutes(app, state, commands, exact, numbe
         res.json({ ok: true, valid: state.validateBinding(parse(req.query)) });
     });
     app.get("/remove/query-result", (req, res) => {
-        if (!exact(req, ["requestId"].concat(definition.bindingFields, snapshotFields))) return res.status(400).json({ ok: false });
+        if (!exact(req, ["requestId"].concat(definition.bindingFields, snapshotFields, req.query.dust === undefined ? [] : ["dust"]))) return res.status(400).json({ ok: false });
         if (!state.acceptQuery(parse(req.query))) return res.status(409).json({ ok: false });
         res.json({ ok: true });
     });
-    function admit(req, res, panel, repair) {
+    function admit(req, res, panel, repair, dust) {
         if (!exact(req, ["field", "value"].concat(clientFields, repair ? ["repairToken"] : []))) return res.status(400).json({ ok: false });
         const input = parse(req.query);
+        if (["dustApply", "dustClose"].includes(input.field) !== Boolean(dust)) return res.status(400).json({ ok: false, error: "Invalid Dust route" });
         if (repair ? !(input.field === "selectedRepair" && ["refresh", "delete"].includes(input.value) ||
             input.field === "selectedRepairFill" && definition.fillChoices.includes(input.value) ||
             Object.hasOwn(definition.repairParameters,input.field) && definition.unit(input.value)) :
@@ -59,9 +60,10 @@ module.exports = function installRemoveRoutes(app, state, commands, exact, numbe
     app.get("/remove/brush", (req, res) => admit(req, res, false));
     app.get("/remove/panel", (req, res) => admit(req, res, true));
     app.get("/remove/repair", (req, res) => admit(req, res, false, true));
+    app.get("/remove/dust", (req, res) => admit(req, res, false, false, true));
     app.get("/remove/operation-result", (req, res) => {
         const fields = ["operationId", "field", "value", "outcome", "detail", "otherPreferencesPreserved", "targetRepairToken", "repairRemovalConfirmed", "repairEditConfirmed"];
-        if (!exact(req, fields.concat(definition.bindingFields, snapshotFields)) || typeof req.query.detail !== "string" ||
+        if (!exact(req, fields.concat(definition.bindingFields, snapshotFields, req.query.dust === undefined ? [] : ["dust"])) || typeof req.query.detail !== "string" ||
             req.query.detail.length > 300 || /[\x00-\x1f\x7f]/.test(req.query.detail)) return res.status(400).json({ ok: false });
         if (!state.acceptResult(parse(req.query))) return res.status(409).json({ ok: false });
         res.json({ ok: true });

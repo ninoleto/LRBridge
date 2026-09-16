@@ -229,6 +229,8 @@ function createMockControllerServer(options) {
         ["/controller-masking-corrections.js", "controller-masking-corrections.js"],
         ["/controller-masking.js", "controller-masking.js"]
         ,["/controller-remove.js", "controller-remove.js"]
+        ,["/controller-reflections.js", "controller-reflections.js"]
+        ,["/controller-people.js", "controller-people.js"]
     ]);
     const feedbackSnapshots = new Map();
     const treatmentSnapshots = new Map();
@@ -279,6 +281,10 @@ function createMockControllerServer(options) {
 
         if (grainFixture && grainFixture.handle(parsed, function (body, status) { sendJson(response, body, status); })) return;
 
+        if (parsed.pathname === "/api/reflections/state") {
+            sendJson(response, { ok: true, ...fixtureContext(), available: false, serverEpoch: "reflections-unavailable", revision: 1, ageMs: 0 });
+            return;
+        }
         if (parsed.pathname === "/api/remove/state") {
             sendJson(response, { ok: true, ...fixtureContext(), available: false, serverEpoch: "remove-fixture", revision: 1,
                 capturedAt: Date.now(), pendingOperation: null, lastResult: null });
@@ -1753,6 +1759,7 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
             await cdp.send("Page.bringToFront");
             await waitFor(function () { return evaluate("document.hasFocus()"); }, "isolated Grain page focus");
             const grain = await (options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
+                peopleOnly: options.peopleOnly, dustOnly: options.dustOnly,
                 setViewport: function (width, height) {
                     return cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
                 },
@@ -2093,7 +2100,9 @@ async function main() {
     const historyOnly = process.argv.includes("--history-only");
     const deleteConfirmationOnly = process.argv.includes("--delete-confirmation-only");
     const maskCreateOnly = process.argv.includes("--mask-create-only") || deleteConfirmationOnly;
-    const removeOnly = process.argv.includes("--remove-only");
+    const peopleOnly = process.argv.includes("--people-only");
+    const dustOnly = process.argv.includes("--dust-only");
+    const removeOnly = process.argv.includes("--remove-only") || peopleOnly || dustOnly;
     const grainOnly = process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly;
     const resources = {
         mock: createMockControllerServer({ grainOnly: grainOnly, historyOnly: historyOnly, maskCreateOnly: maskCreateOnly,
@@ -2129,6 +2138,8 @@ async function main() {
             historyOnly: historyOnly,
             maskCreateOnly: maskCreateOnly,
             removeOnly: removeOnly,
+            peopleOnly: peopleOnly,
+            dustOnly: dustOnly,
             screenshotDirectory: process.argv.includes("--mask-create-screenshot") ? resources.browserProfileDirectory : null
         });
         if (maskCreateOnly && process.argv.includes("--mask-create-screenshot")) {

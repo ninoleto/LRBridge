@@ -3,3 +3,6 @@ lrplugin-log.txt
 develop-settings-dump.txt
 dist/
 /config/develop-presets.json
+
+# Local checkpoint bundles and inspected native preset dependencies.
+/local-checkpoints/

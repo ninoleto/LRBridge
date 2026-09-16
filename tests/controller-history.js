@@ -11,6 +11,8 @@ const block = source.slice(source.indexOf("        let historyUndoButton ="), so
         heartbeatWasStale: false, activeSliderInteractions: new Set(), undo: {}, redo: {},
         maskingController: { getInteractionState: () => ({ correctionBusy: maskBusy }), refresh() { refreshes += 1; } },
         removeController: { isInteracting: () => removeBusy },
+        reflectionsController: { isInteracting: () => c.reflectionsBusy === true },
+        peopleController: { isInteracting: () => c.peopleBusy === true },
         pollControllerContext() { refreshes += 1; }, requestLiveFeedbackSnapshot() { refreshes += 1; },
         async fetch() {
             calls += 1;
@@ -41,6 +43,12 @@ const block = source.slice(source.indexOf("        let historyUndoButton ="), so
     c.heartbeatWasStale = false; maskBusy = true; c.api.update(); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
     maskBusy = false; removeBusy = true; c.api.update(); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
     assert.equal(c.undo.disabled, true, "Remove preference editing blocks shared history during the operation");
+    removeBusy = false; c.reflectionsBusy = true; c.api.update(); await c.api.run("lightroom.undo");
+    assert.equal(mutations, 0); assert.equal(c.undo.disabled, true, "Reflections processing blocks shared history across tabs");
+    c.reflectionsBusy = false;
+    c.peopleBusy = true; c.api.update(); await c.api.run("lightroom.undo");
+    assert.equal(mutations, 0); assert.equal(c.undo.disabled, true, "People removal processing blocks shared history across tabs");
+    c.peopleBusy = false;
     removeBusy = false; c.activeSliderInteractions.add("GrainSize"); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
     c.activeSliderInteractions.clear(); c.api.ready();
     await Promise.all([c.api.run("lightroom.undo"), c.api.run("lightroom.undo")]);

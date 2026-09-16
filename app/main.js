@@ -35,6 +35,8 @@ const controllerDevelopPresetsPath = path.join(__dirname, "controller-develop-pr
 const controllerMaskingCorrectionsPath = path.join(__dirname, "controller-masking-corrections.js");
 const controllerMaskingPath = path.join(__dirname, "controller-masking.js");
 const controllerRemovePath = path.join(__dirname, "controller-remove.js");
+const controllerReflectionsPath = path.join(__dirname, "controller-reflections.js");
+const controllerPeoplePath = path.join(__dirname, "controller-people.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
@@ -438,6 +440,16 @@ async function handleControllerRequest(request, response) {
     if (requestUrl.pathname === "/controller-remove.js") {
         const script = fs.readFileSync(controllerRemovePath, "utf8");
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", script);
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-reflections.js") {
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", fs.readFileSync(controllerReflectionsPath, "utf8"));
+        return;
+    }
+
+    if (requestUrl.pathname === "/controller-people.js") {
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", fs.readFileSync(controllerPeoplePath, "utf8"));
         return;
     }
 

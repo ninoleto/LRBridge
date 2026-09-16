@@ -19,6 +19,8 @@ let pointColorAdmissionContextProvider = null;
 let developPresetAdmissionProvider = null;
 let maskingAdmissionProvider = null;
 let removeAdmissionProvider = null;
+let reflectionsAdmissionProvider = null;
+let peopleAdmissionProvider = null;
 
 const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
@@ -190,6 +192,11 @@ function validateCommand(command) {
         ,"remove.repair.param.set"
         ,"remove.panel.set"
         ,"remove.brush.set"
+        ,"remove.dust.off"
+        ,"remove.dust.on"
+        ,"remove.dust.close"
+        ,"reflections.set"
+        ,"people.action"
         ,"masking.component.add"
         ,"masking.component.subtract"
         ,"masking.component.delete"
@@ -305,7 +312,9 @@ function validateCommand(command) {
             Number.isSafeInteger(command.expectedFeedbackId) && command.expectedFeedbackId > 0;
     }
 
-    if (["remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return require("./remove-state").validCommand(command);
+    if (command.command === "reflections.set") return require("./reflections-state").validCommand(command);
+    if (command.command === "people.action") return require("./people-state").validCommand(command);
+    if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return require("./remove-state").validCommand(command);
 
     if (command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
         command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
@@ -825,7 +834,11 @@ function bindContextBoundDevelopCommand(command) {
 }
 
 function tryEnqueueCommand(command) {
-    if (command && ["remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!validateCommand(command) ||
+    if (command && command.command === "people.action" && (!validateCommand(command) || !peopleAdmissionProvider ||
+        !peopleAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
+    if (command && command.command === "reflections.set" && (!validateCommand(command) || !reflectionsAdmissionProvider ||
+        !reflectionsAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
+    if (command && ["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!validateCommand(command) ||
         !removeAdmissionProvider || !removeAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (!validateCommand(command)) {
         return admissionResult(ADMISSION_INVALID);
@@ -1231,8 +1244,9 @@ function tryEnqueueBatch(batch) {
     if (!Array.isArray(batch) || !batch.every(validateCommand)) {
         return admissionResult(ADMISSION_INVALID);
     }
+    if (batch.some(command => command.command === "reflections.set" || command.command === "people.action")) return admissionResult(ADMISSION_INVALID);
     // Remove preference writes require the single-operation admission path.
-    if (batch.some(command => ["remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command))) return admissionResult(ADMISSION_INVALID);
+    if (batch.some(command => ["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command))) return admissionResult(ADMISSION_INVALID);
 
     if (!batch.every(isProtectedCommand)) {
         return admissionResult(ADMISSION_INVALID);
@@ -1262,7 +1276,9 @@ function tryEnqueueBatch(batch) {
 }
 
 function isProtectedCommand(command) {
-    if (["remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return true;
+    if (command.command === "people.action") return true;
+    if (command.command === "reflections.set") return true;
+    if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return true;
     return command.command === "develop.reset" || command.command === "develop.action" ||
         command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset" ||
         command.command === "lightroom.undo" || command.command === "lightroom.redo" ||
@@ -1348,7 +1364,15 @@ function getNextCommand() {
             }
             continue;
         }
-        if (["remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!removeAdmissionProvider || !removeAdmissionProvider.matches(command, "dequeue"))) {
+        if (command.command === "reflections.set" && (!reflectionsAdmissionProvider || !reflectionsAdmissionProvider.matches(command, "dequeue"))) {
+            if (reflectionsAdmissionProvider) reflectionsAdmissionProvider.reject(command, "Reflections context changed before dequeue.");
+            continue;
+        }
+        if (command.command === "people.action" && (!peopleAdmissionProvider || !peopleAdmissionProvider.matches(command, "dequeue"))) {
+            if (peopleAdmissionProvider) peopleAdmissionProvider.reject(command, "People context changed before dequeue.");
+            continue;
+        }
+        if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!removeAdmissionProvider || !removeAdmissionProvider.matches(command, "dequeue"))) {
             if (removeAdmissionProvider) removeAdmissionProvider.reject(command, "Remove brush context changed before dequeue.");
             continue;
         }
@@ -1423,6 +1447,11 @@ function getQueueDiagnostics(nowMs) {
         ,"remove.repair.param.set": 0
         ,"remove.panel.set": 0
         ,"remove.brush.set": 0
+        ,"remove.dust.off": 0
+        ,"remove.dust.on": 0
+        ,"remove.dust.close": 0
+        ,"reflections.set": 0
+        ,"people.action": 0
         ,"masking.panel.set": 0
         ,"masking.group.navigate": 0
         ,"masking.tool.navigate": 0
@@ -1539,7 +1568,7 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
                     pendingByCommand["tone_curve.refine_saturation.reset"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.cancel"] +
-                    pendingByCommand["remove.repair.param.set"] + pendingByCommand["remove.repair.fill.set"] + pendingByCommand["remove.repair.action"] + pendingByCommand["remove.panel.set"] + pendingByCommand["remove.brush.set"] + pendingByCommand["masking.component.add"] + pendingByCommand["masking.component.subtract"] +
+                    pendingByCommand["people.action"] + pendingByCommand["reflections.set"] + pendingByCommand["remove.repair.param.set"] + pendingByCommand["remove.repair.fill.set"] + pendingByCommand["remove.repair.action"] + pendingByCommand["remove.panel.set"] + pendingByCommand["remove.brush.set"] + pendingByCommand["remove.dust.off"] + pendingByCommand["remove.dust.on"] + pendingByCommand["remove.dust.close"] + pendingByCommand["masking.component.add"] + pendingByCommand["masking.component.subtract"] +
                     pendingByCommand["masking.create"] + pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"] +
                     pendingByCommand["masking.tool.navigate"] + pendingByCommand["masking.group.visibility.set"] +
                     pendingByCommand["masking.tool.visibility.set"] +
@@ -1663,5 +1692,7 @@ module.exports = {
     ,setDevelopPresetAdmissionProvider
     ,setMaskingAdmissionProvider
     ,setRemoveAdmissionProvider: function (provider) { removeAdmissionProvider = provider; }
+    ,setReflectionsAdmissionProvider: function (provider) { reflectionsAdmissionProvider = provider; }
+    ,setPeopleAdmissionProvider: function (provider) { peopleAdmissionProvider = provider; }
     ,finishEnhanceAmountOperation: function () { enhanceAmountOperationPending = false; }
 };

@@ -12,6 +12,8 @@ const polling = fs.readFileSync(
     path.join(root, "lightroom/LRBridge.lrplugin/AutoStartPolling.lua"),
     "utf8"
 );
+assert.match(polling, /if command\.command == "people\.action" then[\s\S]*operation=" \.\. tostring\(command\.operationId\)[\s\S]*kind=" \.\. tostring\(command\.operationKind\)/,
+    "People dequeue diagnostics must include operation identity and kind");
 
 function executeLuaCommitIdParserContract(json) {
     const match = json.match(/"commitId":"([^"]+)"/);

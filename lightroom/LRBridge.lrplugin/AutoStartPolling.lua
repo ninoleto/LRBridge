@@ -72,6 +72,10 @@ end
 
 local function commandParameter(command)
 
+    if command.command == "people.action" then
+        return "operation=" .. tostring(command.operationId) .. " kind=" .. tostring(command.operationKind)
+    end
+
     if command.command == "photo.treatment" then
         return command.value
     end

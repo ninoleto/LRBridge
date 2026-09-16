@@ -146,6 +146,13 @@ local imports = {
     LrApplication = { activeCatalog = function() return { getTargetPhoto = function() return photo end } end },
     LrTasks = { pcall = pcall, sleep = function() end },
     LrDate = { currentTime = function() return 100 end },
+    LrMD5 = { digest = (function()
+        local values, count = {}, 0
+        return function(value)
+            if not values[value] then count = count + 1; values[value] = string.format("%032d", count) end
+            return values[value]
+        end
+    end)() },
     LrHttp = { get = function(url)
         if url == "http://127.0.0.1:17891/context" then
             if inversionBeforeWrite then inversionBeforeWrite() end

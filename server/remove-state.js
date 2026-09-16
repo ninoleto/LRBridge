@@ -14,6 +14,8 @@ const fieldSupported = (field, mode, preferences) => modes.includes(mode) && pre
     (!["useGenerativeAI", "detectObjects"].includes(field) || mode === "heal_patchmatch") &&
     (field !== "visualizationThreshold" || !preferences || preferences.visualizeSpots === true);
 function validValue(field, value) {
+    if (field === "dustApply") return typeof value === "boolean";
+    if (field === "dustClose") return value === "manualRemove";
     if (field === "selectedTool") return value === "dust" || value === "loupe";
     if (["brushSize", "brushFeather", "visualizationThreshold"].includes(field)) return inRange(value, field === "brushSize" ? 1 : 0);
     if (["useGenerativeAI", "detectObjects", "visualizeSpots"].includes(field)) return typeof value === "boolean";
@@ -72,7 +74,11 @@ function sanitizeRepair(input) {
 function validCommand(c) {
     return c && Object.keys(c).length === commandFields.length && commandFields.every(key => Object.hasOwn(c, key)) &&
         /^rb-\d{1,15}$/.test(c.operationId) &&
-        (c.command === "remove.repair.param.set" ? Object.hasOwn(repairParameters,c.field) && unit(c.value) && repairToken(c.expectedValue) && modes.includes(c.expectedRemoveMode) :
+        (["remove.dust.on", "remove.dust.off", "remove.dust.close"].includes(c.command) ?
+            (c.command === "remove.dust.close" ? c.field === "dustClose" && c.value === "manualRemove" :
+                c.field === "dustApply" && c.value === (c.command === "remove.dust.on")) &&
+            typeof c.expectedValue === "string" && /^[a-f0-9]{32,128}$/.test(c.expectedValue) && modes.includes(c.expectedRemoveMode) :
+        c.command === "remove.repair.param.set" ? Object.hasOwn(repairParameters,c.field) && unit(c.value) && repairToken(c.expectedValue) && modes.includes(c.expectedRemoveMode) :
         c.command === "remove.repair.fill.set" ? c.field === "selectedRepairFill" && fillChoices.includes(c.value) &&
             repairToken(c.expectedValue) && modes.includes(c.expectedRemoveMode) :
         c.command === "remove.repair.action" ? c.field === "selectedRepair" && ["refresh", "delete"].includes(c.value) &&
@@ -91,7 +97,15 @@ function validCommand(c) {
 function sanitize(input) {
     if (!input || typeof input.available !== "boolean" || input.selectedTool !== null && !tools.includes(input.selectedTool)) return null;
     const repair = sanitizeRepair(input.repair);
-    const selectedValues = { selectedRepairFill: selectedFill(repair), ...Object.fromEntries(Object.entries(repairParameters).map(([field, key]) => [field, repair.available && repair.selected ? repair[key] : null])) };
+    const d = input.dust;
+    const dust = d?.available === true && typeof d.applied === "boolean" && typeof d.canDisable === "boolean" &&
+        typeof d.token === "string" && /^[a-f0-9]{32,128}$/.test(d.token) ?
+        { available: true, applied: d.applied, canDisable: d.canDisable, token: d.token,
+            canEnable: d.canEnable === true, canRequestClose: d.canRequestClose === true, panelStateAvailable: false,
+            preservationConfirmed: d.preservationConfirmed === true, reason: String(d.reason || "").slice(0, 200) } :
+        { available: false, reason: String(d?.reason || "Dust state unavailable.").slice(0, 200) };
+    const selectedValues = { dust, dustApply: dust.available ? dust.applied : null,
+        selectedRepairFill: selectedFill(repair), ...Object.fromEntries(Object.entries(repairParameters).map(([field, key]) => [field, repair.available && repair.selected ? repair[key] : null])) };
     if (!input.available) return { available: false, selectedTool: input.selectedTool, repair, ...selectedValues,
         reason: typeof input.reason === "string" ? input.reason : "unavailable" };
     if (input.selectedTool !== "dust") return null;
@@ -114,7 +128,8 @@ function createRemoveState(options) {
             else lastResult = null;
             revision++; lastRequestAt = 0;
         }
-        if (pending && now() - pending.startedAt > 10000) finish("failed", "Lightroom did not confirm the Remove operation in time.");
+        if (pending && now() - pending.startedAt > (pending.command.command === "remove.dust.on" ? 120000 : 10000))
+            finish("failed", "Lightroom did not confirm the Remove operation in time; no automatic retry.");
         if (query && now() - query.startedAt > 5000) query = null;
     }
     function binding() {
@@ -163,10 +178,14 @@ function createRemoveState(options) {
             // A mode request or Close revokes obsolete preference work before admitting the new operation.
             // The command worker remains serial; the old envelope cannot validate or settle the new operation.
             const panel = field === "selectedTool";
+            const dust = field === "dustApply" || field === "dustClose";
             const repair = repairField(field), fill = field === "selectedRepairFill", parameter = Object.hasOwn(repairParameters,field);
             const replacing = pending && pending.command.field !== "selectedTool" &&
                 (panel && value === "loupe" || field === "newSpotType" && pending.command.field !== "newSpotType");
-            const supported = repair ? snapshot.selectedTool === "dust" && snapshot.repair && snapshot.repair.selected === true &&
+            const supported = dust ? snapshot.available && snapshot.dust?.available && (field === "dustClose" ?
+                snapshot.dust.applied && snapshot.dust.canRequestClose : snapshot.dust.applied !== value &&
+                (value ? snapshot.dust.canEnable : snapshot.dust.canDisable)) :
+                repair ? snapshot.selectedTool === "dust" && snapshot.repair && snapshot.repair.selected === true &&
                 snapshot.repair.available && client.repairToken === snapshot.repair.token &&
                 (!(fill || parameter) || snapshot.available && (fill ? selectedFill(snapshot.repair) !== null : unit(snapshot[field]))) : panel ? tools.includes(snapshot.selectedTool) &&
                 value === (snapshot.selectedTool === "dust" ? "loupe" : "dust") :
@@ -175,8 +194,8 @@ function createRemoveState(options) {
                 !(parameter ? unit(value) : fill ? fillChoices.includes(value) : repair ? ["refresh", "delete"].includes(value) : validValue(field, value)) || client.serverEpoch !== epoch || client.stateRevision !== revision || client.mode !== (snapshot.newSpotType || null) ||
                 ["selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt"].some(k => client[k] !== c[k])) return null;
             if (replacing) finish("stale", panel ? "Preference edit cancelled by Close Remove." : "Brush edit cancelled by a mode change.");
-            const command = Object.assign({ command: parameter ? "remove.repair.param.set" : fill ? "remove.repair.fill.set" : repair ? "remove.repair.action" : panel ? "remove.panel.set" : "remove.brush.set", operationId: "rb-" + (++counter), field, value,
-                expectedValue: repair ? snapshot.repair.token : snapshot[field], expectedRemoveMode: snapshot.newSpotType || null }, binding());
+            const command = Object.assign({ command: dust ? field === "dustClose" ? "remove.dust.close" : value ? "remove.dust.on" : "remove.dust.off" : parameter ? "remove.repair.param.set" : fill ? "remove.repair.fill.set" : repair ? "remove.repair.action" : panel ? "remove.panel.set" : "remove.brush.set", operationId: "rb-" + (++counter), field, value,
+                expectedValue: dust ? snapshot.dust.token : repair ? snapshot.repair.token : snapshot[field], expectedRemoveMode: snapshot.newSpotType || null }, binding());
             if (!validCommand(command)) return null;
             pending = { command, startedAt: now(), admitted: false, dispatched: false }; query = null; revision++;
             return { ...command };
@@ -198,8 +217,15 @@ function createRemoveState(options) {
             const panel = pending.command.command === "remove.panel.set";
             const repair = repairField(pending.command.field), fill = pending.command.field === "selectedRepairFill", parameter = Object.hasOwn(repairParameters,pending.command.field);
             if (repair && input.targetRepairToken !== pending.command.expectedValue) return false;
-            if (outcome === "requested" && !(pending.command.command === "remove.repair.action" && pending.command.value === "refresh")) return false;
-            const confirmed = fill || parameter ? input.repairEditConfirmed === true && input.otherPreferencesPreserved === true && next.available && next.newSpotType === mode &&
+            const dustClose = pending.command.command === "remove.dust.close";
+            if (outcome === "requested" && !(dustClose || pending.command.command === "remove.repair.action" && pending.command.value === "refresh")) return false;
+            if (dustClose && outcome === "requested" && !(next.available && next.dust?.available && next.dust.applied &&
+                next.dust.token === pending.command.expectedValue && next.dust.preservationConfirmed && input.otherPreferencesPreserved === true && next.newSpotType === mode)) {
+                outcome = "failed"; detail = "Native navigation did not preserve Dust treatment and other edits.";
+            }
+            const confirmed = dustClose ? false : ["remove.dust.off", "remove.dust.on"].includes(pending.command.command) ? next.available && next.dust?.available &&
+                next.dust.applied === pending.command.value && next.dust.preservationConfirmed === true && input.otherPreferencesPreserved === true && next.newSpotType === mode :
+                fill || parameter ? input.repairEditConfirmed === true && input.otherPreferencesPreserved === true && next.available && next.newSpotType === mode &&
                 equalValue(next[pending.command.field],pending.command.value) && next.repair?.selected && next.repair.count === snapshot.repair.count && next.repair.index === snapshot.repair.index :
                 repair ? pending.command.value === "delete" && input.repairRemovalConfirmed === true &&
                 next.repair && next.repair.available && snapshot.repair && next.repair.count === snapshot.repair.count - 1 &&
@@ -207,7 +233,8 @@ function createRemoveState(options) {
                 equalValue(next[pending.command.field], pending.command.value) && (panel ? pending.command.value !== "dust" ||
                     next.available && next.newSpotType === "heal_patchmatch" : next.available && next.newSpotType === mode && input.otherPreferencesPreserved === true);
             if (outcome === "confirmed" && !confirmed) {
-                outcome = "failed"; detail = fill || parameter ? "Lightroom did not confirm the selected repair edit and preservation of its context." :
+                outcome = "failed"; detail = dustClose ? "Dust subsection state is not exposed; Close cannot be reported as confirmed." :
+                    fill || parameter ? "Lightroom did not confirm the selected repair edit and preservation of its context." :
                     repair ? "Fresh Lightroom inventory did not confirm deletion of the original repair and preservation of remaining repairs." :
                     panel ? "Lightroom did not confirm the selected tool." :
                     "Lightroom did not confirm the requested preference and preservation of other preferences.";

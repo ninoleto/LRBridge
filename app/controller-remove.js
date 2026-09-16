@@ -7,8 +7,9 @@
     const fills = { remove: "Remove", heal: "Heal", clone: "Clone", generative_remove: "Generative Remove" };
     const repairParameter = field => field === "selectedRepairOpacity" || field === "selectedRepairFeather";
     const repairField = field => field === "selectedRepair" || field === "selectedRepairFill" || repairParameter(field);
-    // LRBridge product defaults, not Lightroom factory defaults. The SDK has no brush-preference reset API.
-    const defaults = Object.freeze({ brushSize: 25, brushFeather: 50, visualizationThreshold: 50 });
+    // Intentional LRBridge defaults in displayed units, not verified Lightroom factory defaults.
+    const defaults = Object.freeze({ brushSize: 25, brushFeather: 50, visualizationThreshold: 50,
+        selectedRepairOpacity: 100, selectedRepairFeather: 50 });
     const sliders = { brushSize: { label: "Size", min: 1 }, brushFeather: { label: "Feather", min: 0 },
         visualizationThreshold: { label: "Threshold", min: 0 }, selectedRepairOpacity: { label: "Opacity", min: 0, scale: 100 },
         selectedRepairFeather: { label: "Feather", min: 0, scale: 100 } };
@@ -18,6 +19,8 @@
     const equal = (a, b) => typeof a === "number" && typeof b === "number" ? Math.abs(a - b) < 0.000001 : a === b;
     const whole = (value, minimum) => Math.max(minimum, Math.min(100, Math.round(value)));
     function valid(field, value) {
+        if (field === "dustApply") return typeof value === "boolean";
+        if (field === "dustClose") return value === "manualRemove";
         if (field === "selectedRepairFill") return Object.hasOwn(fills, value);
         if (sliders[field]) return typeof value === "number" && Number.isFinite(value) && value >= sliders[field].min && value <= 100 / (sliders[field].scale || 1);
         if (field === "newSpotType") return Object.hasOwn(modes, value);
@@ -29,7 +32,8 @@
         let state = null, section = null, status = null, modeControls = null, removeOptions = null, panelButton = null;
         let operation = null, transport = null, generation = 0, sequence = 0, receivedAt = 0;
         let polling = false, pollTimer = null, sendTimer = null, error = "";
-        let repairSelection = null, repairStatus = null, repairButtons = {}, repairFeedback = "";
+        let repairSelection = null, repairStatus = null, repairButtons = {}, repairFeedback = "", dustStatus = null, dustNote = null;
+        let dustButtons = {}, dustFeedback = "";
         const notify = () => { if (options.onInteractionChange) options.onInteractionChange(); };
         const localValue = field => intents.has(field) ? intents.get(field).value : state && state[field];
         const busy = () => Boolean(operation || transport || intents.size || state && state.pendingOperation ||
@@ -43,6 +47,9 @@
         }
         function fresh() { return panelAvailable() && Number.isFinite(state.ageMs) && state.ageMs + performance.now() - receivedAt < 5000; }
         function supported(field) {
+            if (field === "dustApply") return available() && state.dust?.available === true &&
+                (state.dust.applied ? state.dust.canDisable === true : state.dust.canEnable === true);
+            if (field === "dustClose") return available() && state.dust?.available === true && state.dust.applied && state.dust.canRequestClose === true;
             if (field === "selectedTool") return panelAvailable();
             if (repairField(field)) return panelAvailable() && state.selectedTool === "dust" &&
                 state.repair && state.repair.available && state.repair.selected && typeof state.repair.token === "string" &&
@@ -54,6 +61,7 @@
             return true;
         }
         function enabled(field) {
+            if (field === "dustApply" || field === "dustClose") return Boolean(supported(field) && fresh() && !busy() && !(options.isBlocked && options.isBlocked()));
             const own = operation && baseKey(state) === operation.base && performance.now() - operation.startedAt < 10000;
             const foreign = state && state.pendingOperation && (!operation ||
                 operation.id && state.pendingOperation.operationId !== operation.id);
@@ -115,6 +123,10 @@
                 if (sliders[field]) {
                     if (!c.dragging && !c.editing) showSlider(c, intents.has(field) ? localValue(field) :
                         available() && valid(field, state[field]) ? state[field] : null);
+                } else if (field === "dustApply") {
+                    const known = panelAvailable() && fresh() && state.dust?.available === true;
+                    c.input.indeterminate = !known;
+                    c.input.checked = known && state.dust.applied === true;
                 } else if (field === "selectedRepairFill" && !localValue(field)) c.input.value = "";
                 else if (c.input.type === "checkbox") c.input.checked = localValue(field) === true;
                 else if (typeof localValue(field) === "string" && c.input.value !== localValue(field)) c.input.value = localValue(field);
@@ -124,6 +136,11 @@
                 operation || transport || intents.size ? "Waiting for Lightroom to confirm…" :
                 available() ? "" : panelAvailable() ? state.selectedTool === "dust" ?
                     "Lightroom brush preferences are unavailable." : "Remove is closed in Lightroom." : "Select a photo in Lightroom Develop.");
+            if (dustStatus) dustStatus.textContent = status.textContent || dustFeedback;
+            if (dustNote) dustNote.textContent = state?.dust?.available ? state.dust.reason ||
+                "Apply follows Lightroom. Reset clears Dust treatment and keeps manual Healing repairs." : "Dust state is unavailable.";
+            if (dustButtons.reset) setDisabled(dustButtons.reset, !(enabled("dustApply") && state?.dust?.applied === true));
+            if (dustButtons.close) setDisabled(dustButtons.close, !enabled("dustClose"));
         }
         function cancelField(field, blockContinuation) {
             const c = controls[field];
@@ -158,6 +175,12 @@
             const request = operation;
             const expectedMode = request.field === "newSpotType" ? request.value : request.mode;
             const panel = request.field === "selectedTool";
+            if (request.field === "dustClose") {
+                dustFeedback = result.detail || "Native navigation result received; Dust panel state is not exposed.";
+                if (result.outcome !== "requested") error = dustFeedback;
+                intents.delete("dustClose"); operation = null; return;
+            }
+            if (request.field === "dustApply") dustFeedback = result.detail || "Dust result received.";
             if (request.field === "selectedRepair") {
                 repairFeedback = result.detail || "Selected repair result received.";
                 if (!["confirmed", "requested"].includes(result.outcome)) error = repairFeedback;
@@ -192,6 +215,7 @@
                 !Number.isSafeInteger(next.revision) || typeof next.serverEpoch !== "string") return;
             if (state && next.serverEpoch === state.serverEpoch && next.revision < state.revision) { reconcile(); return; }
             const old = state, result = resultFor(operation, next, false);
+            if (old && baseKey(old) !== baseKey(next)) dustFeedback = "";
             const ownRepair = result && repairField(operation.field) &&
                 (operation.id || ["confirmed", "requested"].includes(result.outcome)) &&
                 (result.outcome !== "confirmed" || operation.field === "selectedRepair" || result.resultRepairToken === next.repair?.token);
@@ -270,7 +294,7 @@
             if (repairField(field)) query.set("repairToken", intent.repairToken);
             render(); notify();
             try {
-                const admitted = await json("/api/remove/" + (repairField(field) ? "repair" : field === "selectedTool" ? "panel" : "brush") + "?" + query);
+                const admitted = await json("/api/remove/" + (["dustApply", "dustClose"].includes(field) ? "dust" : repairField(field) ? "repair" : field === "selectedTool" ? "panel" : "brush") + "?" + query);
                 if (request.generation !== generation || operation !== request) return;
                 const p = admitted.pendingOperation;
                 if (!p || p.field !== field || !equal(p.value, request.value) || baseKey(admitted) !== request.base ||
@@ -293,6 +317,7 @@
             intents.set(field, { value, sequence: ++sequence, base: baseKey(state), target: targetKey(state),
                 repairToken: repairField(field) ? state.repair.token : null });
             if (repairField(field)) repairFeedback = "";
+            if (field === "dustApply" || field === "dustClose") dustFeedback = "";
             if (sliders[field]) showSlider(controls[field], value);
             error = ""; render(); notify(); schedule(delay || 0); return true;
         }
@@ -338,12 +363,13 @@
             c.minus = button("−", "develop-slider-step", () => step(-1), "Decrease " + accessible);
             c.plus = button("+", "develop-slider-step", () => step(1), "Increase " + accessible);
             if (Object.hasOwn(defaults, field)) {
-            c.reset = button("Reset", "reset", () => {
-                if (!enabled(field)) return;
-                c.editing = c.dragging = false; c.cancelled = true;
-                stage(field, defaults[field], 0);
-            }, "Reset " + definition.label + " to LRBridge default " + defaults[field]);
-            c.reset.title = "LRBridge default: " + defaults[field] + ". Resets only this preference.";
+                c.reset = button("Reset", "reset", () => {
+                    if (!enabled(field)) return;
+                    c.editing = c.dragging = false; c.cancelled = true;
+                    stage(field, defaults[field] / c.scale, 0);
+                }, "Reset " + accessible + " to LRBridge default " + defaults[field]);
+                c.reset.title = "LRBridge default: " + defaults[field] + (repairParameter(field) ?
+                    ". Resets only this parameter on the selected repair." : ". Resets only this preference.");
             }
             c.elements = [c.range, c.number, c.minus, c.plus, ...(c.reset ? [c.reset] : [])];
             [name, ...c.elements].forEach(e => c.row.appendChild(e));
@@ -420,7 +446,7 @@
             } finally { if (current === generation) { polling = false; pollTimer = setTimeout(refresh, 300); } }
         }
         return {
-            activate(parent, appendActions) {
+            activate(parent, appendActions, appendAfterSelected) {
                 section = doc.createElement("div"); section.className = "remove-brush-preferences";
                 const panelRow = doc.createElement("div"); panelRow.className = "remove-action-row";
                 panelButton = doc.createElement("button"); panelButton.type = "button";
@@ -450,6 +476,8 @@
                 const note = doc.createElement("p"); note.className = "remove-reset-defaults";
                 note.textContent = "LRBridge Reset defaults: Size 25 · Feather 50 · Threshold 50.";
                 section.appendChild(note);
+                status = doc.createElement("div"); status.className = "remove-brush-status"; status.setAttribute("role", "status");
+                section.appendChild(status);
                 const selected = doc.createElement("section"); selected.className = "remove-selected-repair";
                 const heading = doc.createElement("h3"); heading.textContent = "Selected Repair"; selected.appendChild(heading);
                 repairSelection = doc.createElement("div"); repairSelection.className = "remove-repair-selection"; selected.appendChild(repairSelection);
@@ -458,6 +486,9 @@
                 controls.selectedRepairFill.input.options[0].disabled = true;
                 selected.appendChild(sliderRow("selectedRepairOpacity"));
                 selected.appendChild(sliderRow("selectedRepairFeather"));
+                const selectedNote = doc.createElement("p"); selectedNote.className = "remove-reset-defaults";
+                selectedNote.textContent = "LRBridge Selected Repair Reset defaults: Opacity 100 · Feather 50.";
+                selected.appendChild(selectedNote);
                 const actions = doc.createElement("div"); actions.className = "remove-action-row";
                 repairButtons = {};
                 for (const [value, label] of [["refresh", "Refresh"], ["delete", "Delete"]]) {
@@ -470,12 +501,46 @@
                 selected.appendChild(actions);
                 repairStatus = doc.createElement("div"); repairStatus.className = "remove-repair-status"; repairStatus.setAttribute("role", "status");
                 selected.appendChild(repairStatus); section.appendChild(selected);
-                status = doc.createElement("div"); status.className = "remove-brush-status"; status.setAttribute("role", "status");
-                section.appendChild(status); parent.appendChild(section); render(); refresh();
+                if (appendAfterSelected) appendAfterSelected(section);
+                parent.appendChild(section); render(); refresh();
+            },
+            mountDust(parent) {
+                const dust = doc.createElement("section"); dust.className = "dust-controls";
+                const heading = doc.createElement("h4"); heading.textContent = "Dust"; dust.appendChild(heading);
+                dust.appendChild(preference("dustApply", "Apply"));
+                controls.dustApply.input.dataset.dustApply = "true";
+                dustNote = doc.createElement("p"); dustNote.className = "dust-capability-note";
+                dust.appendChild(dustNote);
+                // Move the same live controls: one preference owner, queue and gesture lifecycle.
+                dust.appendChild(controls.brushSize.row);
+                dust.appendChild(controls.visualizeSpots.row);
+                dust.appendChild(controls.visualizationThreshold.row);
+                const sharedNote = doc.createElement("p"); sharedNote.className = "remove-reset-defaults";
+                sharedNote.textContent = "Size and visualization are shared with Healing. Resets: Size 25; Threshold 50.";
+                dust.appendChild(sharedNote);
+                dustStatus = doc.createElement("div"); dustStatus.className = "remove-brush-status dust-status";
+                dustStatus.setAttribute("role", "status"); dust.appendChild(dustStatus);
+                const actions = doc.createElement("div"); actions.className = "remove-action-row dust-action-row";
+                for (const action of ["Reset", "Close"]) {
+                    const button = doc.createElement("button"); button.type = "button"; button.textContent = action;
+                    button.dataset.dustAction = action.toLowerCase(); button.disabled = true;
+                    dustButtons[action.toLowerCase()] = button;
+                    button.addEventListener("click", () => {
+                        if (action === "Reset") {
+                            if (state?.dust?.applied === true) stage("dustApply", false, 0);
+                        } else stage("dustClose", "manualRemove", 0);
+                    });
+                    button.setAttribute("aria-describedby", "dust-native-actions-note"); actions.appendChild(button);
+                }
+                dust.appendChild(actions);
+                const actionNote = doc.createElement("p"); actionNote.id = "dust-native-actions-note"; actionNote.className = "dust-capability-note";
+                actionNote.textContent = "Close requests native Healing controls. Confirm Dust collapses in Lightroom; its panel state cannot be read back.";
+                dust.appendChild(actionNote);
+                parent.appendChild(dust); render();
             },
             deactivate() {
                 generation++; clearTimeout(pollTimer); clearTimeout(sendTimer);
-                section = null; state = null; operation = transport = null; intents.clear(); polling = false; error = ""; repairFeedback = "";
+                section = null; dustStatus = dustNote = null; dustButtons = {}; dustFeedback = ""; state = null; operation = transport = null; intents.clear(); polling = false; error = ""; repairFeedback = "";
                 for (const c of Object.values(controls)) c.dragging = c.editing = false;
                 notify();
             },

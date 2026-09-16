@@ -970,26 +970,62 @@
         }
 
         .masking-create-control { position: relative; }
-        .remove-brush-status { height: 48px; line-height: 16px; font-size: 12px; color: #9fb0bf; overflow: hidden; }
+        .remove-brush-preferences > p:not(.remove-reset-defaults) { margin: 0 0 8px; }
+        .remove-brush-status,
+        .remove-repair-status {
+            min-height: 16px;
+            height: auto;
+            margin-top: 8px;
+            color: #9fb0bf;
+            font-size: 12px;
+            line-height: 16px;
+            overflow: visible;
+            overflow-wrap: anywhere;
+        }
         .remove-brush-row [aria-disabled="true"] { opacity: 0.5; }
         .remove-mode-tabs { display: flex; max-width: 360px; }
         .remove-mode-tabs .color-mixer-view-button { flex: 1; min-width: 0; min-height: 44px; }
-        .remove-mode-controls { min-height: 112px; }
+        .remove-mode-controls { min-height: 52px; }
+        .remove-mode-controls > div:not([data-remove-field]) { display: flex; flex-wrap: wrap; gap: 0 20px; }
         .remove-preference-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; min-height: 44px; margin-bottom: 8px; }
         .remove-preference-row input[type="checkbox"] { width: 24px; height: 24px; margin: 0; }
         .remove-preference-row select { width: auto; min-height: 44px; min-width: 140px; font-size: 16px; }
-        .remove-reset-defaults { color: #9fb0bf; font-size: 12px; line-height: 18px; min-height: 36px; }
+        .remove-reset-defaults { margin: 0 0 8px; color: #9fb0bf; font-size: 12px; line-height: 18px; }
         .remove-reset-status { min-height: 18px; line-height: 18px; }
         .remove-action-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
         .remove-action-row > button { flex: 0 0 auto; width: auto; min-height: 44px; white-space: nowrap; }
         .remove-action-row [data-remove-panel] { display: inline-grid; }
         .remove-action-row [data-remove-panel]::before { content: "Close Healing Tool"; visibility: hidden; grid-area: 1 / 1; }
         .remove-action-row [data-remove-panel] > span { grid-area: 1 / 1; }
-        .remove-selected-repair { margin: 16px 0; }
-        .remove-selected-repair h3 { font-size: 16px; margin: 0 0 8px; }
+        .remove-selected-repair,
+        .remove-distraction-removal { margin: 20px 0 0; padding-top: 12px; border-top: 1px solid #405263; }
+        .remove-selected-repair > h3,
+        .remove-distraction-removal > h3 { margin: 0 0 10px; color: #8fa2b3; font-size: 16px; font-weight: 600; }
         .remove-repair-selection { min-height: 20px; margin-bottom: 8px; }
-        .remove-repair-status { height: 48px; font-size: 12px; line-height: 16px; color: #9fb0bf; overflow: hidden; }
-        @media (max-width: 760px) { .remove-mode-controls { min-height: 180px; } }
+        .remove-selected-repair .remove-action-row { margin-bottom: 0; }
+        .reflections-controls > h4 { margin: 0 0 8px; color: #c2ced8; font-size: 14px; font-weight: 600; }
+        .reflections-controls > .remove-reset-defaults { margin-bottom: 0; }
+        .people-controls { margin-top: 20px; }
+        .people-controls > h4 { margin: 0 0 8px; color: #c2ced8; font-size: 14px; font-weight: 600; }
+        .people-help { margin-bottom: 8px; }
+        .people-open-row,
+        .people-action-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+        .people-open-row > button,
+        .people-action-row > button { min-height: 44px; padding: 8px 12px; }
+        .people-action-row > button { flex: 1 1 150px; }
+        .people-status { min-height: 16px; color: #9fb0bf; font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+        .dust-controls { margin-top: 20px; }
+        .dust-controls > h4 { margin: 0 0 8px; color: #c2ced8; font-size: 14px; font-weight: 600; }
+        .dust-action-row { display: flex; flex-wrap: nowrap; gap: 8px; }
+        .dust-action-row > button { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 12px; }
+        .dust-capability-note { margin: 0 0 8px; color: #9fb0bf; font-size: 12px; line-height: 18px; }
+        @media (max-width: 760px) {
+            .remove-mode-controls { min-height: 160px; }
+            .remove-mode-controls > div:not([data-remove-field]) { display: block; }
+            .remove-brush-status,
+            .remove-repair-status { min-height: 32px; }
+            .people-status { min-height: 32px; }
+        }
         .masking-component-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .masking-component-heading { flex-basis: 100%; margin: 0; font-size: 16px; line-height: 24px; }
         .masking-component-invert-label, .masking-component-invert-button { box-sizing: border-box; min-height: 56px; padding: 12px 18px; }
@@ -3509,6 +3545,8 @@
     <script src="/controller-masking-corrections.js"></script>
     <script src="/controller-masking.js"></script>
     <script src="/controller-remove.js"></script>
+    <script src="/controller-reflections.js"></script>
+    <script src="/controller-people.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -4471,7 +4509,8 @@
         function historyInteractionBlocked() {
             const maskingInteraction = maskingController.getInteractionState();
             return heartbeatWasStale || historyCommandInFlight || activeSliderInteractions.size > 0 ||
-                Boolean(maskingInteraction.activeOperation || maskingInteraction.correctionBusy) || removeController.isInteracting();
+                Boolean(maskingInteraction.activeOperation || maskingInteraction.correctionBusy) || removeController.isInteracting() ||
+                reflectionsController.isInteracting() || peopleController.isInteracting();
         }
 
         function initializeHistoryToolbar() {
@@ -5427,6 +5466,26 @@
                     contextChangedAt: lastControllerContextChangedAt };
             }
         });
+        const reflectionsController = LRBridgeControllerReflections.createController({
+            document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
+            onSubmitted: startHistoryActionCooldown, onHistoryChanged: requestHistoryState,
+            isBlocked: function () { return heartbeatWasStale || historyCommandInFlight; },
+            getContext: function () {
+                return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter, developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt };
+            }
+        });
+        const peopleController = LRBridgeControllerPeople.createController({
+            document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
+            onSubmitted: startHistoryActionCooldown, onHistoryChanged: requestHistoryState,
+            isBlocked: function () { return heartbeatWasStale || historyCommandInFlight; },
+            getContext: function () {
+                return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter, developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt };
+            }
+        });
         const maskingController = LRBridgeControllerMasking.createController({
             document: document,
             fetch: fetch.bind(window),
@@ -5800,6 +5859,8 @@
                 developPresetController.updateContext();
                 maskingController.updateContext(data);
                 removeController.updateContext();
+                reflectionsController.updateContext();
+                peopleController.updateContext();
                 pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
@@ -10119,6 +10180,7 @@
         }
 
         function cancelActiveControllerGestures(message) {
+            reflectionsController.cancelGestures();
             let cancelled = false;
             Array.from(activeSliderInteractions).forEach(function (slider) {
                 const control = developSliderControls[slider];
@@ -12000,6 +12062,16 @@
             if (tab.id === "healing") {
                 removeController.activate(groupElement, function (parent) {
                     for (const item of tab.actions) addActionRow(parent, item);
+                }, function (parent) {
+                    const distraction = document.createElement("section");
+                    distraction.className = "remove-distraction-removal";
+                    const heading = document.createElement("h3");
+                    heading.textContent = "Distraction Removal";
+                    distraction.appendChild(heading);
+                    parent.appendChild(distraction);
+                    reflectionsController.activate(distraction);
+                    peopleController.activate(distraction);
+                    removeController.mountDust(distraction);
                 });
             } else {
                 for (const item of tab.actions) addActionRow(groupElement, item);
@@ -12039,6 +12111,8 @@
             pointCurveController.deactivate();
             maskingController.deactivate();
             removeController.deactivate();
+            reflectionsController.deactivate();
+            peopleController.deactivate();
             deactivateDevelopFeedbackPolling();
             clearContent();
             content.hidden = colorGradingActive;

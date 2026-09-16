@@ -110,6 +110,12 @@ const masking = maskingDefinition.createMaskingState(Object.assign({}, options.m
 }));
 const remove = require("./remove-state").createRemoveState({ getContext: context.getContextFields });
 commands.setRemoveAdmissionProvider(remove);
+const reflections = require("./reflections-state").createReflectionsState({ getContext: context.getContextFields,
+    onChanged() { history.invalidate(); history.requestRefresh(); } });
+commands.setReflectionsAdmissionProvider(reflections);
+const people = require("./people-state").createPeopleState({ getContext: context.getContextFields,
+    onChanged() { history.invalidate(); history.requestRefresh(); } });
+commands.setPeopleAdmissionProvider(people);
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -1731,6 +1737,8 @@ app.get("/develop-categorical/upright-tool", function (req, res) {
 });
 
 require("./remove-routes")(app, remove, commands, exactQueryFields, parseStrictFiniteNumber);
+require("./reflections-routes")(app, reflections, commands, exactQueryFields, parseStrictFiniteNumber);
+require("./people-routes")(app, people, commands, exactQueryFields, parseStrictFiniteNumber);
 
 app.get("/masking/state", function (req, res) {
     if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });

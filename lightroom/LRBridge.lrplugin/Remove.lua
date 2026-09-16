@@ -5,6 +5,7 @@ local LrTasks = import "LrTasks"
 local LrHttp = import "LrHttp"
 local Parser = require "Parser"
 local Repair = require "RemoveRepair"
+local Dust = require "Dust"
 local Remove = {}
 local baseUrl = "http://127.0.0.1:17891/remove/"
 local modes = { heal_patchmatch = true, heal = true, clone = true }
@@ -58,9 +59,10 @@ local function read(command)
     end)
     if not photoMatches(command) then selectedTool = nil end
     local repair = Repair.public(Repair.read(function() return contextMatches(command) end, diagnostics))
+    local dust = Dust.read(selectedPhoto(), function() return photoMatches(command) end)
     if not ok or not preferences then return { available = false, selectedTool = selectedTool, repair = repair,
-        reason = "Open Remove in Develop to read brush preferences." } end
-    local snapshot = { available = true, selectedTool = selectedTool, preferences = preferences, repair = repair }
+        dust = dust, reason = "Open Remove in Develop to read brush preferences." } end
+    local snapshot = { available = true, selectedTool = selectedTool, preferences = preferences, repair = repair, dust = dust }
     for _, field in ipairs(fields) do snapshot[field] = preferences[field] end
     return snapshot
 end
@@ -71,13 +73,30 @@ local function bindingUrl(command)
 end
 local function snapshotUrl(snapshot)
     local url = "&available=" .. tostring(snapshot.available) .. "&reason=" .. encode(snapshot.reason) .. "&selectedTool=" .. encode(snapshot.selectedTool) ..
-        "&repair=" .. encode(Repair.json(snapshot.repair or { available = false }))
+        "&repair=" .. encode(Repair.json(snapshot.repair or { available = false })) ..
+        "&dust=" .. encode(Repair.json(snapshot.dust or { available = false }))
     for _, field in ipairs(fields) do url = url .. "&" .. field .. "=" .. encode(snapshot[field]) end
     return url
 end
 local function validate(command)
     local body = LrHttp.get(baseUrl .. "validate?operationId=" .. encode(command.operationId) .. bindingUrl(command))
     return type(body) == "string" and string.find(body, [["valid":true]], 1, true) ~= nil
+end
+function Remove.setDust(command)
+    local closing = command.command == "remove.dust.close"
+    local result = (closing and Dust.requestClose or Dust.setApplied)(command, function()
+        return validate(command) and contextMatches(command)
+    end)
+    local snapshot = read(command)
+    local preserved = result.confirmed == true or result.preservationConfirmed == true
+    snapshot.dust.preservationConfirmed = preserved
+    local detail = result.detail or (closing and
+        "Native manual Healing navigation requested; edits preserved. Check that Dust collapses in Lightroom; its panel state is not exposed." or
+        ((command.value and "Dust On" or "Dust Off / Reset") .. " confirmed by Lightroom readback; other edits preserved."))
+    LrHttp.get(baseUrl .. "operation-result?operationId=" .. encode(command.operationId) .. bindingUrl(command) ..
+        "&repairEditConfirmed=false&repairRemovalConfirmed=false&targetRepairToken=null&field=" .. encode(command.field) .. "&value=" .. encode(command.value) .. "&outcome=" ..
+        (result.confirmed and "confirmed" or result.requested and "requested" or "failed") .. "&detail=" .. encode(detail) ..
+        "&otherPreferencesPreserved=" .. tostring(preserved) .. snapshotUrl(snapshot))
 end
 function Remove.sendRequestedSnapshot(json)
     local command = Parser.parse(json)

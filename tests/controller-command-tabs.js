@@ -130,10 +130,12 @@ assert.match(source, /function renderToolsTab\(\)[\s\S]*renderCropSection\(\);[\
     "Tools must render Crop & Straighten, Healing, Red Eye, and Masking in order");
 assert.deepEqual(toolTabs.map((tab) => tab.title), ["Healing", "Red Eye", "Masking"]);
 assert.deepEqual(toolTabs.map((tab) => tab.actions.map((action) => [action.label, action.action, action.button])), [
-    [["Healing Tool", "selectHealingTool", "Select"], ["Reset Spot Removal", "resetSpotRemoval", "Reset"]],
+    [["Reset Spot Removal", "resetSpotRemoval", "Reset Spot Removal"]],
     [["Red Eye Tool", "selectRedEyeTool", "Select"], ["Reset Red Eye", "resetRedeye", "Reset"]],
     [["Masking Tool", "selectMaskingTool", "Select"]]
 ], "Retouching action definitions or command payloads drifted");
+assert.match(source, /tab\.id === "healing"[\s\S]*removeController\.activate\(groupElement[\s\S]*heading\.textContent = "Distraction Removal"[\s\S]*reflectionsController\.activate\(distraction\)[\s\S]*peopleController\.activate\(distraction\)/,
+    "Healing must own the internal Distraction Removal, Reflections and People controls");
 assert.match(source, /maskingController\.activate\(content[\s\S]*decorateToolsCollapsibleWhole[\s\S]*"tools\.masking"/,
     "Masking must use its authoritative controller inside the existing Tools section");
 const normalizeControllerTab = extractJavaScriptFunction("normalizeControllerTab", "tabFromLocation", {});
@@ -170,11 +172,13 @@ assert.deepEqual(Object.entries(toolsCollapseDefinitions), [
     ["tools.healing", "Healing"],
     ["tools.red-eye", "Red Eye"],
     ["tools.masking", "Masking"]
-], "Tools collapse identities must include only the four actual top-level sections in page order");
+], "Tools collapse identities must include the four actual top-level sections in page order");
 assert.match(source, /storageKey: "lrbridge\.controller\.collapsedToolsSections\.v1"/,
     "Tools collapse state requires its own stable persistence key");
 assert.match(source, /function getToolsJumpSections\(\)[\s\S]*crop-straighten[\s\S]*healing[\s\S]*red-eye[\s\S]*masking/,
     "Tools Jump-to order must match the rendered top-level sections");
+assert.doesNotMatch(source.match(/function getToolsJumpSections\(\)[\s\S]*?\n        \}/)[0], /distraction-removal/,
+    "Internal Distraction Removal must not have a top-level Jump-to entry");
 assert.match(source, /renderCommandGroups\(cropGroups, section, "tools-subsection"\)/,
     "Nested Crop rows must remain outside the Tools collapse registry");
 

@@ -17,6 +17,8 @@ local ToneCurve = require "ToneCurve"
 local DevelopPresets = require "DevelopPresets"
 local Masking = require "Masking"
 local Remove = require "Remove"
+local Reflections = require "Reflections"
+local People = require "People"
 
 local function getPortableRoot()
 
@@ -934,6 +936,15 @@ LrTasks.startAsyncTask(function()
         local removeRequest = LrHttp.get("http://127.0.0.1:17891/remove/next")
         if string.find(removeRequest or "", [["request":{]], 1, true) then
             Remove.sendRequestedSnapshot(removeRequest)
+        end
+
+        local reflectionsRequest = LrHttp.get("http://127.0.0.1:17891/reflections/next")
+        if string.find(reflectionsRequest or "", [["request":{]], 1, true) then
+            Reflections.sendRequestedSnapshot(reflectionsRequest)
+        end
+        local peopleRequest = LrHttp.get("http://127.0.0.1:17891/people/next")
+        if string.find(peopleRequest or "", [["request":{]], 1, true) then
+            People.sendRequestedSnapshot(peopleRequest)
         end
 
         LrTasks.sleep(0.1)
