@@ -1698,18 +1698,47 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            height: 68px;
+            height: 64px;
             box-sizing: border-box;
-            padding: 10px 22px;
+            padding: 9px 22px;
             background: #101820;
             border-bottom: 1px solid #26313d;
         }
 
-        .global-history-toolbar button { min-width: 82px; }
+        .global-history-toolbar button { min-width: 44px; min-height: 44px; line-height: 16px; white-space: nowrap; }
+        .favorites-actions { display: flex; gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+        .favorites-actions::-webkit-scrollbar { display: none; }
+        #favoritesCustomize { flex: 0 0 auto; margin-left: auto; padding: 8px 10px; }
+        .favorites-feedback { position: fixed; bottom: 12px; right: 12px; z-index: 65; max-width: min(420px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 14px; border-radius: 6px; background: #18232df2; color: #bfd0dd; box-shadow: 0 2px 10px #0005; font-size: 13px; line-height: 1.45; pointer-events: none; }
+        .favorites-feedback.favorites-attention { color: #ffcc87; }
+        .favorites-feedback button { pointer-events: auto; color: inherit; background: transparent; border: 0; box-shadow: none; border-radius: 3px; text-decoration: underline; min-width: 44px; min-height: 44px; padding: 6px 10px; font-size: 13px; }
+        .favorites-feedback[hidden], .favorites-feedback button[hidden] { display: none; }
+        .favorites-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+        .favorites-dialog { width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); box-sizing: border-box; overflow: auto; color: #e8eef4; background: #101820; border: 1px solid #52616e; border-radius: 12px; padding: 18px; }
+        .favorites-dialog::backdrop { background: #0009; }
+        .favorites-dialog h2 { margin: 0 0 8px; font-size: 20px; }
+        .favorites-dialog p { color: #9fb0bf; font-size: 13px; margin: 8px 0; }
+        .favorites-dialog button, .favorites-dialog select { min-height: 44px; min-width: 44px; }
+        #favoritesOrder { padding: 0; margin: 12px 0; list-style: none; }
+        .favorites-edit-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid #293643; }
+        .favorites-edit-buttons { display: flex; gap: 6px; }
+        .favorites-edit-buttons button { padding: 8px 10px; }
+        .favorites-add { display: flex; gap: 8px; margin: 12px 0; }
+        .favorites-add select { flex: 1; min-width: 0; background: #18232d; color: #e8eef4; border: 1px solid #52616e; border-radius: 6px; }
+        #favoritesSearch { display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin: 8px 0; padding: 8px 10px; background: #18232d; color: #e8eef4; border: 1px solid #52616e; border-radius: 6px; }
+        [data-controller-action][aria-disabled="true"] { opacity: .45; cursor: default; }
+        [data-controller-action][aria-pressed="true"], [data-favorite-action][aria-pressed="true"] { border-color: #f0a64a; box-shadow: inset 0 0 0 1px #f0a64a; }
+        .tab-action-group { scroll-margin-top: calc(var(--controller-toolbar-height, 64px) + 12px); }
+        .favorites-footer { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; }
+        @media (max-width: 520px) {
+            .global-history-toolbar { padding-left: 10px; padding-right: 10px; gap: 6px; }
+            .favorites-edit-row { flex-wrap: wrap; }
+            .favorites-edit-label { flex: 1 0 100%; }
+        }
 
         .slider-jump-control {
             position: sticky;
-            top: 68px;
+            top: var(--controller-toolbar-height, 64px);
             z-index: 30;
             display: flex;
             align-items: center;
@@ -1805,13 +1834,14 @@
             cursor: pointer;
         }
 
-        .slider-jump-history-button:hover:not(:disabled),
+        .slider-jump-history-button:hover:not(:disabled):not([aria-disabled="true"]),
         .slider-jump-history-button:focus-visible {
             background: #1a1a1a;
             border-color: #f0a64a;
         }
 
-        .slider-jump-history-button:disabled {
+        .slider-jump-history-button:disabled,
+        .slider-jump-history-button[aria-disabled="true"] {
             opacity: 0.45;
             cursor: default;
         }
@@ -3504,6 +3534,17 @@
         .export-controls button { min-height: 44px; white-space: normal; }
         .export-controls .command-group-note { margin-top: 8px; }
         .export-review[hidden] { display: none; }
+        .clipboard-button-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .clipboard-controls button { min-height: 44px; }
+        .clipboard-controls button[aria-disabled="true"] { opacity: .45; cursor: default; }
+        .clipboard-controls .command-group-note { margin: 8px 0 0; }
+        .clipboard-selection { font-weight: 600; }
+        .clipboard-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: #d0dce7; font-size: 13px; }
+        .clipboard-details summary::before { content: "▸"; margin-right: 8px; }
+        .clipboard-details[open] summary::before { content: "▾"; }
+        .clipboard-review { margin-top: 8px; }
+        .clipboard-review[hidden], .clipboard-status[hidden] { display: none; }
+        .clipboard-controls, .export-controls { scroll-margin-top: calc(var(--controller-toolbar-height, 64px) + 12px); }
     </style>
 </head>
 <body>
@@ -3513,7 +3554,29 @@
     </header>
 
     <nav class="tabs" id="tabs" aria-label="Controller tools"></nav>
-    <div id="historyToolbar" class="global-history-toolbar" role="group" aria-label="Lightroom history"></div>
+    <div id="historyToolbar" class="global-history-toolbar" role="group" aria-label="Favorite actions">
+        <div id="favoriteActions" class="favorites-actions" role="group" aria-label="Saved favorite actions"></div>
+        <button id="favoritesCustomize" class="command-neutral" type="button" aria-haspopup="dialog">Customize</button>
+        <span id="favoritesLive" class="favorites-live" role="status" aria-live="polite"></span>
+    </div>
+    <div id="favoritesFeedback" class="favorites-feedback" hidden>
+        <span id="favoritesMessage"></span>
+        <button id="favoritesNotice" type="button" hidden></button>
+        <button id="favoritesDismiss" type="button" hidden>Dismiss</button>
+    </div>
+    <dialog id="favoritesDialog" class="favorites-dialog" aria-labelledby="favoritesTitle">
+        <h2 id="favoritesTitle">Customize favorites</h2>
+        <p>Choose and reorder your action buttons. Saved for this browser/device. Scroll the bar to reach more favorites on small screens.</p>
+        <ol id="favoritesOrder" aria-label="Favorite order"></ol>
+        <label for="favoritesSearch">Search actions</label>
+        <input id="favoritesSearch" type="search" placeholder="Name, tab or section…" autocomplete="off" aria-describedby="favoritesMatches">
+        <p id="favoritesMatches" role="status"></p>
+        <label for="favoritesAddChoice">Add an action</label>
+        <div class="favorites-add"><select id="favoritesAddChoice"></select><button id="favoritesAdd" class="command-primary" type="button">Add</button></div>
+        <p id="favoritesActionHelp"></p>
+        <p id="favoritesPreferenceStatus" role="status"></p>
+        <div class="favorites-footer"><button id="favoritesRestore" type="button" class="command-neutral">Restore defaults</button><button id="favoritesClose" type="button" class="command-primary">Done</button></div>
+    </dialog>
     <main class="content" id="content"></main>
 
     <main class="content cg-shell" id="colorGradingWorkspace" hidden>
@@ -3557,6 +3620,8 @@
     <script src="/controller-people.js"></script>
     <script src="/controller-red-eye.js"></script>
     <script src="/controller-export.js"></script>
+    <script src="/controller-clipboard.js"></script>
+    <script src="/controller-favorites.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -4508,6 +4573,8 @@
         let sliderJumpInstallAnimationFrame = null;
         let historyUndoButton = null;
         let historyRedoButton = null;
+        let favoritesBar = null;
+        let tabActionController = null;
         const historyActionCooldownMs = 3000;
         let historyActionCooldownUntil = 0;
         let historyActionCooldownTimer = null;
@@ -4520,7 +4587,7 @@
             const maskingInteraction = maskingController.getInteractionState();
             return heartbeatWasStale || historyCommandInFlight || activeSliderInteractions.size > 0 ||
                 Boolean(maskingInteraction.activeOperation || maskingInteraction.correctionBusy) || removeController.isInteracting() ||
-                reflectionsController.isInteracting() || peopleController.isInteracting() || redEyeController.isInteracting() || exportController.isInteracting();
+                reflectionsController.isInteracting() || peopleController.isInteracting() || redEyeController.isInteracting() || exportController.isInteracting() || clipboardController.isInteracting() || Boolean(tabActionController?.isInteracting());
         }
 
         function initializeHistoryToolbar() {
@@ -4531,7 +4598,6 @@
             redoButton.type = "button"; redoButton.className = "slider-jump-history-button"; redoButton.textContent = "Redo";
             redoButton.addEventListener("click", function () { runLightroomHistoryCommand("lightroom.redo"); });
             historyUndoButton = undoButton; historyRedoButton = redoButton; updateHistoryButtons();
-            document.getElementById("historyToolbar").append(undoButton, redoButton);
         }
 
         function isHistoryActionCooldownActive() {
@@ -4552,6 +4618,9 @@
                 historyRedoButton.disabled = busy || !historyState.available || !historyState.canRedo;
                 historyRedoButton.textContent = remainingMs > 0 ? "Busy " + remainingSeconds : "Redo";
             }
+            clipboardController.updateContext?.();
+            if (tabActionController) updateTabActionButtons();
+            favoritesBar?.refresh();
         }
 
         function startHistoryActionCooldown() {
@@ -4612,6 +4681,7 @@
                     requestLiveFeedbackSnapshot(true);
                     maskingController.refresh();
                 }
+                return accepted;
             } finally {
                 historyCommandInFlight = false;
                 updateHistoryButtons();
@@ -5497,8 +5567,26 @@
             }
         });
         const exportController = LRBridgeControllerExport.createController({
+            onPresentationChange: function () { favoritesBar?.refresh(); },
             document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
             isBlocked: historyInteractionBlocked,
+            getContext: function () {
+                return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter, developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt };
+            }
+        });
+        const clipboardController = LRBridgeControllerClipboard.createController({
+            onPresentationChange: function () { favoritesBar?.refresh(); },
+            document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
+            isBlocked: function () { return historyInteractionBlocked() || isHistoryActionCooldownActive(); },
+            onPasteResult: function () {
+                startHistoryActionCooldown();
+                pollControllerContext();
+                requestLiveFeedbackSnapshot(true);
+                maskingController.refresh();
+                requestHistoryState();
+            },
             getContext: function () {
                 return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid,
                     contextCounter: lastControllerContextCounter, developCounter: lastControllerDevelopCounter,
@@ -5892,6 +5980,7 @@
                 peopleController.updateContext();
                 redEyeController.updateContext();
                 exportController.updateContext();
+                clipboardController.updateContext();
                 pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
@@ -6334,6 +6423,7 @@
                 if (group.actionBar) continue;
                 const groupElement = document.createElement("section");
                 groupElement.className = groupClassName || "group";
+                if (groups === selectionGroups || groups === applicationGroups) groupElement.classList.add("tab-action-group");
 
                 const title = document.createElement("div");
                 title.className = "group-title";
@@ -6357,6 +6447,13 @@
                 }
 
                 for (const item of group.commands) {
+                    const sharedAction = tabActionController?.forItem(item);
+                    if (sharedAction) {
+                        const button = makeButton(item.label, item.className || "command-primary", sharedAction.run);
+                        button.type = "button"; button.dataset.controllerAction = sharedAction.id;
+                        updateTabActionButton(button, sharedAction); grid.appendChild(button);
+                        continue;
+                    }
                     grid.appendChild(makeButton(item.label, item.className || "command-primary", function () {
                         if (item.customCrop) {
                             openCustomCropModal();
@@ -6369,6 +6466,19 @@
                 if (group.commands.length > 0) groupElement.appendChild(grid);
                 host.appendChild(groupElement);
             }
+        }
+
+        function updateTabActionButton(button, action) {
+            button.setAttribute("aria-disabled", String(!action.available()));
+            const pressed = action.pressed();
+            if (typeof pressed === "boolean") button.setAttribute("aria-pressed", String(pressed)); else button.removeAttribute("aria-pressed");
+        }
+
+        function updateTabActionButtons() {
+            document.querySelectorAll("[data-controller-action]").forEach(function (button) {
+                const action = tabActionController.get(button.dataset.controllerAction);
+                if (action) updateTabActionButton(button, action);
+            });
         }
 
         function cropToolCommandPath(target) {
@@ -12129,6 +12239,7 @@
         function renderSelectionTab() {
             renderCommandGroups(selectionGroups);
             exportController.activate(content);
+            clipboardController.activate(content);
         }
 
         function renderPresetsTab() {
@@ -12149,6 +12260,7 @@
             peopleController.deactivate();
             redEyeController.deactivate();
             exportController.deactivate();
+            clipboardController.deactivate();
             deactivateDevelopFeedbackPolling();
             clearContent();
             content.hidden = colorGradingActive;
@@ -12207,6 +12319,52 @@
         }
 
         initializeHistoryToolbar();
+        clipboardController.initialize();
+        (function initializeFavorites() {
+            const historyFeedback = { detail: "", summary: "" };
+            const openSelection = function (controller) { selectControllerTab("selection", true); controller.showFeedback(); };
+            const showCommandStatus = function (detail) { const node = document.getElementById("status"); if (typeof detail === "string") node.textContent = detail; node.tabIndex = -1; node.focus({ preventScroll: true }); node.scrollIntoView({ block: "nearest" }); };
+            tabActionController = LRBridgeControllerFavorites.createTabActions({
+                tabs: [["Selection", selectionGroups], ["Application", applicationGroups]],
+                getContext: function () { return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid }; },
+                isConnected: function () { return !heartbeatWasStale; },
+                isBlocked: function () { return historyInteractionBlocked() || isHistoryActionCooldownActive(); },
+                send: function (item) { return sendCommand(commandPath(item)); },
+                showDetails: showCommandStatus, onChange: updateHistoryButtons, onSettled: pollControllerContext
+            });
+            const actions = [
+                ...[["lightroom.undo", "Undo", historyUndoButton], ["lightroom.redo", "Redo", historyRedoButton]].map(function ([id, label, original]) {
+                    return { id, label, group: "History", groupOrder: 0, feedbackGroup: "history", available: function () { return !original.disabled; },
+                        run: async function () {
+                            historyFeedback.detail = label + " pending in Lightroom."; historyFeedback.summary = label + " pending";
+                            historyFeedback.busy = true;
+                            historyFeedback.kind = "pending"; historyFeedback.command = id; historyFeedback.key = (historyFeedback.key || 0) + 1;
+                            const accepted = await runLightroomHistoryCommand(id);
+                            historyFeedback.busy = false; historyFeedback.short = accepted ? label + " sent" : "Check " + label;
+                            historyFeedback.kind = accepted ? "sent" : "error";
+                            historyFeedback.detail = accepted ? label + " requested in Lightroom." : label + " request unconfirmed. Check the controller status.";
+                            historyFeedback.summary = accepted ? label + " requested" : "Check " + label;
+                            favoritesBar?.refresh();
+                        }, feedback: function () { return historyFeedback; },
+                        showDetails: showCommandStatus };
+                }),
+                ...[["clipboard.copy", "Quick Copy Settings"], ["clipboard.paste", "Paste Settings"]].map(function ([id, label]) {
+                    return { id, label, group: "Selection — Copy / Paste Settings", groupOrder: 19, feedbackGroup: "clipboard", description: id === "clipboard.copy" ? "Copies settings from the active photo without opening a dialog. Uses the categories last selected in Lightroom’s Copy Settings dialog." : label + ". Photo-level action; explanations and destination count are in Selection.",
+                        available: function () { return clipboardController.actionAvailable(id); }, run: function () { clipboardController.runAction(id); },
+                        feedback: clipboardController.getFeedback, showDetails: function () { openSelection(clipboardController); } };
+                }),
+                ...[["export.dialog", "Export…"], ["export.previous", "Export with Previous"]].map(function ([id, label]) {
+                    return { id, label, group: "Selection — Export", groupOrder: 18, feedbackGroup: "export", description: id === "export.previous" ? "Reuses Lightroom’s last export settings and may start immediately." : label,
+                        available: function () { return exportController.actionAvailable(id); }, run: function () { exportController.runAction(id); },
+                        feedback: exportController.getFeedback, showDetails: function () { openSelection(exportController); } };
+                }),
+                ...tabActionController.actions
+            ];
+            actions.sort(function (a, b) { return a.groupOrder - b.groupOrder; });
+            let storage = null; try { storage = window.localStorage; } catch (_) { /* Optional preference storage. */ }
+            favoritesBar = LRBridgeControllerFavorites.create({ document: document, storage: storage, actions: actions,
+                onArrangementChange: function (ids) { exportController.setFavoritesActive(ids.some(function (id) { return id.startsWith("export."); })); } });
+        })();
 
         async function loadDevelopSliderDefinitions() {
             const response = await fetch("/api/sliders", { cache: "no-store" });

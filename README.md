@@ -20,6 +20,8 @@ Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightro
 
 ## Quick links
 
+Native **Quick Copy Settings** and **Paste Settings** are at the bottom of Selection, after Export; Navigate is first. Copy uses Lightroom's last chosen categories; Paste targets the shown selection and requests AI updating. The compact [favorites bar](docs/CONTROLLER_FAVORITES.md) defaults to Undo/Redo. Its searchable, grouped chooser offers all Selection and Application action buttons, including Copy/Paste and Export, without changing existing favorites. Routine action-specific feedback expires outside the bar; errors and required review remain accessible. Native Copy/Paste and final wording/feedback acceptance are pending. See [Copy/Paste behavior, safeguards and limits](docs/COPY_PASTE_SETTINGS.md).
+
 Native **Export…** and **Export with Previous** controls are on the Web Controller's Selection page. See [Export controls, HTTP contract and validation status](docs/EXPORT_CONTROLS.md). Export with Previous reuses Lightroom's last export settings and may start immediately. Native button behavior is accepted with one selected photo; completed file export and multi-photo export were not tested.
 
 When LRBridge is running:

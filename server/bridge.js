@@ -122,6 +122,10 @@ commands.setRedEyeAdmissionProvider(redEye);
 const exportsState = require("./export-state").createExportState({ getContext: context.getContextFields,
     enqueue: command => commands.tryEnqueueCommand(command).accepted });
 commands.setExportAdmissionProvider(exportsState);
+const clipboardState = require("./clipboard-state").createClipboardState({ getContext: context.getContextFields,
+    enqueue: command => commands.tryEnqueueCommand(command).accepted,
+    onChanged() { history.invalidate(); history.requestRefresh(); } });
+commands.setClipboardAdmissionProvider(clipboardState);
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -1748,6 +1752,7 @@ require("./reflections-routes")(app, reflections, commands, exactQueryFields, pa
 require("./people-routes")(app, people, commands, exactQueryFields, parseStrictFiniteNumber);
 require("./red-eye-routes")(app, redEye, commands, exactQueryFields, parseStrictFiniteNumber);
 require("./export-routes")(app, exportsState, commands, exactQueryFields, parseStrictFiniteNumber);
+require("./clipboard-routes")(app, clipboardState, commands, exactQueryFields, parseStrictFiniteNumber);
 
 app.get("/masking/state", function (req, res) {
     if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });

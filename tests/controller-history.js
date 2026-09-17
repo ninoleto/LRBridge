@@ -15,6 +15,7 @@ const block = source.slice(source.indexOf("        let historyUndoButton ="), so
         peopleController: { isInteracting: () => c.peopleBusy === true },
         redEyeController: { isInteracting: () => c.redEyeBusy === true },
         exportController: { isInteracting: () => c.exportBusy === true },
+        clipboardController: { isInteracting: () => c.clipboardBusy === true },
         pollControllerContext() { refreshes += 1; }, requestLiveFeedbackSnapshot() { refreshes += 1; },
         async fetch() {
             calls += 1;
@@ -57,6 +58,9 @@ const block = source.slice(source.indexOf("        let historyUndoButton ="), so
     c.exportBusy = true; c.api.update(); await c.api.run("lightroom.undo");
     assert.equal(mutations, 0); assert.equal(c.undo.disabled, true, "Export dispatch blocks shared history across tabs");
     c.exportBusy = false;
+    c.clipboardBusy = true; c.api.update(); await c.api.run("lightroom.undo");
+    assert.equal(mutations, 0); assert.equal(c.undo.disabled, true, "Copy/Paste blocks shared history across tabs");
+    c.clipboardBusy = false;
     removeBusy = false; c.activeSliderInteractions.add("GrainSize"); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
     c.activeSliderInteractions.clear(); c.api.ready();
     await Promise.all([c.api.run("lightroom.undo"), c.api.run("lightroom.undo")]);

@@ -8,7 +8,7 @@
         const doc = options.document;
         let section = null, selection = null, status = null, review = null, buttons = {}, state = null;
         let timer = null, polling = false, transport = false, unresolved = null, localReview = false, receivedAt = 0, message = "";
-        let epoch = null, generation = 0, accepted = null;
+        let epoch = null, generation = 0, accepted = null, favoritesActive = false, readFailed = false;
         const retired = new Set();
         const busy = () => Boolean(transport || unresolved || state?.pendingOperation);
         const notify = () => options.onInteractionChange?.();
@@ -30,13 +30,14 @@
                 state[command === "export.dialog" ? "dialogSupported" : "previousSupported"];
         }
         function render() {
-            if (!section) return;
+            if (!section) { options.onPresentationChange?.(); return; }
             for (const [command, button] of Object.entries(buttons)) button.disabled = !enabled(command);
             selection.textContent = fresh() ? state.selectionCount + (state.selectionCount === 1 ? " photo selected in Lightroom." : " photos selected in Lightroom.") : "Waiting for Lightroom selection…";
             status.textContent = busy() ? "Waiting for Lightroom…" : localReview || state?.needsReview ?
                 "Request unconfirmed. Check Lightroom before making another export request. No retry was sent." : message;
             review.hidden = !(localReview || state?.needsReview);
             review.disabled = busy() || !state;
+            options.onPresentationChange?.();
         }
         function apply(next, startedAt) {
             if (!next || contextKey(next) !== contextKey(options.getContext()) || typeof next.serverEpoch !== "string" || retired.has(next.serverEpoch)) return false;
@@ -48,18 +49,18 @@
             epoch = next.serverEpoch;
             if (accepted && (next.revision < accepted.revision || next.revision === accepted.revision && next.capturedAt < accepted.capturedAt)) return false;
             accepted = { revision: next.revision, capturedAt: next.capturedAt };
-            state = next; receivedAt = startedAt;
+            state = next; receivedAt = startedAt; readFailed = false;
             if (next.lastResult) message = next.lastResult.detail;
             if (unresolved && next.lastResult?.requestId === unresolved) unresolved = null;
             if (unresolved && !transport && next.pendingOperation?.requestId !== unresolved) { localReview = true; unresolved = null; }
             render(); notify(); return true;
         }
         async function refresh() {
-            if (polling || !section && !busy()) return;
+            if (polling || !section && !favoritesActive && !busy()) return;
             clearTimeout(timer); polling = true; const version = generation, startedAt = Date.now();
             try { const next = await json("state"); if (version === generation) apply(next, startedAt); }
-            catch (_) { if (version === generation) { state = null; message = "Could not read Lightroom selection."; render(); } }
-            finally { polling = false; if (section || busy()) timer = setTimeout(refresh, 500); }
+            catch (_) { if (version === generation) { state = null; readFailed = true; message = "Could not read Lightroom selection."; render(); } }
+            finally { polling = false; if (section || favoritesActive || busy()) timer = setTimeout(refresh, 500); }
         }
         async function action(command) {
             if (!enabled(command)) return;
@@ -88,7 +89,7 @@
         }
         return {
             activate(parent) {
-                section = element("section", "group export-controls"); buttons = {};
+                section = element("section", "group export-controls"); section.id = "exportSection"; buttons = {};
                 section.appendChild(element("div", "group-title", "Export"));
                 selection = element("div", "command-group-note export-selection"); section.appendChild(selection);
                 const row = element("div", "command-grid export-button-row");
@@ -99,12 +100,25 @@
                 }
                 const help = element("p", "command-group-note", "Export with Previous reuses Lightroom’s last export settings and may start immediately.");
                 help.id = "exportPreviousHelp";
-                status = element("div", "command-group-note export-status"); status.setAttribute("role", "status");
+                status = element("div", "command-group-note export-status"); status.setAttribute("role", "status"); status.tabIndex = -1;
                 review = element("button", "command-neutral export-review", "I’ve checked Lightroom"); review.type = "button";
                 review.addEventListener("click", acknowledge);
                 section.append(row, help, status, review); parent.appendChild(section); render(); refresh();
             },
-            deactivate() { section = selection = status = review = null; buttons = {}; clearTimeout(timer); if (busy()) timer = setTimeout(refresh, 0); },
+            deactivate() { section = selection = status = review = null; buttons = {}; clearTimeout(timer); if (favoritesActive || busy()) timer = setTimeout(refresh, 0); },
+            setFavoritesActive(value) { favoritesActive = value; if (value) refresh(); else if (!section && !busy()) clearTimeout(timer); },
+            runAction: action, actionAvailable: enabled,
+            getFeedback() {
+                const needsReview = Boolean(localReview || state?.needsReview);
+                return { busy: busy(), needsReview,
+                    kind: needsReview ? "review" : busy() ? "pending" : readFailed || state?.lastResult?.outcome === "stale" ? "error" : state?.lastResult?.outcome === "requested" ? "sent" : "idle",
+                    key: state?.lastResult?.operationId, command: state?.pendingOperation?.command || (!busy() || needsReview ? state?.lastResult?.command : undefined),
+                    notice: readFailed ? "feedback unavailable" : state?.lastResult?.outcome === "stale" ? "not sent" : "request unconfirmed",
+                    short: state?.lastResult?.outcome === "requested" ? "Requested" : state?.lastResult?.outcome === "stale" ? "Not sent" : "Result",
+                    summary: busy() ? "Export pending" : needsReview ? "Review export" : "Export details",
+                    detail: busy() ? "Waiting for Lightroom…" : needsReview ? "Request unconfirmed. Check Lightroom; no retry was sent." : message };
+            },
+            showFeedback() { if (section) { (review.hidden ? status : review).focus({ preventScroll: true }); section.scrollIntoView({ block: "center" }); } },
             updateContext() {
                 if (state && contextKey(state) !== contextKey(options.getContext())) { generation++; state = null; accepted = null; }
                 render();

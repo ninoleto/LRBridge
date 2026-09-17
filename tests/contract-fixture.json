@@ -183,6 +183,7 @@
     ,"people.action"
     ,"red_eye.action"
     ,"export.query", "export.dialog", "export.previous"
+    ,"clipboard.query", "clipboard.copy", "clipboard.paste"
     ,"masking.component.add"
     ,"masking.component.subtract"
     ,"masking.component.delete"

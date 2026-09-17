@@ -15,6 +15,8 @@ Key:
 
 ## A. Develop Settings menu
 
+Updated 2026-09-17: native clipboard Copy/Paste is implemented for v0.6 with manual acceptance pending; see [Copy/Paste Settings](COPY_PASTE_SETTINGS.md). This supersedes the historical v0.7 recommendations for the three clipboard rows below. Copy uses the active photo and Lightroom's last selected categories; Paste uses the captured selection and explicitly requests AI updating. The native Copy chooser remains unavailable through the documented SDK. No general clipboard-validity, AI-completion or preservation claim is made.
+
 | Lightroom command | Class | Exact SDK API | Min SDK | Scope | Async | Write gate | Dialog | Return/status | Hidden state / ambiguity | Risk | Proposed command | Label | Recommendation |
 |---|---|---|---:|---|---|---|---|---|---|---|---|---|---|
 | Reset | DIRECT | `LrDevelopController.resetAllDevelopAdjustments()` | 6.0 | Current active photo; Develop active | No requirement documented | No requirement documented | No | No return documented | Depends on active photo/module | Low | Already `develop.action&action=resetAllDevelopAdjustments` | Reset | Already implemented |

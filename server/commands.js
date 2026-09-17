@@ -23,6 +23,7 @@ let reflectionsAdmissionProvider = null;
 let peopleAdmissionProvider = null;
 let redEyeAdmissionProvider = null;
 let exportAdmissionProvider = null;
+let clipboardAdmissionProvider = null;
 
 const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
@@ -201,6 +202,7 @@ function validateCommand(command) {
         ,"people.action"
         ,"red_eye.action"
         ,"export.query", "export.dialog", "export.previous"
+        ,"clipboard.query", "clipboard.copy", "clipboard.paste"
         ,"masking.component.add"
         ,"masking.component.subtract"
         ,"masking.component.delete"
@@ -320,6 +322,7 @@ function validateCommand(command) {
     if (command.command === "people.action") return require("./people-state").validCommand(command);
     if (command.command === "red_eye.action") return require("./red-eye-state").validCommand(command);
     if (["export.query", "export.dialog", "export.previous"].includes(command.command)) return require("./export-state").validCommand(command);
+    if (["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(command.command)) return require("./clipboard-state").validCommand(command);
     if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return require("./remove-state").validCommand(command);
 
     if (command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
@@ -839,15 +842,17 @@ function bindContextBoundDevelopCommand(command) {
     });
 }
 
-// Keep edits on their original side of a queued output-writing Export action.
+// Keep edits on their original side of queued Export and native Copy/Paste actions.
 function exportCoalescingFloor() {
     for (let i = commandQueue.length - 1; i >= 0; i--) {
-        if (commandQueue[i].command === "export.dialog" || commandQueue[i].command === "export.previous") return i + 1;
+        if (["export.dialog", "export.previous", "clipboard.copy", "clipboard.paste"].includes(commandQueue[i].command)) return i + 1;
     }
     return 0;
 }
 
 function tryEnqueueCommand(command) {
+    if (command && ["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(command.command) &&
+        (!validateCommand(command) || !clipboardAdmissionProvider || !clipboardAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (command && ["export.query", "export.dialog", "export.previous"].includes(command.command) &&
         (!validateCommand(command) || !exportAdmissionProvider || !exportAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (command && command.command === "red_eye.action" && (!validateCommand(command) || !redEyeAdmissionProvider ||
@@ -1259,6 +1264,7 @@ function coalesceColorGrading(command) {
 }
 
 function tryEnqueueBatch(batch) {
+    if (Array.isArray(batch) && batch.some(c => c && ["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(c.command))) return admissionResult(ADMISSION_INVALID);
     if (Array.isArray(batch) && batch.some(c => c && ["export.query", "export.dialog", "export.previous"].includes(c.command))) return admissionResult(ADMISSION_INVALID);
     if (!Array.isArray(batch) || !batch.every(validateCommand)) {
         return admissionResult(ADMISSION_INVALID);
@@ -1384,6 +1390,11 @@ function getNextCommand() {
             }
             continue;
         }
+        if (["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(command.command) &&
+            (!clipboardAdmissionProvider || !clipboardAdmissionProvider.matches(command, "dequeue"))) {
+            if (clipboardAdmissionProvider) clipboardAdmissionProvider.reject(command);
+            continue;
+        }
         if (["export.query", "export.dialog", "export.previous"].includes(command.command) &&
             (!exportAdmissionProvider || !exportAdmissionProvider.matches(command, "dequeue"))) {
             if (exportAdmissionProvider) exportAdmissionProvider.reject(command);
@@ -1483,6 +1494,7 @@ function getQueueDiagnostics(nowMs) {
         ,"people.action": 0
         ,"red_eye.action": 0
         ,"export.query": 0, "export.dialog": 0, "export.previous": 0
+        ,"clipboard.query": 0, "clipboard.copy": 0, "clipboard.paste": 0
         ,"masking.panel.set": 0
         ,"masking.group.navigate": 0
         ,"masking.tool.navigate": 0
@@ -1546,7 +1558,7 @@ function getQueueDiagnostics(nowMs) {
             highWaterMark: highWaterMark,
             oldestCommandAgeMs: oldestCommandAgeMs,
             pending: {
-                ordinary: pendingByCommand["export.query"] + pendingByCommand["export.dialog"] + pendingByCommand["export.previous"] + pendingByCommand["develop.adjust"] +
+                ordinary: pendingByCommand["clipboard.query"] + pendingByCommand["clipboard.copy"] + pendingByCommand["clipboard.paste"] + pendingByCommand["export.query"] + pendingByCommand["export.dialog"] + pendingByCommand["export.previous"] + pendingByCommand["develop.adjust"] +
                     pendingByCommand["develop.set"] +
                     pendingByCommand["develop.get"] +
                     pendingByCommand["photo.rotate"] +
@@ -1727,5 +1739,6 @@ module.exports = {
     ,setPeopleAdmissionProvider: function (provider) { peopleAdmissionProvider = provider; }
     ,setRedEyeAdmissionProvider: function (provider) { redEyeAdmissionProvider = provider; }
     ,setExportAdmissionProvider: function (provider) { exportAdmissionProvider = provider; }
+    ,setClipboardAdmissionProvider: function (provider) { clipboardAdmissionProvider = provider; }
     ,finishEnhanceAmountOperation: function () { enhanceAmountOperationPending = false; }
 };

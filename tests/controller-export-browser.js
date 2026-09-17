@@ -56,7 +56,7 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab }) {
     e.hold = true; await click("dialog"); await waitFor(() => e.pending, "Export admission");
     await click("dialog"); await click("previous"); assert.equal(e.calls.length, 1);
     assert.match(await text(), /Waiting/); assert.doesNotMatch(await text(), /completed/i);
-    assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar button')).every(b=>b.disabled)"), true);
+    assert.equal(await evaluate("Array.from(document.querySelectorAll('[data-favorite-action]')).every(b=>b.getAttribute('aria-disabled')==='true')"), true);
     const stale = e.state(); e.finish(); await ready(); assert.equal(await text(), "Export dialog requested.");
     e.stale = stale; await polls(); assert.equal(await text(), "Export dialog requested.");
     e.token = "selection-b"; e.count = 3; e.revision++; await polls();

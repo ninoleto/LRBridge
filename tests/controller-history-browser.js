@@ -54,9 +54,9 @@ async function verify({ evaluate, waitFor, selectTab, fixture, setViewport }) {
     await setViewport(1280, 900);
     const history = fixture.history;
     const row = id => 'document.querySelector(\'[data-' + (id === "local_Dehaze" ? 'masking-correction' : 'slider-id') + '="' + id + '"]\')';
-    const button = index => "document.querySelectorAll('#historyToolbar button')[" + index + "]";
+    const button = index => "document.querySelectorAll('[data-favorite-action]')[" + index + "]";
     async function available(undo, redo) {
-        await waitFor(() => evaluate(button(0) + ".disabled===" + !undo + "&&" + button(1) + ".disabled===" + !redo), "global history availability");
+        await waitFor(() => evaluate(button(0) + ".getAttribute('aria-disabled')==='" + !undo + "'&&" + button(1) + ".getAttribute('aria-disabled')==='" + !redo + "'"), "global history availability");
     }
     async function value(id, expected) {
         await waitFor(() => evaluate("(() => {const r=" + row(id) + ";return r&&!r.querySelector('input').disabled&&" +
@@ -90,7 +90,7 @@ async function verify({ evaluate, waitFor, selectTab, fixture, setViewport }) {
     await value("local_Dehaze", 0);
     await observe("local_Dehaze");
     await edit("local_Dehaze", 18); await stable();
-    await evaluate("window.__historyButtons=[...document.querySelectorAll('#historyToolbar button')]");
+    await evaluate("window.__historyButtons=[...document.querySelectorAll('[data-favorite-action]')]");
     await observe("local_Dehaze");
     await click(0, "local_Dehaze", 0); await click(1, "local_Dehaze", 18); await stable();
     await observe("GrainSize");
@@ -100,8 +100,8 @@ async function verify({ evaluate, waitFor, selectTab, fixture, setViewport }) {
         await selectTab(tab);
         await waitFor(async () => history.reads > reads, "history poll on " + tab);
         await available(true, false);
-        assert.equal(await evaluate("document.querySelectorAll('.slider-jump-history-button').length===2&&" +
-            "[...document.querySelectorAll('#historyToolbar button')].every((b,i)=>b===__historyButtons[i])"), true);
+        assert.equal(await evaluate("document.querySelectorAll('[data-favorite-action]').length===2&&" +
+            "[...document.querySelectorAll('[data-favorite-action]')].every((b,i)=>b===__historyButtons[i])"), true);
     }
     await value("GrainSize", 38);
     // Native changes also update the one shared pair while another page is open.

@@ -22,6 +22,8 @@ const maskCreateBrowser = require("./controller-mask-create-browser");
 const removeBrowser = require("./controller-remove-browser");
 const redEyeBrowser = require("./controller-red-eye-browser");
 const exportBrowser = require("./controller-export-browser");
+const clipboardBrowser = require("./controller-clipboard-browser");
+const favoritesBrowser = require("./controller-favorites-browser");
 
 const operationTimeoutMs = 7000;
 const fixturePhotoUuid = "browser-lifecycle-photo";
@@ -212,11 +214,12 @@ function colorGradingSnapshot(id) {
 
 function createMockControllerServer(options) {
     const grainFixture = options && options.grainOnly ? maskingGrainBrowser.createFixture(fixtureContext, feedbackResult) : null;
-    if (options && options.historyOnly) historyBrowser.install(grainFixture);
+    if (options && (options.historyOnly || options.favoritesOnly)) historyBrowser.install(grainFixture);
     if (options && options.maskCreateOnly) maskCreateBrowser.install(grainFixture);
-    if (options && (options.removeOnly || options.redEyeOnly || options.exportOnly)) removeBrowser.install(grainFixture);
+    if (options && (options.removeOnly || options.redEyeOnly || options.exportOnly || options.clipboardOnly)) removeBrowser.install(grainFixture);
     if (grainFixture) redEyeBrowser.install(grainFixture);
     if (grainFixture) exportBrowser.install(grainFixture);
+    if (options && options.clipboardOnly) clipboardBrowser.install(grainFixture);
     if (options && options.deleteConfirmationOnly) Object.assign(grainFixture.creation,
         { confirmationOnly: true, count: 4, active: true });
     const staticFiles = new Map([
@@ -237,6 +240,8 @@ function createMockControllerServer(options) {
         ,["/controller-people.js", "controller-people.js"]
         ,["/controller-red-eye.js", "controller-red-eye.js"]
         ,["/controller-export.js", "controller-export.js"]
+        ,["/controller-clipboard.js", "controller-clipboard.js"]
+        ,["/controller-favorites.js", "controller-favorites.js"]
     ]);
     const feedbackSnapshots = new Map();
     const treatmentSnapshots = new Map();
@@ -287,6 +292,11 @@ function createMockControllerServer(options) {
 
         if (grainFixture && grainFixture.handle(parsed, function (body, status) { sendJson(response, body, status); })) return;
 
+        if (parsed.pathname === "/api/clipboard/state") {
+            sendJson(response, { ok: true, ...fixtureContext(), available: false, selectionToken: null, selectionCount: 0,
+                copySupported: false, pasteSupported: false, serverEpoch: "clipboard-unavailable", revision: 1,
+                capturedAt: null, ageMs: null, pendingOperation: null, lastResult: null, needsReview: false }); return;
+        }
         if (parsed.pathname === "/api/export/state") {
             sendJson(response, { ok: true, ...fixtureContext(), available: false, selectionToken: null, selectionCount: 0,
                 dialogSupported: false, previousSupported: false, serverEpoch: "export-unavailable", revision: 1,
@@ -1775,7 +1785,12 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
         if (grainOnly) {
             await cdp.send("Page.bringToFront");
             await waitFor(function () { return evaluate("document.hasFocus()"); }, "isolated Grain page focus");
-            const grain = await (options.exportOnly ? exportBrowser : options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
+            const grain = await (options.favoritesOnly ? favoritesBrowser : options.clipboardOnly ? clipboardBrowser : options.exportOnly ? exportBrowser : options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
+                reload: async function () {
+                    await evaluate("window.__favoritesReloadMarker = true");
+                    await cdp.send("Page.reload");
+                    await waitFor(() => evaluate("!window.__favoritesReloadMarker && !!document.querySelector('[data-favorite-action]')"), "favorites after browser reload");
+                },
                 peopleOnly: options.peopleOnly, dustOnly: options.dustOnly,
                 setViewport: function (width, height) {
                     return cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
@@ -1783,12 +1798,16 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
                 touch: (type, x, y) => cdp.send("Input.dispatchTouchEvent", {
                     type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 721 }]
                 }),
-                key: key => cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key }),
-                capture: options.maskCreateOnly && options.screenshotDirectory ? async name => {
+                key: async key => {
+                    const event = { key, ...(key === "Escape" ? { code: "Escape", windowsVirtualKeyCode: 27 } : {}) };
+                    await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", ...event });
+                    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...event });
+                },
+                capture: options.screenshotDirectory ? async name => {
                     const capture = await cdp.send("Page.captureScreenshot", { format: "png" });
                     const file = path.join(options.screenshotDirectory, name + ".png");
                     fs.writeFileSync(file, Buffer.from(capture.data, "base64"));
-                    console.log("Mask picker visual check: " + file);
+                    console.log("Controller visual check: " + file);
                 } : null
             });
             assert.deepEqual(externalRequests, []);
@@ -1799,6 +1818,9 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
             if (mock.grainFixture.creation && mock.grainFixture.creation.confirmationOnly) {
                 assert.deepEqual(non2xxResponses.map(item => ({ path: new URL(item.url).pathname, status: item.status })),
                     [{ path: "/api/masking/state", status: 503 }], "only the explicitly injected feedback failure is expected");
+            } else if (options.favoritesOnly) {
+                assert.deepEqual(non2xxResponses.map(item => ({ path: new URL(item.url).pathname + new URL(item.url).search, status: item.status })),
+                    [{ path: "/api/command?command=application.action&action=zoom_in", status: 503 }], "only the explicitly injected favorite-command failure is expected");
             } else assert.deepEqual(non2xxResponses, []);
             assert.deepEqual(mock.unexpectedRequests, []);
             return { grain: grain };
@@ -2120,12 +2142,14 @@ async function main() {
     const peopleOnly = process.argv.includes("--people-only");
     const redEyeOnly = process.argv.includes("--red-eye-only");
     const exportOnly = process.argv.includes("--export-only");
+    const favoritesOnly = process.argv.includes("--favorites-only");
+    const clipboardOnly = process.argv.includes("--clipboard-only") || favoritesOnly;
     const dustOnly = process.argv.includes("--dust-only");
     const removeOnly = process.argv.includes("--remove-only") || peopleOnly || dustOnly;
-    const grainOnly = process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly || exportOnly;
+    const grainOnly = process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly || exportOnly || clipboardOnly;
     const resources = {
         mock: createMockControllerServer({ grainOnly: grainOnly, historyOnly: historyOnly, maskCreateOnly: maskCreateOnly,
-            deleteConfirmationOnly: deleteConfirmationOnly, removeOnly: removeOnly, redEyeOnly: redEyeOnly, exportOnly: exportOnly }),
+            deleteConfirmationOnly: deleteConfirmationOnly, removeOnly: removeOnly, redEyeOnly: redEyeOnly, exportOnly: exportOnly, clipboardOnly: clipboardOnly, favoritesOnly: favoritesOnly }),
         browser: null,
         browserProfileDirectory: null,
         browserCdp: null,
@@ -2159,9 +2183,11 @@ async function main() {
             removeOnly: removeOnly,
             redEyeOnly: redEyeOnly,
             exportOnly: exportOnly,
+            clipboardOnly: clipboardOnly,
+            favoritesOnly: favoritesOnly,
             peopleOnly: peopleOnly,
             dustOnly: dustOnly,
-            screenshotDirectory: process.argv.includes("--mask-create-screenshot") ? resources.browserProfileDirectory : null
+            screenshotDirectory: favoritesOnly && process.env.LRBRIDGE_LAYOUT_ARTIFACTS ? process.env.LRBRIDGE_LAYOUT_ARTIFACTS : process.argv.includes("--mask-create-screenshot") ? resources.browserProfileDirectory : null
         });
         if (maskCreateOnly && process.argv.includes("--mask-create-screenshot")) {
             await resources.pageCdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 1100, deviceScaleFactor: 1, mobile: false });
