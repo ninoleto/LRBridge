@@ -1014,6 +1014,10 @@
         .people-action-row > button { min-height: 44px; padding: 8px 12px; }
         .people-action-row > button { flex: 1 1 150px; }
         .people-status { min-height: 16px; color: #9fb0bf; font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+        .red-eye-button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+        .red-eye-button-row > button { min-width: 0; min-height: 44px; padding: 8px 12px; }
+        .red-eye-tool-status, .red-eye-action-status { min-height: 16px; color: #9fb0bf; font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+        .red-eye-help { margin-bottom: 0; }
         .dust-controls { margin-top: 20px; }
         .dust-controls > h4 { margin: 0 0 8px; color: #c2ced8; font-size: 14px; font-weight: 600; }
         .dust-action-row { display: flex; flex-wrap: nowrap; gap: 8px; }
@@ -3547,6 +3551,7 @@
     <script src="/controller-remove.js"></script>
     <script src="/controller-reflections.js"></script>
     <script src="/controller-people.js"></script>
+    <script src="/controller-red-eye.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -4510,7 +4515,7 @@
             const maskingInteraction = maskingController.getInteractionState();
             return heartbeatWasStale || historyCommandInFlight || activeSliderInteractions.size > 0 ||
                 Boolean(maskingInteraction.activeOperation || maskingInteraction.correctionBusy) || removeController.isInteracting() ||
-                reflectionsController.isInteracting() || peopleController.isInteracting();
+                reflectionsController.isInteracting() || peopleController.isInteracting() || redEyeController.isInteracting();
         }
 
         function initializeHistoryToolbar() {
@@ -5486,6 +5491,16 @@
                     contextChangedAt: lastControllerContextChangedAt };
             }
         });
+        const redEyeController = LRBridgeControllerRedEye.createController({
+            document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
+            onSubmitted: startHistoryActionCooldown, onHistoryChanged: requestHistoryState,
+            isBlocked: historyInteractionBlocked,
+            getContext: function () {
+                return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter, developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt };
+            }
+        });
         const maskingController = LRBridgeControllerMasking.createController({
             document: document,
             fetch: fetch.bind(window),
@@ -5861,6 +5876,7 @@
                 removeController.updateContext();
                 reflectionsController.updateContext();
                 peopleController.updateContext();
+                redEyeController.updateContext();
                 pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
@@ -12073,6 +12089,8 @@
                     peopleController.activate(distraction);
                     removeController.mountDust(distraction);
                 });
+            } else if (tab.id === "redEye") {
+                redEyeController.activate(groupElement);
             } else {
                 for (const item of tab.actions) addActionRow(groupElement, item);
             }
@@ -12113,6 +12131,7 @@
             removeController.deactivate();
             reflectionsController.deactivate();
             peopleController.deactivate();
+            redEyeController.deactivate();
             deactivateDevelopFeedbackPolling();
             clearContent();
             content.hidden = colorGradingActive;

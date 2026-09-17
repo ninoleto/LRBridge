@@ -6,16 +6,11 @@ const sdk = runtime();
 try {
     sdk.run(`
         local info=dofile("lightroom/LRBridge.lrplugin/Info.lua")
-        assert(#info.LrExportMenuItems==6 and info.LrExportMenuItems[1].file=="CaptureDust.lua",
-            "Dust capture must register under File > Plug-in Extras for access in Develop")
-        assert(info.LrExportMenuItems[1].title=="Capture automatic Dust settings (read-only)")
-        assert(info.LrExportMenuItems[2].file=="TestDustPaste.lua" and info.LrExportMenuItems[2].title=="Test Dust-only SDK paste (one shot)")
-        assert(info.LrExportMenuItems[3].file=="CaptureDustControls.lua" and info.LrExportMenuItems[3].title=="Capture Dust controls (read-only)")
-        assert(info.LrExportMenuItems[4].file=="TestDustPreset.lua" and info.LrExportMenuItems[4].title=="Test Dust preset, Reset and Close (one shot)")
-        assert(info.LrExportMenuItems[5].file=="ObserveDustReset.lua" and info.LrExportMenuItems[5].title=="Start/finish Dust Reset observation (read-only)")
-        assert(info.LrExportMenuItems[6].file=="ObserveDustClose.lua" and info.LrExportMenuItems[6].title=="Start/finish Dust Close observation (read-only)")
-        assert(#info.LrLibraryMenuItems==1 and info.LrLibraryMenuItems[1].file=="StartPolling.lua",
-            "Keep existing Library polling entry; do not duplicate Dust capture there")
+        assert(info.LrExportMenuItems==nil, "Development diagnostics must not appear in File > Plug-in Extras")
+        assert(#info.LrHelpMenuItems==1 and info.LrHelpMenuItems[1].file=="Help.lua" and info.LrHelpMenuItems[1].title=="LRBridge Help")
+        assert(#info.LrLibraryMenuItems==1 and info.LrLibraryMenuItems[1].file=="StartPolling.lua" and
+            info.LrLibraryMenuItems[1].title=="Start LRBridge Polling", "Keep legitimate Help and polling commands")
+        assert(info.LrInitPlugin=="PluginInit.lua" and info.LrForceInitPlugin==true, "Keep normal plug-in startup")
         local app, view, controller = import "LrApplication", import "LrApplicationView", import "LrDevelopController"
         dustUuid, dustModule, dustReadSwitch = "dust-test-photo", "develop", false
         dustSettings = { Exposure2012 = 0.5, TestDustFlag = false, UnknownEdit = { retained = true }, Opaque = string.rep("x", 400) }

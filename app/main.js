@@ -37,6 +37,7 @@ const controllerMaskingPath = path.join(__dirname, "controller-masking.js");
 const controllerRemovePath = path.join(__dirname, "controller-remove.js");
 const controllerReflectionsPath = path.join(__dirname, "controller-reflections.js");
 const controllerPeoplePath = path.join(__dirname, "controller-people.js");
+const controllerRedEyePath = path.join(__dirname, "controller-red-eye.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
 const companionCheatsheetHtmlPath = path.join(__dirname, "companion-cheatsheet.html");
 
@@ -450,6 +451,10 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/controller-people.js") {
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", fs.readFileSync(controllerPeoplePath, "utf8"));
+        return;
+    }
+    if (requestUrl.pathname === "/controller-red-eye.js") {
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", fs.readFileSync(controllerRedEyePath, "utf8"));
         return;
     }
 

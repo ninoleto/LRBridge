@@ -12,6 +12,8 @@ The user tested and accepted the current Dust web controls, including Apply On/O
 
 The checkpoint also retains the existing compact Healing layout, Selected Repair parameter resets and Reflections/People controllers. It does not promote their previously recorded processing, reset/cancel or native-panel limitations to complete features. No additional reload or native capture is required merely to make this checkpoint.
 
+**Later menu cleanup (2026-09-17):** the Red Eye checkpoint removes the temporary Dust and eye-capture registrations from normal File > Plug-in Extras. Diagnostic source is retained for development, including shared modules required by production Dust. This does not remove or change any preset, runtime dependency or backup below. Reload LRBridge once to clear those menu registrations; the accepted Dust behavior and preservation limits above remain unchanged.
+
 ## Required native preset dependencies
 
 Both presets must remain uniquely named in native group **LRBridge TEST**. Saved definitions are under **`C:\Users\nino\AppData\Roaming\Adobe\CameraRaw\Settings\`** (`%APPDATA%\Adobe\CameraRaw\Settings` on this installation).

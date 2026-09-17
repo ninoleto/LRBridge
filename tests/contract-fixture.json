@@ -181,6 +181,7 @@
     ,"remove.dust.close"
     ,"reflections.set"
     ,"people.action"
+    ,"red_eye.action"
     ,"masking.component.add"
     ,"masking.component.subtract"
     ,"masking.component.delete"

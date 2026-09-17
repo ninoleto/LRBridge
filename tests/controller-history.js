@@ -13,6 +13,7 @@ const block = source.slice(source.indexOf("        let historyUndoButton ="), so
         removeController: { isInteracting: () => removeBusy },
         reflectionsController: { isInteracting: () => c.reflectionsBusy === true },
         peopleController: { isInteracting: () => c.peopleBusy === true },
+        redEyeController: { isInteracting: () => c.redEyeBusy === true },
         pollControllerContext() { refreshes += 1; }, requestLiveFeedbackSnapshot() { refreshes += 1; },
         async fetch() {
             calls += 1;
@@ -49,6 +50,9 @@ const block = source.slice(source.indexOf("        let historyUndoButton ="), so
     c.peopleBusy = true; c.api.update(); await c.api.run("lightroom.undo");
     assert.equal(mutations, 0); assert.equal(c.undo.disabled, true, "People removal processing blocks shared history across tabs");
     c.peopleBusy = false;
+    c.redEyeBusy = true; c.api.update(); await c.api.run("lightroom.undo");
+    assert.equal(mutations, 0); assert.equal(c.undo.disabled, true, "Red Eye commands block shared history across tabs");
+    c.redEyeBusy = false;
     removeBusy = false; c.activeSliderInteractions.add("GrainSize"); await c.api.run("lightroom.undo"); assert.equal(mutations, 0);
     c.activeSliderInteractions.clear(); c.api.ready();
     await Promise.all([c.api.run("lightroom.undo"), c.api.run("lightroom.undo")]);

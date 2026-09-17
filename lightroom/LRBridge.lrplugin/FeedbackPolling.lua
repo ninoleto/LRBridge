@@ -19,6 +19,7 @@ local Masking = require "Masking"
 local Remove = require "Remove"
 local Reflections = require "Reflections"
 local People = require "People"
+local RedEye = require "RedEye"
 
 local function getPortableRoot()
 
@@ -945,6 +946,10 @@ LrTasks.startAsyncTask(function()
         local peopleRequest = LrHttp.get("http://127.0.0.1:17891/people/next")
         if string.find(peopleRequest or "", [["request":{]], 1, true) then
             People.sendRequestedSnapshot(peopleRequest)
+        end
+        local redEyeRequest = LrHttp.get("http://127.0.0.1:17891/red-eye/next")
+        if string.find(redEyeRequest or "", [["request":{]], 1, true) then
+            RedEye.sendRequestedSnapshot(redEyeRequest)
         end
 
         LrTasks.sleep(0.1)
