@@ -122,6 +122,7 @@ function Parser.parse(json)
     local expectedReflectionsRevision = parseIntegerField(json, "expectedReflectionsRevision")
     local expectedPeopleRevision = parseIntegerField(json, "expectedPeopleRevision")
     local expectedRedEyeRevision = parseIntegerField(json, "expectedRedEyeRevision")
+    local expectedSelectionToken = parseStringField(json, "expectedSelectionToken")
     local expectedSelectedTool = parseStringField(json, "expectedSelectedTool")
     local expectedToolOpen = parseBooleanField(json, "expectedToolOpen")
     local expectedPeopleCount = parseIntegerField(json, "expectedPeopleCount")
@@ -284,6 +285,7 @@ function Parser.parse(json)
         ,expectedReflectionsRevision = expectedReflectionsRevision
         ,expectedPeopleRevision = expectedPeopleRevision
         ,expectedRedEyeRevision = expectedRedEyeRevision
+        ,expectedSelectionToken = expectedSelectionToken
         ,expectedSelectedTool = expectedSelectedTool
         ,expectedToolOpen = expectedToolOpen
         ,expectedPeopleCount = expectedPeopleCount

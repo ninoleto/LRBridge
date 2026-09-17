@@ -22,6 +22,7 @@ let removeAdmissionProvider = null;
 let reflectionsAdmissionProvider = null;
 let peopleAdmissionProvider = null;
 let redEyeAdmissionProvider = null;
+let exportAdmissionProvider = null;
 
 const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
@@ -199,6 +200,7 @@ function validateCommand(command) {
         ,"reflections.set"
         ,"people.action"
         ,"red_eye.action"
+        ,"export.query", "export.dialog", "export.previous"
         ,"masking.component.add"
         ,"masking.component.subtract"
         ,"masking.component.delete"
@@ -317,6 +319,7 @@ function validateCommand(command) {
     if (command.command === "reflections.set") return require("./reflections-state").validCommand(command);
     if (command.command === "people.action") return require("./people-state").validCommand(command);
     if (command.command === "red_eye.action") return require("./red-eye-state").validCommand(command);
+    if (["export.query", "export.dialog", "export.previous"].includes(command.command)) return require("./export-state").validCommand(command);
     if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return require("./remove-state").validCommand(command);
 
     if (command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
@@ -836,7 +839,17 @@ function bindContextBoundDevelopCommand(command) {
     });
 }
 
+// Keep edits on their original side of a queued output-writing Export action.
+function exportCoalescingFloor() {
+    for (let i = commandQueue.length - 1; i >= 0; i--) {
+        if (commandQueue[i].command === "export.dialog" || commandQueue[i].command === "export.previous") return i + 1;
+    }
+    return 0;
+}
+
 function tryEnqueueCommand(command) {
+    if (command && ["export.query", "export.dialog", "export.previous"].includes(command.command) &&
+        (!validateCommand(command) || !exportAdmissionProvider || !exportAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (command && command.command === "red_eye.action" && (!validateCommand(command) || !redEyeAdmissionProvider ||
         !redEyeAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (command && command.command === "people.action" && (!validateCommand(command) || !peopleAdmissionProvider ||
@@ -891,7 +904,7 @@ function tryEnqueueCommand(command) {
 
     if (command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate") {
         const admittedAt = Date.now();
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
             const sameOperation = command.command === "point_color.value.set" ? pending.field === command.field :
                 command.command === "point_color.range.set" ? pending.range === command.range && pending.boundary === command.boundary : pending.range === command.range;
@@ -904,7 +917,7 @@ function tryEnqueueCommand(command) {
 
     if (command.command === "lens_blur.focal_range.set") {
         const admittedAt = Date.now();
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             if (commandQueue[index].command === command.command) {
                 return replacePendingAt(index, command, admittedAt, "Coalesced Lens Blur Focus Range:");
             }
@@ -913,7 +926,7 @@ function tryEnqueueCommand(command) {
 
     if (command.command === "develop_preset.amount.set") {
         const admittedAt = Date.now();
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
             if (pending.command === command.command &&
                 pending.expectedPresetUuid === command.expectedPresetUuid &&
@@ -940,7 +953,7 @@ function tryEnqueueCommand(command) {
             command.command === "masking.correction.gesture.end" ||
             command.command === "masking.correction.gesture.cancel") {
             const matchingIndexes = [];
-            for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
                 const pending = commandQueue[index];
                 const replaceable = pending.command === "masking.correction.gesture.update" ||
                     (command.command === "masking.correction.gesture.cancel" &&
@@ -968,7 +981,7 @@ function tryEnqueueCommand(command) {
 
     if (command.command.startsWith("masking.point_color.")) {
         const admittedAt = Date.now();
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
             const sameTarget = command.command === "masking.point_color.value.set"
                 ? pending.field === command.field
@@ -990,7 +1003,7 @@ function tryEnqueueCommand(command) {
         const phase = command.command.substring(command.command.lastIndexOf(".") + 1);
         if (phase === "update" || phase === "end" || phase === "cancel") {
             const admittedAt = Date.now();
-            for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+            for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
                 const pending = commandQueue[index];
                 const pendingPhase = typeof pending.command === "string"
                     ? pending.command.substring(pending.command.lastIndexOf(".") + 1) : "";
@@ -1016,7 +1029,7 @@ function tryEnqueueCommand(command) {
         command.command === "tone_curve.gesture.cancel") {
         const admittedAt = Date.now();
         const matchingIndexes = [];
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
             if ((pending.command === "tone_curve.gesture.update" || pending.command === "tone_curve.gesture.end" ||
                 (command.command === "tone_curve.gesture.cancel" &&
@@ -1046,7 +1059,7 @@ function tryEnqueueCommand(command) {
         command.command === "tone_curve.refine_saturation.gesture.cancel") {
         const admittedAt = Date.now();
         const matchingIndexes = [];
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
             if ((pending.command === "tone_curve.refine_saturation.gesture.update" ||
                 pending.command === "tone_curve.refine_saturation.gesture.end" ||
@@ -1073,7 +1086,7 @@ function tryEnqueueCommand(command) {
 
     if (command.command === "tone_curve.preset.set") {
         const admittedAt = Date.now();
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
             if (pending.command === command.command &&
                 pending.expectedSelectedPhotoUuid === command.expectedSelectedPhotoUuid &&
@@ -1089,7 +1102,7 @@ function tryEnqueueCommand(command) {
         command.command === "develop_categorical.upright_mode.set" ||
         command.command === "develop_categorical.constrain_crop.set") {
         const admittedAt = Date.now();
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             if (commandQueue[index].command === command.command) {
                 return replacePendingAt(index, command, admittedAt, "Coalesced Develop categorical state:");
             }
@@ -1122,7 +1135,7 @@ function tryEnqueueCommand(command) {
     ) {
         const admittedAt = Date.now();
 
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
 
             if (
@@ -1144,7 +1157,7 @@ function tryEnqueueCommand(command) {
     if (command.command === "develop.set" || command.command === "develop.reset") {
         const admittedAt = Date.now();
 
-        for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
             const pending = commandQueue[index];
 
             if (
@@ -1202,7 +1215,7 @@ function replacePendingAt(index, command, admittedAt, message) {
 
 function removePending(predicate) {
     let removed = 0;
-    for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+    for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
         if (predicate(commandQueue[index])) {
             commandQueue.splice(index, 1);
             queueEntryMetadata.splice(index, 1);
@@ -1230,7 +1243,7 @@ function coalesceColorGrading(command) {
         });
         return null;
     }
-    for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+    for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
         const pending = commandQueue[index];
         if (command.command === "color_grading.wheel.set" && pending.command === command.command && pending.region === command.region) {
             return replacePendingAt(index, command, admittedAt, "Coalesced Color Grading wheel:");
@@ -1246,6 +1259,7 @@ function coalesceColorGrading(command) {
 }
 
 function tryEnqueueBatch(batch) {
+    if (Array.isArray(batch) && batch.some(c => c && ["export.query", "export.dialog", "export.previous"].includes(c.command))) return admissionResult(ADMISSION_INVALID);
     if (!Array.isArray(batch) || !batch.every(validateCommand)) {
         return admissionResult(ADMISSION_INVALID);
     }
@@ -1370,6 +1384,11 @@ function getNextCommand() {
             }
             continue;
         }
+        if (["export.query", "export.dialog", "export.previous"].includes(command.command) &&
+            (!exportAdmissionProvider || !exportAdmissionProvider.matches(command, "dequeue"))) {
+            if (exportAdmissionProvider) exportAdmissionProvider.reject(command);
+            continue;
+        }
         if (command.command === "red_eye.action" && (!redEyeAdmissionProvider || !redEyeAdmissionProvider.matches(command, "dequeue"))) {
             if (redEyeAdmissionProvider) redEyeAdmissionProvider.reject(command, "Photo or Develop context changed before dequeue.");
             continue;
@@ -1463,6 +1482,7 @@ function getQueueDiagnostics(nowMs) {
         ,"reflections.set": 0
         ,"people.action": 0
         ,"red_eye.action": 0
+        ,"export.query": 0, "export.dialog": 0, "export.previous": 0
         ,"masking.panel.set": 0
         ,"masking.group.navigate": 0
         ,"masking.tool.navigate": 0
@@ -1526,7 +1546,7 @@ function getQueueDiagnostics(nowMs) {
             highWaterMark: highWaterMark,
             oldestCommandAgeMs: oldestCommandAgeMs,
             pending: {
-                ordinary: pendingByCommand["develop.adjust"] +
+                ordinary: pendingByCommand["export.query"] + pendingByCommand["export.dialog"] + pendingByCommand["export.previous"] + pendingByCommand["develop.adjust"] +
                     pendingByCommand["develop.set"] +
                     pendingByCommand["develop.get"] +
                     pendingByCommand["photo.rotate"] +
@@ -1706,5 +1726,6 @@ module.exports = {
     ,setReflectionsAdmissionProvider: function (provider) { reflectionsAdmissionProvider = provider; }
     ,setPeopleAdmissionProvider: function (provider) { peopleAdmissionProvider = provider; }
     ,setRedEyeAdmissionProvider: function (provider) { redEyeAdmissionProvider = provider; }
+    ,setExportAdmissionProvider: function (provider) { exportAdmissionProvider = provider; }
     ,finishEnhanceAmountOperation: function () { enhanceAmountOperationPending = false; }
 };

@@ -20,6 +20,8 @@ Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightro
 
 ## Quick links
 
+Native **Export…** and **Export with Previous** controls are on the Web Controller's Selection page. See [Export controls, HTTP contract and validation status](docs/EXPORT_CONTROLS.md). Export with Previous reuses Lightroom's last export settings and may start immediately. Native button behavior is accepted with one selected photo; completed file export and multi-photo export were not tested.
+
 When LRBridge is running:
 
 * Web Controller: http://127.0.0.1:17892/

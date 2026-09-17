@@ -21,6 +21,7 @@ const historyBrowser = require("./controller-history-browser");
 const maskCreateBrowser = require("./controller-mask-create-browser");
 const removeBrowser = require("./controller-remove-browser");
 const redEyeBrowser = require("./controller-red-eye-browser");
+const exportBrowser = require("./controller-export-browser");
 
 const operationTimeoutMs = 7000;
 const fixturePhotoUuid = "browser-lifecycle-photo";
@@ -213,8 +214,9 @@ function createMockControllerServer(options) {
     const grainFixture = options && options.grainOnly ? maskingGrainBrowser.createFixture(fixtureContext, feedbackResult) : null;
     if (options && options.historyOnly) historyBrowser.install(grainFixture);
     if (options && options.maskCreateOnly) maskCreateBrowser.install(grainFixture);
-    if (options && (options.removeOnly || options.redEyeOnly)) removeBrowser.install(grainFixture);
+    if (options && (options.removeOnly || options.redEyeOnly || options.exportOnly)) removeBrowser.install(grainFixture);
     if (grainFixture) redEyeBrowser.install(grainFixture);
+    if (grainFixture) exportBrowser.install(grainFixture);
     if (options && options.deleteConfirmationOnly) Object.assign(grainFixture.creation,
         { confirmationOnly: true, count: 4, active: true });
     const staticFiles = new Map([
@@ -234,6 +236,7 @@ function createMockControllerServer(options) {
         ,["/controller-reflections.js", "controller-reflections.js"]
         ,["/controller-people.js", "controller-people.js"]
         ,["/controller-red-eye.js", "controller-red-eye.js"]
+        ,["/controller-export.js", "controller-export.js"]
     ]);
     const feedbackSnapshots = new Map();
     const treatmentSnapshots = new Map();
@@ -284,6 +287,11 @@ function createMockControllerServer(options) {
 
         if (grainFixture && grainFixture.handle(parsed, function (body, status) { sendJson(response, body, status); })) return;
 
+        if (parsed.pathname === "/api/export/state") {
+            sendJson(response, { ok: true, ...fixtureContext(), available: false, selectionToken: null, selectionCount: 0,
+                dialogSupported: false, previousSupported: false, serverEpoch: "export-unavailable", revision: 1,
+                capturedAt: null, ageMs: null, pendingOperation: null, lastResult: null, needsReview: false }); return;
+        }
         if (parsed.pathname === "/api/red-eye/state") {
             sendJson(response, { ok: true, ...fixtureContext(), available: false, selectedTool: null,
                 serverEpoch: "eye-unavailable", revision: 1, ageMs: 0 });
@@ -1767,7 +1775,7 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
         if (grainOnly) {
             await cdp.send("Page.bringToFront");
             await waitFor(function () { return evaluate("document.hasFocus()"); }, "isolated Grain page focus");
-            const grain = await (options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
+            const grain = await (options.exportOnly ? exportBrowser : options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
                 peopleOnly: options.peopleOnly, dustOnly: options.dustOnly,
                 setViewport: function (width, height) {
                     return cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
@@ -2111,12 +2119,13 @@ async function main() {
     const maskCreateOnly = process.argv.includes("--mask-create-only") || deleteConfirmationOnly;
     const peopleOnly = process.argv.includes("--people-only");
     const redEyeOnly = process.argv.includes("--red-eye-only");
+    const exportOnly = process.argv.includes("--export-only");
     const dustOnly = process.argv.includes("--dust-only");
     const removeOnly = process.argv.includes("--remove-only") || peopleOnly || dustOnly;
-    const grainOnly = process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly;
+    const grainOnly = process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly || exportOnly;
     const resources = {
         mock: createMockControllerServer({ grainOnly: grainOnly, historyOnly: historyOnly, maskCreateOnly: maskCreateOnly,
-            deleteConfirmationOnly: deleteConfirmationOnly, removeOnly: removeOnly, redEyeOnly: redEyeOnly }),
+            deleteConfirmationOnly: deleteConfirmationOnly, removeOnly: removeOnly, redEyeOnly: redEyeOnly, exportOnly: exportOnly }),
         browser: null,
         browserProfileDirectory: null,
         browserCdp: null,
@@ -2149,6 +2158,7 @@ async function main() {
             maskCreateOnly: maskCreateOnly,
             removeOnly: removeOnly,
             redEyeOnly: redEyeOnly,
+            exportOnly: exportOnly,
             peopleOnly: peopleOnly,
             dustOnly: dustOnly,
             screenshotDirectory: process.argv.includes("--mask-create-screenshot") ? resources.browserProfileDirectory : null

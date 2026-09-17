@@ -18,6 +18,7 @@ local Remove = require "Remove"
 local Reflections = require "Reflections"
 local People = require "People"
 local RedEye = require "RedEye"
+local Export = require "Export"
 local LrHttp = import "LrHttp"
 
 local Commands = {}
@@ -48,6 +49,8 @@ function Commands.execute(command)
     if command.command == "reflections.set" then Reflections.set(command); return end
     if command.command == "people.action" then People.execute(command); return end
     if command.command == "red_eye.action" then RedEye.execute(command); return end
+    if command.command == "export.query" then Export.query(command); return end
+    if command.command == "export.dialog" or command.command == "export.previous" then Export.execute(command); return end
 
     if command.command == "color_grading.wheel.set" then ColorGrading.setWheel(command.region, command.hue, command.saturation); return end
     if command.command == "color_grading.value.set" then ColorGrading.setValue(command.control, command.value); return end

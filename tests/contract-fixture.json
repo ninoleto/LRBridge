@@ -182,6 +182,7 @@
     ,"reflections.set"
     ,"people.action"
     ,"red_eye.action"
+    ,"export.query", "export.dialog", "export.previous"
     ,"masking.component.add"
     ,"masking.component.subtract"
     ,"masking.component.delete"

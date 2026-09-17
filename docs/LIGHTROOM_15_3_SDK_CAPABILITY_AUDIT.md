@@ -53,11 +53,13 @@ LRBridge therefore needs result/error reporting before clipboard commands are su
 
 ## B. Export menu and direct export
 
+Updated 2026-09-17: the two native Export actions are implemented for v0.6 and their button behavior is accepted. After restarting LRBridge and Lightroom, the user observed the full Export dialog, the Previous destination-folder chooser, and a correct count of one selected photo. No completed file export, cancellation or multi-photo testing is claimed. See [Export controls](EXPORT_CONTROLS.md). The earlier claim that Export with Previous necessarily opens a dialog, and consequently cannot start an export directly, was not justified by the SDK description. Treat it as potentially immediate; the observed chooser does not guarantee prompts with other settings. Custom named-export-preset support remains deferred.
+
 | Capability | Class | Exact SDK API | Min SDK | Scope | Async | Write gate | Dialog | Return/status | Hidden state / ambiguity | Risk | Proposed command | Label | Recommendation |
 |---|---|---|---:|---|---|---|---|---|---|---|---|---|---|
-| Export… | INTERACTIVE | `photo:openExportDialog()` | 7.4 | Current/chosen photo | No requirement documented | No | Mandatory | No return documented | User completes or cancels dialog | Low | `export.dialog&mode=normal` | Export… | Defer v0.7 |
-| Export With Previous Settings | INTERACTIVE | `photo:openExportWithPreviousDialog()` | 7.4 | Current/chosen photo | No requirement documented | No | Mandatory | No return documented | Uses Lightroom’s previous export state and opens a dialog | Low | `export.dialog&mode=previous` | Export With Previous Settings | Defer v0.7 |
-| Headless Export With Previous Settings | ABSENT | None | — | — | — | — | — | — | No method executes Lightroom’s previous export settings without UI | — | None | — | Exclude |
+| Export… | INTERACTIVE | `photo:openExportDialog()` | 7.4 | Single active-photo call; multi-photo behavior untested | No requirement documented | No | Full Export dialog observed | No completion result documented | User completes or cancels dialog | Low | `export.dialog` through `/export/action` | Export… | Accepted v0.6 button behavior; one selected photo |
+| Export With Previous Settings | DIRECT/native action | `photo:openExportWithPreviousDialog()` | 7.4 | Single active-photo call; multi-photo behavior untested | No requirement documented | No | Destination chooser observed; may start immediately with other settings | No completion result documented | Reuses Lightroom's last export settings; LRBridge does not read or reconstruct them | Output-writing action | `export.previous` through `/export/action` | Export with Previous | Accepted v0.6 button behavior; one selected photo |
+| Guaranteed unattended Export With Previous Settings | NOT GUARANTEED | `photo:openExportWithPreviousDialog()` invokes native Previous | 7.4 | Native selection | No requirement documented | No | Settings/prompts controlled by Lightroom | No completion result documented | No promise of prompt-free execution; not evidence that native Previous is absent | — | Same guarded Previous action | — | Do not promise headless execution |
 | Direct export session | DIRECT | `LrExportSession { photosToExport = photos, exportSettings = settings }` | 1.3 | Explicit photo array | Export work is task-based | No catalog gate normally | No | Session object | Caller owns the complete settings table and output safety | High | `export.run` with validated structured payload | Export | Defer v0.7 |
 | Export on current task | DIRECT | `session:doExportOnCurrentTask()` | 1.3 | Session photos | Must already be in an async task | No | No | Blocks until renditions complete | Long-running request; cancellation/progress required | High | Internal execution mode | — | Defer v0.7 |
 | Export on new task | DIRECT | `session:doExportOnNewTask()` | 1.3 | Session photos | Starts its own task | No | No | Returns immediately | Command completion is not export completion | High | Internal execution mode | — | Defer v0.7 |
@@ -221,7 +223,7 @@ These use direct documented APIs, have a compact payload, and can be tested with
 - Paste Settings from Previous.
 - Native Sync Settings.
 - Native Copy Settings dialog.
-- Headless Export With Previous Settings.
+- Guaranteed prompt-free Export With Previous Settings (native Previous is supported; prompts remain Lightroom-controlled).
 - User named still-image export preset enumeration/execution.
 - Match Total Exposures.
 - Native HDR Edit Mode toggle until Adobe documents a stable command/value contract.
@@ -261,9 +263,9 @@ These use direct documented APIs, have a compact payload, and can be tested with
 9. **Can LRBridge open Export With Previous Settings?**
    Yes. `photo:openExportWithPreviousDialog()`.
 10. **Can Export With Previous Settings run without a dialog?**
-    No documented API does that.
+    The SDK provides `photo:openExportWithPreviousDialog()` and does not guarantee a dialog. MIDI2LR uses it for Export again. Treat it as potentially immediate; a guaranteed unattended/prompt-free contract is not documented.
 11. **Can LRBridge run a user’s named still-image export preset?**
-    No. There is no public still-image preset enumeration/execution API.
+    There is no public still-image preset enumeration or execute-by-name API. A separate SDK/Lua file importer feeding `LrExportSession` is technically possible but unverified and deferred; the two native actions do not implement it.
 12. **Can LRBridge apply a named Develop preset by UUID?**
     Yes. Resolve it with `LrApplication.developPresetByUuid(uuid)` and apply it with the photo or catalog preset API. UUID, not display name, should be authoritative.
 13. **Can LRBridge toggle HDR Edit Mode?**

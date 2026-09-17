@@ -22,6 +22,8 @@
     "test:remove-preferences": "node tests/develop-categorical.js --remove-only",
     "test:red-eye": "node tests/red-eye.js",
     "test:controller-red-eye": "node tests/controller-browser-lifecycle.js --red-eye-only",
+    "test:export": "node tests/export.js",
+    "test:controller-export": "node tests/controller-browser-lifecycle.js --export-only",
     "test:masking-preset-native": "node tests/masking-preset-native-parity.js",
     "test:masking-preset-scroll": "node tests/controller-browser-lifecycle.js --masking-preset-scroll-only",
     "test:hdr-develop": "node tests/hdr-develop-settings.js",

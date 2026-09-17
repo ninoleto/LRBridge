@@ -3500,6 +3500,10 @@
             .point-curve-preset-row { grid-template-columns: 76px minmax(0, 1fr); }
         }
 
+        .export-button-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .export-controls button { min-height: 44px; white-space: normal; }
+        .export-controls .command-group-note { margin-top: 8px; }
+        .export-review[hidden] { display: none; }
     </style>
 </head>
 <body>
@@ -3552,6 +3556,7 @@
     <script src="/controller-reflections.js"></script>
     <script src="/controller-people.js"></script>
     <script src="/controller-red-eye.js"></script>
+    <script src="/controller-export.js"></script>
     <script>
         const sliderGroups = [
         {
@@ -4515,7 +4520,7 @@
             const maskingInteraction = maskingController.getInteractionState();
             return heartbeatWasStale || historyCommandInFlight || activeSliderInteractions.size > 0 ||
                 Boolean(maskingInteraction.activeOperation || maskingInteraction.correctionBusy) || removeController.isInteracting() ||
-                reflectionsController.isInteracting() || peopleController.isInteracting() || redEyeController.isInteracting();
+                reflectionsController.isInteracting() || peopleController.isInteracting() || redEyeController.isInteracting() || exportController.isInteracting();
         }
 
         function initializeHistoryToolbar() {
@@ -5491,6 +5496,15 @@
                     contextChangedAt: lastControllerContextChangedAt };
             }
         });
+        const exportController = LRBridgeControllerExport.createController({
+            document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
+            isBlocked: historyInteractionBlocked,
+            getContext: function () {
+                return { activeModule: lastControllerActiveModule, selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                    contextCounter: lastControllerContextCounter, developCounter: lastControllerDevelopCounter,
+                    contextChangedAt: lastControllerContextChangedAt };
+            }
+        });
         const redEyeController = LRBridgeControllerRedEye.createController({
             document: document, fetch: fetch.bind(window), onInteractionChange: updateHistoryButtons,
             onSubmitted: startHistoryActionCooldown, onHistoryChanged: requestHistoryState,
@@ -5877,6 +5891,7 @@
                 reflectionsController.updateContext();
                 peopleController.updateContext();
                 redEyeController.updateContext();
+                exportController.updateContext();
                 pointCurveController.applyContext(data);
                 if (profileContextChanged && profileModel) {
                     if (classification !== "navigation") {
@@ -12113,6 +12128,7 @@
 
         function renderSelectionTab() {
             renderCommandGroups(selectionGroups);
+            exportController.activate(content);
         }
 
         function renderPresetsTab() {
@@ -12132,6 +12148,7 @@
             reflectionsController.deactivate();
             peopleController.deactivate();
             redEyeController.deactivate();
+            exportController.deactivate();
             deactivateDevelopFeedbackPolling();
             clearContent();
             content.hidden = colorGradingActive;

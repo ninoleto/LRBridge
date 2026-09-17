@@ -119,6 +119,9 @@ commands.setPeopleAdmissionProvider(people);
 const redEye = require("./red-eye-state").createRedEyeState({ getContext: context.getContextFields,
     onChanged() { history.invalidate(); history.requestRefresh(); } });
 commands.setRedEyeAdmissionProvider(redEye);
+const exportsState = require("./export-state").createExportState({ getContext: context.getContextFields,
+    enqueue: command => commands.tryEnqueueCommand(command).accepted });
+commands.setExportAdmissionProvider(exportsState);
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -684,6 +687,7 @@ app.get("/help", function (req, res) {
             setPhotoCropAngle: "/command?command=photo.crop_angle.set&value=-2.5",
             resetPhotoCropAngle: "/command?command=photo.crop_angle.reset",
             revealPhoto: "/command?command=photo.reveal&scope=active",
+            exportSelectionState: "/export/state",
             openCropTool: "/command?command=develop.action&action=selectCropTool",
             resetCrop: "/command?command=develop.action&action=resetCrop",
             setFlag: "/command?command=selection.flag&flag=pick",
@@ -1743,6 +1747,7 @@ require("./remove-routes")(app, remove, commands, exactQueryFields, parseStrictF
 require("./reflections-routes")(app, reflections, commands, exactQueryFields, parseStrictFiniteNumber);
 require("./people-routes")(app, people, commands, exactQueryFields, parseStrictFiniteNumber);
 require("./red-eye-routes")(app, redEye, commands, exactQueryFields, parseStrictFiniteNumber);
+require("./export-routes")(app, exportsState, commands, exactQueryFields, parseStrictFiniteNumber);
 
 app.get("/masking/state", function (req, res) {
     if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
