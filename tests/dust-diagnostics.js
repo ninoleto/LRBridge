@@ -8,9 +8,9 @@ try {
         local info=dofile("lightroom/LRBridge.lrplugin/Info.lua")
         assert(info.LrExportMenuItems==nil, "Development diagnostics must not appear in File > Plug-in Extras")
         assert(#info.LrHelpMenuItems==1 and info.LrHelpMenuItems[1].file=="Help.lua" and info.LrHelpMenuItems[1].title=="LRBridge Help")
-        assert(#info.LrLibraryMenuItems==1 and info.LrLibraryMenuItems[1].file=="StartPolling.lua" and
-            info.LrLibraryMenuItems[1].title=="Start LRBridge Polling", "Keep legitimate Help and polling commands")
+        assert(info.LrLibraryMenuItems==nil, "Automatic polling needs no Library menu command")
         assert(info.LrInitPlugin=="PluginInit.lua" and info.LrForceInitPlugin==true, "Keep normal plug-in startup")
+        assert(info.LrShutdownPlugin=="PluginShutdown.lua" and info.LrShutdownApp=="PluginShutdown.lua")
         local app, view, controller = import "LrApplication", import "LrApplicationView", import "LrDevelopController"
         dustUuid, dustModule, dustReadSwitch = "dust-test-photo", "develop", false
         dustSettings = { Exposure2012 = 0.5, TestDustFlag = false, UnknownEdit = { retained = true }, Opaque = string.rep("x", 400) }

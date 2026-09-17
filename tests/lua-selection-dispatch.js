@@ -208,10 +208,11 @@ assert.match(parser, /targetCount > 0[\s\S]*targetCount ~= 1[\s\S]*command ~= "d
 assert.ok(contract.actions.includes("resetAllDevelopAdjustments"));
 assert.ok(!contract.actions.some((action) => /previous/i.test(action)), "Develop Previous must not be implemented");
 
-for (const polling of [automaticPolling, manualPolling]) {
+for (const polling of [automaticPolling]) {
     assert.match(polling, /LrTasks\.pcall\(Commands\.execute, command\)/);
     assert.match(polling, /executeCommand\(command\)[\s\S]*LrTasks\.sleep\(config\.pollInterval\)/);
 }
+assert.match(manualPolling, /dofile\(_PLUGIN\.path \.\. "\\\\PluginInit\.lua"\)/);
 
 const packageJson = JSON.parse(read("package.json"));
 assert.equal(packageJson.scripts["test:lua-selection"], "node tests/lua-selection-dispatch.js");

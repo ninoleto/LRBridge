@@ -4,8 +4,7 @@ const path = require("node:path");
 
 const root = path.join(__dirname, "..");
 const pollingFiles = [
-    "lightroom/LRBridge.lrplugin/AutoStartPolling.lua",
-    "lightroom/LRBridge.lrplugin/StartPolling.lua"
+    "lightroom/LRBridge.lrplugin/AutoStartPolling.lua"
 ];
 
 function read(relativePath) {
@@ -36,7 +35,7 @@ function compact(value) {
 function validatePollingFile(relativePath) {
     const source = read(relativePath);
     const helper = functionBlock(source, "local function executeCommand(command)");
-    const loop = functionBlock(source, "LrTasks.startAsyncTask(function()");
+    const loop = source.slice(source.indexOf("return function(running)"));
 
     assert.equal((source.match(/Commands\.execute/g) || []).length, 1, relativePath + " must execute a command exactly once");
     assert.match(source, /local LrTasks = import "LrTasks"/, relativePath + " must import LrTasks");
@@ -56,7 +55,8 @@ function validatePollingFile(relativePath) {
 
     assert.doesNotMatch(helper, /retry|requeue|enqueue/i, relativePath + " must not retry or requeue failures");
     assert.match(loop, /executeCommand\(command\)[\s\S]*LrTasks\.sleep\(config\.pollInterval\)/, relativePath + " must continue to the existing polling sleep");
-    assert.match(source, /if _G\.LRBridgePollingStarted == true then[\s\S]*return[\s\S]*_G\.LRBridgePollingStarted = true/, relativePath + " must retain duplicate-polling prevention");
+    assert.match(source, /while running\(\) do/, relativePath + " must honor lifecycle ownership");
+    assert.match(loop, /local result = LrHttp\.get[^\n]+\n\s*--[^\n]+\n\s*if not running\(\) then return end/, relativePath + " must discard shutdown responses before dispatch");
     assert.equal((source.match(/LrHttp\.get\("http:\/\/127\.0\.0\.1:17891\/next"\)/g) || []).length, 1, relativePath + " polling endpoint changed");
     assert.equal((source.match(/LrTasks\.sleep\(config\.pollInterval\)/g) || []).length, 1, relativePath + " polling interval behavior changed");
 
@@ -69,9 +69,9 @@ function validatePollingFile(relativePath) {
 }
 
 const automatic = validatePollingFile(pollingFiles[0]);
-const manual = validatePollingFile(pollingFiles[1]);
-assert.equal(manual.helper, automatic.helper, "Automatic and manual command failure containment must remain equivalent");
-assert.equal(manual.formatter, automatic.formatter, "Automatic and manual error redaction must remain equivalent");
+const manual = read("lightroom/LRBridge.lrplugin/StartPolling.lua");
+assert.match(manual, /dofile\(_PLUGIN\.path \.\. "\\\\PluginInit\.lua"\)/);
+assert.doesNotMatch(manual, /Commands\.execute|startAsyncTask|LrHttp/, "Old cached menu must use shared startup, never a second poller");
 
 const packageJson = JSON.parse(read("package.json"));
 const chain = packageJson.scripts.test.split(" && ");
@@ -84,3 +84,4 @@ assert.equal(packageJson.version, "0.6.0", "Application version changed");
 assert.match(read("lightroom/LRBridge.lrplugin/Info.lua"), /VERSION = \{ major = 1, minor = 0, revision = 0 \}/, "Plugin version changed");
 
 console.log("Lua polling resilience tests passed (source tests cannot prove Lightroom yield behavior; Lightroom runtime testing is still required).");
+require("./polling-lifecycle");

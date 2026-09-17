@@ -1,10 +1,20 @@
-local LrHttp = import "LrHttp"
+local NativeHttp = import "LrHttp"
 local LrTasks = import "LrTasks"
 local LrApplication = import "LrApplication"
 local LrApplicationView = import "LrApplicationView"
 local LrDate = import "LrDate"
 local LrDevelopController = import "LrDevelopController"
 local LrFunctionContext = import "LrFunctionContext"
+
+local running, startChildTask
+local LrHttp = {
+    get = function(...)
+        if not running() then error("feedback polling stopped") end
+        local body, headers = NativeHttp.get(...)
+        if not running() then error("feedback polling stopped") end
+        return body, headers
+    end,
+}
 
 local Query = require "Query"
 local ColorGrading = require "ColorGrading"
@@ -761,16 +771,18 @@ local function postUnavailableTreatmentResult(id, reason)
 end
 
 local function startTreatmentWorker(id)
+    if not running() then return end
     table.insert(pendingTreatmentRequestIds, id)
     if treatmentWorkerActive == true then return end
 
     treatmentWorkerActive = true
     local taskStarted = pcall(function()
-        LrTasks.startAsyncTask(function()
-            while #pendingTreatmentRequestIds > 0 do
+        startChildTask(function()
+            while running() and #pendingTreatmentRequestIds > 0 do
                 local requestId = table.remove(pendingTreatmentRequestIds, 1)
                 local treatmentOk = LrTasks.pcall(function()
                     waitForNormalCommandToFinish()
+                    if not running() then return end
                     local url = "http://127.0.0.1:17891/treatment/result?id=" .. tostring(requestId)
                     local unavailableReason = nil
                     local grayscale = nil
@@ -825,16 +837,8 @@ local function startTreatmentWorker(id)
     end
 end
 
-if _G.LRBridgeFeedbackPollingStarted == true then
-
-    log("feedback polling already running")
-    return
-
-end
-
-_G.LRBridgeFeedbackPollingStarted = true
-
-LrTasks.startAsyncTask(function()
+return function(shouldRun, spawnChildTask)
+    running, startChildTask = shouldRun, spawnChildTask
 
     LrFunctionContext.callWithContext("LRBridge Develop feedback observers", function(observerContext)
 
@@ -843,7 +847,7 @@ LrTasks.startAsyncTask(function()
     local toneCurveObserverInstalled = false
     local presetAmountObserverInstalled = false
 
-    while _G.LRBridgeFeedbackPollingStarted == true do
+    while running() do
 
         local result = LrHttp.get("http://127.0.0.1:17891/feedback/next")
         local slider = parseSlider(result)
@@ -960,4 +964,4 @@ LrTasks.startAsyncTask(function()
 
     end)
 
-end)
+end

@@ -9,6 +9,8 @@ return {
 
     LrInitPlugin = "PluginInit.lua",
     LrForceInitPlugin = true,
+    LrShutdownPlugin = "PluginShutdown.lua",
+    LrShutdownApp = "PluginShutdown.lua",
 
     LrHelpMenuItems = {
         {
@@ -20,10 +22,4 @@ return {
     -- Diagnostic scripts are retained for development, without normal menu registrations.
     -- Dust runtime helpers and native preset dependencies remain in place.
 
-    LrLibraryMenuItems = {
-        {
-            title = "Start LRBridge Polling",
-            file = "StartPolling.lua",
-        },
-    },
 }

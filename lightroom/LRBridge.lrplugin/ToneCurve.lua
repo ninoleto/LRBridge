@@ -232,6 +232,9 @@ function ToneCurve.installAdjustmentObserver(functionContext)
     if observerOwner ~= nil then return true end
     local owner = {}
     local ok = pcall(function()
+        functionContext:addCleanupHandler(function()
+            if observerOwner == owner then observerOwner = nil end
+        end)
         LrDevelopController.addAdjustmentChangeObserver(functionContext, owner, function()
             adjustmentDirty = true
         end)

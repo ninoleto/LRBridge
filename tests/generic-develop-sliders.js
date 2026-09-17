@@ -795,7 +795,7 @@ assert.match(feedback, /local treatmentOk = LrTasks\.pcall\(function\(\)[\s\S]*p
     "Treatment runtime errors must not terminate the feedback task");
 assert.match(feedback, /local postOk = LrTasks\.pcall\(function\(\) LrHttp\.get\(url \.\. "&status=unavailable"\) end\)/,
     "Unavailable treatment results must use yield-safe protection");
-assert.match(feedback, /table\.insert\(pendingTreatmentRequestIds, id\)[\s\S]*while #pendingTreatmentRequestIds > 0/,
+assert.match(feedback, /table\.insert\(pendingTreatmentRequestIds, id\)[\s\S]*while running\(\) and #pendingTreatmentRequestIds > 0/,
     "Every queued treatment request must receive a terminal worker result");
 assert.match(feedback, /startTreatmentWorker\(id\)[\s\S]*slider = nil[\s\S]*if slider ~= nil then/,
     "The feedback loop must dispatch treatment work without waiting for it");
@@ -805,7 +805,7 @@ assert.match(feedback, /log\("treatment result post failed"\)/);
 assert.match(controller, /finally \{[\s\S]*treatmentRequestInFlight = false;[\s\S]*treatmentAbortController = null;/,
     "Treatment timeout/failure must release the in-flight lock for the next feedback cycle");
 const treatmentFeedbackBlock = feedback.match(
-    /local treatmentWorkerActive = false[\s\S]*?\nend\n\nif _G\.LRBridgeFeedbackPollingStarted/
+    /local treatmentWorkerActive = false[\s\S]*?\nend\n\nreturn function\(shouldRun, spawnChildTask\)/
 )[0];
 assert.doesNotMatch(treatmentFeedbackBlock,
     /tostring\(settings\)|tostring\(photo\)|photo\.path|filename|getRawMetadata/i,

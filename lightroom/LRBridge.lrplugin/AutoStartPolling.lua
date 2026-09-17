@@ -122,25 +122,16 @@ local function commandParameter(command)
 
 end
 
-if _G.LRBridgePollingStarted == true then
-
-    log("polling already running")
-    return
-
-end
-
-_G.LRBridgePollingStarted = true
+return function(running)
 
 local config = Settings.load()
 local lastSettingsReload = os.time()
 
 log("silent polling started, interval " .. tostring(config.pollInterval))
 
-LrTasks.startAsyncTask(function()
-
     log("polling loop started")
 
-    while _G.LRBridgePollingStarted == true do
+    while running() do
 
         local now = os.time()
 
@@ -160,6 +151,8 @@ LrTasks.startAsyncTask(function()
         end
 
         local result = LrHttp.get("http://127.0.0.1:17891/next")
+        -- A response arriving during reload/shutdown must not dispatch another edit.
+        if not running() then return end
 
         if result ~= nil and string.find(result, [["command"]]) then
 
@@ -186,4 +179,4 @@ LrTasks.startAsyncTask(function()
 
     log("polling loop stopped")
 
-end)
+end

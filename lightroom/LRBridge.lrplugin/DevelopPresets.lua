@@ -300,6 +300,9 @@ function DevelopPresets.installAmountObserver(functionContext)
     if amountObserverOwner ~= nil then return true end
     local owner = {}
     local ok = LrTasks.pcall(function()
+        functionContext:addCleanupHandler(function()
+            if amountObserverOwner == owner then amountObserverOwner = nil end
+        end)
         LrDevelopController.addAdjustmentChangeObserver(functionContext, owner, function()
             amountAdjustmentDirty = true
         end)
