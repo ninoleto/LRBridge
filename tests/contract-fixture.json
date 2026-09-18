@@ -11,9 +11,26 @@
     "/wake-lightroom",
     "/status",
     "/diagnostics/queue",
+    "/diagnostics/masking-deletion",
+    "/diagnostics/masking-deletion-browser",
+    "/diagnostics/masking-preset-trace",
+    "/diagnostics/masking-preset",
     "/context",
     "/context/update",
     "/sliders",
+    "/tone-curve/state",
+    "/tone-curve/feedback",
+    "/tone-curve/gesture/begin",
+    "/tone-curve/gesture/update",
+    "/tone-curve/gesture/end",
+    "/tone-curve/gesture/cancel",
+    "/tone-curve/reset",
+    "/tone-curve/refine-saturation/gesture/begin",
+    "/tone-curve/refine-saturation/gesture/update",
+    "/tone-curve/refine-saturation/gesture/end",
+    "/tone-curve/refine-saturation/gesture/cancel",
+    "/tone-curve/refine-saturation/reset",
+    "/tone-curve/preset",
     "/color-grading",
     "/color-grading/metadata",
     "/groups",
@@ -44,6 +61,92 @@
     "/develop-categorical/upright-mode",
     "/develop-categorical/constrain-crop",
     "/develop-categorical/upright-tool",
+    "/remove/state",
+    "/remove/diagnostics/selected-repair",
+    "/remove/next",
+    "/remove/validate",
+    "/remove/query-result",
+    "/remove/brush",
+    "/remove/panel",
+    "/remove/repair",
+    "/remove/dust",
+    "/remove/operation-result",
+    "/reflections/state",
+    "/reflections/next",
+    "/reflections/validate",
+    "/reflections/query-result",
+    "/reflections/set",
+    "/reflections/operation-result",
+    "/people/state",
+    "/diagnostics/people",
+    "/people/next",
+    "/people/validate",
+    "/people/query-result",
+    "/people/action",
+    "/people/operation-result",
+    "/red-eye/state",
+    "/red-eye/next",
+    "/red-eye/validate",
+    "/red-eye/query-result",
+    "/red-eye/action",
+    "/red-eye/operation-result",
+    "/export/state",
+    "/export/action",
+    "/export/claim",
+    "/export/query-result",
+    "/export/operation-result",
+    "/export/acknowledge",
+    "/clipboard/state",
+    "/clipboard/action",
+    "/clipboard/claim",
+    "/clipboard/query-result",
+    "/clipboard/validate",
+    "/clipboard/operation-result",
+    "/clipboard/acknowledge",
+    "/masking/state",
+    "/masking/next",
+    "/masking/query-result",
+    "/masking/create",
+    "/masking/component/add",
+    "/masking/component/subtract",
+    "/masking/panel",
+    "/masking/group/navigate",
+    "/masking/tool/navigate",
+    "/masking/group/visibility",
+    "/masking/tool/visibility",
+    "/masking/all/delete",
+    "/masking/selected/delete",
+    "/masking/component/delete",
+    "/masking/component/invert",
+    "/masking/selected/reset",
+    "/masking/preset/apply",
+    "/masking/presets",
+    "/masking/point-color/value",
+    "/masking/point-color/range",
+    "/masking/point-color/range/translate",
+    "/masking/point-color/sample",
+    "/masking/point-color/tool/select",
+    "/masking/point-color/range-visualization/toggle",
+    "/masking/tone-curve/state",
+    "/masking/tone-curve/gesture/begin",
+    "/masking/tone-curve/gesture/update",
+    "/masking/tone-curve/gesture/end",
+    "/masking/tone-curve/gesture/cancel",
+    "/masking/tone-curve/reset",
+    "/masking/tone-curve/preset",
+    "/masking/tone-curve/refine-saturation/gesture/begin",
+    "/masking/tone-curve/refine-saturation/gesture/update",
+    "/masking/tone-curve/refine-saturation/gesture/end",
+    "/masking/tone-curve/refine-saturation/gesture/cancel",
+    "/masking/tone-curve/refine-saturation/reset",
+    "/masking/correction/gesture/begin",
+    "/masking/correction/gesture/update",
+    "/masking/correction/gesture/end",
+    "/masking/correction/gesture/cancel",
+    "/masking/correction/reset",
+    "/masking/correction-result",
+    "/masking/edit-result",
+    "/masking/operation-result",
     "/lens-blur/next",
     "/lens-blur/result",
     "/lens-blur/apply",
@@ -135,64 +238,68 @@
     "color_grading.value.set",
     "color_grading.value.reset",
     "color_grading.region.reset",
-    "color_grading.view.set"
-    ,"point_color.value.set"
-    ,"point_color.range.set"
-    ,"point_color.range.translate"
-    ,"point_color.range_visualization.toggle"
-    ,"point_color.tool.select"
-    ,"lightroom.undo"
-    ,"lightroom.redo"
-    ,"lens_blur.active.set"
-    ,"lens_blur.bokeh.set"
-    ,"lens_blur.depth_visualization.toggle"
-    ,"lens_blur.depth_refinement.select"
-    ,"lens_blur.depth_refinement.close"
-    ,"lens_blur.focal_range.set"
-    ,"develop_categorical.white_balance.set"
-    ,"develop_categorical.profile.set"
-    ,"develop_categorical.process.set"
-    ,"develop_categorical.vignette_style.set"
-    ,"develop_categorical.upright_mode.set"
-    ,"develop_categorical.constrain_crop.set"
-    ,"develop_categorical.upright_tool.select"
-    ,"tone_curve.gesture.begin"
-    ,"tone_curve.gesture.update"
-    ,"tone_curve.gesture.end"
-    ,"tone_curve.gesture.cancel"
-    ,"tone_curve.reset"
-    ,"tone_curve.refine_saturation.gesture.begin"
-    ,"tone_curve.refine_saturation.gesture.update"
-    ,"tone_curve.refine_saturation.gesture.end"
-    ,"tone_curve.refine_saturation.gesture.cancel"
-    ,"tone_curve.refine_saturation.reset"
-    ,"tone_curve.preset.set"
-    ,"develop_presets.inventory.request"
-    ,"develop_preset.apply"
-    ,"develop_preset.amount.set"
-    ,"masking.create"
-    ,"remove.repair.action"
-    ,"remove.repair.fill.set"
-    ,"remove.repair.param.set"
-    ,"remove.panel.set"
-    ,"remove.brush.set"
-    ,"remove.dust.off"
-    ,"remove.dust.on"
-    ,"remove.dust.close"
-    ,"reflections.set"
-    ,"people.action"
-    ,"red_eye.action"
-    ,"export.query", "export.dialog", "export.previous"
-    ,"clipboard.query", "clipboard.copy", "clipboard.paste"
-    ,"masking.component.add"
-    ,"masking.component.subtract"
-    ,"masking.component.delete"
-    ,"masking.component.invert"
-    ,"masking.panel.set"
-    ,"masking.group.navigate"
-    ,"masking.tool.navigate"
-    ,"masking.group.visibility.set"
-    ,"masking.tool.visibility.set"
+    "color_grading.view.set",
+    "point_color.value.set",
+    "point_color.range.set",
+    "point_color.range.translate",
+    "point_color.range_visualization.toggle",
+    "point_color.tool.select",
+    "lightroom.undo",
+    "lightroom.redo",
+    "lens_blur.active.set",
+    "lens_blur.bokeh.set",
+    "lens_blur.depth_visualization.toggle",
+    "lens_blur.depth_refinement.select",
+    "lens_blur.depth_refinement.close",
+    "lens_blur.focal_range.set",
+    "develop_categorical.white_balance.set",
+    "develop_categorical.profile.set",
+    "develop_categorical.process.set",
+    "develop_categorical.vignette_style.set",
+    "develop_categorical.upright_mode.set",
+    "develop_categorical.constrain_crop.set",
+    "develop_categorical.upright_tool.select",
+    "tone_curve.gesture.begin",
+    "tone_curve.gesture.update",
+    "tone_curve.gesture.end",
+    "tone_curve.gesture.cancel",
+    "tone_curve.reset",
+    "tone_curve.refine_saturation.gesture.begin",
+    "tone_curve.refine_saturation.gesture.update",
+    "tone_curve.refine_saturation.gesture.end",
+    "tone_curve.refine_saturation.gesture.cancel",
+    "tone_curve.refine_saturation.reset",
+    "tone_curve.preset.set",
+    "develop_presets.inventory.request",
+    "develop_preset.apply",
+    "develop_preset.amount.set",
+    "masking.create",
+    "remove.repair.action",
+    "remove.repair.fill.set",
+    "remove.repair.param.set",
+    "remove.panel.set",
+    "remove.brush.set",
+    "remove.dust.off",
+    "remove.dust.on",
+    "remove.dust.close",
+    "reflections.set",
+    "people.action",
+    "red_eye.action",
+    "export.query",
+    "export.dialog",
+    "export.previous",
+    "clipboard.query",
+    "clipboard.copy",
+    "clipboard.paste",
+    "masking.component.add",
+    "masking.component.subtract",
+    "masking.component.delete",
+    "masking.component.invert",
+    "masking.panel.set",
+    "masking.group.navigate",
+    "masking.tool.navigate",
+    "masking.group.visibility.set",
+    "masking.tool.visibility.set"
   ],
   "selectionOperations": [
     "select_all",
@@ -308,18 +415,7 @@
   "webControllerExcludedSliders": [
     "LensProfileChromaticAberrationScale"
   ],
-  "protectedCheatsheetExcludedSliders": [
-    "ProfileAmount",
-    "HDREditMode",
-    "HDRMaxValue",
-    "SDRBrightness",
-    "SDRContrast",
-    "SDRClarity",
-    "SDRHighlights",
-    "SDRShadows",
-    "SDRWhites",
-    "SDRBlend"
-  ],
+  "protectedCheatsheetExcludedSliders": [],
   "settings": {
     "field": "poll_interval_ms",
     "defaultMs": 100,

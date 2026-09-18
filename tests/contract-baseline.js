@@ -233,13 +233,15 @@ function validateStaticContract() {
         assert.ok(companionBuilderSource.includes('slider.id !== "' + id + '"'), "HTML Companion builder exclusion is missing for " + id);
     }
     for (const action of fixture.actions) {
-        assert.ok(controllerSource.includes('"' + action + '"'), "Web Controller is missing action " + action);
+        if (action === "selectHealingTool") assert.match(read("app/controller-remove.js"), /field === "selectedTool" \? "panel"/, "Healing must use its guarded panel workflow");
+        else assert.ok(controllerSource.includes('"' + action + '"'), "Web Controller is missing action " + action);
         assert.ok(generatedDoc.includes("action=" + action), "Generated Companion document is missing action " + action);
     }
 
     const mainSource = read("app/main.js");
     const settingsSource = read("lightroom/LRBridge.lrplugin/Settings.lua");
-    const settingsText = read("config/settings.txt").trim();
+    // Public defaults are independent of a developer's private settings file.
+    const settingsText = require("../tools/build-windows-candidate").defaults.trim();
     assert.ok(mainSource.includes("const bridgeHttpPort = " + fixture.ports.http + ";"));
     assert.ok(mainSource.includes("const controllerPort = " + fixture.ports.webController + ";"));
     assert.ok(mainSource.includes("const defaultPollingMs = " + fixture.settings.defaultMs + ";"));
@@ -255,7 +257,7 @@ function validateStaticContract() {
     const pluginInfoSource = read("lightroom/LRBridge.lrplugin/Info.lua");
     const pluginHelpSource = read("lightroom/LRBridge.lrplugin/Help.lua");
     assert.ok(builder.includes("target: dir"), "Windows build must remain a directory target");
-    assert.ok(builder.includes("- from: lightroom"), "Windows build must include the Lightroom plug-in tree");
+    assert.ok(builder.includes("- from: runtime/lightroom"), "Windows build must include the staged Lightroom plug-in tree");
     assert.ok(fs.existsSync(path.join(root, "lightroom/LRBridge.lrplugin/Application.lua")), "Application.lua must exist in the packaged Lightroom plug-in tree");
     assert.match(pluginInfoSource, /LrForceInitPlugin\s*=\s*true/, "Lightroom plug-in must retain forced startup initialization");
     assert.match(pluginInfoSource, /LrHelpMenuItems\s*=\s*\{[\s\S]*title\s*=\s*"LRBridge Help"[\s\S]*file\s*=\s*"Help\.lua"/, "Lightroom plug-in must expose LRBridge Help");
@@ -264,11 +266,13 @@ function validateStaticContract() {
         assert.ok(!pluginHelpSource.includes(forbiddenBehavior), "Help.lua must not contain operational behavior: " + forbiddenBehavior);
     }
     assert.ok(builder.includes("- x64"), "Windows build must retain x64 architecture");
-    assert.ok(portableScript.includes('dist\\win-unpacked'), "Portable source path drifted");
-    assert.ok(portableScript.includes('LRBridge-$version-win-x64-portable'), "Portable name drifted");
-    for (const requiredPath of fixture.portable.required) {
-        assert.ok(portableScript.includes('"' + requiredPath + '"'), "Portable validation is missing " + requiredPath);
-    }
+    assert.ok(portableScript.includes('build-windows-candidate.js'), "legacy entry must use clean staging");
+    const buildSource = read("tools/build-windows-candidate.js");
+    assert.match(buildSource, /Refusing to reuse staging/);
+    assert.match(buildSource, /inspectCandidate/);
+    assert.match(buildSource, /beta-win-x64-portable/);
+    // tests/release-preparation.js executes staging and verifies the actual runtime closure/resources.
+
 }
 
 async function captureBridge() {
@@ -277,6 +281,8 @@ async function captureBridge() {
     let httpListenPort = null;
 
     const fakeApp = {
+        // Middleware behavior is exercised through real Express in clipboard/export tests.
+        use() {},
         get(route, handler) {
             routes.set(route, handler);
         },
@@ -302,6 +308,7 @@ async function captureBridge() {
     expressMock.json = function () {
         return function (_request, _response, next) { next(); };
     };
+    expressMock.text = expressMock.json;
 
     class FakeWebSocketServer extends (require("events").EventEmitter) {
         constructor(options) {
@@ -408,7 +415,7 @@ async function validateHttpAndWebSocketContract() {
     assert.deepEqual(result.body, { name: "LRBridge", ok: true, httpPort: 17891, wsPort: 17890, help: "/help" });
 
     result = await request(captured, "/help");
-    assert.deepEqual(keys(result.body), ["experimentalEndpoints", "mode", "name", "notes", "reliableEndpoints", "sourceOfTruth"]);
+    assert.deepEqual(keys(result.body), ["experimentalEndpoints", "mode", "name", "notes", "operationInventory", "reliableEndpoints", "sourceOfTruth"]);
 
     result = await request(captured, "/status");
     assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "hasLatestResult", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid", "supportedSliders"]);
@@ -416,7 +423,7 @@ async function validateHttpAndWebSocketContract() {
 
     result = await request(captured, "/diagnostics/queue");
     assert.equal(result.headers["cache-control"], "no-store");
-    assert.deepEqual(keys(result.body), ["counters", "ok", "queue", "scope", "timestamps"]);
+    assert.deepEqual(keys(result.body), ["counters", "ok", "pointCurveGestures", "queue", "scope", "timestamps"]);
 
     result = await request(captured, "/context");
     assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid"]);
@@ -587,7 +594,8 @@ async function main() {
     console.log("Validated " + fixture.routes.length + " HTTP routes, " + fixture.commands.length + " command formats, " + fixture.actions.length + " Develop actions, " + fixture.groups.length + " groups, and " + sliders.length + " sliders.");
 }
 
-main().catch(function (error) {
+module.exports = { captureBridge };
+if (require.main === module) main().catch(function (error) {
     console.error(error.stack || error);
     process.exit(1);
 });

@@ -1,8 +1,8 @@
 return {
-    VERSION = { major = 1, minor = 0, revision = 0 },
+    VERSION = { major = 0, minor = 6, revision = 0 },
 
-    LrSdkVersion = 6.0,
-    LrSdkMinimumVersion = 4.0,
+    LrSdkVersion = 15.3,
+    LrSdkMinimumVersion = 15.3,
 
     LrToolkitIdentifier = "com.nino.lrbridge",
     LrPluginName = "LRBridge",

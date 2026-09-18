@@ -1,0 +1,1605 @@
+{
+  "version": 1,
+  "workflows": "/reference/HTTP_WORKFLOWS.md",
+  "notes": {
+    "ordinary": "Existing ordinary Builder families; validated current-context commands. Acceptance means queued.",
+    "read": "State/discovery. Some reads request asynchronous SDK feedback; observe availability and freshness.",
+    "workflow": "Not generated as a permanent URL. Use the controller or documented multi-step workflow with exact parameters, context, gesture lifecycle and results.",
+    "internal": "Internal plug-in protocol. Not a controller action or reusable URL.",
+    "deprecated": "Legacy/unsupported entry; use the current controller workflow."
+  },
+  "operations": [
+    {
+      "method": "GET",
+      "path": "/color-grading",
+      "group": "Color Grading",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1227
+    },
+    {
+      "method": "GET",
+      "path": "/color-grading/metadata",
+      "group": "Color Grading",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1231
+    },
+    {
+      "method": "GET",
+      "path": "/color-grading/request",
+      "group": "Color Grading",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3291
+    },
+    {
+      "method": "GET",
+      "path": "/color-grading/result",
+      "group": "Color Grading",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 3308
+    },
+    {
+      "method": "GET",
+      "path": "/color-grading/snapshot",
+      "group": "Color Grading",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 3349
+    },
+    {
+      "method": "GET",
+      "path": "/color-grading/view-result",
+      "group": "Color Grading",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3329
+    },
+    {
+      "method": "GET",
+      "path": "/action",
+      "group": "Core / action",
+      "kind": "ordinary",
+      "source": "server/bridge.js",
+      "line": 3081
+    },
+    {
+      "method": "GET",
+      "path": "/adjust",
+      "group": "Core / adjust",
+      "kind": "ordinary",
+      "source": "server/bridge.js",
+      "line": 3019
+    },
+    {
+      "method": "GET",
+      "path": "/command",
+      "group": "Core / command",
+      "kind": "ordinary",
+      "source": "server/bridge.js",
+      "line": 2858
+    },
+    {
+      "method": "GET",
+      "path": "/context",
+      "group": "Core / context",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 816
+    },
+    {
+      "method": "GET",
+      "path": "/context/update",
+      "group": "Core / context",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 822
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics/masking-deletion",
+      "group": "Core / diagnostics",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 772
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics/masking-deletion-browser",
+      "group": "Core / diagnostics",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 780
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics/masking-preset",
+      "group": "Core / diagnostics",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 809
+    },
+    {
+      "method": "POST",
+      "path": "/diagnostics/masking-preset-trace",
+      "group": "Core / diagnostics",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 797
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics/people",
+      "group": "Core / diagnostics",
+      "kind": "read",
+      "source": "server/people-routes.js",
+      "line": 17
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics/queue",
+      "group": "Core / diagnostics",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 765
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/all",
+      "group": "Core / feedback",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3541
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/next",
+      "group": "Core / feedback",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 3243
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/request",
+      "group": "Core / feedback",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3154
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/request-all",
+      "group": "Core / feedback",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3174
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/request-many",
+      "group": "Core / feedback",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3195
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/result",
+      "group": "Core / feedback",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 3357
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/snapshot",
+      "group": "Core / feedback",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 3548
+    },
+    {
+      "method": "GET",
+      "path": "/feedback/value",
+      "group": "Core / feedback",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3523
+    },
+    {
+      "method": "GET",
+      "path": "/get",
+      "group": "Core / get",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3115
+    },
+    {
+      "method": "GET",
+      "path": "/groups",
+      "group": "Core / groups",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 1236
+    },
+    {
+      "method": "GET",
+      "path": "/help",
+      "group": "Core / help",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 671
+    },
+    {
+      "method": "GET",
+      "path": "/last-result",
+      "group": "Core / last-result",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3148
+    },
+    {
+      "method": "GET",
+      "path": "/next",
+      "group": "Core / next",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1449
+    },
+    {
+      "method": "GET",
+      "path": "/reset",
+      "group": "Core / reset",
+      "kind": "ordinary",
+      "source": "server/bridge.js",
+      "line": 3092
+    },
+    {
+      "method": "GET",
+      "path": "/result",
+      "group": "Core / result",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 3124
+    },
+    {
+      "method": "GET",
+      "path": "/set",
+      "group": "Core / set",
+      "kind": "ordinary",
+      "source": "server/bridge.js",
+      "line": 3052
+    },
+    {
+      "method": "GET",
+      "path": "/sliders",
+      "group": "Core / sliders",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 866
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "group": "Core / status",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 661
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "group": "Core / status",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 761
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/feedback",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 913
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/gesture/begin",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1038
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/gesture/cancel",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1041
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/gesture/end",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1040
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/gesture/update",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1039
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/preset",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1203
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/refine-saturation/gesture/begin",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1151
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/refine-saturation/gesture/cancel",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1160
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/refine-saturation/gesture/end",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1157
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/refine-saturation/gesture/update",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1154
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/refine-saturation/reset",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1182
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/reset",
+      "group": "Core / tone-curve",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1062
+    },
+    {
+      "method": "GET",
+      "path": "/tone-curve/state",
+      "group": "Core / tone-curve",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 908
+    },
+    {
+      "method": "GET",
+      "path": "/treatment/request",
+      "group": "Core / treatment",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 3252
+    },
+    {
+      "method": "GET",
+      "path": "/treatment/result",
+      "group": "Core / treatment",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 3263
+    },
+    {
+      "method": "GET",
+      "path": "/treatment/snapshot",
+      "group": "Core / treatment",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 3281
+    },
+    {
+      "method": "GET",
+      "path": "/wake-lightroom",
+      "group": "Core / wake-lightroom",
+      "kind": "deprecated",
+      "source": "server/bridge.js",
+      "line": 751
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/constrain-crop",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1711
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/metadata",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1494
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/next",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1565
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/process",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1687
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/profile",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1629
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/profile-feedback",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1529
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/profile-validation",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1671
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/result",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1570
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/state",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 1506
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/upright-mode",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1703
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/upright-tool",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1719
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/vignette-style",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1695
+    },
+    {
+      "method": "GET",
+      "path": "/develop-categorical/white-balance",
+      "group": "Develop / Profiles (Windows inventory)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1620
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/amount",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1355
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/apply",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1319
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/apply-result",
+      "group": "Develop Presets",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1431
+    },
+    {
+      "method": "POST",
+      "path": "/develop-presets/config",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1249
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/inventory/complete",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1298
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/inventory/fail",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1308
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/inventory/item",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1281
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/inventory/refresh",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1269
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/navigate",
+      "group": "Develop Presets",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1328
+    },
+    {
+      "method": "GET",
+      "path": "/develop-presets/state",
+      "group": "Develop Presets",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 1242
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/amount-result",
+      "group": "Enhance",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2830
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/denoise/amount",
+      "group": "Enhance",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2848
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/denoise/set",
+      "group": "Enhance",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2774
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/next",
+      "group": "Enhance",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2748
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/raw-details/set",
+      "group": "Enhance",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2797
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/result",
+      "group": "Enhance",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2753
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/state",
+      "group": "Enhance",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 1454
+    },
+    {
+      "method": "GET",
+      "path": "/enhance/super-resolution/set",
+      "group": "Enhance",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2809
+    },
+    {
+      "method": "GET",
+      "path": "/export/acknowledge",
+      "group": "Export… / Export with Previous",
+      "kind": "workflow",
+      "source": "server/export-routes.js",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "/export/action",
+      "group": "Export… / Export with Previous",
+      "kind": "workflow",
+      "source": "server/export-routes.js",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/export/claim",
+      "group": "Export… / Export with Previous",
+      "kind": "internal",
+      "source": "server/export-routes.js",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/export/operation-result",
+      "group": "Export… / Export with Previous",
+      "kind": "internal",
+      "source": "server/export-routes.js",
+      "line": 33
+    },
+    {
+      "method": "GET",
+      "path": "/export/query-result",
+      "group": "Export… / Export with Previous",
+      "kind": "internal",
+      "source": "server/export-routes.js",
+      "line": 28
+    },
+    {
+      "method": "GET",
+      "path": "/export/state",
+      "group": "Export… / Export with Previous",
+      "kind": "read",
+      "source": "server/export-routes.js",
+      "line": 11
+    },
+    {
+      "method": "GET",
+      "path": "/remove/brush",
+      "group": "Healing / Distraction Removal",
+      "kind": "workflow",
+      "source": "server/remove-routes.js",
+      "line": 60
+    },
+    {
+      "method": "GET",
+      "path": "/remove/diagnostics/selected-repair",
+      "group": "Healing / Distraction Removal",
+      "kind": "workflow",
+      "source": "server/remove-routes.js",
+      "line": 23
+    },
+    {
+      "method": "GET",
+      "path": "/remove/dust",
+      "group": "Healing / Distraction Removal",
+      "kind": "workflow",
+      "source": "server/remove-routes.js",
+      "line": 63
+    },
+    {
+      "method": "GET",
+      "path": "/remove/next",
+      "group": "Healing / Distraction Removal",
+      "kind": "internal",
+      "source": "server/remove-routes.js",
+      "line": 32
+    },
+    {
+      "method": "GET",
+      "path": "/remove/operation-result",
+      "group": "Healing / Distraction Removal",
+      "kind": "internal",
+      "source": "server/remove-routes.js",
+      "line": 64
+    },
+    {
+      "method": "GET",
+      "path": "/remove/panel",
+      "group": "Healing / Distraction Removal",
+      "kind": "workflow",
+      "source": "server/remove-routes.js",
+      "line": 61
+    },
+    {
+      "method": "GET",
+      "path": "/remove/query-result",
+      "group": "Healing / Distraction Removal",
+      "kind": "internal",
+      "source": "server/remove-routes.js",
+      "line": 37
+    },
+    {
+      "method": "GET",
+      "path": "/remove/repair",
+      "group": "Healing / Distraction Removal",
+      "kind": "workflow",
+      "source": "server/remove-routes.js",
+      "line": 62
+    },
+    {
+      "method": "GET",
+      "path": "/remove/state",
+      "group": "Healing / Distraction Removal",
+      "kind": "read",
+      "source": "server/remove-routes.js",
+      "line": 22
+    },
+    {
+      "method": "GET",
+      "path": "/remove/validate",
+      "group": "Healing / Distraction Removal",
+      "kind": "internal",
+      "source": "server/remove-routes.js",
+      "line": 33
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/apply",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2374
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/auto-mask",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2508
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/bokeh",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2383
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/brush/:control/adjust",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2439
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/brush/:control/reset",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2450
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/brush/:control/set",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2418
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/depth-refinement/close",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2624
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/depth-refinement/select",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2616
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/depth-visualization/toggle",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "deprecated",
+      "source": "server/bridge.js",
+      "line": 2393
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/focal-range/adjust",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2600
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/focal-range/set",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2586
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/focus-action",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2544
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/next",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2335
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/refinement-disclosure",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2525
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/refinement-mode",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2516
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/refinement-reset",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2534
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/result",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2340
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/state",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 1466
+    },
+    {
+      "method": "GET",
+      "path": "/lens-blur/visualize-depth",
+      "group": "Lens Blur (SDK and Windows)",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2461
+    },
+    {
+      "method": "GET",
+      "path": "/masking/all/delete",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1895
+    },
+    {
+      "method": "GET",
+      "path": "/masking/component/add",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1845
+    },
+    {
+      "method": "GET",
+      "path": "/masking/component/delete",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1904
+    },
+    {
+      "method": "GET",
+      "path": "/masking/component/invert",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1910
+    },
+    {
+      "method": "GET",
+      "path": "/masking/component/subtract",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1845
+    },
+    {
+      "method": "GET",
+      "path": "/masking/correction-result",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2177
+    },
+    {
+      "method": "GET",
+      "path": "/masking/correction/gesture/begin",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2145
+    },
+    {
+      "method": "GET",
+      "path": "/masking/correction/gesture/cancel",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2164
+    },
+    {
+      "method": "GET",
+      "path": "/masking/correction/gesture/end",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2157
+    },
+    {
+      "method": "GET",
+      "path": "/masking/correction/gesture/update",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2150
+    },
+    {
+      "method": "GET",
+      "path": "/masking/correction/reset",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2169
+    },
+    {
+      "method": "GET",
+      "path": "/masking/create",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1836
+    },
+    {
+      "method": "GET",
+      "path": "/masking/edit-result",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2220
+    },
+    {
+      "method": "GET",
+      "path": "/masking/group/navigate",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1863
+    },
+    {
+      "method": "GET",
+      "path": "/masking/group/visibility",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1879
+    },
+    {
+      "method": "GET",
+      "path": "/masking/next",
+      "group": "Masking",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1749
+    },
+    {
+      "method": "GET",
+      "path": "/masking/operation-result",
+      "group": "Masking",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2254
+    },
+    {
+      "method": "GET",
+      "path": "/masking/panel",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1855
+    },
+    {
+      "method": "GET",
+      "path": "/masking/point-color/range",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1956
+    },
+    {
+      "method": "GET",
+      "path": "/masking/point-color/range-visualization/toggle",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1989
+    },
+    {
+      "method": "GET",
+      "path": "/masking/point-color/range/translate",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1965
+    },
+    {
+      "method": "GET",
+      "path": "/masking/point-color/sample",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1976
+    },
+    {
+      "method": "GET",
+      "path": "/masking/point-color/tool/select",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1982
+    },
+    {
+      "method": "GET",
+      "path": "/masking/point-color/value",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1948
+    },
+    {
+      "method": "GET",
+      "path": "/masking/preset/apply",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1921
+    },
+    {
+      "method": "GET",
+      "path": "/masking/presets",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1936
+    },
+    {
+      "method": "GET",
+      "path": "/masking/query-result",
+      "group": "Masking",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 1754
+    },
+    {
+      "method": "GET",
+      "path": "/masking/selected/delete",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1899
+    },
+    {
+      "method": "GET",
+      "path": "/masking/selected/reset",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1916
+    },
+    {
+      "method": "GET",
+      "path": "/masking/state",
+      "group": "Masking",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 1741
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/gesture/begin",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2052
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/gesture/cancel",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2055
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/gesture/end",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2054
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/gesture/update",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2053
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/preset",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2065
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/refine-saturation/gesture/begin",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2086
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/refine-saturation/gesture/cancel",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2089
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/refine-saturation/gesture/end",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2088
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/refine-saturation/gesture/update",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2087
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/refine-saturation/reset",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2090
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/reset",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2057
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tone-curve/state",
+      "group": "Masking",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 2033
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tool/navigate",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1871
+    },
+    {
+      "method": "GET",
+      "path": "/masking/tool/visibility",
+      "group": "Masking",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 1887
+    },
+    {
+      "method": "GET",
+      "path": "/people/action",
+      "group": "People",
+      "kind": "workflow",
+      "source": "server/people-routes.js",
+      "line": 31
+    },
+    {
+      "method": "GET",
+      "path": "/people/next",
+      "group": "People",
+      "kind": "internal",
+      "source": "server/people-routes.js",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/people/operation-result",
+      "group": "People",
+      "kind": "internal",
+      "source": "server/people-routes.js",
+      "line": 42
+    },
+    {
+      "method": "GET",
+      "path": "/people/query-result",
+      "group": "People",
+      "kind": "internal",
+      "source": "server/people-routes.js",
+      "line": 26
+    },
+    {
+      "method": "GET",
+      "path": "/people/state",
+      "group": "People",
+      "kind": "read",
+      "source": "server/people-routes.js",
+      "line": 16
+    },
+    {
+      "method": "GET",
+      "path": "/people/validate",
+      "group": "People",
+      "kind": "internal",
+      "source": "server/people-routes.js",
+      "line": 22
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/next",
+      "group": "Point Color",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2656
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/range",
+      "group": "Point Color",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2704
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/range-visualization/toggle",
+      "group": "Point Color",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2738
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/range/translate",
+      "group": "Point Color",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2722
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/result",
+      "group": "Point Color",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2661
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/state",
+      "group": "Point Color",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 1460
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/tool/select",
+      "group": "Point Color",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2743
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/value",
+      "group": "Point Color",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2691
+    },
+    {
+      "method": "GET",
+      "path": "/clipboard/acknowledge",
+      "group": "Quick Copy Settings / Paste Settings",
+      "kind": "workflow",
+      "source": "server/clipboard-routes.js",
+      "line": 42
+    },
+    {
+      "method": "GET",
+      "path": "/clipboard/action",
+      "group": "Quick Copy Settings / Paste Settings",
+      "kind": "workflow",
+      "source": "server/clipboard-routes.js",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/clipboard/claim",
+      "group": "Quick Copy Settings / Paste Settings",
+      "kind": "internal",
+      "source": "server/clipboard-routes.js",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/clipboard/operation-result",
+      "group": "Quick Copy Settings / Paste Settings",
+      "kind": "internal",
+      "source": "server/clipboard-routes.js",
+      "line": 37
+    },
+    {
+      "method": "GET",
+      "path": "/clipboard/query-result",
+      "group": "Quick Copy Settings / Paste Settings",
+      "kind": "internal",
+      "source": "server/clipboard-routes.js",
+      "line": 28
+    },
+    {
+      "method": "GET",
+      "path": "/clipboard/state",
+      "group": "Quick Copy Settings / Paste Settings",
+      "kind": "read",
+      "source": "server/clipboard-routes.js",
+      "line": 11
+    },
+    {
+      "method": "GET",
+      "path": "/clipboard/validate",
+      "group": "Quick Copy Settings / Paste Settings",
+      "kind": "internal",
+      "source": "server/clipboard-routes.js",
+      "line": 33
+    },
+    {
+      "method": "GET",
+      "path": "/red-eye/action",
+      "group": "Red Eye",
+      "kind": "workflow",
+      "source": "server/red-eye-routes.js",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/red-eye/next",
+      "group": "Red Eye",
+      "kind": "internal",
+      "source": "server/red-eye-routes.js",
+      "line": 11
+    },
+    {
+      "method": "GET",
+      "path": "/red-eye/operation-result",
+      "group": "Red Eye",
+      "kind": "internal",
+      "source": "server/red-eye-routes.js",
+      "line": 30
+    },
+    {
+      "method": "GET",
+      "path": "/red-eye/query-result",
+      "group": "Red Eye",
+      "kind": "internal",
+      "source": "server/red-eye-routes.js",
+      "line": 16
+    },
+    {
+      "method": "GET",
+      "path": "/red-eye/state",
+      "group": "Red Eye",
+      "kind": "read",
+      "source": "server/red-eye-routes.js",
+      "line": 10
+    },
+    {
+      "method": "GET",
+      "path": "/red-eye/validate",
+      "group": "Red Eye",
+      "kind": "internal",
+      "source": "server/red-eye-routes.js",
+      "line": 12
+    },
+    {
+      "method": "GET",
+      "path": "/reflections/next",
+      "group": "Reflections",
+      "kind": "internal",
+      "source": "server/reflections-routes.js",
+      "line": 16
+    },
+    {
+      "method": "GET",
+      "path": "/reflections/operation-result",
+      "group": "Reflections",
+      "kind": "internal",
+      "source": "server/reflections-routes.js",
+      "line": 37
+    },
+    {
+      "method": "GET",
+      "path": "/reflections/query-result",
+      "group": "Reflections",
+      "kind": "internal",
+      "source": "server/reflections-routes.js",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/reflections/set",
+      "group": "Reflections",
+      "kind": "workflow",
+      "source": "server/reflections-routes.js",
+      "line": 26
+    },
+    {
+      "method": "GET",
+      "path": "/reflections/state",
+      "group": "Reflections",
+      "kind": "read",
+      "source": "server/reflections-routes.js",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/reflections/validate",
+      "group": "Reflections",
+      "kind": "internal",
+      "source": "server/reflections-routes.js",
+      "line": 17
+    },
+    {
+      "method": "GET",
+      "path": "/history/next",
+      "group": "Undo / Redo",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2644
+    },
+    {
+      "method": "GET",
+      "path": "/history/result",
+      "group": "Undo / Redo",
+      "kind": "internal",
+      "source": "server/bridge.js",
+      "line": 2648
+    },
+    {
+      "method": "GET",
+      "path": "/history/state",
+      "group": "Undo / Redo",
+      "kind": "read",
+      "source": "server/bridge.js",
+      "line": 2639
+    }
+  ]
+}

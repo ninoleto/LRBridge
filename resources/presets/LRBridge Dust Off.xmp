@@ -1,0 +1,86 @@
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.0-c000 1.000000, 0000/00/00-00:00:00        ">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+    xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+   crs:PresetType="Normal"
+   crs:Cluster=""
+   crs:UUID="BD8035E4A54F404CB5D00A22714C7F3C"
+   crs:SupportsAmount2="False"
+   crs:SupportsAmount="False"
+   crs:SupportsColor="True"
+   crs:SupportsMonochrome="True"
+   crs:SupportsHighDynamicRange="True"
+   crs:SupportsNormalDynamicRange="True"
+   crs:SupportsSceneReferred="True"
+   crs:SupportsOutputReferred="True"
+   crs:RequiresRGBTables="False"
+   crs:ShowInPresets="True"
+   crs:ShowInQuickActions="False"
+   crs:CameraModelRestriction=""
+   crs:Copyright=""
+   crs:ContactInfo=""
+   crs:Version="18.4"
+   crs:CompatibleVersion="285212672"
+   crs:Table_CD611670FD9CF45A09C006978250C355="}3000[s7^pk95Jad'IwSmd?GvWM(4C4)2BRIY9@^fYXfRTNmg2:X=c{:LXF!'(}$(Bu5Shn3Giz^bc2jC{^zgdgU%sXd#'DWQ4[*vrB*MQp]ho0E:Rpfd6lu4'Vr]^k(OmsF)f)x%5ym/:oSG%dCRTo0Nh4%MSGk$@t1ss:9VIIHefd3iuQSG{i1{iPbrGebi1GqB{R'Zyx4es:i]Y*{f5B]tj$b*'#$8/0TqvM(I1a+*f]=`N+q=Gf:QDx'UUb]VxND1M-hFI69}{1DwGR=FMxgW*4AszXXO0yJ.z**l3$uL1"
+   crs:AllowFilters="1"
+   crs:HasSettings="True">
+   <crs:Name>
+    <rdf:Alt>
+     <rdf:li xml:lang="x-default">LRBridge Dust Off</rdf:li>
+    </rdf:Alt>
+   </crs:Name>
+   <crs:ShortName>
+    <rdf:Alt>
+     <rdf:li xml:lang="x-default"/>
+    </rdf:Alt>
+   </crs:ShortName>
+   <crs:SortName>
+    <rdf:Alt>
+     <rdf:li xml:lang="x-default"/>
+    </rdf:Alt>
+   </crs:SortName>
+   <crs:Group>
+    <rdf:Alt>
+     <rdf:li xml:lang="x-default">LRBridge TEST</rdf:li>
+    </rdf:Alt>
+   </crs:Group>
+   <crs:Description>
+    <rdf:Alt>
+     <rdf:li xml:lang="x-default"/>
+    </rdf:Alt>
+   </crs:Description>
+   <crs:FilterList rdf:parseType="Resource">
+    <crs:Filters>
+     <rdf:Seq>
+      <rdf:li
+       crs:Name=""
+       crs:Title=""
+       crs:FilterID="6"
+       crs:MinDisplayVersion="285212672"
+       crs:MinEditVersion="285212672"
+       crs:OrderIndexN="750000000"
+       crs:OrderIndexD="1"
+       crs:SrcBoundsTop="0"
+       crs:SrcBoundsLeft="0"
+       crs:SrcBoundsBottom="100"
+       crs:SrcBoundsRight="100"
+       crs:DstBoundsTop="0"
+       crs:DstBoundsLeft="0"
+       crs:DstBoundsBottom="100"
+       crs:DstBoundsRight="100"
+       crs:SrcDefaultCropAreaTop="0"
+       crs:SrcDefaultCropAreaLeft="0"
+       crs:SrcDefaultCropAreaBottom="100"
+       crs:SrcDefaultCropAreaRight="100"
+       crs:DstDefaultCropAreaTop="0"
+       crs:DstDefaultCropAreaLeft="0"
+       crs:DstDefaultCropAreaBottom="100"
+       crs:DstDefaultCropAreaRight="100"
+       crs:IsSignalForDelete="true"
+       crs:CompressedSettings="CD611670FD9CF45A09C006978250C355"/>
+     </rdf:Seq>
+    </crs:Filters>
+   </crs:FilterList>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>

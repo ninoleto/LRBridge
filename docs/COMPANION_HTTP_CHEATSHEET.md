@@ -9,7 +9,8 @@ config/sliders.json
 server/commands.js
 ```
 
-Use this as the practical button-building sheet.
+Use this as the practical button-building sheet for ordinary commands. See [all registered HTTP operations](HTTP_OPERATIONS.md) and [guarded request workflows](HTTP_WORKFLOWS.md) for current coverage and Builder limitations.
+Quick Copy Settings uses the active photo and the categories last chosen in Lightroom’s Copy Settings dialog, without opening it. Paste Settings and Export require fresh family state, complete-selection binding, request IDs and result handling. Never save their context tokens as permanent URLs or retry automatically after uncertainty. Continuous slider gestures require their full lifecycle.
 
 ---
 
@@ -49,7 +50,7 @@ Method: GET
 
 ## Important notes
 
-- Use HTTP GET.
+- The simple examples here use HTTP GET. The complete inventory also includes POST and guarded multi-step operations.
 - Use only the path part in Companion if the base URL is already configured.
 - `amount=1` means one LRBridge/Lightroom adjustment step.
 - `amount=-1` means one step down.
@@ -142,6 +143,39 @@ Reset
 +1
 +5
 ```
+
+---
+
+## Profile
+
+| Slider label | Slider ID | Button | Companion path | Full local URL |
+|---|---|---|---|---|
+| Profile Amount | `ProfileAmount` | Set value | `/set?slider=ProfileAmount&value=VALUE` | `http://127.0.0.1:17891/set?slider=ProfileAmount&value=VALUE` |
+| Profile Amount | `ProfileAmount` | Reset | `/reset?slider=ProfileAmount` | `http://127.0.0.1:17891/reset?slider=ProfileAmount` |
+
+---
+
+## HDR / SDR Rendition
+
+| Slider label | Slider ID | Button | Companion path | Full local URL |
+|---|---|---|---|---|
+| HDR Edit Mode | `HDREditMode` | Set value | `/set?slider=HDREditMode&value=VALUE` | `http://127.0.0.1:17891/set?slider=HDREditMode&value=VALUE` |
+| HDR Limit | `HDRMaxValue` | Set value | `/set?slider=HDRMaxValue&value=VALUE` | `http://127.0.0.1:17891/set?slider=HDRMaxValue&value=VALUE` |
+| HDR Limit | `HDRMaxValue` | Reset | `/reset?slider=HDRMaxValue` | `http://127.0.0.1:17891/reset?slider=HDRMaxValue` |
+| Brightness | `SDRBrightness` | Set value | `/set?slider=SDRBrightness&value=VALUE` | `http://127.0.0.1:17891/set?slider=SDRBrightness&value=VALUE` |
+| Brightness | `SDRBrightness` | Reset | `/reset?slider=SDRBrightness` | `http://127.0.0.1:17891/reset?slider=SDRBrightness` |
+| Contrast | `SDRContrast` | Set value | `/set?slider=SDRContrast&value=VALUE` | `http://127.0.0.1:17891/set?slider=SDRContrast&value=VALUE` |
+| Contrast | `SDRContrast` | Reset | `/reset?slider=SDRContrast` | `http://127.0.0.1:17891/reset?slider=SDRContrast` |
+| Clarity | `SDRClarity` | Set value | `/set?slider=SDRClarity&value=VALUE` | `http://127.0.0.1:17891/set?slider=SDRClarity&value=VALUE` |
+| Clarity | `SDRClarity` | Reset | `/reset?slider=SDRClarity` | `http://127.0.0.1:17891/reset?slider=SDRClarity` |
+| Highlights | `SDRHighlights` | Set value | `/set?slider=SDRHighlights&value=VALUE` | `http://127.0.0.1:17891/set?slider=SDRHighlights&value=VALUE` |
+| Highlights | `SDRHighlights` | Reset | `/reset?slider=SDRHighlights` | `http://127.0.0.1:17891/reset?slider=SDRHighlights` |
+| Shadows | `SDRShadows` | Set value | `/set?slider=SDRShadows&value=VALUE` | `http://127.0.0.1:17891/set?slider=SDRShadows&value=VALUE` |
+| Shadows | `SDRShadows` | Reset | `/reset?slider=SDRShadows` | `http://127.0.0.1:17891/reset?slider=SDRShadows` |
+| Whites | `SDRWhites` | Set value | `/set?slider=SDRWhites&value=VALUE` | `http://127.0.0.1:17891/set?slider=SDRWhites&value=VALUE` |
+| Whites | `SDRWhites` | Reset | `/reset?slider=SDRWhites` | `http://127.0.0.1:17891/reset?slider=SDRWhites` |
+| Highlight Saturation | `SDRBlend` | Set value | `/set?slider=SDRBlend&value=VALUE` | `http://127.0.0.1:17891/set?slider=SDRBlend&value=VALUE` |
+| Highlight Saturation | `SDRBlend` | Reset | `/reset?slider=SDRBlend` | `http://127.0.0.1:17891/reset?slider=SDRBlend` |
 
 ---
 
@@ -704,6 +738,19 @@ Reset
 | Curve Highlight Split | `ParametricHighlightSplit` | Reset | `/reset?slider=ParametricHighlightSplit` | `http://127.0.0.1:17891/reset?slider=ParametricHighlightSplit` |
 | Curve Highlight Split | `ParametricHighlightSplit` | +1 | `/adjust?slider=ParametricHighlightSplit&amount=1` | `http://127.0.0.1:17891/adjust?slider=ParametricHighlightSplit&amount=1` |
 | Curve Highlight Split | `ParametricHighlightSplit` | +5 | `/adjust?slider=ParametricHighlightSplit&amount=5` | `http://127.0.0.1:17891/adjust?slider=ParametricHighlightSplit&amount=5` |
+
+---
+
+## Lens Blur
+
+| Slider label | Slider ID | Button | Companion path | Full local URL |
+|---|---|---|---|---|
+| Blur Amount | `LensBlurAmount` | Set value | `/set?slider=LensBlurAmount&value=VALUE` | `http://127.0.0.1:17891/set?slider=LensBlurAmount&value=VALUE` |
+| Blur Amount | `LensBlurAmount` | Reset | `/reset?slider=LensBlurAmount` | `http://127.0.0.1:17891/reset?slider=LensBlurAmount` |
+| Cat Eye | `LensBlurCatEye` | Set value | `/set?slider=LensBlurCatEye&value=VALUE` | `http://127.0.0.1:17891/set?slider=LensBlurCatEye&value=VALUE` |
+| Cat Eye | `LensBlurCatEye` | Reset | `/reset?slider=LensBlurCatEye` | `http://127.0.0.1:17891/reset?slider=LensBlurCatEye` |
+| Boost | `LensBlurHighlightsBoost` | Set value | `/set?slider=LensBlurHighlightsBoost&value=VALUE` | `http://127.0.0.1:17891/set?slider=LensBlurHighlightsBoost&value=VALUE` |
+| Boost | `LensBlurHighlightsBoost` | Reset | `/reset?slider=LensBlurHighlightsBoost` | `http://127.0.0.1:17891/reset?slider=LensBlurHighlightsBoost` |
 
 ---
 

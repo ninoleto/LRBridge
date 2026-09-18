@@ -371,8 +371,8 @@ function assertRequestShape(path, pathname, operationFields) {
             lastEditResult: wrapperLastEditResult, available: true, unavailableReason: null, active: true,
             maskGroupCount: 1, hasSelectedMaskGroup: true, selectedMaskGroupIndex: 1,
             selectedMaskGroupId: "mask-a", selectedMaskHidden: false, previousAvailable: false,
-            nextAvailable: false, selectedMaskToolAvailable: false, selectedMaskToolId: null,
-            selectedMaskToolHidden: null, selectedMaskToolCount: null, selectedMaskToolIndex: null,
+            nextAvailable: false, selectedMaskToolAvailable: true, selectedMaskToolId: "component-a",
+            selectedMaskToolHidden: false, selectedMaskToolCount: 1, selectedMaskToolIndex: 1,
             previousMaskToolAvailable: false, nextMaskToolAvailable: false, corrections: [],
             pointColor: wrapperPointColor, curves: { available: false }
         };
@@ -403,10 +403,11 @@ function assertRequestShape(path, pathname, operationFields) {
     wrapper.activate(wrapperHost);
     for (let index = 0; index < 6; index += 1) await tick();
     const applyPreset = find(wrapperHost, function (element) {
-        return element.attributes["aria-label"] === "Apply Local Preset";
+        return element.className === "masking-preset-button";
     });
     const wrapperHueRow = find(wrapperHost, function (element) { return element.dataset.pointColorField === "HueShift"; });
-    assert.ok(applyPreset && wrapperHueRow);
+    assert.ok(applyPreset, "current preset picker button must exist");
+    assert.ok(wrapperHueRow, "selected mask Point Color hue row must exist: " + JSON.stringify(wrapper.getInteractionState()));
     assert.equal(applyPreset.disabled, false, "the real preset action must start usable when Masking is idle: " +
         JSON.stringify(wrapper.getInteractionState()));
 

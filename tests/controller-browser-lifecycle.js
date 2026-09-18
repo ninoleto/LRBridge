@@ -216,7 +216,7 @@ function createMockControllerServer(options) {
     const grainFixture = options && options.grainOnly ? maskingGrainBrowser.createFixture(fixtureContext, feedbackResult) : null;
     if (options && (options.historyOnly || options.favoritesOnly)) historyBrowser.install(grainFixture);
     if (options && options.maskCreateOnly) maskCreateBrowser.install(grainFixture);
-    if (options && (options.removeOnly || options.redEyeOnly || options.exportOnly || options.clipboardOnly)) removeBrowser.install(grainFixture);
+    if (grainFixture) removeBrowser.install(grainFixture);
     if (grainFixture) redEyeBrowser.install(grainFixture);
     if (grainFixture) exportBrowser.install(grainFixture);
     if (options && options.clipboardOnly) clipboardBrowser.install(grainFixture);
@@ -2243,7 +2243,8 @@ async function main() {
     }
 }
 
-main().catch(function (error) {
+module.exports = { findBrowserExecutable, createBrowserProfileDirectory, launchBrowser, waitForDevTools, connectCdp, cleanup, listen };
+if (require.main === module) main().catch(function (error) {
     console.error(error.stack || error);
     process.exitCode = 1;
 });

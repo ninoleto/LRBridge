@@ -6,3 +6,6 @@
 *.md text eol=lf
 
 *.bat text eol=crlf
+
+# Runtime Dust presets are byte-verified; never normalize their native XMP bytes.
+resources/presets/*.xmp -text

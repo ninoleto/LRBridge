@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "lightroom": "15.4.1",
+  "processVersion": "15.4",
+  "files": [
+    {
+      "name": "LRBridge Dust On.xmp",
+      "bytes": 1779392,
+      "sha256": "f13f23d7616ef06ff48cc8b93ac9d4197cbad009c9d6f75550ea2a47aee42301"
+    },
+    {
+      "name": "LRBridge Dust Off.xmp",
+      "bytes": 2878,
+      "sha256": "99f7e11633cfd71d701cf80356117c5fab360b27ad806eec3627dbe456f3abbc"
+    }
+  ]
+}

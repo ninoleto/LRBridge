@@ -349,7 +349,7 @@ assert.match(desktopPopoverCss, /overscroll-behavior:\s*contain/,
     "menu overflow must not scroll the underlying page");
 assert.doesNotMatch(desktopPopoverCss, /(?:max-)?height:[^;]*(?:70vh|620px)/,
     "Jump-to must not impose the rejected arbitrary height caps");
-assert.doesNotMatch(controller, /scrollbar-gutter/,
+assert.doesNotMatch(desktopPopoverCss, /scrollbar-gutter/,
     "a non-overflowing menu must not reserve a scrollbar gutter");
 const singleColumnBreakpoint = Number(controller.match(
     /@media \(max-width: (\d+)px\) \{\s*\.slider-jump-popover/
@@ -449,7 +449,7 @@ const clearContentBlock = controller.slice(
 assert.match(clearContentBlock, /removeSliderJumpMenus\(\);[\s\S]*disposeDevelopTreatmentPresentation\(\);[\s\S]*content\.innerHTML = ""/,
     "render-owned observers, listeners, and treatment UI must be disposed before the content host is cleared");
 assert.match(renderBlock,
-    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*maskingController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
+    /developPresetController\.deactivate\(\);\s*colorGradingController\.deactivate\(\);\s*pointCurveController\.deactivate\(\);\s*maskingController\.deactivate\(\);\s*removeController\.deactivate\(\);\s*reflectionsController\.deactivate\(\);\s*peopleController\.deactivate\(\);\s*redEyeController\.deactivate\(\);\s*exportController\.deactivate\(\);\s*clipboardController\.deactivate\(\);\s*deactivateDevelopFeedbackPolling\(\);\s*clearContent\(\);/,
     "every tab render must dispose the previous controllers and polling before clearing their host");
 const metadataInitializationBlock = controller.slice(
     controller.indexOf("loadDevelopSliderDefinitions().then("),

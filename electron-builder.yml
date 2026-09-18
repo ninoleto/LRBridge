@@ -10,15 +10,21 @@ files:
   - bridge.js
   - server/**/*
   - config/sliders.json
+  - lightroom/LRBridge.lrplugin/color-grading.properties
   - package.json
 
+extraResources:
+  - from: server/windows-lightroom-native.ps1
+    to: native/windows-lightroom-native.ps1
+
 extraFiles:
-  - from: config
+  - from: runtime/config
     to: config
     filter:
-      - "**/*"
-      - "!develop-presets.json"
-  - from: lightroom
+      - sliders.json
+      - settings.txt
+      - develop-presets.json
+  - from: runtime/lightroom
     to: lightroom
   - from: README.md
     to: README.md
@@ -26,6 +32,12 @@ extraFiles:
     to: docs
   - from: llms.txt
     to: llms.txt
+  - from: resources/presets
+    to: resources/presets
+  - from: tools/install-runtime-presets.ps1
+    to: tools/install-runtime-presets.ps1
+  - from: Install Dust Presets.cmd
+    to: Install Dust Presets.cmd
 
 win:
   icon: build/icon.ico

@@ -517,6 +517,12 @@ assert.match(controller,
         removeController: { busy: false, isInteracting() { return this.busy; } },
         reflectionsController: { isInteracting() { return false; } },
         peopleController: { isInteracting() { return false; } },
+        redEyeController: { isInteracting() { return false; } },
+        exportController: { isInteracting() { return false; } },
+        clipboardController: { isInteracting() { return false; } },
+        tabActionController: { isInteracting() { return false; } },
+        updateTabActionButtons() {},
+        favoritesBar: { refresh() {} },
         heartbeatWasStale: false,
         activeSliderInteractions: new Set(),
         Date: { now() { return now; } },
@@ -785,7 +791,7 @@ assert.match(feedback, /log\("treatment result posted: unavailable " \.\. tostri
 assert.match(feedback, /local treatmentWorkerActive = false/);
 assert.match(feedback, /if treatmentWorkerActive == true then return end/,
     "Only one treatment worker may run at a time");
-assert.match(feedback, /LrTasks\.startAsyncTask\(function\(\)[\s\S]*LrApplication\.activeCatalog\(\)[\s\S]*catalog:getTargetPhoto\(\)[\s\S]*photo:getDevelopSettings\(\)/,
+assert.match(feedback, /startChildTask\(function\(\)[\s\S]*waitForNormalCommandToFinish\(\)[\s\S]*LrApplication\.activeCatalog\(\)[\s\S]*catalog:getTargetPhoto\(\)[\s\S]*photo:getDevelopSettings\(\)/,
     "Catalog, photo, and Develop settings must be resolved inside the dedicated task");
 assert.equal((feedback.match(/(?:photo|identity\.photo):getDevelopSettings\(\)/g) || []).length, 2,
     "Only the dedicated treatment worker and UUID-bound Profile heartbeat may read Develop settings");

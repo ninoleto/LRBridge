@@ -485,6 +485,27 @@ async function handleControllerRequest(request, response) {
         return;
     }
 
+    if (requestUrl.pathname === "/controller-http-inventory.js") {
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8",
+            fs.readFileSync(path.join(__dirname, "controller-http-inventory.js"), "utf8"));
+        return;
+    }
+
+    const publicReference = {
+        "/reference/WINDOWS_BETA.md": "WINDOWS_BETA.md",
+        "/reference/HTTP_WORKFLOWS.md": "HTTP_WORKFLOWS.md",
+        "/reference/HTTP_OPERATIONS.md": "HTTP_OPERATIONS.md"
+    }[requestUrl.pathname];
+    if (publicReference) {
+        try {
+            sendControllerResponse(response, 200, "text/plain; charset=utf-8",
+                fs.readFileSync(path.join(portableRoot, "docs", publicReference), "utf8"));
+        } catch (err) {
+            sendControllerResponse(response, 404, "text/plain; charset=utf-8", "Reference unavailable in this installation.");
+        }
+        return;
+    }
+
     if (requestUrl.pathname === "/help" || requestUrl.pathname === "/controller-help") {
         try {
             const html = fs.readFileSync(controllerHelpPath, "utf8");

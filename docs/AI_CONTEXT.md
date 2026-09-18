@@ -8,7 +8,7 @@ LRBridge lets Adobe Lightroom Classic be controlled from a browser Web Controlle
 
 ## Main purpose
 
-LRBridge provides reliable one-way Lightroom control.
+LRBridge provides context-guarded Lightroom control and authoritative feedback. See [Windows beta scope and limitations](WINDOWS_BETA.md) and [HTTP workflows](HTTP_WORKFLOWS.md). Working Lens Blur/Profile Windows dependencies are retained; macOS is not supported.
 
 It can:
 
@@ -19,7 +19,7 @@ It can:
 - provide a browser Web Controller
 - provide a Bitfocus Companion Generic HTTP command builder
 
-Live feedback/readback from Lightroom is not implemented as stable functionality yet.
+The controller uses authoritative SDK snapshots and documented Windows native readback. Unavailable values are not defaults; command admission does not prove completed processing. Quick Copy Settings copies the active photo using Lightroom’s last chosen categories without opening a dialog. Clipboard/Export require captured complete selection and once-only requests.
 
 ## Important user-facing URLs
 

@@ -2,9 +2,13 @@
 
 LRBridge is a local HTTP bridge and browser Web Controller for controlling Adobe Lightroom Classic from Bitfocus Companion, Stream Deck HTTP/request plugins, Loupedeck workflows, PowerShell, curl, scripts, and other HTTP-capable tools.
 
-The project is focused on reliable one-way Lightroom control. It sends commands to Lightroom Classic, but stable live value feedback/readback is not implemented yet.
+Windows v0.6 beta includes authoritative SDK feedback, context/selection safeguards, gesture lifecycles and documented Windows Lens Blur/Profile helper dependencies. macOS is not supported. Quick Copy Settings copies the active photo using Lightroom’s last chosen categories without opening a dialog. Dispatch acknowledgement is not native completion.
 
 ## Useful documentation
+
+- Installation, upgrade and beta limitations: ./docs/WINDOWS_BETA.md
+- Complete HTTP operation inventory: ./docs/HTTP_OPERATIONS.md
+- Guarded request workflows and Builder gaps: ./docs/HTTP_WORKFLOWS.md
 
 - README: ./README.md
 - AI context: ./docs/AI_CONTEXT.md

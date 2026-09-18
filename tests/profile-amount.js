@@ -123,7 +123,7 @@ const profileRowFactory = sourceBlock(controller, "function createProfileAmountS
 assert.match(profileRowFactory, /item\.id === "ProfileAmount"/);
 assert.match(profileRowFactory, /createDevelopSliderControl\(definition\)/,
     "Profile Amount must reuse the normal LRBridge slider control");
-const genericSliderFactory = sourceBlock(controller, "function createDevelopSliderControl(definition)", "function updateLensBlurExplicitSwitch");
+const genericSliderFactory = sourceBlock(controller, "function createDevelopSliderControl(definition, navigationOptions)", "function updateLensBlurExplicitSwitch");
 assert.match(genericSliderFactory, /range\.addEventListener\("input"[\s\S]*stageDevelopSliderRangeValue/,
     "Profile Amount slider movement must use coalesced generic writes");
 assert.match(genericSliderFactory, /function commitNumericValue\([\s\S]*flushDevelopSliderValue/,

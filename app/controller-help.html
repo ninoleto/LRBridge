@@ -2,7 +2,10 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LRBridge Web Controller Help</title>
+    <style>a { color:#83caff; } a:focus-visible { outline:2px solid #83caff; outline-offset:3px; }
+table { display:block; max-width:100%; overflow-x:auto !important; } td, th, code { overflow-wrap:anywhere; } summary { min-height:44px; align-content:center; cursor:pointer; }</style>
     <style>
         * {
             box-sizing: border-box;
@@ -167,6 +170,20 @@
 </header>
 
 <main>
+<section>
+    <h2>Windows v0.6 beta</h2>
+    <p>Install Lightroom Classic 15.3 or later; this candidate is tested against 15.4.1. See the <a href="/reference/WINDOWS_BETA.md">installation and upgrade guide</a> for the plug-in and required Dust presets. Lens Blur and Profile controls include existing Windows helper dependencies. macOS is not supported by this beta.</p>
+    <p><strong>Favorites:</strong> Undo and Redo are the defaults. Customize searches 71 existing actions grouped by section; add, remove or reorder them and restore defaults. Your browser saves the arrangement. On phones, scroll the bar sideways. Actions keep their original safeguards and availability across tabs.</p>
+    <p><strong>Selection:</strong> Navigate comes first. Export and Copy / Paste Settings are at the bottom. Quick Copy Settings copies values from the active photo without opening a dialog, using the categories last selected in Lightroom’s Copy Settings dialog. It does not copy from the previous photo. Paste Settings targets the displayed selection, including when settings were copied directly in Lightroom, and requests automatic updating of copied AI settings.</p>
+    <p><strong>Export…</strong> requests Lightroom’s full Export dialog. <strong>Export with Previous</strong> reuses Lightroom’s last export settings and may start immediately. “Command sent” acknowledges a request; it does not confirm a completed export or edit.</p>
+    <details><summary>Editing tools and known limitations</summary>
+        <p><strong>Masking</strong> includes native mask/component selection, supported creation, visibility, deletion, inversion and correction controls with presets. Quick Copy/Paste and favorites remain photo-level actions here. Native brush painting and unsupported component operations are not simulated.</p>
+        <p><strong>Healing</strong> controls supported Remove modes, overlay, brush settings and selected-spot operations. <strong>Distraction Removal</strong> provides Reflections, People and Dust controls; install the two bundled Dust presets first. Dust On is restricted to the verified Lightroom 15.4.1 / Process Version 15.4 combination. Adobe processing, People cancellation and preservation alongside existing populated AI edits have limited native evidence.</p>
+        <p><strong>Red Eye</strong> exposes the implemented native panel/find/reset actions; per-eye adjustment sliders and detailed eye readback are not available. <strong>Lens Blur</strong> retains its working sliders, bokeh, Focus Range, Subject/Point, Visualize Depth and Brush Refinement controls. Windows-native controls require the helper and discoverable Lightroom controls. “+ New Refinement” is deferred. <strong>Profiles</strong> use Windows profile inventory and native SDK application/Amount feedback where available.</p>
+        <p>The SDK cannot inspect or validate the native settings clipboard. A true batch Paste result does not establish success for every photo, and pending AI updates are not completed processing. Native single- and multi-photo Quick Copy/Paste acceptance is still pending. Review errors or uncertain results in their original sections; do not retry an uncertain operation automatically.</p>
+    </details>
+    <p>For external controllers, use the <a href="/bitfocus-companion-cheatsheet">HTTP Builder and operation inventory</a>. Guarded actions require the <a href="/reference/HTTP_WORKFLOWS.md">fresh-context workflows</a>; saved URLs cannot substitute for them.</p>
+</section>
     <section class="box danger">
         <h3>Security and network exposure</h3>
         <p>
@@ -364,7 +381,7 @@
         <tr>
             <td>Custom…</td>
             <td><code>/command?command=photo.crop_aspect&amp;mode=custom&amp;w=16&amp;h=10</code></td>
-            <td>Opens the LRBridge Custom Crop dialog. Width and Height must be whole numbers from 1 to 10000; the supplied ratio is passed through the SDK table form without reduction.</td>
+            <td>The HTTP example applies a 16:10 ratio; the controller button opens its own Custom Crop dialog. Width and Height must be whole numbers from 1 to 10000; the supplied ratio is passed through the SDK table form without reduction.</td>
         </tr>
         <tr>
             <td>Crop Angle</td>
@@ -513,6 +530,6 @@
     </section>
 
 </main>
-<section><h2>Color Grading Phase 1</h2><p>Use the HTTP Builder for Set Wheel, Set Scalar Value, Reset Region, Reset Scalar Value, and Select Color Grading View. Lightroom runtime ranges are authoritative; nil values and invalid ranges are unavailable. Commands require Develop and an active photo; view selection requires Process Version 3 or newer. A wheel pair is transported together and executed with two consecutive native SDK value calls. Graphical wheels are planned for Phase 2.</p></section>
+<section><h2>Color Grading</h2><p>The controller provides graphical wheels, scalar controls and native view selection. The HTTP Builder supports Set Wheel, Set Scalar Value, Reset Region, Reset Scalar Value and Select Color Grading View. Lightroom runtime ranges are authoritative; unavailable values have no fallback. Commands require Develop and an active photo; view selection requires Process Version 3 or newer. A wheel pair is transported together and executed with two consecutive SDK value calls.</p></section>
 </body>
 </html>

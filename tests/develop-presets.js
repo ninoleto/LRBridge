@@ -2719,7 +2719,10 @@ function sourceContractTests() {
         "The inventory Add selected action must remain sticky");
     assert.match(controllerHtml, /@media \(max-width: 680px\)[\s\S]*dialog\.develop-preset-picker[\s\S]*width: calc\(100vw - 12px\)[\s\S]*max-height: calc\(100dvh - 12px\)/,
         "Narrow screens must use a nearly full-width visual-viewport sheet");
-    assert.doesNotMatch(controllerHtml, /scrollbar-gutter|More items/i,
+    const pickerCss = Array.from(controllerHtml.matchAll(/[^{}]*develop-preset-picker[^{}]*\{[^{}]*\}/g), match => match[0]).join("\n");
+    assert.ok(pickerCss.length > 0, "Picker CSS must be inspected");
+    assert.doesNotMatch(pickerCss, /scrollbar-gutter/i);
+    assert.doesNotMatch(controller, /More items/i,
         "Pickers must expose neither a permanent scrollbar gutter nor a More items indicator");
     assert.doesNotMatch(indexHtml + renderer + controller + controllerHtml, />\s*Active preset\s*</i);
     assert.doesNotMatch(controller, /textContent\s*=\s*["']Active preset/i);

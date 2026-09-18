@@ -59,7 +59,9 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab }) {
     }
     r.hold = true; await click("red_eye"); await waitFor(() => r.pending, "Red Eye admitted");
     assert.equal(await tool(), "Tool closed", "submission does not invent open state");
-    assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar button')).every(b=>b.disabled)"), true);
+    assert.equal(await evaluate("document.querySelectorAll('#historyToolbar [data-favorite-action]').length"), 2);
+    await waitFor(() => evaluate("Array.from(document.querySelectorAll('#historyToolbar [data-favorite-action]')).every(b=>b.getAttribute('aria-disabled')==='true')"), "pending Red Eye disables Undo/Redo favorites while retaining keyboard focus");
+    assert.equal(await evaluate("document.querySelector('#favoritesCustomize').disabled"), false, "customization remains available while history actions are guarded");
     await click("pet_eye"); assert.equal(r.calls.length, 1, "pending disables repeat input");
     r.finish(); await ready(); assert.equal(await tool(), "Tool open");
     assert.match(await text(), /mode requested/);
@@ -80,13 +82,13 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab }) {
     await polls(); assert.equal(await text(), "Reset requested");
     const beforeAmbiguous = r.state();
     r.ambiguous = true; r.hold = true; await click("reset"); await waitFor(() => r.pending, "ambiguous submission retained by server");
-    await polls(); assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar button')).every(b=>b.disabled)"), true);
+    await polls(); assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar [data-favorite-action]')).every(b=>b.getAttribute('aria-disabled')==='true')"), true);
     r.failState = true; await waitFor(async () => await tool() === "Tool status unavailable", "failed feedback");
-    assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar button')).every(b=>b.disabled)"), true,
+    assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar [data-favorite-action]')).every(b=>b.getAttribute('aria-disabled')==='true')"), true,
         "unavailable feedback must not release pending operation ownership");
     r.stale = beforeAmbiguous; r.failState = false;
     await waitFor(() => r.stale === null, "old response after feedback failure");
-    assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar button')).every(b=>b.disabled)"), true,
+    assert.equal(await evaluate("Array.from(document.querySelectorAll('#historyToolbar [data-favorite-action]')).every(b=>b.getAttribute('aria-disabled')==='true')"), true,
         "an old response cannot release ownership after feedback fails");
     r.finish(); r.hold = false; await ready(); assert.equal(await text(), "Reset requested");
     r.available = false; r.revision++; await polls(); assert.equal(await tool(), "Tool status unavailable");

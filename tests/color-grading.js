@@ -43,9 +43,9 @@ assert.match(nodeLoader, /"lightroom", "LRBridge\.lrplugin", "color-grading\.pro
 assert.match(nodeLoader, /parseMetadata\(fs\.readFileSync\(metadataPath, "utf8"\)\)/, "Node must parse the authoritative metadata file");
 assert.doesNotMatch(nodeLoader, /color-grading\.json/, "Node must not load obsolete JSON metadata");
 const builder = read("electron-builder.yml");
-assert.match(builder, /- from: lightroom\s+[\s\S]*?to: lightroom/, "Builder must package the complete plug-in tree");
-const portableScript = read("tools/make-portable-zip.ps1");
-assert.ok(portableScript.includes('"lightroom\\LRBridge.lrplugin\\color-grading.properties"'), "Portable validation must require bundled Color Grading metadata");
+assert.match(builder, /- from: runtime\/lightroom\s+[\s\S]*?to: lightroom/, "Builder must package the staged plug-in tree");
+const portableScript = read("tools/build-windows-candidate.js");
+assert.ok(portableScript.includes('allow.add(luaRoot+"color-grading.properties")'), "Portable validation must require bundled Color Grading metadata");
 assert.doesNotMatch(builder + portableScript, /color-grading\.json/, "Packaging must not require obsolete JSON metadata");
 assert.match(lua, /getRange\(parameter\)/); assert.match(lua, /getTargetPhoto/); assert.match(lua, /getCurrentModuleName/); assert.equal((lua.match(/LrDevelopController\.setValue\(mapping\./g)||[]).length, 2); assert.equal((lua.match(/LrDevelopController\.resetToDefault\(mapping\./g)||[]).length, 3);
 const setViewBody = lua.match(/function ColorGrading\.setView\(view\)([\s\S]*?)\nend/)[1];

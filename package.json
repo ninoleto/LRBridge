@@ -66,8 +66,10 @@
     "app": "electron app/main.js",
     "server": "node bridge.js",
     "generate:cheatsheet": "node tools/generate-companion-cheatsheet.js",
-    "pack:win": "electron-builder --win --x64 --dir",
-    "dist:win": "npm run pack:win && powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-portable-zip.ps1"
+    "pack:win": "node tools/build-windows-candidate.js",
+    "dist:win": "node tools/build-windows-candidate.js",
+    "generate:http-reference": "node tools/generate-http-reference.js",
+    "test:release": "node tools/run-release-checks.js"
   },
   "keywords": [
     "lightroom",
@@ -90,20 +92,13 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "build": {
-    "extraResources": [
-      {
-        "from": "server/windows-lightroom-native.ps1",
-        "to": "native/windows-lightroom-native.ps1"
-      }
-    ]
-  },
   "dependencies": {
     "express": "^5.2.1",
     "ws": "^8.21.1"
   },
   "devDependencies": {
     "electron": "^43.1.1",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "fengari": "0.1.5"
   }
 }

@@ -2,7 +2,10 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Bitfocus Companion HTTP Builder - LRBridge</title>
+    <style>a { color:#83caff; } a:focus-visible { outline:2px solid #83caff; outline-offset:3px; }
+summary { min-height:44px; align-content:center; cursor:pointer; } button, input, select { min-height:44px; } .builder-field { min-width:0; } @media(max-width:720px) { .cards { grid-template-columns:minmax(0,1fr); } } </style>
     <style>
         * {
             box-sizing: border-box;
@@ -330,6 +333,8 @@
             }
         }
     </style>
+<style>#httpInventory input[type=search]{box-sizing:border-box;width:100%;min-height:44px;margin:12px 0} #httpInventory label{display:flex;align-items:center;min-height:44px;gap:8px} #httpInventory summary{min-height:44px;display:list-item;align-content:center;cursor:pointer} #httpInventory code{overflow-wrap:anywhere} #httpInventory p{overflow-wrap:anywhere} #httpInventory details{margin:8px 0} </style>
+<script src="/controller-http-inventory.js" defer></script>
 </head>
 <body>
 <header>
@@ -342,6 +347,12 @@
 </header>
 
 <main>
+<section>
+<h2>Supported operations and guarded workflows</h2>
+<p>The simple builders below generate commands supported by the ordinary HTTP routes. A sent acknowledgement does not confirm completion in Lightroom.</p>
+<p>Quick Copy Settings, Paste Settings, Export and other context-dependent actions require fresh state and result handling. The Builder does not generate permanent URLs or complete clients for these workflows. Use the Web Controller or the <a href="/reference/HTTP_WORKFLOWS.md">documented multi-step workflow</a>. Continuous slider gestures also require their begin/change/end lifecycle.</p>
+<details><summary>Search the complete HTTP operation inventory</summary><div id="httpInventory" aria-live="polite">Loading operations…</div><p><a href="/reference/HTTP_OPERATIONS.md">Offline route reference</a> · <a href="/reference/WINDOWS_BETA.md">Windows installation and limitations</a></p></details>
+</section>
     <section class="box warning hide-when-searching">
         <h3>Security and network exposure</h3>
         <p>

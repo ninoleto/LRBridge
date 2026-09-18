@@ -107,8 +107,15 @@ assert.match(source, /id:\s*"presets",\s*label:\s*"Presets"/, "Presets tab is mi
 assert.match(source, /id:\s*"tools",\s*label:\s*"Tools"/, "Tools tab is missing");
 assert.match(source, /id:\s*"application",\s*label:\s*"Application"/, "Application tab is missing");
 assert.match(source, /activeTab === "selection"[\s\S]*renderSelectionTab\(\)/, "Selection tab renderer is missing");
-assert.match(source, /function renderSelectionTab\(\) \{\s*renderCommandGroups\(selectionGroups\);\s*\}/,
-    "Selection must render only its selection/photo command groups");
+const selectionMounts = [];
+extractJavaScriptFunction("renderSelectionTab", "renderPresetsTab", {
+    selectionGroups, content: {},
+    renderCommandGroups(groups) { assert.equal(groups, selectionGroups); selectionMounts.push("selection"); },
+    exportController: { activate() { selectionMounts.push("export"); } },
+    clipboardController: { activate() { selectionMounts.push("clipboard"); } }
+})();
+assert.deepEqual(selectionMounts, ["selection", "export", "clipboard"],
+    "Selection must render its command groups, Export, then the complete clipboard section");
 assert.match(source, /function renderPresetsTab\(\) \{\s*developPresetController\.activate\(content\);\s*\}/,
     "Develop Presets must mount in the dedicated Presets tab");
 assert.doesNotMatch(source.match(/function renderSlidersTab\(\) \{[\s\S]*?\n        \}/)[0], /developPresetController\.activate/,
@@ -692,8 +699,8 @@ assert.doesNotMatch(cropToolSubmitBlock, /textContent|classList|\.apply\(|select
     "Crop Tool submission must not optimistically change the selected-tool presentation");
 assert.match(source, /isGenericDevelopFeedbackTab\(tab\)[\s\S]*tab === "tools"/);
 assert.match(source, /activeTab === "sliders" \|\| activeTab === "tools"\) requestDevelopCategoricalState\(\)/);
-assert.match(source, /activeTab === "tools" \? \["CropAngle"\]/,
-    "Crop feedback polling must request authoritative Angle immediately");
+assert.match(source, /activeTab === "tools" \? Array\.from\(new Set\(\["CropAngle"\]\.concat\([\s\S]*?row\.isConnected/,
+    "Tools feedback must include Crop Angle and connected global controls without duplicates");
 assert.match(source, /function updateDevelopCategoricalControls\([\s\S]*updateCropToolPresentation\(\)/,
     "Authoritative selected-tool feedback must update the Crop Tool button");
 const cropToolPresentationUpdateBlock = source.match(

@@ -165,8 +165,8 @@ assert.equal((application.match(/LrApplicationView\.switchToModule\(/g) || []).l
 
 const developMappings = [
     /Driver\.adjustSlider\(\s*command\.slider,\s*command\.amount\s*\)/,
-    /Driver\.setSlider\(\s*command\.slider,\s*command\.value\s*\)/,
-    /Driver\.resetSlider\(\s*command\.slider\s*\)/,
+    /Driver\.setSlider\(\s*command\.slider,\s*command\.value,\s*command\s*\)/,
+    /Driver\.resetSlider\(\s*command\.slider,\s*command\s*\)/,
     /Driver\.runAction\(\s*command\.action,\s*command\.target\s*\)/,
     /Query\.getDevelopValue\(command\.slider\)/
 ];

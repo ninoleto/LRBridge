@@ -708,7 +708,8 @@ function testProductionSourceContracts() {
         "/masking/point-color/tool/select", "/masking/point-color/range-visualization/toggle",
         "/masking/tone-curve/state", "/masking/tone-curve/gesture/end"]
         .forEach(function (route) { assert.ok(bridgeSource.includes(route), route + " route missing"); });
-    assert.match(controllerSource, /Delete every mask on the selected photo\?/);
+    assert.match(controllerSource, /confirmImpl\("Delete all " \+ count \+ " mask" \+ \(count === 1 \? "" : "s"\) \+ " from this photograph\?"\)/,
+        "Delete All must confirm the captured mask count and photo scope");
     assert.match(controllerSource, /Delete All Masks/);
     assert.match(controllerSource, /Apply Mask Preset/);
     assert.match(controllerSource, /masking-preset-button/);
@@ -736,12 +737,13 @@ function testProductionSourceContracts() {
         '["Amount", "Tone", "Color"].forEach',
         "corrections.appendChild(createPointColorSection())",
         'textContent = "Tone Curve"',
-        '["Effects", "Detail"].forEach',
-        'createButton(documentRef, "Delete All Masks"'
+        '["Effects", "Detail"].forEach'
     ].map(function (needle) { return controllerSource.indexOf(needle); });
     assert.ok(order.every(function (index) { return index >= 0; }));
     assert.ok(order.every(function (index, position) { return position === 0 || order[position - 1] < index; }),
         "advanced correction groups must retain the required Masking UI order");
+    assert.match(controllerSource, /body\.appendChild\(actionRow\);[\s\S]*body\.appendChild\(corrections\);/,
+        "Mask actions must be mounted before the correction controls");
     for (const unsupportedLabel of ["Reset Sliders Automatically", "Use Fine Adjustment", "Auto Mask"] ) {
         assert.equal(controllerSource.includes(unsupportedLabel), false,
             unsupportedLabel + " must not render without authoritative Lightroom state");

@@ -1,5 +1,11 @@
 # LRBridge
 
+**Windows v0.6 beta candidate — feature scope frozen.** Start with the [installation, upgrade and limitations guide](docs/WINDOWS_BETA.md). Windows x64 and Lightroom Classic 15.3+ are required; native evidence is from 15.4.1. Working Lens Blur/Profile Windows helper dependencies are retained. macOS support, Lens Blur + New Refinement and named Export presets are deferred.
+
+The controller includes 71 customizable favorites, Quick Copy Settings / Paste Settings, native Export, Masking, Healing, Distraction Removal, Red Eye, Lens Blur and Profiles. Quick Copy copies values from the **active photo**, using the categories last chosen in Lightroom’s Copy Settings dialog; it does not open the dialog or copy from the previous photo. Paste targets the displayed selection and requests AI updating. Native single- and multi-photo Copy/Paste acceptance is still pending.
+
+Use [Help](app/controller-help.html) for everyday controls and [HTTP workflows](docs/HTTP_WORKFLOWS.md) / the [complete generated route inventory](docs/HTTP_OPERATIONS.md) for integrations. Simple Builder URLs cover ordinary commands; guarded operations require fresh context and result handling. A command acknowledgement is not proof of Lightroom completion.
+
 LRBridge is a local Windows bridge for controlling Adobe Lightroom Classic from external control surfaces, browser controls, Bitfocus Companion, Stream Deck-style devices, Loupedeck / Razer Stream Controller setups, scripts, and other HTTP-capable automation tools.
 
 It is designed for:
@@ -127,7 +133,7 @@ Feedback and context detection are polling-based. They are designed to be useful
 
 ## 2. Current status
 
-Current public package:
+Previously documented public package (historical; the v0.6 candidate is not published):
 
 ```text
 v0.5.2
@@ -1614,14 +1620,14 @@ v0.5.1
 v0.5.2
 ```
 
-Current public release:
+Previously documented public release:
 
 ```text
 v0.5.2
 Stability and hardening checkpoint for the Windows portable release, preserving the existing Lightroom context API and visible slider feedback
 ```
 
-Suggested next milestones:
+Historical milestone names (new features are frozen for the v0.6 beta):
 
 ```text
 v0.6.0-sdk-actions-and-controller
@@ -1674,8 +1680,8 @@ external controller → Lightroom Classic
 ```
 
 not a full duplicate of Lightroom's Develop panel.
-# Color Grading Phase 1
+# Color Grading
 
-LRBridge supports native, strictly validated Color Grading transport without graphical wheels. Commands are `color_grading.wheel.set` (`region`, `hue`, `saturation`), `color_grading.value.set` (`control`, `value`), `color_grading.value.reset` (`control`), `color_grading.region.reset` (`region`), and `color_grading.view.set` (`view`). Allowed regions are `shadows`, `midtones`, `highlights`, and `global`; views are `3-way`, `shadow`, `midtone`, `highlight`, and `global`.
+LRBridge supports graphical Color Grading wheels and native, strictly validated transport. Commands are `color_grading.wheel.set` (`region`, `hue`, `saturation`), `color_grading.value.set` (`control`, `value`), `color_grading.value.reset` (`control`), `color_grading.region.reset` (`region`), and `color_grading.view.set` (`view`). Allowed regions are `shadows`, `midtones`, `highlights`, and `global`; views are `3-way`, `shadow`, `midtone`, `highlight`, and `global`.
 
-Ranges come only from `LrDevelopController.getRange()`. Nil values or invalid ranges are reported as unavailable, with no UI-range fallback. Commands require an active photo and Develop context; view selection additionally requires Process Version 3 or newer. One wheel command preserves the Hue/Saturation pair through transport but Lightroom receives two consecutive documented `setValue()` calls. Graphical wheels remain planned for Phase 2.
+Ranges come only from `LrDevelopController.getRange()`. Nil values or invalid ranges are reported as unavailable, with no UI-range fallback. Commands require an active photo and Develop context; view selection additionally requires Process Version 3 or newer. One wheel command preserves the Hue/Saturation pair through transport but Lightroom receives two consecutive documented `setValue()` calls. The graphical wheel controller uses this same validated transport.
