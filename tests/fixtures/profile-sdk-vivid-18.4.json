@@ -1,0 +1,143 @@
+{
+  "provenance": {
+    "capture": "lrbridge-profile-sdk-20260919-034710.json",
+    "sha256": "8d021be5f9ffb9b4fc7ef47a797a6d4d12047af0cf283a42ebbe94860c047f6a",
+    "sampleCount": 5,
+    "sdkVersion": {
+      "build": 202606201310,
+      "build_version": "202606201310-b9f148a4",
+      "major": 15,
+      "minor": 4,
+      "publicBeta": false,
+      "revision": 1
+    },
+    "note": "Exact captured Look and Lens Blur scalar readback only; photo identity and unrelated photo settings are excluded."
+  },
+  "look": {
+    "Amount": 1,
+    "Copyright": "© 2018 Adobe Systems, Inc.",
+    "Group": {
+      "x-default": "Profiles"
+    },
+    "Name": "Adobe Vivid",
+    "Parameters": {
+      "CameraProfile": "Adobe Standard",
+      "Clarity2012": 10,
+      "ConvertToGrayscale": false,
+      "FilterList": {},
+      "LookTable": "2FE663AB0D3CE5DA7B9F657BBCD66DFE",
+      "PointColors": {},
+      "ProcessVersion": "15.4",
+      "ToneCurveName2012": "",
+      "ToneCurvePV2012": [
+        0,
+        0,
+        32,
+        22,
+        64,
+        56,
+        128,
+        128,
+        224,
+        232,
+        240,
+        246,
+        255,
+        255
+      ],
+      "ToneCurvePV2012Blue": {},
+      "ToneCurvePV2012Green": {},
+      "ToneCurvePV2012Red": {},
+      "Version": "18.4"
+    },
+    "SupportsAmount": false,
+    "SupportsMonochrome": false,
+    "SupportsOutputReferred": false,
+    "UUID": "EA1DE074F188405965EF399C72C221D9"
+  },
+  "lensBlur": {
+    "active": true,
+    "amount": 50,
+    "catEye": 0,
+    "highlightsBoost": 50,
+    "focalRange": "-63 17 77 157",
+    "focalRangeSource": 1,
+    "selectedTool": "loupe",
+    "ranges": {
+      "LensBlurAmount": {
+        "min": 0,
+        "max": 100
+      },
+      "LensBlurCatEye": {
+        "min": 0,
+        "max": 100
+      },
+      "LensBlurHighlightsBoost": {
+        "min": 0,
+        "max": 100
+      }
+    }
+  },
+  "nativeReadback": {
+    "capturedAt": "2026-09-19T01:49:41.914Z",
+    "note": "Separate read-only source /lens-blur/state response after the SDK capture; no native activation or settings write.",
+    "windowsNative": {
+      "available": true,
+      "reason": null,
+      "brush": {
+        "amount": {
+          "available": false,
+          "value": null,
+          "min": null,
+          "max": null
+        },
+        "size": {
+          "available": false,
+          "value": null,
+          "min": null,
+          "max": null
+        },
+        "feather": {
+          "available": false,
+          "value": null,
+          "min": null,
+          "max": null
+        },
+        "flow": {
+          "available": false,
+          "value": null,
+          "min": null,
+          "max": null
+        }
+      },
+      "visualizeDepth": {
+        "available": true,
+        "value": false
+      },
+      "autoMask": {
+        "available": false,
+        "value": null
+      },
+      "refinementMode": "unknown",
+      "refinementModeTargetsAvailable": true,
+      "refinementDisclosure": {
+        "available": true,
+        "value": true
+      },
+      "refinementReset": {
+        "available": true,
+        "enabled": false
+      },
+      "focusActions": {
+        "subject": {
+          "available": true,
+          "enabled": true
+        },
+        "pointArea": {
+          "available": true,
+          "enabled": true
+        }
+      }
+    }
+  }
+}

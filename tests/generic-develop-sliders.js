@@ -352,7 +352,7 @@ assert.equal((controller.match(/"label": "Remove Chromatic Aberration"/g) || [])
     "Remove Chromatic Aberration must have one existing switch definition");
 assert.equal((controller.match(/"label": "Enable Profile Corrections"/g) || []).length, 1,
     "Enable Profile Corrections must have one existing switch definition");
-assert.equal((controller.match(/name\.textContent = "Constrain Crop"/g) || []).length, 1,
+assert.equal((controller.match(/createNativeCheckbox\("Constrain Crop"/g) || []).length, 1,
     "Both Constrain Crop presentations must reuse one dedicated control renderer");
 assert.match(controller, /appendConstrainCropControl\(manualPanel\)/,
     "Lens Corrections Manual must reuse the shared Constrain Crop renderer");
@@ -657,7 +657,7 @@ assert.doesNotMatch(controller + bridge + mainProcess + photo + feedback, /ToneC
 const hdrModeControlBlock = controller.match(
     /function createHDRModeControl\(definition\)[\s\S]*?function createDevelopSliderControl\(definition, navigationOptions\)/
 )[0];
-const hdrModeSubmitBlock = hdrModeControlBlock.match(/function submit\(value\) \{[\s\S]*?const offButton/)[0];
+const hdrModeSubmitBlock = hdrModeControlBlock.match(/function submit\(value\) \{[\s\S]*?const checkbox/)[0];
 assert.match(hdrModeSubmitBlock, /control\.pending = true;[\s\S]*control\.desiredValue = value/,
     "HDR mode must track explicit intent until authoritative readback");
 assert.match(hdrModeSubmitBlock, /\/api\/set\?slider=HDREditMode&value=/,
@@ -665,7 +665,7 @@ assert.match(hdrModeSubmitBlock, /\/api\/set\?slider=HDREditMode&value=/,
 assert.doesNotMatch(hdrModeSubmitBlock, /authoritativeValue\s*=(?!=)|classList\.toggle\("active"/,
     "HDR mode submission must not fabricate authoritative or active state");
 assert.match(hdrModeControlBlock,
-    /classList\.toggle\("active", available && control\.authoritativeValue === 0\)[\s\S]*classList\.toggle\("active", available && control\.authoritativeValue === 1\)/,
+    /updateNativeCheckbox\(checkbox\.input, available, control\.authoritativeValue === 1, control\.pending, control\.pending\)/,
     "HDR mode active buttons must render only authoritative feedback");
 assert.doesNotMatch(hdrModeControlBlock, /\/api\/reset\?slider=HDREditMode/,
     "HDR mode must expose no Reset action");
@@ -761,7 +761,7 @@ assert.equal(new Set(colorIds).size, 24);
 assert.equal(colorGroups.length, 8);
 colorGroups.forEach((group) => assert.deepEqual(Array.from(group.rows, (row) => row.label), ["Hue", "Saturation", "Luminance"]));
 assert.match(controller, /button\.textContent = view === "hsl" \? "HSL" : view === "color" \? "Color" : "Point Color"/);
-assert.match(controller, /let colorMixerView = "hsl"/);
+assert.match(controller, /let colorMixerView = "color"/);
 assert.match(controller, /\["hsl", "color", "point-color"\]/);
 const mixerPresentationStart = controller.indexOf("function createColorMixerPresentation(groupElement, section) {");
 const mixerPresentationEnd = controller.indexOf("function getDevelopSectionDisplayLabel(section) {", mixerPresentationStart);

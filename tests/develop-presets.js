@@ -2327,8 +2327,11 @@ async function httpNavigationAndSafetyTests() {
             "Native PresetAmount feedback—not queue admission—must drive public state");
         assert.equal(response.body.amountFeedback.id, amountFeedbackId);
         const olderFeedbackRequest = await request(port, "/feedback/request?slider=PresetAmount");
+        // Queued retries now share an ID; dispatch the old read before creating a separate newer one.
+        while ((await request(port, "/feedback/next")).body.request !== null) {}
         const newerFeedbackRequest = await request(port, "/feedback/request?slider=PresetAmount");
         const newerFeedbackId = newerFeedbackRequest.body.request.id;
+        assert.ok(newerFeedbackId > olderFeedbackRequest.body.request.id);
         let feedbackResult = await request(port, "/feedback/result?" + encodedQuery({
             id: newerFeedbackId,
             slider: "PresetAmount",
@@ -2462,7 +2465,7 @@ function sourceContractTests() {
     assert.match(settings, /local minPollIntervalMs = 10/);
     assert.match(settings, /local maxPollIntervalMs = 1000/);
     assert.match(settings, /pollIntervalMs = clamp\(pollIntervalMs, minPollIntervalMs, maxPollIntervalMs\)/);
-    assert.match(polling, /local newConfig = Settings\.load\(\)[\s\S]*newConfig\.pollInterval ~= config\.pollInterval/);
+    assert.match(polling, /local newConfig = Trace\.call\("settings\.load", Settings\.load\)[\s\S]*newConfig\.pollInterval ~= config\.pollInterval/);
     assert.match(readme, /Command queue check interval/);
     assert.match(readme, /does \*\*not\*\* control Web Controller feedback cadence/);
     assert.doesNotMatch(readme, /Electron app can edit this value/);

@@ -793,6 +793,7 @@ assert.match(lensBlurControllerBlock, /control\.reset\.disabled = control\.reset
 const initialNativeState = {
     available: true,
     reason: null,
+    apply: { available: false, value: null },
     brush: {
         amount: { available: true, value: 100, min: 0, max: 100 },
         size: { available: true, value: 42, min: 0.1, max: 100 },
@@ -1135,6 +1136,8 @@ async function requestWithin(base, pathname, timeoutMs) {
     await assert.rejects(nonWindows.activateFocusRangeAction("subject"), { code: "LIGHTROOM_NATIVE_UNAVAILABLE" });
     await nonWindows.stop();
 
+    await require("./lens-blur-apply-feedback").run();
+    await require("./lens-blur-native-polling").run();
     console.log("Lens Blur native backend, Focus Range, state, transport, and UI contract tests passed.");
 })().catch(function (error) {
     console.error(error);

@@ -216,6 +216,19 @@ local function graphEqual(left, right, visited)
     return true
 end
 
+local function profileLookMatches(actual, expected)
+    if graphEqual(actual, expected) then return true end
+    -- SDK 15.4.1 captures serialize the same Look with Parameters.Version 18.4.
+    -- Only adjust this fresh expected Look; SDK state and full-graph equality stay untouched.
+    if type(actual) ~= "table" or type(actual.Parameters) ~= "table" or
+        type(expected) ~= "table" or type(expected.Parameters) ~= "table" or
+        expected.Parameters.Version ~= "18.3" or actual.Parameters.Version ~= "18.4" then
+        return false
+    end
+    expected.Parameters.Version = "18.4"
+    return graphEqual(actual, expected)
+end
+
 local function schemaMatches(settings, grayscale)
     if settings.ConvertToGrayscale ~= grayscale then return false end
     if grayscale then
@@ -259,7 +272,7 @@ local function desiredState(settings, definition)
     end
     if definition.lookAbsent then
         if settings.Look ~= nil then return false end
-    elseif not graphEqual(settings.Look, definition.look()) then
+    elseif not profileLookMatches(settings.Look, definition.look()) then
         return false
     end
     return settings.AILook == nil or

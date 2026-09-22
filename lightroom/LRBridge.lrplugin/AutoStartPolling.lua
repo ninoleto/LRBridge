@@ -4,6 +4,7 @@ local LrTasks = import "LrTasks"
 local Parser = require "Parser"
 local Commands = require "Commands"
 local Settings = require "Settings"
+local Trace = require("PollingTrace").new("command")
 
 local function getPortableRoot()
 
@@ -50,11 +51,13 @@ end
 
 local function executeCommand(command)
 
+    Trace.mark("enter", "execute", command.command .. ":" .. tostring(command.operationId or ""))
     _G.LRBridgeCommandBusy = true
 
     local success, failure = LrTasks.pcall(Commands.execute, command)
 
     _G.LRBridgeCommandBusy = false
+    Trace.mark("return", "execute", tostring(success))
 
     local clockSuccess, finishedAt = pcall(os.clock)
 
@@ -133,13 +136,14 @@ log("silent polling started, interval " .. tostring(config.pollInterval))
 
     while running() do
 
+        Trace.mark("enter", "cycle")
         local now = os.time()
 
         if now ~= lastSettingsReload then
 
             lastSettingsReload = now
 
-            local newConfig = Settings.load()
+            local newConfig = Trace.call("settings.load", Settings.load)
 
             if newConfig.pollInterval ~= config.pollInterval then
                 config = newConfig
@@ -150,13 +154,15 @@ log("silent polling started, interval " .. tostring(config.pollInterval))
 
         end
 
+        Trace.mark("enter", "http.GET:/next")
         local result = LrHttp.get("http://127.0.0.1:17891/next")
         -- A response arriving during reload/shutdown must not dispatch another edit.
         if not running() then return end
+        Trace.mark("return", "http.GET:/next")
 
         if result ~= nil and string.find(result, [["command"]]) then
 
-            local command = Parser.parse(result)
+            local command = Trace.call("parse", Parser.parse, result)
 
             if command ~= nil then
                 local parameter = commandParameter(command)
@@ -173,7 +179,10 @@ log("silent polling started, interval " .. tostring(config.pollInterval))
 
         end
 
+        Trace.mark("return", "cycle")
+        Trace.mark("enter", "sleep")
         LrTasks.sleep(config.pollInterval)
+        Trace.mark("return", "sleep")
 
     end
 

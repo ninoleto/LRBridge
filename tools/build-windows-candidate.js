@@ -2,6 +2,7 @@
 // Build only from a new allowlisted staging tree. Never build from private config.
 const fs = require("node:fs"), path = require("node:path"), cp = require("node:child_process"), crypto = require("node:crypto");
 const root = path.resolve(__dirname, "..");
+const runtimeFiles = require("./release-runtime-files.json");
 const publicDocs = ["WINDOWS_BETA.md", "RELEASE_REVIEW.md", "HTTP_WORKFLOWS.md", "HTTP_OPERATIONS.md", "COMPANION_HTTP_CHEATSHEET.md",
     "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md"];
 const defaults = "poll_interval_ms=100\n";
@@ -18,8 +19,13 @@ function walk(dir, prefix = "") {
 function stageProject(stage) {
     if (fs.existsSync(stage)) throw Error("Refusing to reuse staging: " + stage);
     fs.mkdirSync(stage, { recursive: true });
-    const tracked = cp.execFileSync("git", ["ls-files", "--", "app", "server"], { cwd: root, encoding: "utf8" }).trim().split(/\r?\n/);
-    const allow = new Set([...tracked, "app/controller-http-inventory.js", "server/http-operations.json",
+    // Reviewed runtime files only: adding a tracked probe must never make it ship.
+    for (const file of runtimeFiles) {
+        if (!/^(app|server)\/[A-Za-z0-9_.-]+$/.test(file) || /(?:prototype|capture|\.local\.)/i.test(file)) {
+            throw Error("Invalid runtime allowlist entry: " + file);
+        }
+    }
+    const allow = new Set([...runtimeFiles,
         "package.json", "package-lock.json", "electron-builder.yml", "bridge.js", "build/icon.ico", "config/sliders.json",
         "README.md", "llms.txt", "Install Dust Presets.cmd", "tools/install-runtime-presets.ps1",
         ...publicDocs.map(n => "docs/"+n), ...["manifest.json", "LRBridge Dust On.xmp", "LRBridge Dust Off.xmp"].map(n => "resources/presets/"+n)]);
@@ -49,13 +55,13 @@ function run(command,args,options={}) {
 }
 function inspectCandidate(folder) {
     const files=walk(folder).sort();
-    for(const f of files) if(/(^|\/)(\.codex|\.git|local-checkpoints|tests|scripts)(\/|$)|ftp-backup|CODEX_HANDOFF|Research|capture-|\.log$/i.test(f)) throw Error("Unexpected release file: "+f);
+    for(const f of files) if(/(^|\/)(\.codex|\.git|local-checkpoints|tests|scripts|backups)(\/|$)|ftp-backup|CODEX_HANDOFF|Research|prototype|capture[-_]|\.local\.|\.(log|jsonl|tsv|arm)$/i.test(f)) throw Error("Unexpected release file: "+f);
     if(fs.readFileSync(path.join(folder,"config/settings.txt"),"utf8")!==defaults) throw Error("Non-default settings in package");
     if(JSON.parse(fs.readFileSync(path.join(folder,"config/develop-presets.json"))).presets.length) throw Error("Private preset config in package");
     const asar=require("@electron/asar"), archive=path.join(folder,"resources/app.asar"), entries=asar.listPackage(archive);
-    for(const entry of entries) if(/(?:^|[\\/])(?:\.codex|tests|local-checkpoints|fengari|electron-builder)(?:[\\/]|$)|ftp-backup|settings\.txt|develop-presets\.json|Research|CODEX_HANDOFF/i.test(entry)) throw Error("Unexpected ASAR entry: "+entry);
+    for(const entry of entries) if(/(?:^|[\\/])(?:\.codex|tests|local-checkpoints|backups|fengari|electron-builder)(?:[\\/]|$)|ftp-backup|settings\.txt|develop-presets\.json|Research|CODEX_HANDOFF|SelectedPrototype|capture[-_]|\.local\.|\.(log|jsonl|tsv|arm)$/i.test(entry)) throw Error("Unexpected ASAR entry: "+entry);
     for(const f of ["lightroom/LRBridge.lrplugin/color-grading.properties","config/sliders.json","app/main.js","app/controller-http-inventory.js","server/http-operations.json","server/clipboard-routes.js","server/export-routes.js"]) asar.extractFile(archive,path.join(...f.split("/")));
-    for(const f of ["LRBridge.exe","resources/native/windows-lightroom-native.ps1","Install Dust Presets.cmd","lightroom/LRBridge.lrplugin/SettingsClipboard.lua","lightroom/LRBridge.lrplugin/DustOnPreset.lua","resources/presets/manifest.json"]) if(!files.includes(f)) throw Error("Missing runtime file: "+f);
+    for(const f of ["LRBridge.exe","resources/native/windows-lightroom-native.ps1","resources/native/windows-remove-selected-identification.ps1","Install Dust Presets.cmd","lightroom/LRBridge.lrplugin/SettingsClipboard.lua","lightroom/LRBridge.lrplugin/DustOnPreset.lua","resources/presets/manifest.json"]) if(!files.includes(f)) throw Error("Missing runtime file: "+f);
     const presets=JSON.parse(fs.readFileSync(path.join(folder,"resources/presets/manifest.json")));
     for(const p of presets.files) if(sha(path.join(folder,"resources/presets",p.name))!==p.sha256) throw Error("Packaged preset mismatch");
     const manifest={version:1,files:files.map(file=>({file,bytes:fs.statSync(path.join(folder,file)).size,sha256:sha(path.join(folder,file))})),asarEntries:entries.length};

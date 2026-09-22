@@ -184,7 +184,7 @@ function Parser.parse(json)
     if expectedDevelopCounter then expectedDevelopCounter = tonumber(expectedDevelopCounter) end
     if expectedContextChangedAt then expectedContextChangedAt = tonumber(expectedContextChangedAt) end
     if expectedValue then expectedValue = tonumber(expectedValue) end
-    if command == "reflections.set" or command == "remove.dust.off" or command == "remove.dust.on" or command == "remove.dust.close" or command == "remove.brush.set" or command == "remove.panel.set" or command == "remove.repair.action" or command == "remove.repair.fill.set" or command == "remove.repair.param.set" then
+    if command == "remove.selection.action" or command == "reflections.set" or command == "remove.dust.off" or command == "remove.dust.on" or command == "remove.dust.close" or command == "remove.brush.set" or command == "remove.panel.set" or command == "remove.repair.action" or command == "remove.repair.fill.set" or command == "remove.repair.param.set" then
         -- Remove preferences include strict booleans and enums as well as numbers.
         local function preferenceValue(name)
             local boolean = parseBooleanField(json, name)

@@ -5,12 +5,14 @@ function install(fixture) {
     const r = fixture.remove = { revision: 1, calls: [], writes: [], reads: 0, pending: null, last: null, hold: false,
         available: true, selectedTool: "dust", delayAdmission: false, admissions: [], stale: null, failNext: false, delay: 250,
         repair: { available: true, selected: false, count: 0 }, resetSpotRemovalCalls: 0,
+        selection: { available: false },
         dust: { available: true, applied: true, canDisable: true, canEnable: true, canRequestClose: true, token: "a".repeat(64) },
         preferences: { newSpotType: "heal", brushSize: 25, brushFeather: 50, useGenerativeAI: true,
             detectObjects: false, toolOverlay: "selected", visualizeSpots: true, visualizationThreshold: 37 } };
     r.state = () => structuredClone({ ok: true, ...fixture.context, serverEpoch: "remove-fixture", revision: r.revision,
-        capturedAt: Date.now() - 60000, ageMs: 0, selectedTool: r.selectedTool, available: r.available && r.selectedTool === "dust",
+        capturedAt: Date.now() - 60000, ageMs: r.ageMs || 0, selectedTool: r.selectedTool, available: r.available && r.selectedTool === "dust",
         dust: r.dust, dustApply: r.dust.available ? r.dust.applied : null,
+        selection: r.selection,
         ...(r.selectedTool === "dust" ? r.preferences : {}), repair: r.repair,
         selectedRepairFill: r.repair.available && r.repair.selected ? r.repair.spotType === "heal_patchmatch" ?
             typeof r.repair.useGenAI === "boolean" ? r.repair.useGenAI ? "generative_remove" : "remove" : null : r.repair.spotType : null,
@@ -25,12 +27,13 @@ function install(fixture) {
         const stale = c.tool !== r.selectedTool || c.photo !== fixture.context.selectedPhotoUuid ||
             repair && c.repairToken !== r.repair.token ||
             !panel && (!r.available || c.mode !== r.preferences.newSpotType);
-        outcome = outcome || (stale ? "stale" : r.failNext ? "failed" : c.field === "dustClose" ? "requested" : "confirmed"); r.failNext = false;
+        outcome = outcome || (stale ? "stale" : r.failNext ? "failed" : c.field === "dustClose" || c.field === "selectedSelection" && ["add", "subtract"].includes(c.value) ? "requested" : "confirmed"); r.failNext = false;
         if (outcome === "confirmed") {
             if (panel) {
                 r.selectedTool = c.value;
                 if(c.value === "dust") { r.preferences.newSpotType = "heal_patchmatch"; if(!r.available) outcome = "failed"; }
             }
+            else if (c.field === "selectedSelection") r.selection = { ...r.selection, active: false, canCancel: false, canRemove: false, sizeAvailable: false };
             else if (c.field === "dustApply") { assert.equal(typeof c.value, "boolean"); r.dust.applied = c.value; r.dust.token = (c.value ? "a" : "b").repeat(64); }
             else if (repair) {
                 if(["selectedRepairOpacity","selectedRepairFeather"].includes(c.field)) {
@@ -56,7 +59,7 @@ function install(fixture) {
         if (url.pathname === "/api/remove/state") {
             r.reads++; const value = r.stale || r.state(); r.stale = null; reply(value); return true;
         }
-        if (["/api/remove/brush", "/api/remove/panel", "/api/remove/repair", "/api/remove/dust"].includes(url.pathname)) {
+        if (["/api/remove/brush", "/api/remove/panel", "/api/remove/repair", "/api/remove/dust", "/api/remove/selection"].includes(url.pathname)) {
             const field = url.searchParams.get("field");
             assert.equal(url.searchParams.get("selectedPhotoUuid"), fixture.context.selectedPhotoUuid);
             assert.equal(url.searchParams.get("mode"), r.selectedTool === "dust" ? r.preferences.newSpotType : "null");
@@ -70,6 +73,7 @@ function install(fixture) {
                 repairToken: url.searchParams.get("repairToken"),
                 mode: r.selectedTool === "dust" ? r.preferences.newSpotType : null, tool: r.selectedTool, photo: fixture.context.selectedPhotoUuid };
             if (field === "selectedRepair" || field === "selectedRepairFill" || ["selectedRepairOpacity","selectedRepairFeather"].includes(field)) assert.equal(c.repairToken, r.repair.token);
+            if (field === "selectedSelection") assert.equal(url.searchParams.get("selectionToken"), ["add", "subtract"].includes(value) ? r.selection.refinementToken : r.selection.token);
             r.calls.push(c); r.pending = { operationId: c.operationId, field, value, targetRepairToken: c.repairToken || null }; r.revision++;
             const admitted = r.state();
             if (field === "selectedRepair" && r.corruptRepairAdmission) {
@@ -84,7 +88,8 @@ function install(fixture) {
     installReflections(fixture);
     installPeople(fixture);
 }
-async function verify({ evaluate, waitFor, fixture, setViewport, peopleOnly, dustOnly }) {
+async function verify({ evaluate, waitFor, fixture, setViewport, peopleOnly, dustOnly, selectedOnly }) {
+    if (selectedOnly) return verifySelected({ evaluate, waitFor, fixture, setViewport });
     if (dustOnly) return verifyDust({ evaluate, waitFor, fixture, setViewport });
     await verifyPeople({ evaluate, waitFor, fixture, setViewport });
     if (peopleOnly) return { people: true };
@@ -931,13 +936,45 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
         await evaluate(el(range) + ".getAttribute('aria-disabled')==='false'"), "Dust visualization ready");
     assert.equal(await evaluate("document.querySelector('.dust-controls').closest('.remove-distraction-removal').parentElement.closest('[data-tools-section]').dataset.toolsSection"), "healing");
     assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('.remove-distraction-removal>section>h4')).map(e=>e.textContent)"), ["Reflections", "People", "Dust"]);
-    assert.equal(await evaluate("document.querySelectorAll('[data-remove-preference=visualizeSpots]').length"), 1);
-    assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=visualizationThreshold]').length"), 1);
+    assert.equal(await evaluate("document.querySelectorAll('[data-remove-preference=visualizeSpots]').length"), 2);
+    assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=visualizationThreshold]').length"), 2);
     assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('.dust-action-row button')).map(b=>[b.textContent,b.disabled])"), [["Reset", false], ["Close", false]]);
     const untouched = structuredClone(r.preferences);
     r.hold = true;
     const apply = '[data-dust-apply]', size = '.dust-controls [data-remove-field="brushSize"] input[type="text"]';
     const reset = '[data-dust-action=reset]', close = '[data-dust-action=close]';
+    const dustSizeRow = '.dust-controls [data-remove-field="brushSize"]';
+    const healingSizeRow = '[data-remove-field="brushSize"]';
+    async function sizeAvailability(dustEnabled, healingEnabled = true) {
+        for (const [selector, enabled] of [[dustSizeRow, dustEnabled], [healingSizeRow, healingEnabled]]) {
+            assert.deepEqual(await evaluate("Array.from(" + el(selector) + ".querySelectorAll('input,button')).map(e=>e.getAttribute('aria-disabled'))"),
+                Array(5).fill(String(!enabled)), selector + " availability");
+        }
+    }
+    async function blockedDustSizeHandlers() {
+        const count = r.calls.length;
+        await evaluate("(() => {const row=" + el(dustSizeRow) + ",n=row.querySelector('input[type=text]'),s=row.querySelector('input[type=range]');" +
+            "n.dispatchEvent(new Event('focus'));n.value='83';n.dispatchEvent(new Event('input'));n.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));n.dispatchEvent(new Event('blur'));" +
+            "s.dispatchEvent(new PointerEvent('pointerdown'));s.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight'}));s.value='82';s.dispatchEvent(new Event('input'));s.dispatchEvent(new Event('change'));" +
+            "s.dispatchEvent(new PointerEvent('pointercancel'));s.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));" +
+            "row.querySelectorAll('button').forEach(b=>b.dispatchEvent(new Event('click')));})()");
+        await polls(); assert.equal(r.calls.length, count, "Disabled Dust Size handlers cannot submit shared brush edits");
+    }
+    async function writeSize(selector, value) {
+        await evaluate("(() => {const n=" + el(selector) + ";n.focus();n.value='" + value + "';n.dispatchEvent(new Event('input'));n.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));n.blur();})()");
+        await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === value, "Size uses existing preference route");
+        r.finish(); await polls(); assert.equal(r.preferences.brushSize, value);
+    }
+    let nextGrain = 31;
+    async function ordinaryEditing() {
+        await waitFor(() => evaluate("!removeController.isInteracting()"), "Dust releases its interaction restriction");
+        const grain = '[data-slider-id="GrainSize"] input[type="text"]';
+        await waitFor(() => evaluate("Boolean(" + el(grain) + ") && !" + el(grain) + ".disabled"), "Ordinary photo slider enabled after Dust");
+        const value = nextGrain++;
+        await evaluate("(() => {const n=" + el(grain) + ";n.focus();n.value='" + value + "';n.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));n.blur();})()");
+        await waitFor(() => fixture.values.GrainSize === value, "Ordinary slider command reaches the backend after Dust");
+        await polls();
+    }
     await evaluate(el(close) + ".click()");
     await waitFor(() => r.pending?.field === "dustClose" && r.pending.value === "manualRemove", "Native Dust Close navigation request");
     const closeWrites = r.calls.length;
@@ -948,40 +985,131 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     assert.equal(r.dust.applied, true, "Close must retain Dust treatment");
     assert.equal(await evaluate("document.querySelector('.dust-controls').getBoundingClientRect().height>0"), true, "Close cannot merely collapse the web section");
     assert.match(await evaluate("document.querySelector('.dust-status').textContent"), /panel state is not exposed/, "No fabricated Closed confirmation");
-    assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=brushSize]').length"), 1);
+    assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=brushSize]').length"), 3, "Healing, Selected and Dust retain separate synchronized Size controls");
     assert.deepEqual(await evaluate("[document.querySelector('[data-dust-apply]').checked,document.querySelector('[data-dust-apply]').indeterminate]"), [true, false]);
     await evaluate(el(apply) + ".click()");
     await waitFor(() => r.pending?.field === "dustApply" && r.pending.value === false, "Dust Off request");
     assert.equal(await evaluate(el(apply) + ".checked"), true, "Apply must wait for native readback");
+    await polls(); await sizeAvailability(false); await blockedDustSizeHandlers();
     const offWrites = r.calls.length;
     await evaluate(el(apply) + ".click()"); await polls();
     assert.equal(r.calls.length, offWrites, "No duplicate Dust Off dispatch");
     r.finish(); await polls();
     assert.equal(await evaluate(el(apply) + ".checked"), false);
+    await sizeAvailability(false); await blockedDustSizeHandlers();
+    await writeSize(healingSizeRow + ' input[type="text"]', 29);
+    await sizeAvailability(false);
     await evaluate(el(apply) + ".click()"); await polls();
     await waitFor(() => r.pending?.field === "dustApply" && r.pending.value === true, "Dust On uses the guarded preset route");
     assert.equal(await evaluate(el(apply) + ".checked"), false, "No optimistic Apply On checkbox");
-    r.finish(); await polls();
+    // Replay rb-258: the native call returned, treatment is present and editing is
+    // ready, but the photo-wide AI-update requirement remains true.
+    r.ageMs = 7000; await polls();
+    assert.equal(await evaluate(el(apply) + ".indeterminate"), true);
+    const staleOn = r.state();
+    r.ageMs = 0; r.finish();
+    r.last.detail = "Dust Apply confirmed by Lightroom readback; other edits preserved. AI settings still need updating in Lightroom.";
+    await waitFor(() => evaluate("!removeController.isInteracting() && " + el(apply) + ".checked && !" + el(apply) + ".indeterminate && " +
+        el(reset) + ".getAttribute('aria-disabled')==='false' && " + el(close) + ".getAttribute('aria-disabled')==='false'"), "Applied Dust settles and restores Reset and Close despite AI update requirement");
+    r.stale = staleOn; await polls();
+    assert.equal(await evaluate("removeController.isInteracting()"), false, "Old pending On cannot relock successful Apply");
+    assert.match(await evaluate("document.querySelector('.dust-status').textContent"), /AI settings still need updating/);
     assert.equal(await evaluate(el(apply) + ".checked"), true);
+    await sizeAvailability(true);
+    await writeSize(size, 42);
+    for (const [selector, value] of [['button[aria-label^="Increase"]', 43], ['button[aria-label^="Decrease"]', 42], ['button.reset', 25]]) {
+        await evaluate(el(dustSizeRow + ' ' + selector) + ".click()");
+        await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === value, "Dust Size button usable when On");
+        r.finish(); await polls();
+    }
+    await evaluate("(() => {const s=" + el(dustSizeRow + ' input[type="range"]') + ";s.dispatchEvent(new PointerEvent('pointerdown'));s.value='31';s.dispatchEvent(new Event('input'));s.dispatchEvent(new Event('change'));})()");
+    await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === 31, "Dust Size range usable when On");
+    r.finish(); await polls();
+    await ordinaryEditing();
     await evaluate(el(reset) + ".click()");
     await waitFor(() => r.pending?.field === "dustApply" && r.pending.value === false, "Reset reuses Dust Off only");
     r.finish(); await polls();
     assert.equal(r.resetSpotRemovalCalls, 0, "Never reset all Healing");
     assert.equal(r.selectedTool, "dust");
+    assert.equal(await evaluate(el(close) + ".getAttribute('aria-disabled')"), "false", "Reset does not prevent closing the Dust subsection");
+    await evaluate(el(close) + ".click()");
+    await waitFor(() => r.pending?.field === "dustClose", "Close after Reset uses native navigation");
+    r.finish(); await polls();
+    assert.equal(r.dust.applied, false, "Close after Reset preserves absent Dust treatment");
+    assert.equal(await evaluate("removeController.isInteracting()"), false);
+    await ordinaryEditing();
+    for (const [outcome, detail] of [
+        ["not_applied", "Dust was not applied. Lightroom is ready for editing; no detection result was provided."],
+        ["failed", "Dust On was refused (SDK returned false); detection result unavailable. No retry."],
+        ["unknown", "Dust result is unknown: feedback unavailable. Check Lightroom; no automatic retry."]
+    ]) {
+        await evaluate(el(apply) + ".click()");
+        await waitFor(() => r.pending?.field === "dustApply" && r.pending.value === true, "Dust terminal " + outcome);
+        const callCount = r.calls.length;
+        if (outcome === "not_applied") {
+            r.ageMs = 7000; await polls();
+            assert.equal(await evaluate(el(apply) + ".indeterminate"), true, "Dash is stale/unknown readback while pending");
+            assert.match(await evaluate("document.querySelector('.dust-status').textContent"), /Applying Dust.*waiting for Lightroom/);
+            // A slow SDK call may legitimately outlast the old 12-second browser timeout.
+            await new Promise(resolve => setTimeout(resolve, 12500));
+            await polls();
+            assert.equal(await evaluate("removeController.isInteracting()"), true);
+        }
+        const oldPending = r.state();
+        r.ageMs = 0; r.finish(undefined, outcome); r.last.detail = detail;
+        await waitFor(() => evaluate("!removeController.isInteracting() && document.querySelector('.dust-status').textContent===" + JSON.stringify(detail)), "Immediate terminal Dust settlement: " + outcome);
+        assert.deepEqual(await evaluate("[" + el(apply) + ".checked," + el(apply) + ".indeterminate]"), [false, false]);
+        r.stale = oldPending; await polls();
+        assert.equal(await evaluate("removeController.isInteracting()"), false, "Old pending feedback cannot relock a completed Dust action");
+        assert.equal(r.calls.length, callCount, "No automatic retry after " + outcome);
+        assert.doesNotMatch(await evaluate("document.querySelector('.dust-status').textContent"), /No dust detected/i);
+        await ordinaryEditing();
+    }
+    await evaluate(el(apply) + ".click()");
+    await waitFor(() => r.pending?.field === "dustApply", "Dust missing terminal state");
+    r.available = false; r.dust.available = false;
+    r.finish(undefined, "unknown"); r.last.detail = "Dust completion feedback is unavailable. Check Lightroom.";
+    await waitFor(() => evaluate("!removeController.isInteracting() && document.querySelector('.dust-status').textContent==='Dust completion feedback is unavailable. Check Lightroom.'"), "Unreadable terminal state still releases Dust");
+    assert.equal(await evaluate(el(apply) + ".indeterminate"), true, "Unknown completion cannot fabricate Off");
+    await ordinaryEditing();
+    r.available = true; r.dust.available = true; r.revision++; await polls();
     r.dust.canEnable = false; r.revision++; await polls();
     const unavailableWrites = r.calls.length;
-    await evaluate(el(apply) + ".click();" + el(reset) + ".click();" + el(close) + ".click()"); await polls();
+    await evaluate(el(apply) + ".click();" + el(reset) + ".click()"); await polls();
     assert.equal(r.calls.length, unavailableWrites, "Missing On preset and absent Dust block dependent actions");
+    assert.equal(await evaluate(el(close) + ".getAttribute('aria-disabled')"), "false", "Navigation does not require the On preset or existing treatment");
     r.dust.applied = true; r.dust.canDisable = false; r.revision++; await polls();
     assert.equal(await evaluate(el(apply) + ".checked"), true, "Native Apply on synchronizes");
     assert.equal(await evaluate(el(apply) + ".getAttribute('aria-disabled')"), "true", "Missing/changed preset blocks Off");
+    await sizeAvailability(true);
+    r.available = false; r.revision++; await polls(); await sizeAvailability(false, false);
+    r.available = true; r.ageMs = 6000; r.revision++; await polls();
+    await sizeAvailability(false, false); await blockedDustSizeHandlers();
+    r.ageMs = 0; r.revision++; await polls(); await sizeAvailability(true);
+    // A native Off invalidates only unfinished Dust Size edits, including a
+    // queued second step behind an already submitted Size command.
+    const firstSize = r.preferences.brushSize + 1;
+    await evaluate(el(dustSizeRow + ' button[aria-label^="Increase"]') + ".click()");
+    await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === firstSize, "Dust Size first step submitted");
+    const queuedSizeCalls = r.calls.length;
+    await evaluate(el(dustSizeRow + ' button[aria-label^="Increase"]') + ".click()");
+    r.dust.applied = false; r.revision++; await polls(); await sizeAvailability(false);
+    r.finish(); await polls();
+    assert.equal(r.calls.length, queuedSizeCalls, "Native Off cancels the queued Dust step without retrying");
+    assert.equal(await evaluate("removeController.isInteracting()"), false);
+    // Even synthetic events from the disabled Dust copy cannot cancel Healing input.
+    const healingNumber = healingSizeRow + ' input[type="text"]';
+    await evaluate("(() => {const n=" + el(healingNumber) + ";n.focus();n.value='46';n.dispatchEvent(new Event('input'));})()");
+    await blockedDustSizeHandlers();
+    await evaluate(el(healingNumber) + ".dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));" + el(healingNumber) + ".blur()");
+    await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === 46, "Healing Size draft survives disabled Dust events");
+    r.finish(); await polls();
     r.dust = { available: false }; r.revision++; await polls();
     assert.equal(await evaluate(el(apply) + ".indeterminate"), true, "Unreadable state is unknown");
+    await sizeAvailability(false); await blockedDustSizeHandlers();
     r.preferences.brushSize = 37; r.revision++; await polls();
     assert.equal(await evaluate(el(size) + ".value"), "37", "Captured Dust Size preference synchronizes");
-    await evaluate("(() => {const n=" + el(size) + ";n.focus();n.value='42';n.dispatchEvent(new Event('input'));n.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()");
-    await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === 42, "Dust Size uses existing preference route");
-    r.finish(); await polls(); assert.equal(r.preferences.brushSize, 42);
+    await writeSize(healingSizeRow + ' input[type="text"]', 42);
     await evaluate(el(visualize) + ".click()");
     await waitFor(() => r.pending?.field === "visualizeSpots" && r.pending.value === false, "Dust visualization off request");
     assert.equal(r.preferences.visualizeSpots, true, "Request is separate from SDK feedback");
@@ -1009,5 +1137,104 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     assert.equal(r.calls.length, beforePhoto, "Native context changes cannot dispatch edits");
     console.log("Dust browser: shared Size/visualization, authoritative On/Off, Reset alias, native Close request without false confirmation, independent People/Reflections and touch layout passed.");
     return { dust: true };
+}
+async function verifySelected({ evaluate, waitFor, fixture, setViewport }) {
+    const r = fixture.remove, el = selector => "document.querySelector(" + JSON.stringify(selector) + ")";
+    const host = ".remove-selected-workflow", row = host + ' [data-remove-field="brushSize"]', number = row + ' input[type="text"]';
+    const action = name => '[data-remove-selection-action="' + name + '"]';
+    const polls = async () => { const reads = r.reads; await waitFor(() => r.reads > reads + 2, "Selected native feedback"); };
+    const active = () => ({ available: true, active: true, token: "1:2:3:4:5:6:7:8", ageMs: 0, canCancel: true, canRemove: true, sizeAvailable: true });
+    const sizeEnabled = async enabled => assert.deepEqual(await evaluate("Array.from(" + el(row) + ".querySelectorAll('input,button')).map(e=>e.getAttribute('aria-disabled'))"), Array(5).fill(String(!enabled)));
+    const writeSize = async (selector, value) => {
+        await evaluate("(() => {const n=" + el(selector) + ";n.focus();n.value='" + value + "';n.dispatchEvent(new Event('input'));n.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));n.blur();})()");
+        await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === value, "Shared SDK Size request");
+        r.finish(); await polls();
+    };
+    await waitFor(() => evaluate("Boolean(" + el(host) + ")"), "Selected controls mount"); await polls();
+    r.hold = true; r.preferences.newSpotType = "heal_patchmatch"; r.dust.applied = false; r.revision++; await polls();
+    await sizeEnabled(false);
+    const original = r.calls.length;
+    for (const name of ["cancel", "remove"]) await evaluate(el(action(name)) + ".dispatchEvent(new Event('click'))");
+    await polls(); assert.equal(r.calls.length, original, "Unknown selection cannot dispatch actions");
+    assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('[data-remove-selection-mode]')).map(e=>[e.textContent,e.disabled])"), [["Add", true], ["Subtract", true]], "Unidentified native refinement modes remain unavailable");
+    r.selection = active(); r.revision++; await polls(); await sizeEnabled(true);
+    assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=brushSize]').length"), 3, "Main, Selected and Dust have distinct Size views");
+    await writeSize(number, 43);
+    assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('[data-remove-field=brushSize] input[type=text]')).map(e=>e.value)"), ["43", "43", "43"]);
+    assert.equal(await evaluate("document.querySelector('.dust-controls [data-remove-field=brushSize] input').getAttribute('aria-disabled')"), "true", "Selected editing does not enable Dust Size when Off");
+    await writeSize('[data-remove-field="brushSize"] input[type="text"]', 32);
+    assert.equal(await evaluate(el(number) + ".value"), "32", "Main Size feedback updates Selected");
+    // Fresh native samples continue across delayed polls and an unfinished Size draft.
+    await evaluate("(() => {const n=" + el(number) + ";n.focus();n.value='47';n.dispatchEvent(new Event('input'));})()");
+    for (const ageMs of [650, 1350, 200, 1100]) {
+        r.selection = { ...active(), ageMs, read: { inFlight: true } }; await polls();
+        await sizeEnabled(true); assert.equal(await evaluate(el(number) + ".value"), "47", "Polling must not cancel a fresh Selected draft");
+    }
+    await evaluate(el(number) + ".dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));" + el(number) + ".blur()");
+    await waitFor(() => r.pending?.field === "brushSize", "Delayed Selected draft submits");
+    r.selection = active(); r.finish(); await polls();
+    for (const name of ["cancel", "remove"]) {
+        r.selection = active(); r.revision++; await polls();
+        await evaluate(el(action(name)) + ".click()");
+        await waitFor(() => r.pending?.field === "selectedSelection" && r.pending.value === name, "Selection action is pending");
+        await sizeEnabled(false);
+        const count = r.calls.length;
+        await evaluate(el(action(name)) + ".dispatchEvent(new Event('click'))"); await polls(); assert.equal(r.calls.length, count, "No duplicate selection action");
+        assert.match(await evaluate(el(".remove-selection-status") + ".textContent"), /waiting for Lightroom/);
+        r.finish(); await polls(); await sizeEnabled(false);
+        assert.equal(await evaluate("removeController.isInteracting()"), false, "Settled selection releases ordinary editing restrictions");
+        assert.equal(await evaluate(el(action(name)) + ".getAttribute('aria-disabled')"), "true");
+        await writeSize('[data-remove-field="brushSize"] input[type="text"]', name === "cancel" ? 34 : 35);
+    }
+    r.selection = active(); r.revision++; await polls();
+    const refinement = name => '[data-remove-selection-mode="' + name + '"]';
+    const verified = () => ({ ...active(), refinementToken: active().token + ":12:13", canAdd: true, canSubtract: true });
+    for (const name of ["subtract", "add"]) {
+        r.selection = verified(); r.revision++; await polls();
+        assert.equal(await evaluate(el(refinement(name)) + ".disabled"), false);
+        await evaluate(el(refinement(name)) + ".click()");
+        await waitFor(() => r.pending?.field === "selectedSelection" && r.pending.value === name, "Refinement request pending");
+        const count = r.calls.length;
+        await evaluate(el(refinement(name)) + ".dispatchEvent(new Event('click'))"); await polls();
+        assert.equal(r.calls.length, count, "Refinement request is sent once");
+        r.finish(); await polls();
+        assert.equal(r.selection.active, true, "Refinement does not cancel or submit the selection");
+        assert.equal(await evaluate("removeController.isInteracting()"), false, "Requested outcome releases editing restrictions");
+        assert.equal(await evaluate(el(refinement(name)) + ".disabled"), false);
+        assert.equal(await evaluate(el(refinement(name)) + ".getAttribute('aria-pressed')"), null, "No invented active mode");
+        await writeSize(number, name === "add" ? 36 : 37);
+    }
+    r.selection = { ...verified(), canAdd: false, canSubtract: false, refinementToken: null, refinementReason: "Verified Lightroom controls changed." }; r.revision++; await polls();
+    const unavailableCount = r.calls.length;
+    await evaluate(el(refinement("add")) + ".dispatchEvent(new Event('click'))"); await polls();
+    assert.equal(r.calls.length, unavailableCount, "Invalidated captured identity cannot dispatch Add");
+    assert.equal(await evaluate(el(action("cancel")) + ".disabled"), false, "Binding loss does not disable native Cancel");
+    await sizeEnabled(true);
+    r.selection = active(); r.revision++; await polls();
+    await evaluate(el(action("remove")) + ".click()"); await waitFor(() => r.pending?.field === "selectedSelection", "Uncertain removal starts");
+    r.finish(undefined, "unknown"); r.selection.canRemove = false; r.revision++; await polls();
+    assert.equal(await evaluate("removeController.isInteracting()"), false, "Unknown completion releases only the settled operation");
+    assert.equal(await evaluate(el(action("remove")) + ".getAttribute('aria-disabled')"), "true", "Uncertain submission cannot repeat against the same selection");
+    // Native Cancel/Remove and missing feedback invalidate drafts in this copy only.
+    r.selection = active(); r.revision++; await polls();
+    await evaluate("(() => {const n=" + el(number) + ";n.focus();n.value='81';n.dispatchEvent(new Event('input'));})()");
+    r.selection = { ...active(), active: false }; r.revision++; await polls();
+    const beforeBlur = r.calls.length;
+    await evaluate(el(number) + ".dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));" + el(number) + ".blur()"); await polls();
+    assert.equal(r.calls.length, beforeBlur, "Native selection disappearance cancels unfinished Selected Size edits");
+    r.selection = { ...active(), ageMs: 3000 }; r.revision++; await polls(); await sizeEnabled(false);
+    r.selection = { available: false, reason: "Selected observer timed out" }; r.revision++; await polls(); await sizeEnabled(false);
+    assert.equal(await evaluate(el(".remove-selection-status") + ".title"), "Selected observer timed out", "Failed reads are exposed rather than hidden");
+    for (const width of [1280, 390]) {
+        await setViewport(width, width === 390 ? 844 : 960);
+        assert.equal(await evaluate("(() => {const b=" + el(host) + ".getBoundingClientRect();return b.left>=0&&b.right<=innerWidth;})()"), true, "Selected fits viewport " + width);
+    }
+    r.selection = active(); r.revision++; await polls();
+    await evaluate(el(action("cancel")) + ".click()"); await waitFor(() => r.pending?.field === "selectedSelection", "Photo-change scenario pending");
+    fixture.context = { ...fixture.context, selectedPhotoUuid: "selected-next-photo", contextCounter: fixture.context.contextCounter + 1 };
+    r.selection = { available: false }; r.revision++; r.finish(); await polls();
+    await sizeEnabled(false); assert.equal(await evaluate("removeController.isInteracting()"), false);
+    console.log("Selected browser: native availability, shared SDK Size, Dust independence, single submission, completion/unknown recovery, native cancellation, stale/photo feedback and layout passed (simulated).");
+    return { selected: true };
 }
 module.exports = { install, verify };

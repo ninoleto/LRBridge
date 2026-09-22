@@ -7,10 +7,15 @@ const { createBridge } = require("../server/bridge");
 const definition = require("../server/remove-state");
 const scenarios = ["success", "missing-preset", "changed-preset", "duplicate-preset", "version", "pending-ai",
     "gate-timeout", "gate-photo", "gate-edit", "gate-manual", "gate-mode", "gate-preset", "stale-filter", "wrong-identity",
-    "sdk-error", "no-change", "other-edit", "other-ai", "manual", "mask", "preference", "after-photo", "queue-photo", "missing-proof"];
-const onScenarios = scenarios.concat(["process-version", "preset-extra-edit", "void-return", "false-return", "delayed", "ai-settles", "ai-pending-after"]);
+    "sdk-error", "no-change", "other-edit", "other-ai", "manual", "mask", "preference", "after-photo", "queue-photo", "missing-proof",
+    "ai-update-needed", "ai-update-locked", "ai-update-unavailable"];
+const onScenarios = scenarios.concat(["process-version", "preset-extra-edit", "void-return", "false-return", "delayed", "ai-settles", "ai-pending-after",
+    "no-dust-after-processing", "no-dust-missing-completion", "no-dust-missing-preservation", "no-dust-wrong-token",
+    "no-dust-result-photo", "no-dust-result-revision",
+    "still-processing", "ai-update-locked-after", "ai-update-unavailable-after", "editing-feedback-error", "editing-feedback-unknown", "editing-feedback-missing"]);
 const closeScenarios = ["success", "version", "missing-navigation", "pending-ai", "stale-filter", "wrong-identity", "sdk-error",
-    "other-edit", "other-ai", "manual", "mask", "preference", "after-photo", "queue-photo", "missing-proof", "dust-changed", "closes-healing", "forged-confirmation", "false-return"];
+    "other-edit", "other-ai", "manual", "mask", "preference", "after-photo", "queue-photo", "missing-proof", "dust-changed", "closes-healing", "forged-confirmation", "false-return",
+    "ai-update-needed", "ai-update-locked", "ai-update-unavailable", "no-treatment"];
 async function run(name, direction) {
     const enabling = direction === "on", closing = direction === "close";
     const field = closing ? "dustClose" : "dustApply", value = closing ? "manualRemove" : enabling;
@@ -34,8 +39,9 @@ async function run(name, direction) {
             assert.equal(name === "version" ? before.dust.available : closing ? before.dust.canRequestClose : enabling ? before.dust.canEnable : before.dust.canDisable, false);
             await get("/remove/dust?" + q, 409); sdk.run("assert(dustCalls==0)"); return;
         }
-        assert.equal(before.dustApply, !enabling, name + ": " + JSON.stringify(before.dust));
-        const admitted = await get("/remove/dust?" + q); assert.equal(admitted.dustApply, !enabling);
+        const initiallyApplied = !enabling && name !== "no-treatment";
+        assert.equal(before.dustApply, initiallyApplied, name + ": " + JSON.stringify(before.dust));
+        const admitted = await get("/remove/dust?" + q); assert.equal(admitted.dustApply, initiallyApplied);
         await get("/remove/dust?" + q, 409);
         if (name === "queue-photo") {
             context.updateContext({ activeModule: "develop", selectedPhotoUuid: "other", developFingerprint: "changed" });
@@ -50,17 +56,46 @@ async function run(name, direction) {
         let path = result();
         if (name === "missing-proof") path = path.replace(/%22preservationConfirmed%22%3Atrue/g, "%22preservationConfirmed%22%3Afalse");
         if (name === "forged-confirmation") path = path.replace("outcome=requested", "outcome=confirmed");
+        if (name === "no-dust-missing-completion") path = path.replace(/%22completionConfirmed%22%3Atrue/g, "%22completionConfirmed%22%3Afalse");
+        if (name === "no-dust-missing-preservation") path = path.replace(/%22preservationConfirmed%22%3Atrue/g, "%22preservationConfirmed%22%3Afalse");
+        if (name === "no-dust-wrong-token") path = path.replace(/%22token%22%3A%22[a-f0-9]+%22/g, "%22token%22%3A%22" + "b".repeat(64) + "%22");
+        if (["no-dust-result-photo", "no-dust-result-revision"].includes(name)) {
+            context.updateContext({ activeModule: "develop", selectedPhotoUuid: name.endsWith("photo") ? "other-photo" : "creation-photo", developFingerprint: "newer-edit" });
+            await get(path, 409);
+            const changed = await get("/remove/state");
+            assert.equal(changed.pendingOperation, null);
+            assert.equal(changed.dust, undefined, "Old Dust completion cannot populate a new context");
+            sdk.run("assert(dustCalls==1)"); return;
+        }
         await get(path); await get(path, 409);
         const after = await get("/remove/state");
-        const success = ["success", "void-return", "delayed", "ai-settles"].includes(name);
-        assert.equal(after.lastResult.outcome, success ? closing ? "requested" : "confirmed" : "failed", direction + ": " + name + ": " + after.lastResult.detail);
-        const noCall = ["pending-ai", "gate-timeout", "gate-photo", "gate-edit", "gate-manual", "gate-mode", "gate-preset", "stale-filter", "wrong-identity"].includes(name);
+        const success = ["success", "void-return", "delayed", "ai-settles", "ai-pending-after", "no-treatment"].includes(name) || !enabling && name === "ai-update-needed";
+        const notApplied = enabling && ["no-change", "no-dust-after-processing"].includes(name);
+        const unknown = enabling && ["still-processing", "ai-update-locked-after", "ai-update-unavailable-after", "editing-feedback-error", "editing-feedback-unknown", "editing-feedback-missing",
+            "no-dust-missing-completion", "no-dust-missing-preservation", "no-dust-wrong-token"].includes(name);
+        assert.equal(after.lastResult.outcome, success ? closing ? "requested" : "confirmed" : notApplied ? "not_applied" : unknown ? "unknown" : "failed", direction + ": " + name + ": " + after.lastResult.detail);
+        assert.equal(after.pendingOperation, null, "Every terminal result releases the completed operation");
+        assert.doesNotMatch(after.lastResult.detail, /No dust detected/i, "Absence of a filter is not a detection result");
+        if (notApplied) {
+            assert.equal(after.dustApply, false);
+            assert.equal(after.dust.completionConfirmed, true);
+            assert.equal(after.dust.preservationConfirmed, true);
+            assert.match(after.lastResult.detail, /not applied.*ready for editing/i);
+            sdk.run("assert(dustSleeps <= " + (name === "no-change" ? 3 : 6) + ", 'Must settle promptly after native editing readiness')");
+        }
+        if (name === "sdk-error" || name === "false-return") sdk.run("assert(dustSleeps==0, 'Explicit failures never wait for success')");
+        const noCall = ["pending-ai", "ai-update-locked", "ai-update-unavailable", "gate-timeout", "gate-photo", "gate-edit", "gate-manual", "gate-mode", "gate-preset", "stale-filter", "wrong-identity"].includes(name) || enabling && name === "ai-update-needed";
         sdk.run("assert(dustCalls==" + (noCall ? 0 : 1) + ")");
         if (success) {
-            assert.equal(after.dustApply, enabling || closing); assert.equal(after.dust.preservationConfirmed, true);
+            const appliedAfter = enabling || closing && initiallyApplied;
+            assert.equal(after.dustApply, appliedAfter); assert.equal(after.dust.preservationConfirmed, true);
             assert.equal(after.selectedTool, "dust"); assert.equal(after.dust.panelStateAvailable, false);
-            sdk.run("assert(dustSettings.Exposure2012==0.7 and #dustSettings.FilterList.Filters==" + (enabling || closing ? 2 : 1) + " and manualPeopleSpots[1].X==0.4)");
+            sdk.run("assert(dustSettings.Exposure2012==0.7 and #dustSettings.FilterList.Filters==" + (appliedAfter ? 2 : 1) + " and manualPeopleSpots[1].X==0.4)");
             if (closing) assert.match(after.lastResult.detail, /panel state is not exposed/);
+            if (["ai-pending-after", "ai-update-needed"].includes(name)) {
+                assert.match(after.lastResult.detail, /AI settings.*need.*updat/i, "Confirmation must retain the AI update requirement");
+                sdk.run("assert(dustSleeps <= 2, 'An editable photo with stable treatment must settle promptly even when AI settings need updating')");
+            }
         }
         if (!noCall) { sdk.run("removeExecute(); assert(dustCalls==1)"); await get(result(), 409); }
     } finally { sdk.close(); await bridge.stop(); commands.resetQueueForTests(); console.log = log; }

@@ -44,11 +44,19 @@ dustSettings = { Exposure2012 = 0.7, CropTop = 0.1, ProcessVersion = "15.4", Fil
     { FilterID = 6, Name = "Dust Removal", Title = "$$$/CRaw/Filter/DustRemoval/FilterPanelTitle=Dust Removal", Images = { { X = 0.2 } } }
 } }, MaskGroupBasedCorrections = { { ID = "existing-mask", Amount = 0.2 } } }
 manualPeopleSpots = { { CorrectionID = "manual-original", X = 0.4 } }
-if enabling then table.remove(dustSettings.FilterList.Filters, 2) end
+if enabling or closing and dustScenario == "no-treatment" then table.remove(dustSettings.FilterList.Filters, 2) end
 if dustScenario == "process-version" then dustSettings.ProcessVersion = "15.3" end
 photo.getDevelopSettings = function() return dustSettings end
-local pendingAI = dustScenario == "pending-ai"
+local pendingAI = dustScenario == "pending-ai" or dustScenario == "ai-update-needed" or
+    dustScenario == "ai-update-locked" or dustScenario == "ai-update-unavailable"
 photo.needsUpdateAISettings = function() return pendingAI end
+local editingReady = dustScenario ~= "pending-ai" and dustScenario ~= "ai-update-locked"
+photo.isAvailableForEditing = function()
+    if dustScenario == "editing-feedback-error" then error("editing feedback failed") end
+    if dustScenario == "editing-feedback-unknown" or dustScenario == "ai-update-unavailable" or dustScenario == "ai-update-unavailable-after" then return nil end
+    return editingReady
+end
+if dustScenario == "editing-feedback-missing" then photo.isAvailableForEditing = nil end
 dustCalls = 0
 local inGate = false
 catalog.withWriteAccessDo = function(_, label, fn, options)
@@ -75,10 +83,12 @@ photo.applyDevelopPreset = function(_, preset, plugin, amount, updateAI, ...)
     assert(not closing and inGate and preset == nativePreset and plugin == nil and amount == nil and updateAI == enabling and select("#", ...) == 0)
     dustCalls = dustCalls + 1
     if dustScenario == "sdk-error" then error("preset failed C:/private/photo.raw") end
-    if dustScenario ~= "no-change" and dustScenario ~= "delayed" then
+    if dustScenario ~= "no-change" and not string.find(dustScenario, "^no%-dust") and
+        not string.find(dustScenario, "editing%-feedback") and dustScenario ~= "delayed" then
         if enabling then dustSettings.FilterList.Filters[2] = dustFilter() else table.remove(dustSettings.FilterList.Filters, 2) end
     end
-    if dustScenario == "ai-pending-after" or dustScenario == "ai-settles" then pendingAI = true end
+    if dustScenario == "ai-pending-after" or dustScenario == "ai-settles" or dustScenario == "ai-update-locked-after" or dustScenario == "ai-update-unavailable-after" then pendingAI = true end
+    if dustScenario == "no-dust-after-processing" or dustScenario == "still-processing" or dustScenario == "delayed" or dustScenario == "ai-update-locked-after" then editingReady = false end
     alterAfter()
     if dustScenario == "false-return" then return false end
     if dustScenario == "void-return" then return end
@@ -92,12 +102,13 @@ SDK.goToRemove = function(mode, feature, ...)
     if dustScenario == "false-return" then return false end
 end
 if dustScenario == "missing-navigation" then SDK.goToRemove = nil end
-local sleeps = 0
+dustSleeps = 0
 Tasks.sleep = function()
-    sleeps = sleeps + 1
-    if enabling and sleeps == 3 then
+    dustSleeps = dustSleeps + 1
+    if enabling and dustSleeps == 3 then
         if dustScenario == "delayed" then dustSettings.FilterList.Filters[2] = dustFilter() end
         if dustScenario == "ai-settles" then pendingAI = false end
+        if dustScenario == "no-dust-after-processing" or dustScenario == "delayed" then editingReady = true end
     end
 end
 photo.pasteSettings = function() error("Never paste from the clipboard") end

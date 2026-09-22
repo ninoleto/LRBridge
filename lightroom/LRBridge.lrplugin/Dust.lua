@@ -10,6 +10,29 @@ local title = "$$$/CRaw/Filter/DustRemoval/FilterPanelTitle=Dust Removal"
 local offDigest = "6222ed7b14ec731f0d114e24d9bea1d4"
 local seen = {}
 
+-- Bounded, sanitized lifecycle evidence; never log photo paths or settings payloads.
+function Dust.trace(command, stage, detail)
+    if os.getenv("LRBRIDGE_DEVELOPER_DIAGNOSTICS") ~= "1" then return end
+    if type(_PLUGIN) ~= "table" or type(_PLUGIN.path) ~= "string" then return end
+    local root = string.gsub(_PLUGIN.path, "[/\\]lightroom[/\\]LRBridge%.lrplugin$", "")
+    if root == _PLUGIN.path then return end
+    pcall(function()
+        local file = io.open(root .. "\\lrplugin-log.txt", "a")
+        if file then
+            pcall(function() file:write(os.date("%Y-%m-%d %H:%M:%S") .. " Dust: operation=" ..
+                tostring(command.operationId) .. " epoch=" .. tostring(command.expectedServerEpoch) .. " stage=" .. stage .. " " ..
+                (require "DustDiagnostics").sanitize(detail) .. "\n") end)
+            file:close()
+        end
+    end)
+end
+local function editable(photo)
+    if type(photo.isAvailableForEditing) ~= "function" then return nil end
+    local ok, value = Tasks.pcall(function() return photo:isAvailableForEditing() end)
+    if ok and type(value) == "boolean" then return value end
+    return nil
+end
+
 local function md5(value)
     local hash = MD5.digest(value)
     if #hash == 32 and not string.find(hash, "[^%x]") then return string.lower(hash) end
@@ -98,14 +121,38 @@ local function evidence(photo, guard, allowPendingAI)
     for key,value in pairs(settings) do if key ~= "FilterList" then unrelated[key] = value end end
     local manual, preferences = SDK.getAllSpots("manualRemove"), SDK.getRemovePanelPreferences()
     local needsAI = photo:needsUpdateAISettings()
-    if type(manual) ~= "table" or type(preferences) ~= "table" or type(needsAI) ~= "boolean" or needsAI and not allowPendingAI then
-        error("Dust preservation baseline unavailable or AI processing pending.", 0)
+    if type(manual) ~= "table" or type(preferences) ~= "table" or type(needsAI) ~= "boolean" then
+        error("Dust preservation baseline unavailable.", 0)
+    end
+    if needsAI and not allowPendingAI then
+        error("Lightroom reports AI settings need updating; Dust On was not attempted.", 0)
     end
     local result = { applied = applied, mode = preferences.newSpotType, token = fingerprint(settings.FilterList),
         processVersion = settings.ProcessVersion, needsAIUpdate = needsAI,
         all = fingerprint(settings), preserved = fingerprint({ unrelated, other, envelope, manual, preferences }) }
     if not guard() then error("Dust context changed during read.", 0) end
     return result
+end
+local function readback(photo, guard)
+    local readyBefore = editable(photo)
+    local after = evidence(photo, guard, true)
+    after.editableBefore, after.editable = readyBefore, editable(photo)
+    if not guard() then error("Dust context changed during completion readback.", 0) end
+    return after
+end
+local function settledReadback(after)
+    -- needsUpdateAISettings reports stale AI settings, not a running operation.
+    -- Explicit native readiness is required to distinguish that case from processing.
+    return after.editableBefore ~= false and after.editable ~= false and
+        (not after.needsAIUpdate or after.editableBefore == true and after.editable == true)
+end
+local function cleanupEvidence(photo, guard)
+    local after = readback(photo, guard)
+    if not settledReadback(after) then error("Lightroom has not confirmed the photo is ready for Dust Reset or Close.", 0) end
+    return after
+end
+local function aiUpdateNote(after)
+    return after.needsAIUpdate and " AI settings still need updating in Lightroom." or ""
 end
 function Dust.setApplied(command, guard)
     local attempted = false
@@ -125,7 +172,9 @@ function Dust.setApplied(command, guard)
                 View.getCurrentModuleName() == "develop" and SDK.getSelectedTool() == "dust"
         end
         if not guard() then error("Dust context changed.", 0) end
-        local before = evidence(photo, nativeBound)
+        -- On may update AI, so retain its current-AI baseline requirement. Off only
+        -- deletes Dust and can safely preserve stale AI when native editing is ready.
+        local before = enabling and evidence(photo, nativeBound) or cleanupEvidence(photo, nativeBound)
         if before.applied == enabling or before.token ~= command.expectedValue or before.mode ~= command.expectedRemoveMode then
             error("Dust state changed before dispatch.", 0)
         end
@@ -134,33 +183,65 @@ function Dust.setApplied(command, guard)
         catalog:withWriteAccessDo("LRBridge " .. label, function()
             local preset = enabling and (require "DustOnPreset").resolve() or offPreset()
             if not guard() then error("Dust context changed inside write gate.", 0) end
-            local current = evidence(photo, nativeBound)
-            if current.all ~= before.all or current.preserved ~= before.preserved then error("Photo edits changed before " .. label .. ".", 0) end
+            -- Readiness was checked before taking our own catalog write gate.
+            local current = evidence(photo, nativeBound, not enabling)
+            if current.all ~= before.all or current.preserved ~= before.preserved or current.needsAIUpdate ~= before.needsAIUpdate then
+                error("Photo edits or AI update state changed before " .. label .. ".", 0)
+            end
             seen[key], attempted, dispatched = true, true, true
             -- Apply the real native preset once. Only On requests AI updating, as in the accepted proof.
             -- Catch inside the gate so an SDK exception does not request an implicit rollback.
+            Dust.trace(command, "sdk_invoke", label)
             callOk, callResult = Tasks.pcall(function() return photo:applyDevelopPreset(preset, nil, nil, enabling) end)
+            Dust.trace(command, "sdk_return", "ok=" .. tostring(callOk) .. " result=" .. tostring(callResult))
         end, { timeout = 2, asynchronous = false })
         if not dispatched then error(label .. " write gate did not execute.", 0) end
-        if not callOk then error(callResult, 0) end
-        if callResult == false then error(label .. " SDK call returned false; state unconfirmed, no retry.", 0) end
-        local stable, lastToken = 0, nil
+        if not callOk then error(label .. " failed: " .. tostring(callResult), 0) end
+        if callResult == false then error(label .. " was refused (SDK returned false); detection result unavailable. No retry.", 0) end
+        local stable, lastToken, idle, lastIdleToken, lastObservation = 0, nil, 0, nil, nil
+        local unknownReason = "Lightroom's completion feedback is unavailable"
         local attempts = enabling and 121 or 8
         for attempt = 1, attempts do
             if not guard() then error("Dust context changed after dispatch.", 0) end
-            local after = evidence(photo, nativeBound, enabling)
+            local after = readback(photo, nativeBound)
+            local readyBefore, ready = after.editableBefore, after.editable
+            local observation = "applied=" .. tostring(after.applied) .. " needsAIUpdate=" .. tostring(after.needsAIUpdate) ..
+                " editableBefore=" .. tostring(readyBefore) .. " editable=" .. tostring(ready) .. " bridgeBusy=" .. tostring(_G.LRBridgeCommandBusy == true)
+            unknownReason = ready == false and "Lightroom still reports background processing" or after.needsAIUpdate and
+                "Lightroom still reports AI settings needing an update" or "Lightroom's completion feedback is unavailable"
+            if observation ~= lastObservation then
+                Dust.trace(command, "readback", "sample=" .. attempt .. " " .. observation)
+                lastObservation = observation
+            end
             if after.preserved ~= before.preserved then error("Other edits changed; " .. label .. " is unconfirmed.", 0) end
-            if after.applied == enabling and not after.needsAIUpdate then
+            if after.applied == enabling and settledReadback(after) then
                 stable = lastToken == after.all and stable + 1 or 1
                 lastToken = after.all
-                if not enabling or stable >= 3 then return { confirmed = true, attempted = attempted } end
+                if not enabling or stable >= 3 then
+                    return { confirmed = true, attempted = attempted,
+                        detail = (enabling and "Dust Apply" or "Dust Off / Reset") .. " confirmed by Lightroom readback; other edits preserved." .. aiUpdateNote(after) }
+                end
             else stable, lastToken = 0, nil end
+            -- A returned preset call alone does not prove AI completion. Require Lightroom's
+            -- editing-ready signal on both sides of stable, AI-current, preserved Off readback.
+            -- This confirms only that Dust was not applied, never that no dust was detected.
+            if enabling and readyBefore == true and ready == true and not after.applied and not after.needsAIUpdate then
+                idle = lastIdleToken == after.all and idle + 1 or 1
+                lastIdleToken = after.all
+                if idle >= 4 then
+                    return { outcome = "not_applied", attempted = attempted, preservationConfirmed = true, completionConfirmed = true,
+                        detail = "Dust was not applied. Lightroom is ready for editing; no detection result was provided." }
+                end
+            else idle, lastIdleToken = 0, nil end
             if attempt < attempts then Tasks.sleep(enabling and 0.25 or 0.1) end
         end
-        error(label .. " state was not confirmed after the SDK call; no retry.", 0)
+        if not enabling then error(label .. " state was not confirmed after the SDK call; no retry.", 0) end
+        return { outcome = "unknown", attempted = attempted,
+            detail = label .. " result is unknown: " .. unknownReason .. ". Check Lightroom; no automatic retry." }
     end)
-    if ok then return result end
-    return { confirmed = false, attempted = attempted, detail = (require "DustDiagnostics").sanitize(result) }
+    if not ok then result = { confirmed = false, attempted = attempted, detail = string.sub((require "DustDiagnostics").sanitize(result), 1, 300) } end
+    Dust.trace(command, "settled", "outcome=" .. (result.outcome or (result.confirmed and "confirmed" or "failed")) .. " " .. (result.detail or ""))
+    return result
 end
 function Dust.requestClose(command, guard)
     local attempted = false
@@ -178,28 +259,34 @@ function Dust.requestClose(command, guard)
                 View.getCurrentModuleName() == "develop" and SDK.getSelectedTool() == "dust"
         end
         if not guard() then error("Dust context changed.", 0) end
-        local before = evidence(photo, nativeBound)
-        if not before.applied or before.token ~= command.expectedValue or before.mode ~= command.expectedRemoveMode then
+        local before = cleanupEvidence(photo, nativeBound)
+        if before.token ~= command.expectedValue or before.mode ~= command.expectedRemoveMode then
             error("Dust state changed before navigation.", 0)
         end
         if not guard() then error("Dust context changed before navigation.", 0) end
-        local current = evidence(photo, nativeBound)
-        if current.all ~= before.all or current.preserved ~= before.preserved then error("Photo edits changed before navigation.", 0) end
+        local current = cleanupEvidence(photo, nativeBound)
+        if current.all ~= before.all or current.preserved ~= before.preserved or current.needsAIUpdate ~= before.needsAIUpdate then error("Photo edits changed before navigation.", 0) end
         seen[key], attempted = true, true
         -- Native Close retains Healing. Keep its current mode; never select loupe or clear Dust.
-        if SDK.goToRemove(nil, "manualRemove") == false then error("Native navigation returned false; Close unconfirmed.", 0) end
+        Dust.trace(command, "sdk_invoke", "Dust Close")
+        local returned = SDK.goToRemove(nil, "manualRemove")
+        Dust.trace(command, "sdk_return", "Dust Close result=" .. tostring(returned))
+        if returned == false then error("Native navigation returned false; Close unconfirmed.", 0) end
+        local after
         for sample = 1, 3 do
             if sample > 1 then Tasks.sleep(0.1) end
             if not guard() then error("Dust context changed after navigation.", 0) end
-            local after = evidence(photo, nativeBound)
+            after = cleanupEvidence(photo, nativeBound)
             if after.all ~= before.all or after.preserved ~= before.preserved then
                 error("Treatment or other edits changed during navigation; Close unconfirmed.", 0)
             end
         end
         -- SDK exposes no active Dust subsection getter. Preservation is evidence, not a collapse confirmation.
-        return { requested = true, preservationConfirmed = true, attempted = true }
+        return { requested = true, preservationConfirmed = true, attempted = true,
+            detail = "Native manual Healing navigation requested; edits preserved. Check that Dust collapses in Lightroom; its panel state is not exposed." .. aiUpdateNote(after) }
     end)
-    if ok then return result end
-    return { requested = false, attempted = attempted, detail = (require "DustDiagnostics").sanitize(result) }
+    if not ok then result = { requested = false, attempted = attempted, detail = string.sub((require "DustDiagnostics").sanitize(result), 1, 300) } end
+    Dust.trace(command, "settled", "outcome=" .. (result.requested and "requested" or "failed") .. " " .. (result.detail or ""))
+    return result
 end
 return Dust

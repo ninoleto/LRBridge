@@ -261,13 +261,13 @@ assert.deepEqual(JSON.parse(JSON.stringify(hdrSection)), {
 });
 assert.equal(sectionOrder.findIndex(function (section) { return section.id === "hdr-sdr-rendition"; }), 2);
 const modeControlBlock = sourceBlock(controller, "async function requestHDRModeFeedback", "function createDevelopSliderControl");
-const modeSubmitBlock = sourceBlock(modeControlBlock, "function submit(value)", "const offButton");
+const modeSubmitBlock = sourceBlock(modeControlBlock, "function submit(value)", "const checkbox");
 assert.match(modeSubmitBlock, /control\.desiredValue = value/);
 assert.match(modeSubmitBlock, /sendCommand\("\/api\/set\?slider=HDREditMode&value=" \+ String\(value\)\)/);
 assert.doesNotMatch(modeSubmitBlock, /authoritativeValue\s*=(?!=)|classList\.toggle\("active"/,
     "HDR mode intent must not optimistically change the rendered authoritative state");
 assert.match(modeControlBlock,
-    /classList\.toggle\("active", available && control\.authoritativeValue === 0\)[\s\S]*classList\.toggle\("active", available && control\.authoritativeValue === 1\)/);
+    /updateNativeCheckbox\(checkbox\.input, available, control\.authoritativeValue === 1, control\.pending, control\.pending\)/);
 assert.match(modeControlBlock, /pollFeedbackSnapshot\(request\.id, 1900\)/);
 assert.match(modeControlBlock, /value === control\.desiredValue/);
 assert.doesNotMatch(modeControlBlock, /\/api\/reset/);

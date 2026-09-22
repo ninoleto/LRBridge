@@ -678,6 +678,9 @@ function Get-NativeStateFromDiscovery([object]$Discovery) {
         if ($null -ne $discovery.FocusTrack) { $mode = "blur" }
         $amount = Try-ReadTrackControl $discovery $discovery.BlurTrack "Amount" 1000.0 1.0
     }
+    # Apply readback only; the SDK setter remains the sole Apply command path.
+    $applyButton = Add-AnchorIdentity (Find-UniqueButtonInRoot $discovery.Windows $discovery.LensRoot "Apply") $discovery.LensRoot
+    $apply = Try-ReadCheckbox $applyButton
     $visualize = Try-ReadCheckbox $discovery.VisualizeButton
     $autoMask = Try-ReadCheckbox $discovery.AutoMaskButton
     return [PSCustomObject]@{
@@ -689,6 +692,7 @@ function Get-NativeStateFromDiscovery([object]$Discovery) {
             feather = Public-TrackState $feather
             flow = Public-TrackState $flow
         }
+        apply = Public-CheckboxState $apply
         visualizeDepth = Public-CheckboxState $visualize
         autoMask = Public-CheckboxState $autoMask
         refinementMode = $mode
@@ -1069,7 +1073,7 @@ function Assert-RefinementDisclosureIdentity([object]$Target, [object]$LensRoot)
     return $client
 }
 
-function Post-VerifiedClientClick([object]$Target, [object]$Client, [scriptblock]$Validate) {
+function Post-VerifiedClientClick([object]$Target, [object]$Client, [scriptblock]$Validate, [object]$Trace = $null) {
     $x = [int][math]::Floor(($Client.Right-$Client.Left)/2.0)
     $y = [int][math]::Floor(($Client.Bottom-$Client.Top)/2.0)
     $coordinates = (($y -band 0xFFFF)*0x10000)+($x -band 0xFFFF)
@@ -1078,7 +1082,9 @@ function Post-VerifiedClientClick([object]$Target, [object]$Client, [scriptblock
         [PSCustomObject]@{message=$WM_LBUTTONUP;wParam=0}
     )) {
         & $Validate | Out-Null
-        if (-not [LRBridgeNative]::PostMessage([IntPtr]$Target.Handle,[uint32]$entry.message,[IntPtr]$entry.wParam,[IntPtr][Int64]$coordinates)) {
+        $posted=[LRBridgeNative]::PostMessage([IntPtr]$Target.Handle,[uint32]$entry.message,[IntPtr]$entry.wParam,[IntPtr][Int64]$coordinates)
+        if($null -ne $Trace){$Trace.Add(@{message=[int]$entry.message;handle=$Target.Handle;posted=$posted;at=[DateTime]::UtcNow.ToString('o')})}
+        if (-not $posted) {
             throw "Target-local native activation message could not be posted"
         }
     }
@@ -1380,7 +1386,9 @@ function Get-ProfileDiscovery([bool]$LabelOnly = $false) {
                 [System.Windows.Automation.AutomationElement]::NativeWindowHandleProperty, [int]$comboHandle)
         ))
         $combo = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $comboCondition)
-        if ($null -eq $combo -or -not $combo.Current.IsEnabled -or $combo.Current.IsOffscreen) { continue }
+        # Slider SDK writes reveal their panel and can scroll Profile out of view.
+        # Inventory reads need the enabled, uniquely owned control, not screen visibility.
+        if ($null -eq $combo -or -not $combo.Current.IsEnabled) { continue }
         $comboRuntimeId = Get-UiaRuntimeId $combo
         if ($null -eq $comboRuntimeId -or $comboRuntimeId.Count -ne 2 -or
             [Int64]$comboRuntimeId[0] -ne 42 -or [Int64]$comboRuntimeId[1] -ne $comboHandle) { continue }
@@ -1527,9 +1535,213 @@ function ConvertTo-ProfileSnapshot([object]$Discovery) {
     }
 }
 
+function Get-RemoveSelectionDiscovery([object[]]$Processes = @([System.Diagnostics.Process]::GetProcessesByName('Lightroom'))) {
+    # Read only the named manual Remove section. Enumerate handles afresh so
+    # hidden/replaced controls and multiple candidates never reuse old availability.
+    # Avoid taking thousands of unrelated snapshots/trackbar values on every poll.
+    $windows = New-Object System.Collections.Generic.List[object]
+    foreach ($process in $Processes) {
+        $handles = New-Object 'System.Collections.Generic.HashSet[IntPtr]'
+        foreach ($h in [LRBridgeNative]::GetProcessWindows($process.Id)) {
+            if ([LRBridgeNative]::WindowText($h) -cne 'Mask:' -or [LRBridgeNative]::ClassName($h) -cne 'Static') { continue }
+            $ancestor = [LRBridgeNative]::GetParent($h)
+            for ($depth=0; $depth -lt 32 -and $ancestor -ne [IntPtr]::Zero; $depth++) {
+                $parent = [LRBridgeNative]::GetParent($ancestor)
+                if ([LRBridgeNative]::WindowText($ancestor) -ceq 'Remove' -and
+                    [LRBridgeNative]::ClassName($ancestor) -match '^AfxWnd\d+u$' -and
+                    [LRBridgeNative]::WindowText($parent) -ceq 'Collapsible Section') {
+                    foreach ($childHandle in [LRBridgeNative]::GetWindowTree($ancestor,$process.Id)) { [void]$handles.Add($childHandle) }
+                    [void]$handles.Add($parent)
+                    break
+                }
+                $ancestor = $parent
+            }
+        }
+        foreach ($h in $handles) {
+            $snapshot = Get-WindowSnapshot $h $process.Id
+            if ($null -ne $snapshot) { $windows.Add($snapshot) }
+        }
+    }
+    return Find-RemoveSelection $windows.ToArray()
+}
+
+function Find-RemoveSelection([object[]]$Windows) {
+    # Manual Remove only. People has another Cancel/Remove pair; it lacks this
+    # direct Mask/Size group inside the manual Remove section.
+    $selectionCandidates = @()
+    foreach ($label in @($Windows | Where-Object { $_.Class -eq 'Static' -and $_.Text -eq 'Mask:' })) {
+        $group = Find-WindowByHandle $Windows $label.Parent
+        if ($null -eq $group -or $group.Class -notmatch '^AfxWnd\d+u$' -or $group.Text -ne 'View') { continue }
+        $owners = @($Windows | Where-Object { $_.Class -match '^AfxWnd\d+u$' -and $_.Text -eq 'Remove' -and
+            (Test-IsDescendantOfSnapshot $group $_ $Windows) })
+        if ($owners.Count -ne 1) { continue }
+        $ownerParent = Find-WindowByHandle $Windows $owners[0].Parent
+        if ($null -eq $ownerParent -or $ownerParent.Text -ne 'Collapsible Section') { continue }
+        $children = @($Windows | Where-Object { $_.Parent -eq $group.Handle -and $_.ProcessId -eq $group.ProcessId })
+        $size = @($children | Where-Object { $_.Class -eq 'Static' -and $_.Text -eq 'Size' })
+        $track = @($children | Where-Object { $_.Class -eq 'msctls_trackbar32' -and $_.ControlId -eq 100 -and $_.NativeMin -eq 1000 -and $_.NativeMax -eq 100000 })
+        $cancel = @($children | Where-Object { $_.Class -eq 'Button' -and $_.Text -eq 'Cancel' -and $_.ControlId -eq 65535 -and ($_.Style -band 0xF) -eq 0 })
+        $submit = @($children | Where-Object { $_.Class -match '^AfxWnd\d+u$' -and $_.Text -eq 'Remove (Bridge View)' -and $_.ControlId -eq 65535 })
+        if ($size.Count -ne 1 -or $track.Count -ne 1 -or $cancel.Count -ne 1 -or $submit.Count -ne 1) { continue }
+        $identity = @($group.ProcessId,$owners[0].Handle,$group.Handle,$label.Handle,$size[0].Handle,$track[0].Handle,$cancel[0].Handle,$submit[0].Handle) -join ':'
+        $selectionCandidates += [PSCustomObject]@{ Owner=$owners[0]; Group=$group; Label=$label; Size=$track[0]; Cancel=$cancel[0]; Submit=$submit[0]; Token=$identity }
+    }
+    if ($selectionCandidates.Count -ne 1) { return $null }
+    return $selectionCandidates[0]
+}
+
+function Get-RemoveSelectionState([object]$Discovery,[switch]$SelectionOnly) {
+    if ($null -eq $Discovery) { return @{ available=$false; reason='Manual Remove selection controls could not be identified uniquely.' } }
+    $d = $Discovery
+    $visibility = @($d.Group.Visible,$d.Label.Visible,$d.Size.Visible,$d.Cancel.Visible,$d.Submit.Visible)
+    if (($visibility -contains $true) -and ($visibility -contains $false)) {
+        return @{ available=$false; reason='Manual Remove selection controls are transitioning.' }
+    }
+    $active = $visibility -notcontains $false
+    $refinement = if($SelectionOnly){@{available=$false;token=$null;reason=$null}}else{Get-RemoveRefinementBinding $d}
+    return @{ available=$true; active=$active; token=$d.Token; mode=$null; canSetMode=$false;
+        refinementDiagnostics=$(if($SelectionOnly){$null}else{$script:SelectedIdentificationEvidence});
+        refinementToken=$refinement.token; canAdd=($active -and $refinement.available); canSubtract=($active -and $refinement.available); refinementReason=$refinement.reason;
+        sizeAvailable=($active -and $d.Size.Enabled -and $d.Group.Enabled -and $d.Owner.Enabled);
+        canCancel=($active -and $d.Cancel.Enabled -and $d.Group.Enabled -and $d.Owner.Enabled);
+        canRemove=($active -and $d.Submit.Enabled -and $d.Group.Enabled -and $d.Owner.Enabled);
+        modeReason='Add/Subtract are unnamed custom controls without an exposed refinement-mode value.' }
+}
+
+function Get-RemoveRefinementProcessStart($processId) {
+    return [Diagnostics.Process]::GetProcessById($processId).StartTime.ToUniversalTime().ToString('o')
+}
+function Assert-RemoveRefinementTargets($d, $binding) {
+    if ($binding.version -ne 2 -or $binding.token -cne $d.Token -or
+        (Get-RemoveRefinementProcessStart $d.Group.ProcessId) -cne $binding.processStartedAt) { throw 'Lightroom process or Selected controls changed during identification.' }
+    if ([DateTime]::UtcNow -ge [DateTime]::Parse($binding.expiresAt).ToUniversalTime()) { throw 'Automatic Add/Subtract label identification expired.' }
+    $candidateKey = (@(Get-SelectedRefinementCandidates $d | ForEach-Object {$_.Handle} | Sort-Object) -join ':')
+    if($candidateKey -cne $binding.candidateKey){throw 'Selected candidate controls changed during identification.'}
+    foreach ($action in @('add','subtract')) {
+        $target = $binding.$action
+        $label = if ($action -eq 'add') {'Add'} else {'Subtract'}
+        if ($null -eq $target -or $target.renderedLabel -cne $label -or $target.Parent -ne $d.Group.Handle -or
+            $target.ProcessId -ne $d.Group.ProcessId -or $target.Class -notmatch '^AfxWnd\d+u$' -or
+            $target.Text -cne ' (Bridge View)' -or $target.ControlId -ne 65535) { throw "$label has no verified label/owner binding." }
+        foreach ($w in @($d.Owner,$d.Group,$d.Label,$d.Size,$d.Cancel,$d.Submit,$target)) {
+            $h = [IntPtr][long]$w.Handle
+            if (-not [LRBridgeNative]::IsWindow($h)) { throw "$label HWND $($w.Handle) no longer exists." }
+            $current = @{
+                ProcessId=[LRBridgeNative]::ProcessId($h); Parent=[long][LRBridgeNative]::GetParent($h)
+                Class=[LRBridgeNative]::ClassName($h); Text=[LRBridgeNative]::WindowText($h)
+                ControlId=[LRBridgeNative]::GetDlgCtrlID($h); Style=[LRBridgeNative]::GetWindowLong($h,$GWL_STYLE)
+            }
+            foreach ($field in @('ProcessId','Parent','Class','Text','ControlId','Style')) {
+                if ($current[$field] -cne $w.$field) { throw "$label HWND $($w.Handle) $field changed." }
+            }
+            if (-not [LRBridgeNative]::EffectivelyVisible($h) -or -not [LRBridgeNative]::IsWindowEnabled($h)) { throw "$label controls are not visible and enabled." }
+        }
+        if (-not [LRBridgeNative]::IsDescendantOf([IntPtr][long]$target.Handle,[IntPtr][long]$d.Owner.Handle)) { throw "$label lost manual Remove ownership." }
+    }
+    if ($binding.add.Handle -eq $binding.subtract.Handle) { throw 'Add and Subtract must be distinct verified controls.' }
+}
+function Get-RemoveRefinementBinding($d,[switch]$Fresh) {
+    try {
+        # Only validated, short-lived memory is cached. Saved per-session files
+        # are never consulted. A changed/expired cache triggers fresh label reads.
+        $binding = $script:RemoveRefinementBinding
+        if($Fresh){$binding=$null}
+        if($null -ne $binding){try{Assert-RemoveRefinementTargets $d $binding}catch{$binding=$null}}
+        if($null -eq $binding){
+            $script:RemoveRefinementBinding=$null
+            $binding=New-AutomaticRemoveRefinementBinding $d
+        }
+        Assert-RemoveRefinementTargets $d $binding
+        $script:RemoveRefinementBinding=$binding
+        return @{ available=$true; token=(@($d.Token,$binding.add.Handle,$binding.subtract.Handle) -join ':'); binding=$binding; reason=$null }
+    } catch { $script:RemoveRefinementBinding=$null; return @{ available=$false; token=$null; reason=$_.Exception.GetBaseException().Message } }
+}
+function Invoke-RemoveSelectionRefinement($Request) {
+    $stage = 'request'
+    $posts=New-Object 'System.Collections.Generic.List[object]'
+    $diagnostics=@{sdkGuard=$null;target=$null;posts=$posts;identification=$null}
+    try {
+        if (@('add','subtract') -notcontains $Request.action -or $Request.token -notmatch '^\d+(:\d+){9}$' -or
+            $Request.validationUrl -notmatch '^http://127\.0\.0\.1:17891/remove/selection-validate\?') { throw 'Invalid Selected refinement request.' }
+        $stage = 'native_identity'
+        $d = Get-RemoveSelectionDiscovery
+        if ($null -eq $d) { throw 'Selected controls are unavailable.' }
+        $verified = Get-RemoveRefinementBinding $d -Fresh
+        $diagnostics.identification=$script:SelectedIdentificationEvidence
+        if (-not $verified.available) { throw $verified.reason }
+        if ($verified.token -cne $Request.token) { throw 'Selected Add/Subtract identity changed after admission.' }
+        $binding = $verified.binding
+        $target = $binding.($Request.action)
+        $diagnostics.target=$target.Handle
+        $stage = 'sdk_guard'
+        $guard = Invoke-RestMethod -Uri $Request.validationUrl -TimeoutSec 8
+        $diagnostics.sdkGuard=($guard.valid -eq $true)
+        if ($guard.valid -ne $true) { throw 'Fresh SDK photo/tool/settings validation was rejected or timed out.' }
+        $stage = 'native_recheck'
+        Assert-RemoveRefinementTargets $d $binding
+        $target = $binding.($Request.action)
+        $client = New-Object LRBridgeNative+RECT
+        if (-not [LRBridgeNative]::GetClientRect([IntPtr][long]$target.Handle,[ref]$client) -or
+            $client.Right -lt 30 -or $client.Right -gt 240 -or $client.Bottom -lt 16 -or $client.Bottom -gt 60) { throw 'Verified target client bounds changed.' }
+        $validate = { Assert-RemoveRefinementTargets $d $binding }
+        $stage = 'input'
+        Post-VerifiedClientClick $target $client $validate $posts
+        return @{ sent=$true; inputStatus='sent'; action=$Request.action; modeConfirmed=$false;stage='posted';diagnostics=$diagnostics }
+    } catch {
+        return @{ sent=$false; inputStatus=$(if ($stage -eq 'input') {'unknown'} else {'not_sent'}); stage=$stage;
+            reason=$_.Exception.Message; modeConfirmed=$false;diagnostics=$diagnostics }
+    }
+}
+
+function Invoke-RemoveSelection([object]$Request) {
+    if (@('cancel','remove') -notcontains $Request.action -or $Request.token -isnot [string] -or
+        $Request.token -notmatch '^\d+(:\d+){7}$' -or $Request.validationUrl -isnot [string] -or
+        $Request.validationUrl -notmatch '^http://127\.0\.0\.1:17891/remove/selection-validate\?') { throw 'Invalid Remove selection action' }
+    $discovery = Find-RemoveSelection (Get-LightroomWindows)
+    # Cancel/Remove need the selection lifecycle only; label recognition must
+    # never add latency or a dependency to their established activation path.
+    $state = Get-RemoveSelectionState $discovery -SelectionOnly
+    $canAct = if ($Request.action -eq 'cancel') { $state.canCancel } else { $state.canRemove }
+    if (-not $state.available -or -not $state.active -or -not $canAct -or $state.token -cne $Request.token) {
+        Throw-Unavailable 'The manual Remove selection changed before dispatch'
+    }
+    # Challenge the live SDK guard after the shared queue wait. Normal context
+    # heartbeats pause while the SDK command worker is busy.
+    $binding = Invoke-RestMethod -Uri $Request.validationUrl -TimeoutSec 2
+    if ($binding.valid -ne $true) { Throw-Unavailable 'Remove selection operation no longer owns this photo/context' }
+    $target = if ($Request.action -eq 'cancel') { $discovery.Cancel } else { $discovery.Submit }
+    $validate = {
+        foreach ($w in @($discovery.Owner,$discovery.Group,$discovery.Label,$discovery.Size,$discovery.Cancel,$discovery.Submit)) {
+            $h = [IntPtr]$w.Handle
+            if (-not [LRBridgeNative]::IsWindow($h) -or [LRBridgeNative]::ProcessId($h) -ne $w.ProcessId -or
+                [Int64][LRBridgeNative]::GetParent($h) -ne $w.Parent -or [LRBridgeNative]::ClassName($h) -cne $w.Class -or
+                [LRBridgeNative]::GetDlgCtrlID($h) -ne $w.ControlId -or ([LRBridgeNative]::GetWindowLong($h,$GWL_STYLE) -band 0xF) -ne ($w.Style -band 0xF) -or
+                [LRBridgeNative]::WindowText($h) -cne $w.Text -or -not [LRBridgeNative]::EffectivelyVisible($h) -or
+                -not [LRBridgeNative]::IsWindowEnabled($h)) { Throw-Unavailable 'Remove selection control identity or availability changed' }
+        }
+    }
+    & $validate
+    if ($Request.action -eq 'cancel') {
+        if (-not [LRBridgeNative]::PostMessage([IntPtr]$target.Handle,$BM_CLICK,[IntPtr]::Zero,[IntPtr]::Zero)) { throw 'Cancel could not be posted' }
+    } else {
+        $client = New-Object LRBridgeNative+RECT
+        if (-not [LRBridgeNative]::GetClientRect([IntPtr]$target.Handle,[ref]$client) -or
+            $client.Right -lt 30 -or $client.Right -gt 240 -or $client.Bottom -lt 16 -or $client.Bottom -gt 60) {
+            Throw-Unavailable 'Remove button client bounds are unavailable'
+        }
+        Post-VerifiedClientClick $target $client $validate
+    }
+    # Posting is not completion. The SDK worker subsequently verifies the native
+    # selection lifecycle and the completed repair inventory without retrying.
+    return @{ sent=$true }
+}
+
 function Invoke-Request([object]$Request) {
     if ($null -eq $Request -or $Request.id -isnot [int64] -and $Request.id -isnot [int32]) { throw "Invalid request id" }
     if ($Request.operation -eq "readState") { return Get-NativeState }
+    if ($Request.operation -eq 'readRemoveSelection') { return Get-RemoveSelectionState (Get-RemoveSelectionDiscovery) }
+    if ($Request.operation -eq 'actRemoveSelection') { return Invoke-RemoveSelection $Request }
+    if ($Request.operation -eq 'actRemoveSelectionRefinement') { return Invoke-RemoveSelectionRefinement $Request }
     if ($Request.operation -eq "setTrackbar") {
         if (@("amount", "size", "feather", "flow") -notcontains $Request.control) { throw "Unknown Brush Refinement control" }
         if ($null -ne $Request.interaction -and $Request.interaction -isnot [string]) { throw "Invalid Brush Refinement interaction id" }
@@ -1575,6 +1787,8 @@ function Invoke-Request([object]$Request) {
     }
     throw "Unknown native operation"
 }
+
+. (Join-Path $PSScriptRoot 'windows-remove-selected-identification.ps1')
 
 while ($null -ne ($line = [Console]::In.ReadLine())) {
     if ([string]::IsNullOrWhiteSpace($line)) { continue }

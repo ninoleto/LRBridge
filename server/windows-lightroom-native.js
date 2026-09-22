@@ -30,6 +30,7 @@ function unavailableNativeState(reason) {
             feather: unavailableControl(),
             flow: unavailableControl()
         },
+        apply: unavailableCheckbox(),
         visualizeDepth: unavailableCheckbox(),
         autoMask: unavailableCheckbox(),
         refinementMode: "unknown",
@@ -70,6 +71,7 @@ function sanitizeNativeState(input) {
     state.available = true;
     state.reason = null;
     for (const control of BRUSH_CONTROLS) state.brush[control] = sanitizeNumericControl(input.brush[control]);
+    state.apply = sanitizeCheckbox(input.apply);
     state.visualizeDepth = sanitizeCheckbox(input.visualizeDepth);
     state.autoMask = sanitizeCheckbox(input.autoMask);
     state.refinementMode = input.refinementMode === "focus" || input.refinementMode === "blur"
@@ -125,6 +127,9 @@ function createUnavailableWindowsBackend(reason) {
         activateFocusRangeAction: reject,
         readProfileLabel: reject,
         readProfileSnapshot: reject,
+        readRemoveSelection: reject,
+        actRemoveSelection: reject,
+        actRemoveSelectionRefinement: reject,
         getTransportDiagnostics: function () {
             return { active: false, queueDepth: 0, pendingCount: 0 };
         },
@@ -132,7 +137,7 @@ function createUnavailableWindowsBackend(reason) {
     });
 }
 
-function createWindowsLightroomNativeBackend(options) {
+function createWindowsLightroomNativeBackend(options, selectionReadOnly = false) {
     options = options || {};
     const platform = options.platform || process.platform;
     if (platform !== "win32") return createUnavailableWindowsBackend("Windows native backend is unavailable on " + platform);
@@ -143,6 +148,8 @@ function createWindowsLightroomNativeBackend(options) {
     if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs < 250 || requestTimeoutMs > 60000) {
         throw new TypeError("requestTimeoutMs must be an integer from 250 through 60000");
     }
+    // Keep queued state polls within the controller proxy's 10s deadline, including execution time.
+    const stateQueueTimeoutMs = Math.min(3000, requestTimeoutMs);
 
     let child = null;
     let reader = null;
@@ -150,12 +157,19 @@ function createWindowsLightroomNativeBackend(options) {
     const pending = new Map();
     const requestQueue = [];
     let activeRequest = null;
+    let selectionReader = null;
+    let selectionObserverPaused = false, selectionObserverGeneration = 0, selectionObserverChangedAt = null;
+    let sharedReadPauseUntil = null;
+    const sharedReadOperations = new Set(["readState", "readProfileLabel", "readProfileSnapshot"]);
+    const sharedReadsPaused = () => sharedReadPauseUntil !== null && Date.now() < sharedReadPauseUntil;
     let drainScheduled = false;
     const transportDiagnostics = {
         enqueued: 0,
         dispatched: 0,
         completed: 0,
         timedOut: 0,
+        stateQueueTimeouts: 0,
+        sharedStateReads: 0,
         helperRestarts: 0,
         maxQueueDepth: 0
     };
@@ -185,7 +199,7 @@ function createWindowsLightroomNativeBackend(options) {
 
     function rejectQueued(error) {
         const queued = requestQueue.splice(0, requestQueue.length);
-        queued.forEach(function (job) { job.reject(error); });
+        queued.forEach(function (job) { clearTimeout(job.queueTimer); job.reject(error); });
     }
 
     function disposeChild(instance) {
@@ -272,6 +286,7 @@ function createWindowsLightroomNativeBackend(options) {
     function drainRequestQueue() {
         if (activeRequest !== null || requestQueue.length === 0) return;
         const job = requestQueue.shift();
+        clearTimeout(job.queueTimer);
         let instance;
         try { instance = startChild(); }
         catch (error) {
@@ -280,6 +295,7 @@ function createWindowsLightroomNativeBackend(options) {
             return;
         }
         activeRequest = job;
+        job.dispatchedAt = Date.now();
         transportDiagnostics.dispatched += 1;
         const message = Object.assign({ id: job.id, operation: job.operation }, job.parameters);
         const timer = setTimeout(function () {
@@ -290,7 +306,7 @@ function createWindowsLightroomNativeBackend(options) {
             transportDiagnostics.timedOut += 1;
             entry.reject(new NativeBackendUnavailableError("Windows native helper timed out"));
             failHelperInstance(instance, new NativeBackendUnavailableError("Windows native helper timed out"), true);
-        }, requestTimeoutMs);
+        }, job.operation === "actRemoveSelectionRefinement" ? Math.max(10000, requestTimeoutMs) : requestTimeoutMs);
         pending.set(job.id, {
             resolve: job.resolve,
             reject: job.reject,
@@ -311,20 +327,47 @@ function createWindowsLightroomNativeBackend(options) {
     }
 
     function request(operation, parameters) {
+        if (selectionReadOnly && operation !== "readRemoveSelection") throw new TypeError("Selected observer only permits reads");
+        if (sharedReadOperations.has(operation) && sharedReadsPaused()) {
+            return Promise.reject(new NativeBackendUnavailableError("Shared native reads temporarily paused for diagnostic comparison."));
+        }
+        // Coalescing bounds full-state polling to one queued read. Keep Profile discovery reads in FIFO
+        // order too, so their context-refresh chain cannot repeatedly overtake a waiting Lens Blur poll.
+        const background = operation === "readState" || operation === "readRemoveSelection";
+        if (background) {
+            // Share only undispatched reads. An active read may already describe an earlier photo.
+            const queued = requestQueue.find(function (job) { return job.background && job.operation === operation; });
+            if (queued) {
+                transportDiagnostics.sharedStateReads += 1;
+                return queued.promise;
+            }
+        }
         const id = ++requestId;
-        // Full Profile snapshots unblock UUID-context inventory stabilization, so they must not sit behind
-        // generic native-state polling. Profile state already coalesces concurrent snapshot refreshes.
-        const background = operation === "readState";
-        return new Promise(function (resolve, reject) {
-            const job = {
+        let job;
+        const promise = new Promise(function (resolve, reject) {
+            job = {
                 id: id,
                 operation: operation,
                 parameters: parameters || {},
                 background: background,
-                resolve: resolve,
-                reject: reject
+                enqueuedAt: Date.now(),
+                resolve: operation === "readRemoveSelection" ? result => resolve({ ...result, readTiming: selectedReadTiming(job) }) : resolve,
+                reject: operation === "readRemoveSelection" ? error => { error.readTiming = selectedReadTiming(job); reject(error); } : reject
             };
             if (background) {
+                requestQueue.push(job);
+                job.queueTimer = setTimeout(function () {
+                    const index = requestQueue.indexOf(job);
+                    if (index === -1) return;
+                    requestQueue.splice(index, 1);
+                    transportDiagnostics.stateQueueTimeouts += 1;
+                    console.warn("Windows native state queue wait expired", {
+                        operation, waitMs: stateQueueTimeoutMs, activeOperation: activeRequest ? activeRequest.operation : null,
+                        queueDepth: requestQueue.length
+                    });
+                    job.reject(new NativeBackendUnavailableError("Windows native state read waited too long in the queue"));
+                }, stateQueueTimeoutMs);
+            } else if (operation === "readProfileSnapshot" || operation === "readProfileLabel") {
                 requestQueue.push(job);
             } else {
                 const firstBackground = requestQueue.findIndex(function (queued) { return queued.background; });
@@ -335,6 +378,14 @@ function createWindowsLightroomNativeBackend(options) {
             transportDiagnostics.maxQueueDepth = Math.max(transportDiagnostics.maxQueueDepth, requestQueue.length);
             drainRequestQueue();
         });
+        job.promise = promise;
+        return promise;
+    }
+
+    function selectedReadTiming(job) {
+        const finishedAt = Date.now();
+        return { queueMs: (job.dispatchedAt || finishedAt) - job.enqueuedAt,
+            executionMs: job.dispatchedAt ? finishedAt - job.dispatchedAt : null };
     }
 
     function validateBrushControl(control) {
@@ -416,8 +467,50 @@ function createWindowsLightroomNativeBackend(options) {
         readProfileSnapshot: function () {
             return request("readProfileSnapshot");
         },
+        setSharedReadPauseUntil: function (until) {
+            if (selectionReadOnly || until !== null && (!Number.isSafeInteger(until) || until <= 0 || until > Date.now() + 600000)) {
+                throw new TypeError("Invalid shared native read diagnostic expiry");
+            }
+            // Existing requests drain normally. No helper is killed and no action
+            // or queue entry is changed. New reads fail explicitly until expiry.
+            sharedReadPauseUntil = until;
+        },
         readProfileLabel: function () {
             return request("readProfileLabel");
+        },
+        readRemoveSelection: function () {
+            if (selectionReadOnly) return request("readRemoveSelection");
+            const generation = selectionObserverGeneration;
+            const paused = () => ({ available: false, observationPaused: selectionObserverPaused,
+                reason: selectionObserverPaused ? "Native Healing observer temporarily paused for diagnostic comparison." : "Native Healing observation changed during this read." });
+            if (selectionObserverPaused) return Promise.resolve(paused());
+            // Profile discovery can occupy the action helper longer than Selected's
+            // freshness budget. Observe independently; all native writes retain the
+            // original shared queue and their just-in-time SDK context challenge.
+            if (!selectionReader) selectionReader = createWindowsLightroomNativeBackend(options, true);
+            return selectionReader.readRemoveSelection().then(
+                result => generation === selectionObserverGeneration ? result : paused(),
+                error => { if (generation !== selectionObserverGeneration) return paused(); throw error; });
+        },
+        setSelectionObserverPaused: function (paused) {
+            if (typeof paused !== "boolean" || selectionReadOnly) throw new TypeError("Invalid parent observer pause request");
+            if (paused === selectionObserverPaused) return;
+            selectionObserverPaused = paused; selectionObserverGeneration++; selectionObserverChangedAt = Date.now();
+            // Only stop the dedicated reader. The action/Profile/Lens Blur helper
+            // and its queue retain their ownership, order and validation.
+            if (paused && selectionReader) { const reader = selectionReader; selectionReader = null; reader.stop(); }
+        },
+        actRemoveSelection: function (action, token, validationUrl) {
+            if (!["cancel", "remove"].includes(action) || typeof token !== "string" || !/^\d+(?::\d+){7}$/.test(token) ||
+                typeof validationUrl !== "string" || !validationUrl.startsWith("http://127.0.0.1:17891/remove/selection-validate?")) {
+                throw new TypeError("Invalid Remove selection action");
+            }
+            return request("actRemoveSelection", { action, token, validationUrl });
+        },
+        actRemoveSelectionRefinement: function (action, token, validationUrl) {
+            if (!["add", "subtract"].includes(action) || typeof token !== "string" || !/^\d+(?::\d+){9}$/.test(token) ||
+                typeof validationUrl !== "string" || !validationUrl.startsWith("http://127.0.0.1:17891/remove/selection-validate?")) throw new TypeError("Invalid Selected refinement action");
+            return request("actRemoveSelectionRefinement", { action, token, validationUrl });
         },
         getTransportDiagnostics: function () {
             return Object.assign({
@@ -425,9 +518,12 @@ function createWindowsLightroomNativeBackend(options) {
                 activeOperation: activeRequest ? activeRequest.operation : null,
                 queueDepth: requestQueue.length,
                 pendingCount: pending.size
-            }, transportDiagnostics);
+            }, transportDiagnostics, { helperPid: child?.pid || null, selectionObserverPaused, selectionObserverChangedAt,
+                sharedReadsPaused: sharedReadsPaused(), sharedReadPauseUntil },
+                selectionReader ? { selectedObserver: selectionReader.getTransportDiagnostics() } : {});
         },
         stop: function () {
+            if (selectionReader) { selectionReader.stop(); selectionReader = null; }
             const instance = child;
             const error = new NativeBackendUnavailableError("Windows native backend stopped");
             if (instance) rejectPendingForInstance(instance, error);

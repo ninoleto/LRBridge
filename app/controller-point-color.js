@@ -148,6 +148,8 @@
         let generation = 0;
         let requestInFlight = false;
         let externallyBlocked = false;
+        let visualizeRequest = null;
+        let visualizeControl = null;
 
         function notifyBusy() { onInteractionChange(isBusy()); }
 
@@ -302,6 +304,7 @@
         function resetContext(nextBinding) {
             cancelLocalGestures();
             generation += 1;
+            visualizeRequest = null;
             clearWritePipeline(null, false);
             state = unavailableState();
             binding = nextBinding || null;
@@ -685,6 +688,7 @@
             else if (Array.isArray(host.children)) host.children.length = 0;
             else while (host.firstChild) host.removeChild(host.firstChild);
             controls = Object.create(null); rangeControls = Object.create(null);
+            visualizeControl = null;
             if (showHeading) {
                 const heading = documentObject.createElement("div");
                 heading.className = "color-mixer-group-heading"; heading.textContent = "POINT COLOR";
@@ -774,19 +778,40 @@
                 rangeControls[definition.name] = control; host.appendChild(control.root);
             });
             if (showVisualize) {
-                const toggle = makeButton("Toggle Visualize Range", "command-neutral", function () {
-                    Promise.resolve(visualizeAction(binding)).catch(function (error) {
-                        onStatus("ERROR: " + (error && error.message ? error.message : "Visualize Range request failed"));
-                    });
+                const toggle = makeButton("Toggle Visualize Range", "command-neutral", async function () {
+                    if (toggle.disabled || visualizeRequest || externallyBlocked || identityKey === null) return;
+                    const request = { generation: generation }; visualizeRequest = request;
+                    toggle.disabled = true; toggle.setAttribute("aria-busy", "true"); notifyBusy();
+                    try { await visualizeAction(binding); }
+                    catch (error) {
+                        if (request.generation === generation) onStatus("ERROR: " + (error && error.message ? error.message : "Visualize Range request failed"));
+                    } finally {
+                        if (visualizeRequest === request) {
+                            visualizeRequest = null;
+                            // Only settle the button: its host may now contain another Color Mixer view.
+                            if (visualizeControl) {
+                                visualizeControl.disabled = externallyBlocked || identityKey === null;
+                                visualizeControl.setAttribute("aria-busy", "false");
+                            }
+                            notifyBusy();
+                        }
+                    }
                 });
                 toggle.id = options.visualizeId || "pointColorVisualizeRange";
-                toggle.disabled = externallyBlocked || identityKey === null;
+                toggle.disabled = externallyBlocked || identityKey === null || !!visualizeRequest;
+                toggle.setAttribute("aria-busy", String(!!visualizeRequest));
+                visualizeControl = toggle;
                 host.appendChild(toggle);
+                const visualizeHelp = documentObject.createElement("p");
+                visualizeHelp.className = "command-group-note";
+                visualizeHelp.style.marginTop = "8px";
+                visualizeHelp.textContent = "Button feedback is not yet supported. Please check Lightroom Classic to see whether Visualize Range is on or off.";
+                host.appendChild(visualizeHelp);
             }
         }
 
         function isBusy() {
-            return !!writeInFlight || pendingWrites.length > 0 || awaitingWrites.size > 0 ||
+            return !!visualizeRequest || !!writeInFlight || pendingWrites.length > 0 || awaitingWrites.size > 0 ||
                 Object.keys(controls).some(function (field) {
                     const control = controls[field];
                     return control.timer !== null || control.editing || control.dirty;

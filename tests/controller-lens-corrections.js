@@ -62,7 +62,7 @@ const defringePosition = manualBuild.indexOf('manualPanel.appendChild(createLens
 assert.ok(manualDistortionPosition >= 0 && manualDistortionPosition < constrainCropPosition &&
     constrainCropPosition < defringePosition,
 "Lens Manual Constrain Crop must render after Distortion Amount and before Defringe");
-assert.match(controller, /developCategoricalControls\.constrainCrop\.push\(\{ row: row, buttons: buttons, status: status \}\)/,
+assert.match(controller, /developCategoricalControls\.constrainCrop\.push\(\{ row: row, checkbox: checkbox\.input, status: status \}\)/,
     "Both Constrain Crop presentations must register against the shared categorical state");
 
 assert.match(lensBlock, /createCompoundDevelopRangeControl\("Purple Hue", purpleLow, purpleHigh\)/);

@@ -42,6 +42,7 @@ function Commands.execute(command)
         return
     end
     if command.command == "remove.brush.set" then Remove.setBrushPreference(command); return end
+    if command.command == "remove.selection.action" then Remove.selectionAction(command); return end
     if command.command == "remove.dust.off" or command.command == "remove.dust.on" or command.command == "remove.dust.close" then Remove.setDust(command); return end
     if command.command == "remove.panel.set" then Remove.setPanel(command); return end
     if command.command == "remove.repair.action" then Remove.repairAction(command); return end

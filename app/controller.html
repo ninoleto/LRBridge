@@ -971,6 +971,7 @@
 
         .masking-create-control { position: relative; }
         .remove-brush-preferences > p:not(.remove-reset-defaults) { margin: 0 0 8px; }
+        .remove-selection-status,
         .remove-brush-status,
         .remove-repair-status {
             min-height: 16px;
@@ -997,8 +998,10 @@
         .remove-action-row [data-remove-panel] { display: inline-grid; }
         .remove-action-row [data-remove-panel]::before { content: "Close Healing Tool"; visibility: hidden; grid-area: 1 / 1; }
         .remove-action-row [data-remove-panel] > span { grid-area: 1 / 1; }
+        .remove-selected-workflow,
         .remove-selected-repair,
         .remove-distraction-removal { margin: 20px 0 0; padding-top: 12px; border-top: 1px solid #405263; }
+        .remove-selected-workflow > h3,
         .remove-selected-repair > h3,
         .remove-distraction-removal > h3 { margin: 0 0 10px; color: #8fa2b3; font-size: 16px; font-weight: 600; }
         .remove-repair-selection { min-height: 20px; margin-bottom: 8px; }
@@ -1026,6 +1029,7 @@
         @media (max-width: 760px) {
             .remove-mode-controls { min-height: 160px; }
             .remove-mode-controls > div:not([data-remove-field]) { display: block; }
+            .remove-selection-status,
             .remove-brush-status,
             .remove-repair-status { min-height: 32px; }
             .people-status { min-height: 32px; }
@@ -3545,6 +3549,18 @@
         .clipboard-review { margin-top: 8px; }
         .clipboard-review[hidden], .clipboard-status[hidden] { display: none; }
         .clipboard-controls, .export-controls { scroll-margin-top: calc(var(--controller-toolbar-height, 64px) + 12px); }
+        .native-checkbox-label { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px; width: fit-content; max-width: 100%; box-sizing: border-box; cursor: pointer; touch-action: manipulation; }
+        .native-checkbox-label input[type="checkbox"], .remove-preference-row input[type="checkbox"] { width: 18px; height: 18px; min-width: 18px; margin: 0; accent-color: #eab061; }
+        .native-checkbox-label:has(input:disabled) { cursor: default; color: #999; }
+        .native-checkbox-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 8px; }
+        .denoise-slider-row.native-checkbox-row { display: grid; grid-template-columns: 240px minmax(120px, 1fr) 76px 44px 44px; }
+        .denoise-slider-row.native-checkbox-row .enhance-status { grid-column: 1 / -1; }
+        @media (max-width: 768px) {
+            .denoise-slider-row.native-checkbox-row { grid-template-columns: minmax(0, 1fr) 76px 44px 44px; }
+            .denoise-slider-row.native-checkbox-row .native-checkbox-label { grid-column: 1 / -1; }
+            .denoise-slider-row.native-checkbox-row input[type="range"] { grid-column: 1 / -1; }
+            .denoise-slider-row.native-checkbox-row input[type="text"] { grid-column: 2; }
+        }
     </style>
 </head>
 <body>
@@ -5189,8 +5205,8 @@
             applyAuthoritative: function () { return this.get(); }
         };
         let lensBlurStateRequestInFlight = false;
-        let lensBlurApplyOffButton = null;
-        let lensBlurApplyOnButton = null;
+        let lensBlurApplyCheckbox = null;
+        let lensBlurApplyRequestInFlight = false;
         let lensBlurApplyStatus = null;
         let lensBlurBokehButtons = {};
         let lensBlurBokehStatus = null;
@@ -5199,6 +5215,7 @@
         let lensBlurVisualizeButtons = null;
         let lensBlurAutoMaskButtons = null;
         let lensBlurVisualizePending = null;
+        let lensBlurAutoMaskPending = null;
         const LENS_BLUR_VISUALIZE_CONFIRMATION_TIMEOUT_MS = 7000;
         let lensBlurModeButtons = null;
         let lensBlurRefinementResetButton = null;
@@ -5485,16 +5502,13 @@
         let enhanceState = null;
         let enhanceAmountInput = null;
         let enhanceAmountRange = null;
-        let enhanceOffButton = null;
-        let enhanceOnButton = null;
+        let enhanceCheckbox = null;
         let enhanceMinusButton = null;
         let enhancePlusButton = null;
         let enhanceStatus = null;
-        let rawDetailsOffButton = null;
-        let rawDetailsOnButton = null;
+        let rawDetailsCheckbox = null;
         let rawDetailsStatus = null;
-        let superResolutionOffButton = null;
-        let superResolutionOnButton = null;
+        let superResolutionCheckbox = null;
         let superResolutionStatus = null;
         let enhanceRequestInFlight = false;
         const enhanceAmountModel = LRBridgeDenoiseState.create();
@@ -5730,9 +5744,9 @@
             });
         }
 
-        async function pollFeedbackSnapshot(requestId, timeoutMs, signal) {
+        async function pollFeedbackSnapshot(requestId, timeoutMs, signal, waitForResult) {
             const startedAt = Date.now();
-            const endpoint = "/api/feedback/snapshot?id=" + encodeURIComponent(requestId);
+            const endpoint = "/api/feedback/snapshot?id=" + encodeURIComponent(requestId) + (waitForResult ? "&wait=1" : "");
             let latestSnapshot = null;
             while (Date.now() - startedAt < timeoutMs) {
                 if (signal && signal.aborted) return { snapshot: latestSnapshot, timedOut: false, aborted: true };
@@ -5836,6 +5850,13 @@
         }
 
         async function requestLiveFeedbackSnapshot(forceAll) {
+            // Leave SDK read capacity for accepted Resets until their targeted
+            // feedback settles. Context polling and edit submission keep running.
+            pruneDevelopSliderResetFeedback();
+            if (pendingDevelopSliderResetFeedback.size) {
+                pendingFullFeedbackSnapshot = pendingFullFeedbackSnapshot || forceAll === true;
+                return;
+            }
             if (isTreatmentControllerTab(activeTab)) requestTreatmentState();
             if (!genericFeedbackActive || !isGenericDevelopFeedbackTab(activeTab)) return;
 
@@ -5919,7 +5940,19 @@
             }
         }
 
+        let controllerContextPollInFlight = null;
+
         async function pollControllerContext() {
+            // Reset retries need a fresh context without racing the interval poll.
+            if (!controllerContextPollInFlight) {
+                controllerContextPollInFlight = readControllerContext().finally(function () {
+                    controllerContextPollInFlight = null;
+                });
+            }
+            return controllerContextPollInFlight;
+        }
+
+        async function readControllerContext() {
             try {
                 const response = await fetch("/api/context", { cache: "no-store" });
                 const data = await response.json();
@@ -5950,6 +5983,11 @@
                 }
                 if (classification === "navigation") {
                     invalidatePointColorState();
+                    Object.keys(developSliderControls).forEach(function (slider) {
+                        connectedDevelopSliderControls(slider).forEach(function (control) {
+                            if (control.applySwitchFeedback) control.applySwitchFeedback(null);
+                        });
+                    });
                     invalidateHDRRenditionControls();
                     lensBlurModel.applyAuthoritative(null);
                     lensBlurSubjectPresentation.reset();
@@ -6033,9 +6071,11 @@
 
                 heartbeatWasStale = !data.lastHeartbeatAt || Date.now() - data.lastHeartbeatAt > 2000;
                 updateHistoryButtons();
+                return true;
             } catch (err) {
                 heartbeatWasStale = true;
                 updateHistoryButtons();
+                return false;
             }
         }
 
@@ -6082,6 +6122,9 @@
         function clearContent() {
             removeSliderJumpMenus();
             disposeDevelopTreatmentPresentation();
+            Object.values(developSliderControls).forEach(function (control) {
+                if (control.cleanup) control.cleanup();
+            });
             content.innerHTML = "";
             cropToolButton = null;
             cropToolStatus = null;
@@ -6604,64 +6647,82 @@
             groupElement.appendChild(row);
         }
 
+        function updateNativeCheckbox(input, known, checked, disabled, pending) {
+            input.indeterminate = !known;
+            input.checked = known && checked === true;
+            input.dataset.confirmed = String(input.checked);
+            input.dataset.known = String(known === true);
+            input.disabled = !known || disabled === true;
+            input.setAttribute("aria-busy", String(pending === true));
+        }
+
+        function createNativeCheckbox(label, setter) {
+            const row = document.createElement("label");
+            row.className = "native-checkbox-label";
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.setAttribute("aria-label", label);
+            const text = document.createElement("span"); text.textContent = label;
+            row.append(input, text);
+            updateNativeCheckbox(input, false, false, true, false);
+            input.addEventListener("change", function () {
+                const target = input.checked;
+                // A browser click is intent. Display only Lightroom's confirmed state.
+                input.checked = input.dataset.confirmed === "true";
+                input.indeterminate = input.dataset.known !== "true";
+                if (!input.disabled && (!input.indeterminate || input.dataset.allowUnknown === "true")) setter(target);
+            });
+            return { row: row, input: input };
+        }
+
         function addSwitchRow(groupElement, item) {
             const row = document.createElement("div");
-            row.className = "switch-row";
+            row.className = "switch-row native-checkbox-row";
             row.dataset.sliderId = item.slider;
             const usesAuthoritativeZeroOne = item.explicitZeroOne === true || item.authoritativeZeroOne === true;
-
-            const name = document.createElement("div");
-            name.className = "slider-name";
-            name.textContent = item.label;
-
-            const status = document.createElement("div");
-            status.className = "switch-status";
-
-            row.appendChild(name);
-
-            const offButton = makeButton("Off", "negative", function () {
+            const status = document.createElement("div"); status.className = "switch-status";
+            status.setAttribute("role", "status");
+            let authoritative = null, pending = false, target = null, pendingTimer = null, requestSequence = 0;
+            const checkbox = createNativeCheckbox(item.label, function (enabled) {
+                if (pending) return;
+                pending = true; target = enabled ? 1 : 0; render();
+                const request = ++requestSequence;
+                const binding = { generation: genericFeedbackGeneration, contextCounter: lastControllerContextCounter,
+                    activeModule: lastControllerActiveModule, selectedPhotoKey: lastControllerSelectedPhotoKey };
                 markSliderCommandSent();
                 sendCommand(usesAuthoritativeZeroOne
-                    ? "/api/set?slider=" + encodeURIComponent(item.slider) + "&value=0"
-                    : "/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=-5").then(function (accepted) {
-                        if (accepted && usesAuthoritativeZeroOne) setTimeout(function () { requestLiveFeedbackSnapshot(true); }, 300);
+                    ? "/api/set?slider=" + encodeURIComponent(item.slider) + "&value=" + target
+                    : "/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=" + (enabled ? 5 : -5)).then(function (accepted) {
+                        if (!row.isConnected || request !== requestSequence || !hdrModeBindingMatches(binding)) return;
+                        if (!accepted) { pending = false; render(); status.textContent = "Request rejected"; }
+                        requestLiveFeedbackSnapshot(true);
+                        if (pending) pendingTimer = setTimeout(function () {
+                            if (request !== requestSequence || !hdrModeBindingMatches(binding)) return;
+                            pendingTimer = null; pending = false; render();
+                            if (row.isConnected) status.textContent = "Not confirmed — check Lightroom";
+                        }, 8000);
                     });
-                status.textContent = "Sent OFF";
             });
-            row.appendChild(offButton);
-
-            const onButton = makeButton("On", "positive", function () {
-                markSliderCommandSent();
-                sendCommand(usesAuthoritativeZeroOne
-                    ? "/api/set?slider=" + encodeURIComponent(item.slider) + "&value=1"
-                    : "/api/adjust?slider=" + encodeURIComponent(item.slider) + "&amount=5").then(function (accepted) {
-                        if (accepted && usesAuthoritativeZeroOne) setTimeout(function () { requestLiveFeedbackSnapshot(true); }, 300);
-                    });
-                status.textContent = "Sent ON";
-            });
-            row.appendChild(onButton);
-
-            if (usesAuthoritativeZeroOne) {
-                offButton.disabled = true;
-                onButton.disabled = true;
-                developSliderControls[item.slider] = {
-                    row: row,
-                    definition: { id: item.slider },
-                    applySwitchFeedback: function (value) {
-                        const available = value === 0 || value === 1;
-                        offButton.disabled = !available;
-                        onButton.disabled = !available;
-                        offButton.classList.toggle("active", available && value === 0);
-                        onButton.classList.toggle("active", available && value === 1);
-                        status.textContent = available ? (value === 0 ? "Off" : "On") : "Unavailable";
-                    }
-                };
-                sliderFeedbackElements[item.slider] = row;
+            function render() {
+                const known = authoritative === 0 || authoritative === 1;
+                updateNativeCheckbox(checkbox.input, known, authoritative === 1, pending, pending);
+                status.textContent = !known ? "Unavailable" : pending ? "Awaiting Lightroom…" : "";
             }
-
-            row.appendChild(status);
-
-            groupElement.appendChild(row);
+            developSliderControls[item.slider] = {
+                row: row, definition: { id: item.slider },
+                applySwitchFeedback: function (value) {
+                    authoritative = value === 0 || value === 1 ? value : null;
+                    if (authoritative === target || authoritative === null) {
+                        requestSequence++;
+                        pending = false; clearTimeout(pendingTimer); pendingTimer = null;
+                    }
+                    render();
+                },
+                markFeedbackError: function () { this.applySwitchFeedback(null); status.textContent = "Feedback unavailable"; },
+                cleanup: function () { requestSequence++; pending = false; clearTimeout(pendingTimer); pendingTimer = null; }
+            };
+            sliderFeedbackElements[item.slider] = row;
+            row.append(checkbox.row, status); groupElement.appendChild(row); render();
         }
 
         function formatDevelopSliderValue(definition, value) {
@@ -6933,6 +6994,11 @@
         }
 
         function applyDevelopSliderFeedbackIfChanged(control, result) {
+            const feedbackFloor = control.feedbackRequestFloor;
+            if (feedbackFloor && developSliderFeedbackBindingMatches(feedbackFloor.binding) && Number.isSafeInteger(result.id)) {
+                if (result.id < feedbackFloor.id) return;
+                feedbackFloor.id = result.id;
+            }
             if (isProfileAmountControl(control) && control.profileAmountEnabled !== true) return;
             if (result.available === false && control.definition.authoritativeUnavailableImmediate === true) {
                 markDevelopSliderUnavailable(control, true);
@@ -7193,6 +7259,145 @@
                 developSliderConfirmationTolerance(definition);
         }
 
+        function applyTargetedDevelopSliderFeedback(control, result, requestId, binding) {
+            // A targeted read may finish before an older full-panel snapshot.
+            const feedbackFloor = control.feedbackRequestFloor;
+            control.feedbackRequestFloor = {
+                id: feedbackFloor && developSliderFeedbackBindingMatches(feedbackFloor.binding)
+                    ? Math.max(feedbackFloor.id, requestId) : requestId,
+                binding: binding
+            };
+            applyDevelopSliderFeedbackIfChanged(control, result);
+        }
+
+        const pendingDevelopSliderResetFeedback = new Map();
+        const developSliderResetFeedbackReads = new Set();
+        let developSliderResetFeedbackDispatching = false;
+        let developSliderResetFeedbackTimer = null;
+
+        function requestDevelopSliderResetFeedback(control, owner, beforeValue) {
+            pendingDevelopSliderResetFeedback.set(control, {
+                owner: owner || developSliderFeedbackBinding(), deadline: Date.now() + 4000, attempts: 0, readyAt: 0,
+                beforeValue: beforeValue
+            });
+            scheduleDevelopSliderResetFeedback();
+        }
+
+        function hasDevelopSliderResetFeedbackRead(control) {
+            return Array.from(developSliderResetFeedbackReads).some(function (batch) {
+                return batch.some(function (entry) { return entry[0] === control; });
+            });
+        }
+
+        function pruneDevelopSliderResetFeedback() {
+            const binding = developSliderFeedbackBinding();
+            pendingDevelopSliderResetFeedback.forEach(function (demand, control) {
+                // Only demand survives same-photo revisions. Each result still
+                // requires the complete binding captured for its own read.
+                if (!control.row.isConnected || Date.now() >= demand.deadline ||
+                    (demand.attempts >= 4 && !hasDevelopSliderResetFeedbackRead(control)) ||
+                    !Object.keys(demand.owner).every(function (field) {
+                        return field === "developCounter" || demand.owner[field] === binding[field];
+                    })) pendingDevelopSliderResetFeedback.delete(control);
+            });
+        }
+
+        function scheduleDevelopSliderResetFeedback() {
+            if (developSliderResetFeedbackTimer !== null) clearTimeout(developSliderResetFeedbackTimer);
+            developSliderResetFeedbackTimer = null;
+            if (developSliderResetFeedbackDispatching || developSliderResetFeedbackReads.size >= 2) return;
+            const waiting = Array.from(pendingDevelopSliderResetFeedback.entries()).filter(function (entry) {
+                return !hasDevelopSliderResetFeedbackRead(entry[0]);
+            });
+            if (waiting.length) {
+                const readyAt = Math.min.apply(null, waiting.map(function (entry) { return entry[1].readyAt; }));
+                developSliderResetFeedbackTimer = setTimeout(function () {
+                    developSliderResetFeedbackTimer = null;
+                    flushDevelopSliderResetFeedback();
+                }, Math.max(0, readyAt - Date.now()));
+            } else if (!pendingDevelopSliderResetFeedback.size && pendingFullFeedbackSnapshot) {
+                pendingFullFeedbackSnapshot = false;
+                requestLiveFeedbackSnapshot(true);
+            }
+        }
+
+        async function flushDevelopSliderResetFeedback() {
+            if (developSliderResetFeedbackDispatching || developSliderResetFeedbackReads.size >= 2) return;
+            developSliderResetFeedbackDispatching = true;
+            let batch = [], binding;
+            try {
+                // Do not bind a renewed server read to the browser's previous
+                // Develop revision while waiting for the next 500ms context poll.
+                const contextFresh = await pollControllerContext();
+                binding = developSliderFeedbackBinding();
+                if (!contextFresh) pendingDevelopSliderResetFeedback.clear();
+                else pruneDevelopSliderResetFeedback();
+                batch = Array.from(pendingDevelopSliderResetFeedback.entries()).filter(function (entry) {
+                    return entry[1].readyAt <= Date.now() && !hasDevelopSliderResetFeedbackRead(entry[0]);
+                });
+                if (batch.length) developSliderResetFeedbackReads.add(batch);
+            } finally {
+                developSliderResetFeedbackDispatching = false;
+            }
+            if (!batch.length) { scheduleDevelopSliderResetFeedback(); return; }
+            // Preserve the next due demand when this batch only consumes some
+            // ready entries; its timer must not depend on this result returning.
+            scheduleDevelopSliderResetFeedback();
+            const sliders = batch.map(function (entry) { entry[1].attempts += 1; return entry[0].definition.id; });
+            let invalidated = false;
+            const unchanged = new Set();
+            try {
+                // At most two small reads may wait for results. A new Reset need
+                // not wait for another slider's result; pending bursts share a read.
+                const endpoint = sliders.length === 1 ? "/api/feedback/request?slider=" : "/api/feedback/request-many?sliders=";
+                const response = await fetch(endpoint + encodeURIComponent(sliders.join(",")) + "&purpose=reset", { cache: "no-store" });
+                const data = await response.json();
+                if (!response.ok || !data.request || data.request.id === undefined) throw new Error("Reset feedback request failed");
+                const outcome = await pollFeedbackSnapshot(data.request.id, 1900, undefined, true);
+                const readContext = outcome.snapshot && outcome.snapshot.context;
+                if (readContext) {
+                    // The server can retain undispatched Reset demand through
+                    // same-photo edits. Only the SDK-dispatch revision owns results.
+                    const sameOwner = ["activeModule", "selectedPhotoUuid", "contextCounter", "contextChangedAt"]
+                        .every(function (field) { return readContext[field] === binding[field]; });
+                    if (!sameOwner || !Number.isSafeInteger(readContext.developCounter) ||
+                        readContext.developCounter < binding.developCounter) invalidated = true;
+                    else {
+                        binding = Object.assign({}, binding, { developCounter: readContext.developCounter });
+                        const contextFresh = await pollControllerContext();
+                        invalidated = !contextFresh || readContext.selectedPhotoKey !== lastControllerSelectedPhotoKey;
+                    }
+                }
+                invalidated = invalidated || !developSliderFeedbackBindingMatches(binding);
+                if (!invalidated) batch.forEach(function (entry) {
+                    const control = entry[0], demand = entry[1];
+                    if (pendingDevelopSliderResetFeedback.get(control) !== demand) return;
+                    const result = outcome.snapshot && outcome.snapshot.results && outcome.snapshot.results[control.definition.id];
+                    if (control.row.isConnected && result) {
+                        applyTargetedDevelopSliderFeedback(control, result, data.request.id, binding);
+                        // SDK feedback can overtake an accepted Reset. An unchanged
+                        // pre-edit value is authoritative, but does not settle its
+                        // read demand. Renew within the existing attempt/time bounds;
+                        // never guess the Reset default or resend the edit.
+                        if (result.available === true && Number.isFinite(demand.beforeValue) &&
+                            valuesMatchDevelopSlider(control.definition, result.value, demand.beforeValue)) unchanged.add(control);
+                    }
+                });
+            } catch (err) {
+                invalidated = !developSliderFeedbackBindingMatches(binding) ||
+                    Boolean(err.feedbackDiagnostic && err.feedbackDiagnostic.status === 404);
+                if (!invalidated) console.error("LRBridge Reset feedback failed", { sliders: sliders, reason: err.message });
+            } finally {
+                batch.forEach(function (entry) {
+                    if (pendingDevelopSliderResetFeedback.get(entry[0]) !== entry[1]) return;
+                    if (invalidated || unchanged.has(entry[0])) entry[1].readyAt = Date.now() + 100;
+                    else pendingDevelopSliderResetFeedback.delete(entry[0]);
+                });
+                developSliderResetFeedbackReads.delete(batch);
+                scheduleDevelopSliderResetFeedback();
+            }
+        }
+
         async function requestDevelopSliderStepFeedback(control, adoptResult) {
             const slider = control.definition.id;
             const binding = developSliderFeedbackBinding();
@@ -7222,7 +7427,7 @@
                     return;
                 }
                 if (adoptResult) control.stepConfirmationExpired = true;
-                applyDevelopSliderFeedbackIfChanged(control, result);
+                applyTargetedDevelopSliderFeedback(control, result, request.id, binding);
             } catch (err) {
                 if (!control.row.isConnected || !developSliderFeedbackBindingMatches(binding)) return;
                 if (adoptResult) {
@@ -7362,11 +7567,8 @@
 
         function createHDRModeControl(definition) {
             const row = document.createElement("div");
-            row.className = "switch-row hdr-edit-mode-row";
+            row.className = "switch-row hdr-edit-mode-row native-checkbox-row";
             row.dataset.sliderId = definition.id;
-            const name = document.createElement("div");
-            name.className = "slider-name";
-            name.textContent = definition.label;
             const status = document.createElement("div");
             status.className = "switch-status";
             status.setAttribute("role", "status");
@@ -7403,18 +7605,12 @@
                 });
             }
 
-            const offButton = makeButton("Off", "negative", function () { submit(0); });
-            const onButton = makeButton("On", "positive", function () { submit(1); });
-            offButton.setAttribute("aria-pressed", "false");
-            onButton.setAttribute("aria-pressed", "false");
-            offButton.disabled = true;
-            onButton.disabled = true;
+            const checkbox = createNativeCheckbox(definition.label, function (enabled) { submit(enabled ? 1 : 0); });
 
             control = {
                 row: row,
                 definition: definition,
-                off: offButton,
-                on: onButton,
+                checkbox: checkbox.input,
                 status: status,
                 authoritativeValue: null,
                 desiredValue: null,
@@ -7424,12 +7620,7 @@
                 lastSubmittedValue: null,
                 render: function () {
                     const available = control.authoritativeValue === 0 || control.authoritativeValue === 1;
-                    offButton.classList.toggle("active", available && control.authoritativeValue === 0);
-                    onButton.classList.toggle("active", available && control.authoritativeValue === 1);
-                    offButton.setAttribute("aria-pressed", String(available && control.authoritativeValue === 0));
-                    onButton.setAttribute("aria-pressed", String(available && control.authoritativeValue === 1));
-                    offButton.disabled = !available || control.pending || control.authoritativeValue === 0;
-                    onButton.disabled = !available || control.pending || control.authoritativeValue === 1;
+                    updateNativeCheckbox(checkbox.input, available, control.authoritativeValue === 1, control.pending, control.pending);
                     status.textContent = !available ? "Unavailable" : control.pending ? "Updating…" :
                         (control.authoritativeValue === 1 ? "On" : "Off");
                 },
@@ -7461,7 +7652,7 @@
                 }
             };
 
-            row.append(name, offButton, onButton, status);
+            row.append(checkbox.row, status);
             registerDevelopSliderControl(control);
             return row;
         }
@@ -7516,15 +7707,15 @@
                     restoreWhiteBalanceDependentSlider(control);
                     return;
                 }
+                const beforeResetValue = control.authoritativeValue;
                 const authoritativeResetValue = beginDevelopSliderReset(control);
+                const resetOwner = developSliderFeedbackBinding();
                 markSliderCommandSent();
                 sendCommand("/api/reset?slider=" + encodeURIComponent(definition.id) + developSliderNavigationQuery(control)).then(function (accepted) {
                     if (authoritativeResetValue !== null) {
                         handleDevelopSliderStepSubmission(control, authoritativeResetValue, accepted);
                     } else if (accepted) {
-                        setTimeout(function () {
-                            requestLiveFeedbackSnapshot(true);
-                        }, 300);
+                        requestDevelopSliderResetFeedback(control, resetOwner, beforeResetValue);
                     }
                 });
             });
@@ -7747,15 +7938,10 @@
             if (!control) return;
             const available = state && state.available === true && typeof state.value === "boolean";
             const busy = !!pending;
-            control.off.disabled = !available || busy;
-            control.on.disabled = !available || busy;
-            control.off.classList.toggle("active", available && state.value === false);
-            control.on.classList.toggle("active", available && state.value === true);
-            control.off.setAttribute("aria-pressed", String(available && state.value === false));
-            control.on.setAttribute("aria-pressed", String(available && state.value === true));
+            updateNativeCheckbox(control.checkbox, available, available && state.value, busy, busy);
             control.status.textContent = busy
                 ? (pending.target ? "Turning On…" : "Turning Off…")
-                : (available ? (state.value ? "On" : "Off") : "Unavailable");
+                : available ? "" : "Unavailable";
         }
 
         function syncLensBlurNumberEditor(input, editorState) {
@@ -7979,13 +8165,13 @@
                     refinementMode: "unknown", refinementModeTargetsAvailable: false, refinementDisclosure: null,
                     refinementReset: null, focusActions: {},
                     focalRangeAvailable: false, focalRange: null };
-            if (lensBlurApplyOffButton && lensBlurApplyOnButton) {
-                lensBlurApplyOffButton.disabled = false;
-                lensBlurApplyOnButton.disabled = false;
-                lensBlurApplyOffButton.classList.toggle("active", presentation.applyOffSelected);
-                lensBlurApplyOnButton.classList.toggle("active", presentation.applyOnSelected);
-                lensBlurApplyOffButton.setAttribute("aria-pressed", String(presentation.applyOffSelected));
-                lensBlurApplyOnButton.setAttribute("aria-pressed", String(presentation.applyOnSelected));
+            if (lensBlurApplyCheckbox) {
+                updateNativeCheckbox(lensBlurApplyCheckbox, presentation.applyAvailable, presentation.applyOnSelected,
+                    lensBlurApplyRequestInFlight, lensBlurApplyRequestInFlight);
+                // SDK readback availability does not establish whether an explicit Apply request is permitted.
+                lensBlurApplyCheckbox.disabled = lensBlurApplyRequestInFlight || lastControllerActiveModule !== "develop" ||
+                    typeof lastControllerSelectedPhotoUuid !== "string" || lastControllerSelectedPhotoUuid === "";
+                lensBlurApplyCheckbox.title = presentation.applyAvailable ? "" : "Apply state is unknown. Select to request Apply.";
             }
             if (lensBlurApplyStatus) {
                 lensBlurApplyStatus.textContent = presentation.applyAvailable
@@ -8021,7 +8207,7 @@
                 updateLensBlurNativeSlider(lensBlurNativeControls[name], presentation.brush[name]);
             });
             updateLensBlurExplicitSwitch(lensBlurVisualizeButtons, presentation.visualizeDepth, lensBlurVisualizePending);
-            updateLensBlurExplicitSwitch(lensBlurAutoMaskButtons, presentation.autoMask);
+            updateLensBlurExplicitSwitch(lensBlurAutoMaskButtons, presentation.autoMask, lensBlurAutoMaskPending);
             if (lensBlurModeButtons) {
                 const focusSelected = presentation.refinementMode === "focus";
                 const blurSelected = presentation.refinementMode === "blur";
@@ -8225,7 +8411,9 @@
                 setProfileAmountInactivePresentation(
                     control,
                     "unavailable",
-                    "Unavailable for this profile"
+                    presentation && presentation.supportsAmount === false
+                        ? "Unavailable for this profile"
+                        : "Profile Amount capability unknown"
                 );
                 return;
             }
@@ -8329,7 +8517,7 @@
             constrainControls.forEach(function (constrainControl) {
                 const presentation = developCategoricalModel.presentation("constrainCrop");
                 const busy = presentation.pending || developCategoricalSubmitting.has("constrainCrop");
-                developCategoricalHelper.syncBinaryButtons(constrainControl.buttons, presentation, busy);
+                updateNativeCheckbox(constrainControl.checkbox, presentation.available, presentation.authoritativeValue === 1, busy, busy);
                 constrainControl.status.className = "switch-status develop-categorical-status";
                 if (developCategoricalErrors.constrainCrop) {
                     constrainControl.status.classList.add("error");
@@ -8633,14 +8821,17 @@
         }
 
         async function setLensBlurApply(enabled) {
-            if (!lensBlurHelper || typeof enabled !== "boolean") return false;
+            if (!lensBlurHelper || typeof enabled !== "boolean" || lensBlurApplyRequestInFlight) return false;
+            lensBlurApplyRequestInFlight = true; updateLensBlurPresentation();
             const accepted = await sendCommand("/api/lens-blur/apply?enabled=" + String(enabled));
+            lensBlurApplyRequestInFlight = false;
             if (accepted) {
                 const current = lensBlurModel.get();
                 lensBlurModel.applyAuthoritative(Object.assign({}, current, { activeAvailable: false, active: null }));
                 updateLensBlurPresentation();
                 requestLensBlurState();
             }
+            updateLensBlurPresentation();
             return accepted;
         }
 
@@ -8795,11 +8986,15 @@
             return heading;
         }
 
-        async function sendLensBlurNativeRequest(path) {
+        async function sendLensBlurNativeRequest(path, binding) {
             setStatus("Sending: " + path);
             try {
                 const response = await fetch(path, { cache: "no-store" });
                 const data = await response.json();
+                if (binding && !lensBlurResponseContextMatchesCurrent(binding)) {
+                    requestLensBlurState();
+                    return false;
+                }
                 if (!response.ok || !data || data.ok !== true || !data.windowsNative) {
                     setStatus("ERROR " + response.status + ": " + (data && data.error ? data.error : "Native control unavailable"));
                     requestLensBlurState();
@@ -9222,22 +9417,12 @@
 
         function createLensBlurExplicitSwitch(label, setter) {
             const row = document.createElement("div");
-            row.className = "switch-row lens-blur-apply-row";
-            const name = document.createElement("div");
-            name.className = "slider-name";
-            name.textContent = label;
-            const off = makeButton("Off", "negative", function () { setter(false); });
-            const on = makeButton("On", "positive", function () { setter(true); });
+            row.className = "switch-row lens-blur-apply-row native-checkbox-row";
+            const checkbox = createNativeCheckbox(label, setter);
             const status = document.createElement("div");
-            status.className = "switch-status";
-            status.setAttribute("role", "status");
-            off.disabled = true;
-            on.disabled = true;
-            row.appendChild(name);
-            row.appendChild(off);
-            row.appendChild(on);
-            row.appendChild(status);
-            return { row: row, off: off, on: on, status: status };
+            status.className = "switch-status"; status.setAttribute("role", "status");
+            row.append(checkbox.row, status);
+            return { row: row, checkbox: checkbox.input, status: status };
         }
 
         function clearLensBlurFocalCommitTimer(view) {
@@ -9538,27 +9723,17 @@
                 return [item.definition.id, item.definition];
             }));
 
-            const applyRow = document.createElement("div");
-            applyRow.className = "switch-row lens-blur-apply-row";
-            const applyName = document.createElement("div");
-            applyName.className = "slider-name";
-            applyName.textContent = "Apply";
-            applyRow.appendChild(applyName);
-            lensBlurApplyOffButton = makeButton("Off", "negative", function () {
-                setLensBlurApply(false);
-            });
-            lensBlurApplyOffButton.setAttribute("aria-label", "Turn Lens Blur Apply off");
-            applyRow.appendChild(lensBlurApplyOffButton);
-            lensBlurApplyOnButton = makeButton("On", "positive", function () {
-                setLensBlurApply(true);
-            });
-            lensBlurApplyOnButton.setAttribute("aria-label", "Turn Lens Blur Apply on");
-            applyRow.appendChild(lensBlurApplyOnButton);
-            lensBlurApplyStatus = document.createElement("div");
-            lensBlurApplyStatus.className = "switch-status lens-blur-apply-status";
-            lensBlurApplyStatus.setAttribute("role", "status");
-            applyRow.appendChild(lensBlurApplyStatus);
-            groupElement.appendChild(applyRow);
+            const applyControl = createLensBlurExplicitSwitch("Apply", setLensBlurApply);
+            lensBlurApplyCheckbox = applyControl.checkbox;
+            lensBlurApplyCheckbox.dataset.allowUnknown = "true";
+            lensBlurApplyCheckbox.setAttribute("aria-label", "Lens Blur Apply");
+            lensBlurApplyStatus = applyControl.status;
+            lensBlurApplyStatus.classList.add("lens-blur-apply-status");
+            groupElement.appendChild(applyControl.row);
+            const applyNote = document.createElement("div");
+            applyNote.className = "command-group-note";
+            applyNote.textContent = "Status may take 1–2 seconds to update, especially after switching photos. Please wait for the update before clicking Apply again.";
+            groupElement.appendChild(applyNote);
 
             appendLensBlurSubheading(groupElement, "BLUR");
             if (definitions.has("LensBlurAmount")) {
@@ -9636,8 +9811,13 @@
                 lensBlurNativeControls[definition[0]] = control;
                 groupElement.appendChild(control.row);
             });
-            lensBlurAutoMaskButtons = createLensBlurExplicitSwitch("Auto Mask", function (enabled) {
-                sendLensBlurNativeRequest("/api/lens-blur/auto-mask?enabled=" + String(enabled));
+            lensBlurAutoMaskButtons = createLensBlurExplicitSwitch("Auto Mask", async function (enabled) {
+                const binding = lensBlurVisualizeBindingFromCurrentContext();
+                if (!binding || lensBlurAutoMaskPending) return;
+                lensBlurAutoMaskPending = { target: enabled };
+                updateLensBlurPresentation();
+                try { await sendLensBlurNativeRequest("/api/lens-blur/auto-mask?enabled=" + String(enabled), binding); }
+                finally { lensBlurAutoMaskPending = null; updateLensBlurPresentation(); }
             });
             groupElement.appendChild(lensBlurAutoMaskButtons.row);
             updateLensBlurPresentation();
@@ -10098,12 +10278,16 @@
             const reset = makeButton("Reset", "reset", function () {
                 cancelDevelopSliderStep(lowControl);
                 cancelDevelopSliderStep(highControl);
+                const resetOwner = developSliderFeedbackBinding();
+                const beforeResetValues = [lowControl.authoritativeValue, highControl.authoritativeValue];
                 markSliderCommandSent();
                 Promise.all([
                     sendCommand("/api/reset?slider=" + encodeURIComponent(lowDefinition.id)),
                     sendCommand("/api/reset?slider=" + encodeURIComponent(highDefinition.id))
                 ]).then(function (accepted) {
-                    if (accepted.every(Boolean)) setTimeout(function () { requestLiveFeedbackSnapshot(true); }, 300);
+                    [lowControl, highControl].forEach(function (control, index) {
+                        if (accepted[index]) requestDevelopSliderResetFeedback(control, resetOwner, beforeResetValues[index]);
+                    });
                 });
             });
             reset.setAttribute("aria-label", "Reset both " + label + " endpoints");
@@ -10222,6 +10406,10 @@
             profilePanel.appendChild(createLensSubheading("Profile"));
             appendSwitch(profilePanel, "AutoLateralCA");
             appendSwitch(profilePanel, "LensProfileEnable");
+            const profileNote = document.createElement("div");
+            profileNote.className = "command-group-note lens-corrections-note";
+            profileNote.textContent = "Changing lens profiles is not supported in LRBridge. Please select and configure your lens profile in Lightroom Classic.";
+            profilePanel.appendChild(profileNote);
             const profileAmountHeading = createLensSubheading("Amount");
             profilePanel.appendChild(profileAmountHeading);
             const profileAmountRows = [];
@@ -10977,8 +11165,8 @@
         function renderPointColorView(host) {
             ensurePointColorController().mount(host);
         }
-        let colorMixerView = "hsl";
-        try { if (["color", "point-color"].includes(sessionStorage.getItem("lrbridge.colorMixerView"))) colorMixerView = sessionStorage.getItem("lrbridge.colorMixerView"); } catch (err) {}
+        let colorMixerView = "color";
+        try { if (["hsl", "color", "point-color"].includes(sessionStorage.getItem("lrbridge.colorMixerView"))) colorMixerView = sessionStorage.getItem("lrbridge.colorMixerView"); } catch (err) {}
 
         function getColorMixerViewGroups(view) {
             if (view === "color") {
@@ -11527,34 +11715,19 @@
         function appendConstrainCropControl(groupElement) {
             if (!developCategoricalHelper) return;
             const row = document.createElement("div");
-            row.className = "switch-row develop-categorical-binary";
+            row.className = "switch-row develop-categorical-binary native-checkbox-row";
             row.dataset.developCategorical = "constrainCrop";
-            const name = document.createElement("div");
-            name.className = "slider-name";
-            name.textContent = "Constrain Crop";
-            const buttons = {};
-            [[0, "Off", "negative"], [1, "On", "positive"]].forEach(function (entry) {
-                const button = makeButton(entry[1], entry[2], function () {
-                    submitDevelopCategorical(
-                        "constrainCrop",
-                        entry[0],
-                        "/api/develop-categorical/constrain-crop?value=" + encodeURIComponent(String(entry[0]))
-                    );
-                });
-                button.disabled = true;
-                button.setAttribute("aria-pressed", "false");
-                buttons[String(entry[0])] = button;
+            const checkbox = createNativeCheckbox("Constrain Crop", function (enabled) {
+                const value = enabled ? 1 : 0;
+                submitDevelopCategorical("constrainCrop", value,
+                    "/api/develop-categorical/constrain-crop?value=" + value);
             });
             const status = document.createElement("div");
             status.className = "switch-status develop-categorical-status";
-            status.setAttribute("role", "status");
-            status.setAttribute("aria-live", "polite");
-            row.append(name, buttons["0"], buttons["1"], status);
-            groupElement.appendChild(row);
-            if (!Array.isArray(developCategoricalControls.constrainCrop)) {
-                developCategoricalControls.constrainCrop = [];
-            }
-            developCategoricalControls.constrainCrop.push({ row: row, buttons: buttons, status: status });
+            status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+            row.append(checkbox.row, status); groupElement.appendChild(row);
+            if (!Array.isArray(developCategoricalControls.constrainCrop)) developCategoricalControls.constrainCrop = [];
+            developCategoricalControls.constrainCrop.push({ row: row, checkbox: checkbox.input, status: status });
         }
 
         function appendSectionCategoricalControls(groupElement, sectionId) {
@@ -11773,9 +11946,8 @@
         }
 
         function updateEnhanceControls() {
-            if (!enhanceOffButton || !enhanceOnButton || !enhanceMinusButton || !enhancePlusButton || !enhanceStatus ||
-                !rawDetailsOffButton || !rawDetailsOnButton || !rawDetailsStatus ||
-                !superResolutionOffButton || !superResolutionOnButton || !superResolutionStatus) return;
+            if (!enhanceCheckbox || !enhanceMinusButton || !enhancePlusButton || !enhanceStatus ||
+                !rawDetailsCheckbox || !rawDetailsStatus || !superResolutionCheckbox || !superResolutionStatus) return;
             const hasPhoto = lastControllerSelectedPhotoKey !== null && lastControllerSelectedPhotoKey !== "";
             const inDevelop = lastControllerActiveModule === "develop";
             const state = enhanceState;
@@ -11787,11 +11959,10 @@
                 const feedback = enhanceAmountModel.feedback(state.denoiseAmount, isOn, state.amountOperation);
                 if (feedback.shouldSend && !enhanceAmountModel.debouncePending) scheduleDenoiseAmount(enhanceAmountModel.desired);
             }
-            enhanceOffButton.classList.toggle("active", !!state && !isOn);
-            enhanceOnButton.classList.toggle("active", isOn);
             const localAmountPending = amountPending || enhanceAmountModel.inFlight;
-            enhanceOffButton.disabled = pending || localAmountPending || unavailable || !hasPhoto || !inDevelop || !isOn;
-            enhanceOnButton.disabled = pending || localAmountPending || unavailable || !hasPhoto || !inDevelop || isOn || state.denoiseEnabled !== true;
+            const denoiseKnown = !unavailable && hasPhoto && inDevelop && typeof state.denoiseState === "boolean";
+            updateNativeCheckbox(enhanceCheckbox, denoiseKnown, isOn,
+                pending || localAmountPending || (!isOn && state?.denoiseEnabled !== true), pending || localAmountPending);
             enhanceAmountRange.disabled = pending || unavailable || !hasPhoto || !inDevelop;
             enhanceAmountInput.disabled = enhanceAmountRange.disabled;
             const displayedAmount = enhanceAmountModel.displayedAmount;
@@ -11802,29 +11973,27 @@
             const denoiseOwnsRaw = !!state && state.denoiseState === true && rawOn && state.rawDetailsEnabled === false;
             const superResolutionOwnsRaw = !!state && state.superResState === true && rawOn && state.rawDetailsEnabled === false;
             const rawUnavailable = unavailable || !hasPhoto || !inDevelop || (!!state && state.rawDetailsEnabled !== true);
-            rawDetailsOffButton.classList.toggle("active", !!state && !rawOn);
-            rawDetailsOnButton.classList.toggle("active", rawOn);
-            rawDetailsOffButton.disabled = pending || localAmountPending || rawUnavailable || denoiseOwnsRaw || !rawOn;
-            rawDetailsOnButton.disabled = pending || localAmountPending || rawUnavailable || denoiseOwnsRaw || rawOn || (!!state && state.denoiseState === true);
+            const rawKnown = !unavailable && hasPhoto && inDevelop && typeof state.rawDetailsState === "boolean";
+            updateNativeCheckbox(rawDetailsCheckbox, rawKnown, rawOn,
+                pending || localAmountPending || rawUnavailable || denoiseOwnsRaw || (!rawOn && state?.denoiseState === true), pending);
             if (!state) rawDetailsStatus.textContent = "Loading Enhance state…";
             else if (pending && state.operationTarget === "rawDetails") rawDetailsStatus.textContent = state.requestedEnabled === false ? "Removing Raw Details…" : "Applying Raw Details…";
             else if (denoiseOwnsRaw) rawDetailsStatus.textContent = "Raw Details enabled by Denoise";
             else if (superResolutionOwnsRaw) rawDetailsStatus.textContent = "Raw Details enabled by Super Resolution";
             else if (state.operation === "uncertain" && state.operationTarget === "rawDetails") rawDetailsStatus.textContent = "Raw Details result uncertain — check Lightroom";
             else if (state.operation === "failed" && state.operationTarget === "rawDetails") rawDetailsStatus.textContent = "Raw Details failed";
-            else if (rawUnavailable) rawDetailsStatus.textContent = "Raw Details unavailable for this photo";
+            else if (!rawKnown || rawUnavailable) rawDetailsStatus.textContent = "Raw Details unavailable for this photo";
             else rawDetailsStatus.textContent = rawOn ? "Raw Details On" : "Raw Details Off";
             const superResolutionOn = !!state && state.superResState === true;
             const superResolutionUnavailable = unavailable || !hasPhoto || !inDevelop || (!!state && state.superResEnabled !== true);
-            superResolutionOffButton.classList.toggle("active", !!state && !superResolutionOn);
-            superResolutionOnButton.classList.toggle("active", superResolutionOn);
-            superResolutionOffButton.disabled = pending || localAmountPending || superResolutionUnavailable || !superResolutionOn;
-            superResolutionOnButton.disabled = pending || localAmountPending || superResolutionUnavailable || superResolutionOn || (!!state && state.denoiseState === true);
+            const superResolutionKnown = !unavailable && hasPhoto && inDevelop && typeof state.superResState === "boolean";
+            updateNativeCheckbox(superResolutionCheckbox, superResolutionKnown, superResolutionOn,
+                pending || localAmountPending || superResolutionUnavailable || (!superResolutionOn && state?.denoiseState === true), pending);
             if (!state) superResolutionStatus.textContent = "Loading Enhance state…";
             else if (pending && state.operationTarget === "superResolution") superResolutionStatus.textContent = state.requestedEnabled === false ? "Removing Super Resolution…" : "Applying Super Resolution…";
             else if (state.operation === "uncertain" && state.operationTarget === "superResolution") superResolutionStatus.textContent = "Super Resolution result uncertain — check Lightroom";
             else if (state.operation === "failed" && state.operationTarget === "superResolution") superResolutionStatus.textContent = "Super Resolution failed";
-            else if (superResolutionUnavailable) superResolutionStatus.textContent = "Super Resolution unavailable for this photo";
+            else if (!superResolutionKnown || superResolutionUnavailable) superResolutionStatus.textContent = "Super Resolution unavailable for this photo";
             else superResolutionStatus.textContent = superResolutionOn ? "Super Resolution On" : "Super Resolution Off";
             if (!state) enhanceStatus.textContent = "Loading Enhance state…";
             else if (pending && state.operationTarget === "denoise") enhanceStatus.textContent = state.requestedEnabled === false ? "Removing Denoise…" : "Applying Denoise…";
@@ -11834,7 +12003,7 @@
             else if (state.operation === "failed") enhanceStatus.textContent = "Denoise failed";
             else if (state.denoiseState === true && state.denoiseAmount !== null) enhanceStatus.textContent = "Denoise On — Amount: " + state.denoiseAmount;
             else if (state.denoiseState === true) enhanceStatus.textContent = "Denoise On";
-            else if (!hasPhoto || !inDevelop || unavailable || state.denoiseEnabled !== true) enhanceStatus.textContent = "Denoise unavailable for this photo";
+            else if (!denoiseKnown || state.denoiseEnabled !== true) enhanceStatus.textContent = "Denoise unavailable for this photo";
             else enhanceStatus.textContent = "Denoise Off";
         }
 
@@ -11880,15 +12049,13 @@
 
         function renderRawDetailsControl() {
             const controls = document.createElement("div");
-            controls.className = "develop-slider-row denoise-slider-row raw-details-row";
+            controls.className = "native-checkbox-row raw-details-row";
             controls.dataset.detailControl = "raw-details";
-            const label = document.createElement("div");
-            label.className = "slider-name"; label.textContent = "Raw Details";
-            rawDetailsOffButton = makeButton("Off", "command-neutral", function () { setRawDetails(false); });
-            rawDetailsOnButton = makeButton("On", "command-primary", function () { setRawDetails(true); });
+            const checkbox = createNativeCheckbox("Raw Details", setRawDetails);
+            rawDetailsCheckbox = checkbox.input;
             rawDetailsStatus = document.createElement("div");
             rawDetailsStatus.className = "enhance-status"; rawDetailsStatus.setAttribute("role", "status");
-            controls.appendChild(label); controls.appendChild(rawDetailsOffButton); controls.appendChild(rawDetailsOnButton); controls.appendChild(rawDetailsStatus);
+            controls.append(checkbox.row, rawDetailsStatus);
             updateEnhanceControls();
             return controls;
         }
@@ -11902,26 +12069,23 @@
 
         function renderSuperResolutionControl() {
             const controls = document.createElement("div");
-            controls.className = "develop-slider-row denoise-slider-row super-resolution-row";
+            controls.className = "native-checkbox-row super-resolution-row";
             controls.dataset.detailControl = "super-resolution";
-            const label = document.createElement("div");
-            label.className = "slider-name"; label.textContent = "Super Resolution";
-            superResolutionOffButton = makeButton("Off", "command-neutral", function () { setSuperResolution(false); });
-            superResolutionOnButton = makeButton("On", "command-primary", function () { setSuperResolution(true); });
+            const checkbox = createNativeCheckbox("Super Resolution", setSuperResolution);
+            superResolutionCheckbox = checkbox.input;
             superResolutionStatus = document.createElement("div");
             superResolutionStatus.className = "enhance-status"; superResolutionStatus.setAttribute("role", "status");
-            controls.appendChild(label); controls.appendChild(superResolutionOffButton); controls.appendChild(superResolutionOnButton); controls.appendChild(superResolutionStatus);
+            controls.append(checkbox.row, superResolutionStatus);
             updateEnhanceControls();
             return controls;
         }
 
         function renderEnhanceSection() {
             const controls = document.createElement("div");
-            controls.className = "develop-slider-row denoise-slider-row";
+            controls.className = "develop-slider-row denoise-slider-row native-checkbox-row";
             controls.dataset.detailControl = "denoise";
-            const label = document.createElement("div");
-            label.className = "slider-name";
-            label.textContent = "Denoise";
+            const checkbox = createNativeCheckbox("Denoise", setDenoise);
+            enhanceCheckbox = checkbox.input;
             enhanceAmountRange = document.createElement("input");
             enhanceAmountRange.type = "range"; enhanceAmountRange.min = "1"; enhanceAmountRange.max = "100";
             enhanceAmountRange.step = "1"; enhanceAmountRange.value = "50";
@@ -11955,10 +12119,6 @@
                 if (event.key === "Enter") { event.preventDefault(); commitDenoiseNumber(); enhanceAmountInput.blur(); }
                 else if (event.key === "Escape") { event.preventDefault(); const restored = enhanceAmountModel.cancel(); displayDenoiseAmount(restored, true); enhanceAmountInput.blur(); updateEnhanceControls(); }
             });
-            enhanceOffButton = makeButton("Off", "command-neutral", function () { setDenoise(false); });
-            enhanceOnButton = makeButton("On", "command-primary", function () { setDenoise(true); });
-            enhanceOffButton.classList.add("denoise-off");
-            enhanceOnButton.classList.add("denoise-on");
             function stepDenoiseAmount(delta) {
                 const isOn = !!enhanceState && enhanceState.denoiseState === true;
                 const current = enhanceAmountModel.displayedAmount;
@@ -11974,7 +12134,7 @@
             enhancePlusButton = makeButton("+", "develop-slider-step denoise-plus", function () { stepDenoiseAmount(1); });
             enhanceStatus = document.createElement("div");
             enhanceStatus.className = "enhance-status"; enhanceStatus.setAttribute("role", "status");
-            controls.appendChild(label); controls.appendChild(enhanceOffButton); controls.appendChild(enhanceOnButton);
+            controls.appendChild(checkbox.row);
             controls.appendChild(enhanceAmountRange); controls.appendChild(enhanceAmountInput);
             controls.appendChild(enhanceMinusButton); controls.appendChild(enhancePlusButton); controls.appendChild(enhanceStatus);
             updateEnhanceControls();

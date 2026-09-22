@@ -19,6 +19,7 @@
     const equal = (a, b) => typeof a === "number" && typeof b === "number" ? Math.abs(a - b) < 0.000001 : a === b;
     const whole = (value, minimum) => Math.max(minimum, Math.min(100, Math.round(value)));
     function valid(field, value) {
+        if (field === "selectedSelection") return ["cancel", "remove", "add", "subtract"].includes(value);
         if (field === "dustApply") return typeof value === "boolean";
         if (field === "dustClose") return value === "manualRemove";
         if (field === "selectedRepairFill") return Object.hasOwn(fills, value);
@@ -28,12 +29,25 @@
         return ["useGenerativeAI", "detectObjects", "visualizeSpots"].includes(field) && typeof value === "boolean";
     }
     function createController(options) {
-        const doc = options.document, controls = {}, tabs = {}, intents = new Map();
+        const doc = options.document, controls = {}, views = {}, tabs = {}, intents = new Map();
+        const controlViews = () => Object.entries(views).flatMap(([field, list]) => list.map(c => [field, c]));
+        function registerView(field, control) {
+            (views[field] || (views[field] = [])).push(control);
+            if (!controls[field]) controls[field] = control;
+            return control;
+        }
         let state = null, section = null, status = null, modeControls = null, removeOptions = null, panelButton = null;
         let operation = null, transport = null, generation = 0, sequence = 0, receivedAt = 0;
         let polling = false, pollTimer = null, sendTimer = null, error = "";
         let repairSelection = null, repairStatus = null, repairButtons = {}, repairFeedback = "", dustStatus = null, dustNote = null;
         let dustButtons = {}, dustFeedback = "";
+        let selectionStatus = null, selectionButtons = {}, selectionFeedback = "", selectionNote = null;
+        const refinementEvents = [];
+        function traceRefinement(event, value, data = {}) {
+            if (!["add", "subtract"].includes(value)) return;
+            refinementEvents.push({ at: Date.now(), event, value, ...data });
+            if (refinementEvents.length > 40) refinementEvents.shift();
+        }
         const notify = () => { if (options.onInteractionChange) options.onInteractionChange(); };
         const localValue = field => intents.has(field) ? intents.get(field).value : state && state[field];
         const busy = () => Boolean(operation || transport || intents.size || state && state.pendingOperation ||
@@ -46,10 +60,17 @@
                 state.selectedPhotoUuid && typeof state.selectedTool === "string";
         }
         function fresh() { return panelAvailable() && Number.isFinite(state.ageMs) && state.ageMs + performance.now() - receivedAt < 5000; }
+        function selectionFresh() { return fresh() && state.selection?.available === true && Number.isFinite(state.selection.ageMs) &&
+            state.selection.ageMs + performance.now() - receivedAt < 2500; }
+        function selectionActionAvailable(value) { return selectionFresh() && state.newSpotType === "heal_patchmatch" && state.selection.active &&
+            (value === "add" ? state.selection.canAdd : value === "subtract" ? state.selection.canSubtract : value === "cancel" ? state.selection.canCancel : state.selection.canRemove) === true; }
+        function selectionIdentity(value) { return ["add", "subtract"].includes(value) ? state?.selection?.refinementToken : state?.selection?.token; }
+        function selectionSucceeded(result) { return result.outcome === "confirmed" || ["add", "subtract"].includes(result.value) && result.outcome === "requested"; }
         function supported(field) {
+            if (field === "selectedSelection") return available() && ["add", "subtract", "cancel", "remove"].some(selectionActionAvailable);
             if (field === "dustApply") return available() && state.dust?.available === true &&
                 (state.dust.applied ? state.dust.canDisable === true : state.dust.canEnable === true);
-            if (field === "dustClose") return available() && state.dust?.available === true && state.dust.applied && state.dust.canRequestClose === true;
+            if (field === "dustClose") return available() && state.dust?.available === true && state.dust.canRequestClose === true;
             if (field === "selectedTool") return panelAvailable();
             if (repairField(field)) return panelAvailable() && state.selectedTool === "dust" &&
                 state.repair && state.repair.available && state.repair.selected && typeof state.repair.token === "string" &&
@@ -61,7 +82,7 @@
             return true;
         }
         function enabled(field) {
-            if (field === "dustApply" || field === "dustClose") return Boolean(supported(field) && fresh() && !busy() && !(options.isBlocked && options.isBlocked()));
+            if (field === "selectedSelection" || field === "dustApply" || field === "dustClose") return Boolean(supported(field) && fresh() && !busy() && !(options.isBlocked && options.isBlocked()));
             const own = operation && baseKey(state) === operation.base && performance.now() - operation.startedAt < 10000;
             const foreign = state && state.pendingOperation && (!operation ||
                 operation.id && state.pendingOperation.operationId !== operation.id);
@@ -75,6 +96,15 @@
                 !intents.has("selectedTool") && !(operation && operation.field === "selectedTool") &&
                 !(options.isBlocked && options.isBlocked()) && (field === "newSpotType" || !intents.has("newSpotType")));
         }
+        function viewAvailable(c) {
+            if (c?.selectedSize) return Boolean(selectionFresh() && state.newSpotType === "heal_patchmatch" && state.selection.active && state.selection.sizeAvailable &&
+                !intents.has("selectedSelection") && operation?.field !== "selectedSelection" && transport?.field !== "selectedSelection" &&
+                state.pendingOperation?.field !== "selectedSelection");
+            return !c?.dustSize || Boolean(fresh() && state.dust?.available === true && state.dust.applied === true &&
+                !intents.has("dustApply") && operation?.field !== "dustApply" && transport?.field !== "dustApply" &&
+                state.pendingOperation?.field !== "dustApply");
+        }
+        const viewEnabled = (field, c) => enabled(field) && viewAvailable(c);
         function setDisabled(element, disabled) {
             element.setAttribute("aria-disabled", String(disabled));
             // Preserve focus when a pending write or native-context change locks an editor.
@@ -116,8 +146,27 @@
             for (const button of Object.values(repairButtons)) setDisabled(button, !enabled("selectedRepair"));
             repairStatus.textContent = operation && repairField(operation.field) || [...intents.keys()].some(repairField) ?
                 "Waiting for Lightroom…" : repairFeedback;
-            for (const [field, c] of Object.entries(controls)) {
-                const canEdit = enabled(field);
+            if (selectionStatus) {
+                const selecting = operation?.field === "selectedSelection" ? operation : state?.pendingOperation?.field === "selectedSelection" ? state.pendingOperation : null;
+                selectionStatus.textContent = selecting ? ({ add: "Requesting Add", subtract: "Requesting Subtract", cancel: "Cancelling selection", remove: "Removing selection" }[selecting.value]) + "; waiting for Lightroom…" :
+                    selectionFeedback || (selectionFresh() ? state.selection.active ? "Selection ready in Lightroom." : "No selection awaiting refinement." : "Selection state unavailable.");
+                selectionStatus.title = !selectionFresh() ? state?.selection?.reason || "Waiting for fresh Lightroom selection feedback." : "";
+                for (const [action, button] of Object.entries(selectionButtons))
+                    setDisabled(button, !enabled("selectedSelection") || !selectionActionAvailable(action));
+                if (selectionNote) {
+                    selectionNote.textContent = selectionFresh() && !state.selection.canAdd && !state.selection.canSubtract ? state.selection.refinementReason || "Add/Subtract are unavailable." : "";
+                    selectionNote.hidden = !selectionNote.textContent;
+                }
+            }
+            for (const [field, c] of controlViews()) {
+                if (!viewAvailable(c)) {
+                    // Revoke only this view's unfinished edits; Healing shares the
+                    // preference but retains its own availability and input lifecycle.
+                    if (c.dragging || c.editing) c.cancelled = true;
+                    c.dragging = c.editing = false;
+                    if (intents.get(field)?.view === c) intents.delete(field);
+                }
+                const canEdit = viewEnabled(field, c);
                 c.row.setAttribute("aria-busy", String(intents.has(field) || operation && operation.field === field));
                 c.elements.forEach(element => setDisabled(element, !canEdit));
                 if (sliders[field]) {
@@ -127,8 +176,13 @@
                     const known = panelAvailable() && fresh() && state.dust?.available === true;
                     c.input.indeterminate = !known;
                     c.input.checked = known && state.dust.applied === true;
+                    c.input.title = known ? state.dust.applied ? "Dust applied" : "Dust not applied" : "Dust Apply state unknown: feedback is unavailable or stale.";
                 } else if (field === "selectedRepairFill" && !localValue(field)) c.input.value = "";
-                else if (c.input.type === "checkbox") c.input.checked = localValue(field) === true;
+                else if (c.input.type === "checkbox") {
+                    const known = available() && fresh() && typeof state[field] === "boolean";
+                    c.input.indeterminate = !known;
+                    c.input.checked = known && state[field] === true;
+                }
                 else if (typeof localValue(field) === "string" && c.input.value !== localValue(field)) c.input.value = localValue(field);
             }
             status.textContent = error || (intents.has("selectedTool") ? "Waiting for Lightroom to " + (localValue("selectedTool") === "dust" ? "open" : "close") + " Remove…" :
@@ -136,16 +190,17 @@
                 operation || transport || intents.size ? "Waiting for Lightroom to confirm…" :
                 available() ? "" : panelAvailable() ? state.selectedTool === "dust" ?
                     "Lightroom brush preferences are unavailable." : "Remove is closed in Lightroom." : "Select a photo in Lightroom Develop.");
-            if (dustStatus) dustStatus.textContent = status.textContent || dustFeedback;
+            const dustPending = operation?.field === "dustApply" ? operation : state?.pendingOperation?.field === "dustApply" ? state.pendingOperation : null;
+            if (dustStatus) dustStatus.textContent = dustPending ?
+                (dustPending.value ? "Applying Dust" : "Clearing Dust") + "; waiting for Lightroom…" : status.textContent || dustFeedback;
             if (dustNote) dustNote.textContent = state?.dust?.available ? state.dust.reason ||
                 "Apply follows Lightroom. Reset clears Dust treatment and keeps manual Healing repairs." : "Dust state is unavailable.";
             if (dustButtons.reset) setDisabled(dustButtons.reset, !(enabled("dustApply") && state?.dust?.applied === true));
             if (dustButtons.close) setDisabled(dustButtons.close, !enabled("dustClose"));
         }
         function cancelField(field, blockContinuation) {
-            const c = controls[field];
             intents.delete(field);
-            if (c && sliders[field]) {
+            for (const c of views[field] || []) if (sliders[field]) {
                 if (blockContinuation && (c.dragging || c.editing)) c.cancelled = true;
                 c.dragging = c.editing = false;
                 showSlider(c, available() ? state[field] : null);
@@ -175,12 +230,25 @@
             const request = operation;
             const expectedMode = request.field === "newSpotType" ? request.value : request.mode;
             const panel = request.field === "selectedTool";
+            if (request.field === "selectedSelection") {
+                selectionFeedback = result.detail || "Selection result is unknown. Check Lightroom.";
+                if (!selectionSucceeded(result)) error = selectionFeedback;
+                intents.delete("selectedSelection"); operation = null; return;
+            }
             if (request.field === "dustClose") {
                 dustFeedback = result.detail || "Native navigation result received; Dust panel state is not exposed.";
                 if (result.outcome !== "requested") error = dustFeedback;
                 intents.delete("dustClose"); operation = null; return;
             }
-            if (request.field === "dustApply") dustFeedback = result.detail || "Dust result received.";
+            if (request.field === "dustApply") {
+                dustFeedback = result.detail || "Dust result is unknown. Check Lightroom.";
+                const applied = result.outcome === "confirmed" && available() && state.newSpotType === expectedMode &&
+                    equal(state.dustApply, request.value);
+                error = applied || result.outcome === "not_applied" ? "" : dustFeedback;
+                // Terminal feedback ends this operation even when Apply remains off. Keep
+                // unrelated, context-bound slider intents separate from the Dust result.
+                intents.delete("dustApply"); operation = null; return;
+            }
             if (request.field === "selectedRepair") {
                 repairFeedback = result.detail || "Selected repair result received.";
                 if (!["confirmed", "requested"].includes(result.outcome)) error = repairFeedback;
@@ -215,7 +283,17 @@
                 !Number.isSafeInteger(next.revision) || typeof next.serverEpoch !== "string") return;
             if (state && next.serverEpoch === state.serverEpoch && next.revision < state.revision) { reconcile(); return; }
             const old = state, result = resultFor(operation, next, false);
-            if (old && baseKey(old) !== baseKey(next)) dustFeedback = "";
+            const dustResult = result && operation.id && operation.field === "dustApply" ? result : null;
+            const selectionResult = result && operation.id && operation.field === "selectedSelection" ? result : null;
+            if (old && baseKey(old) !== baseKey(next)) { dustFeedback = ""; selectionFeedback = ""; }
+            if (old && (old.selection?.token !== next.selection?.token || old.selection?.active !== next.selection?.active)) {
+                for (const c of views.brushSize || []) if (c.selectedSize) {
+                    if (c.dragging || c.editing) c.cancelled = true;
+                    c.dragging = c.editing = false;
+                    if (intents.get("brushSize")?.view === c) intents.delete("brushSize");
+                }
+                if (next.selection?.active) selectionFeedback = "";
+            }
             const ownRepair = result && repairField(operation.field) &&
                 (operation.id || ["confirmed", "requested"].includes(result.outcome)) &&
                 (result.outcome !== "confirmed" || operation.field === "selectedRepair" || result.resultRepairToken === next.repair?.token);
@@ -245,8 +323,19 @@
                 repairFeedback = hadRepairWork ? "Selected repair changed; the earlier action was cancelled." : "";
             }
             state = next; receivedAt = performance.now();
-            for (const [field, c] of Object.entries(controls)) c.confirmed = next.available ? next[field] : null;
-            reconcile(); render(); notify(); schedule(0);
+            for (const [field, c] of controlViews()) c.confirmed = next.available ? next[field] : null;
+            reconcile();
+            // An unreadable terminal snapshot may invalidate the editor before reconciliation.
+            // Retain the original operation's outcome without treating missing state as Off.
+            if (dustResult && !operation) {
+                dustFeedback = dustResult.detail || "Dust result is unknown. Check Lightroom.";
+                if (!["confirmed", "not_applied"].includes(dustResult.outcome)) error = dustFeedback;
+            }
+            if (selectionResult && !operation) {
+                selectionFeedback = selectionResult.detail || "Selection result is unknown. Check Lightroom.";
+                if (!selectionSucceeded(selectionResult)) error = selectionFeedback;
+            }
+            render(); notify(); schedule(0);
         }
         async function json(url) {
             const abort = new AbortController(), timeout = setTimeout(() => abort.abort(), 4500);
@@ -276,10 +365,16 @@
             const entry = panelIntent ? ["selectedTool", panelIntent] : modeIntent ? ["newSpotType", modeIntent] : intents.entries().next().value;
             if (!entry) return;
             const [field, intent] = entry;
+            if (!viewAvailable(intent.view)) {
+                intents.delete(field); render(); notify(); schedule(0); return;
+            }
             if (intent.target !== targetKey(state) && !["newSpotType", "selectedTool"].includes(field) || intent.base !== baseKey(state) || !supported(field)) {
                 cancelField(field, true); render(); notify(); schedule(0); return;
             }
             if (repairField(field) && intent.repairToken !== state.repair.token) {
+                intents.delete(field); render(); notify(); return;
+            }
+            if (field === "selectedSelection" && (intent.selectionToken !== selectionIdentity(intent.value) || !selectionActionAvailable(intent.value))) {
                 intents.delete(field); render(); notify(); return;
             }
             if (!replace && equal(state[field], intent.value)) {
@@ -292,18 +387,21 @@
                 selectedPhotoUuid: state.selectedPhotoUuid, contextCounter: state.contextCounter, developCounter: state.developCounter,
                 contextChangedAt: state.contextChangedAt, serverEpoch: state.serverEpoch, stateRevision: state.revision });
             if (repairField(field)) query.set("repairToken", intent.repairToken);
+            if (field === "selectedSelection") query.set("selectionToken", intent.selectionToken);
             render(); notify();
             try {
-                const admitted = await json("/api/remove/" + (["dustApply", "dustClose"].includes(field) ? "dust" : repairField(field) ? "repair" : field === "selectedTool" ? "panel" : "brush") + "?" + query);
+                const admitted = await json("/api/remove/" + (field === "selectedSelection" ? "selection" : ["dustApply", "dustClose"].includes(field) ? "dust" : repairField(field) ? "repair" : field === "selectedTool" ? "panel" : "brush") + "?" + query);
                 if (request.generation !== generation || operation !== request) return;
                 const p = admitted.pendingOperation;
                 if (!p || p.field !== field || !equal(p.value, request.value) || baseKey(admitted) !== request.base ||
                     repairField(field) && p.targetRepairToken !== request.repairToken ||
                     (admitted.newSpotType || null) !== request.mode) throw Error("Lightroom did not acknowledge this Remove request.");
                 request.id = p.operationId;
+                if (field === "selectedSelection") traceRefinement("http_admitted", intent.value, { operationId: p.operationId });
                 apply(admitted); reconcile();
             } catch (failure) {
                 if (request.generation === generation && operation === request) {
+                    if (field === "selectedSelection") traceRefinement("http_error", intent.value, { reason: failure.message });
                     invalidate(failure.message); error = failure.message;
                 }
             } finally {
@@ -311,11 +409,15 @@
                 if (request.generation === generation) { render(); notify(); schedule(0); }
             }
         }
-        function stage(field, value, delay) {
-            if (!enabled(field) || !(field === "selectedRepair" ? ["refresh", "delete"].includes(value) :
+        function stage(field, value, delay, view) {
+            if (field === "selectedSelection") traceRefinement("stage_attempt", value, { available: selectionActionAvailable(value), reason: state?.selection?.refinementReason || null });
+            if (field === "selectedSelection" && !selectionActionAvailable(value)) return false;
+            if (!viewEnabled(field, view) || !(field === "selectedRepair" ? ["refresh", "delete"].includes(value) :
                 field === "selectedTool" ? ["dust", "loupe"].includes(value) : valid(field, value))) return false;
             intents.set(field, { value, sequence: ++sequence, base: baseKey(state), target: targetKey(state),
-                repairToken: repairField(field) ? state.repair.token : null });
+                repairToken: repairField(field) ? state.repair.token : null, selectionToken: field === "selectedSelection" ? selectionIdentity(value) : null, view });
+            if (field === "selectedSelection") traceRefinement("staged", value, { token: selectionIdentity(value) });
+            if (field === "selectedSelection") selectionFeedback = "";
             if (repairField(field)) repairFeedback = "";
             if (field === "dustApply" || field === "dustClose") dustFeedback = "";
             if (sliders[field]) showSlider(controls[field], value);
@@ -333,19 +435,25 @@
             cancelEdits("");
             stage("selectedTool", target, 0);
         }
-        function begin(field, kind) {
-            if (!enabled(field)) return false;
+        function begin(field, kind, view) {
+            if (!viewEnabled(field, view)) return false;
+            if (view && controls[field] !== view) {
+                const previous = controls[field];
+                previous.dragging = previous.editing = false;
+                previous.cancelled = true;
+                controls[field] = view;
+            }
             const c = controls[field];
             if (kind === "editing" && !c.editing) c.editOriginal = c.displayed === null ? "" : String(c.displayed);
             c.cancelled = false; c[kind] = true; c.editTarget = targetKey(state);
             notify(); return true;
         }
-        function sliderRow(field) {
-            const definition = sliders[field], c = controls[field] = { scale: definition.scale || 1, confirmed: null, displayed: null, dragging: false, editing: false, cancelled: false };
+        function sliderRow(field, dustSize = false, selectedSize = false) {
+            const definition = sliders[field], c = registerView(field, { dustSize, selectedSize, scale: definition.scale || 1, confirmed: null, displayed: null, dragging: false, editing: false, cancelled: false });
             c.row = doc.createElement("div"); c.row.className = "develop-slider-row remove-brush-row"; c.row.dataset.removeField = field;
             const name = doc.createElement("div"); name.className = "slider-name"; name.textContent = definition.label;
             c.range = doc.createElement("input"); c.range.type = "range"; c.range.min = String(definition.min); c.range.max = "100"; c.range.step = "1";
-            const accessible = (repairParameter(field) ? "Selected repair " : "") + definition.label;
+            const accessible = (selectedSize ? "Selected " : repairParameter(field) ? "Selected repair " : "") + definition.label;
             c.range.setAttribute("aria-label", accessible);
             c.number = doc.createElement("input"); c.number.type = "text"; c.number.inputMode = "decimal"; c.number.autocomplete = "off"; c.number.spellcheck = false;
             c.number.setAttribute("aria-label", accessible + " numeric value");
@@ -354,53 +462,58 @@
                 b.setAttribute("aria-label", label); b.addEventListener("click", action); return b;
             }
             function step(direction) {
-                if (!enabled(field)) return;
+                if (!viewEnabled(field, c)) return;
+                begin(field, "editing", c);
                 c.editing = c.dragging = false; c.cancelled = false;
                 const base = intents.has(field) ? localValue(field) * c.scale : c.displayed !== null ? c.displayed : c.confirmed * c.scale;
                 if (typeof base !== "number") return;
-                stage(field, whole(whole(base, definition.min) + direction, definition.min) / c.scale, 350);
+                stage(field, whole(whole(base, definition.min) + direction, definition.min) / c.scale, 350, c);
             }
             c.minus = button("−", "develop-slider-step", () => step(-1), "Decrease " + accessible);
             c.plus = button("+", "develop-slider-step", () => step(1), "Increase " + accessible);
             if (Object.hasOwn(defaults, field)) {
                 c.reset = button("Reset", "reset", () => {
-                    if (!enabled(field)) return;
+                    if (!viewEnabled(field, c)) return;
+                    begin(field, "editing", c);
                     c.editing = c.dragging = false; c.cancelled = true;
-                    stage(field, defaults[field] / c.scale, 0);
+                    stage(field, defaults[field] / c.scale, 0, c);
                 }, "Reset " + accessible + " to LRBridge default " + defaults[field]);
                 c.reset.title = "LRBridge default: " + defaults[field] + (repairParameter(field) ?
                     ". Resets only this parameter on the selected repair." : ". Resets only this preference.");
             }
             c.elements = [c.range, c.number, c.minus, c.plus, ...(c.reset ? [c.reset] : [])];
             [name, ...c.elements].forEach(e => c.row.appendChild(e));
-            c.range.addEventListener("pointerdown", () => begin(field, "dragging"));
+            c.range.addEventListener("pointerdown", () => begin(field, "dragging", c));
             c.range.addEventListener("input", () => {
-                if (c.cancelled || !enabled(field) || !c.dragging && !begin(field, "dragging")) { render(); return; }
-                stage(field, Number(c.range.value) / c.scale, 100);
+                if (c.cancelled || !viewEnabled(field, c) || !c.dragging && !begin(field, "dragging", c)) { render(); return; }
+                stage(field, Number(c.range.value) / c.scale, 100, c);
             });
             c.range.addEventListener("change", () => {
                 if (c.cancelled) { c.cancelled = false; c.dragging = false; render(); return; }
                 if (!c.dragging || c.editTarget !== targetKey(state)) return;
-                const value = Number(c.range.value) / c.scale; c.dragging = false; stage(field, value, 0); render(); notify();
+                const value = Number(c.range.value) / c.scale; c.dragging = false; stage(field, value, 0, c); render(); notify();
             });
-            function cancelGesture() { cancelField(field, true); render(); notify(); }
+            function cancelGesture() {
+                if ((c.dustSize || c.selectedSize) && (!viewEnabled(field, c) || controls[field] !== c)) return;
+                cancelField(field, true); render(); notify();
+            }
             c.range.addEventListener("pointercancel", cancelGesture);
             c.range.addEventListener("keydown", e => {
                 if (e.key === "Escape") { e.preventDefault(); cancelGesture(); }
-                else if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)) begin(field, "dragging");
+                else if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)) begin(field, "dragging", c);
             });
-            c.number.addEventListener("focus", () => begin(field, "editing"));
-            c.number.addEventListener("pointerdown", () => begin(field, "editing"));
-            c.number.addEventListener("input", () => { if (!c.cancelled && !c.editing) begin(field, "editing"); });
+            c.number.addEventListener("focus", () => begin(field, "editing", c));
+            c.number.addEventListener("pointerdown", () => begin(field, "editing", c));
+            c.number.addEventListener("input", () => { if (!c.cancelled && !c.editing) begin(field, "editing", c); });
             function commit() {
-                if (!c.editing || c.cancelled || c.editTarget !== targetKey(state)) return;
+                if (!c.editing || c.cancelled || !viewEnabled(field, c) || c.editTarget !== targetKey(state)) return;
                 const text = c.number.value.trim().replace(",", ".");
                 const value = /^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text) ? Number(text) : NaN;
                 c.editing = false;
                 // Merely focusing/committing a rounded native display must not round the SDK preference.
                 if (c.number.value === c.editOriginal) { render(); notify(); return; }
                 if (!Number.isFinite(value)) { error = definition.label + " must be a number."; render(); notify(); return; }
-                stage(field, whole(value, definition.min) / c.scale, 0);
+                stage(field, whole(value, definition.min) / c.scale, 0, c);
             }
             c.number.addEventListener("blur", () => { commit(); c.cancelled = false; c.editing = false; render(); notify(); });
             c.number.addEventListener("keydown", e => {
@@ -410,7 +523,7 @@
             return c.row;
         }
         function preference(field, label, choices) {
-            const c = controls[field] = {}, row = c.row = doc.createElement("label");
+            const c = registerView(field, {}), row = c.row = doc.createElement("label");
             row.className = "remove-preference-row"; row.dataset.removeField = field;
             const text = doc.createElement("span"); text.textContent = label;
             const input = c.input = doc.createElement(choices ? "select" : "input");
@@ -438,8 +551,13 @@
             try {
                 const next = await json("/api/remove/state");
                 if (current === generation) {
-                    if (operation && performance.now() - operation.startedAt > 12000) invalidate("Lightroom confirmation timed out; the Remove operation is unconfirmed.");
+                    const dust = operation?.field === "dustApply" || operation?.field === "selectedSelection";
+                    if (!dust && operation && performance.now() - operation.startedAt > 12000) invalidate("Lightroom confirmation timed out; the Remove operation is unconfirmed.");
                     apply(next);
+                    const limit = operation?.field === "selectedSelection" || operation?.field === "dustApply" && operation.value === true ? 120000 : 12000;
+                    if (dust && operation && performance.now() - operation.startedAt > limit) {
+                        invalidate("Lightroom confirmation timed out; the Remove operation is unconfirmed."); render(); notify();
+                    }
                 }
             } catch (_) {
                 if (current === generation) { invalidate("Could not read Lightroom preferences; pending edits were cancelled."); state = null; render(); notify(); }
@@ -478,6 +596,36 @@
                 section.appendChild(note);
                 status = doc.createElement("div"); status.className = "remove-brush-status"; status.setAttribute("role", "status");
                 section.appendChild(status);
+                const refinement = doc.createElement("section"); refinement.className = "remove-selected-workflow";
+                const refinementHeading = doc.createElement("h3"); refinementHeading.textContent = "Selected"; refinement.appendChild(refinementHeading);
+                const refinementModes = doc.createElement("div"); refinementModes.className = "remove-action-row"; selectionButtons = {};
+                refinementModes.addEventListener("pointerdown", event => {
+                    const value = event.target?.dataset?.removeSelectionMode;
+                    traceRefinement("pointerdown", value, { disabled: event.target?.disabled === true });
+                }, true);
+                for (const label of ["Add", "Subtract"]) {
+                    const button = doc.createElement("button"); button.type = "button"; button.textContent = label;
+                    const action = label.toLowerCase(); button.dataset.removeSelectionMode = action; button.disabled = true; button.setAttribute("aria-disabled", "true");
+                    button.addEventListener("click", () => stage("selectedSelection", action, 0)); selectionButtons[action] = button;
+                    button.title = "Request " + label + " in Lightroom; active refinement mode is not exposed."; refinementModes.appendChild(button);
+                }
+                refinement.appendChild(refinementModes);
+                const refinementHelp = doc.createElement("p"); refinementHelp.className = "remove-reset-defaults";
+                refinementHelp.textContent = "Button feedback is not yet supported. Please check Lightroom Classic for the active Add/Subtract mode.";
+                refinement.appendChild(refinementHelp);
+                selectionNote = doc.createElement("p"); selectionNote.className = "remove-reset-defaults"; selectionNote.hidden = true;
+                refinement.appendChild(selectionNote);
+                refinement.appendChild(sliderRow("brushSize", false, true));
+                const refinementNote = doc.createElement("p"); refinementNote.className = "remove-reset-defaults";
+                refinementNote.textContent = "Size is shared with Healing."; refinement.appendChild(refinementNote);
+                const refinementActions = doc.createElement("div"); refinementActions.className = "remove-action-row";
+                for (const [action, label] of [["cancel", "Cancel"], ["remove", "Remove"]]) {
+                    const button = doc.createElement("button"); button.type = "button"; button.textContent = label; button.dataset.removeSelectionAction = action;
+                    button.addEventListener("click", () => stage("selectedSelection", action, 0)); selectionButtons[action] = button; refinementActions.appendChild(button);
+                }
+                refinement.appendChild(refinementActions);
+                selectionStatus = doc.createElement("div"); selectionStatus.className = "remove-selection-status"; selectionStatus.setAttribute("role", "status");
+                refinement.appendChild(selectionStatus); section.appendChild(refinement);
                 const selected = doc.createElement("section"); selected.className = "remove-selected-repair";
                 const heading = doc.createElement("h3"); heading.textContent = "Selected Repair"; selected.appendChild(heading);
                 repairSelection = doc.createElement("div"); repairSelection.className = "remove-repair-selection"; selected.appendChild(repairSelection);
@@ -511,14 +659,16 @@
                 controls.dustApply.input.dataset.dustApply = "true";
                 dustNote = doc.createElement("p"); dustNote.className = "dust-capability-note";
                 dust.appendChild(dustNote);
-                // Move the same live controls: one preference owner, queue and gesture lifecycle.
-                dust.appendChild(controls.brushSize.row);
-                dust.appendChild(controls.visualizeSpots.row);
-                dust.appendChild(controls.visualizationThreshold.row);
+                // Both locations use the same preference intents, command queue and SDK readback.
+                dust.appendChild(sliderRow("brushSize", true));
+                dust.appendChild(preference("visualizeSpots", "Visualize Spots"));
+                dust.appendChild(sliderRow("visualizationThreshold"));
                 const sharedNote = doc.createElement("p"); sharedNote.className = "remove-reset-defaults";
                 sharedNote.textContent = "Size and visualization are shared with Healing. Resets: Size 25; Threshold 50.";
                 dust.appendChild(sharedNote);
                 dustStatus = doc.createElement("div"); dustStatus.className = "remove-brush-status dust-status";
+                dustStatus.id = "dust-operation-status";
+                controls.dustApply.input.setAttribute("aria-describedby", dustStatus.id);
                 dustStatus.setAttribute("role", "status"); dust.appendChild(dustStatus);
                 const actions = doc.createElement("div"); actions.className = "remove-action-row dust-action-row";
                 for (const action of ["Reset", "Close"]) {
@@ -541,7 +691,9 @@
             deactivate() {
                 generation++; clearTimeout(pollTimer); clearTimeout(sendTimer);
                 section = null; dustStatus = dustNote = null; dustButtons = {}; dustFeedback = ""; state = null; operation = transport = null; intents.clear(); polling = false; error = ""; repairFeedback = "";
-                for (const c of Object.values(controls)) c.dragging = c.editing = false;
+                selectionStatus = null; selectionButtons = {}; selectionFeedback = ""; selectionNote = null;
+                for (const [, c] of controlViews()) c.dragging = c.editing = false;
+                for (const field of Object.keys(views)) { delete views[field]; delete controls[field]; }
                 notify();
             },
             updateContext() {
@@ -551,6 +703,7 @@
                 render(); notify();
             },
             isInteracting: busy,
+            refinementDiagnostics: () => refinementEvents.slice(),
             refresh
         };
     }

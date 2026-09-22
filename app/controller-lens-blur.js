@@ -607,6 +607,7 @@
                 feather: unavailableNativeControl(),
                 flow: unavailableNativeControl()
             },
+            apply: unavailableNativeCheckbox(),
             visualizeDepth: unavailableNativeCheckbox(),
             autoMask: unavailableNativeCheckbox(),
             refinementMode: "unknown",
@@ -684,6 +685,7 @@
         Object.keys(nativeState.brush).forEach(function (control) {
             nativeState.brush[control] = normalizeNativeControl(input.brush[control]);
         });
+        nativeState.apply = normalizeNativeCheckbox(input.apply);
         nativeState.visualizeDepth = normalizeNativeCheckbox(input.visualizeDepth);
         nativeState.autoMask = normalizeNativeCheckbox(input.autoMask);
         nativeState.refinementMode = input.refinementMode === "focus" || input.refinementMode === "blur"
@@ -743,7 +745,10 @@
                 return this.get();
             },
             applyWindowsNative: function (input) {
+                // Apply comes only from the full context-bound state poll, never a command response.
+                const apply = state.windowsNative.apply;
                 state.windowsNative = normalizeWindowsNative(input);
+                state.windowsNative.apply = apply;
                 return this.get();
             }
         };
@@ -751,10 +756,14 @@
 
     function presentationFor(state) {
         const normalized = normalizeState(state);
+        // Prefer SDK boolean feedback; otherwise use the verified, context-bound native checkbox read.
+        const apply = normalized.activeAvailable
+            ? { available: true, value: normalized.active }
+            : normalized.windowsNative.apply;
         return {
-            applyAvailable: normalized.activeAvailable,
-            applyOffSelected: normalized.activeAvailable && normalized.active === false,
-            applyOnSelected: normalized.activeAvailable && normalized.active === true,
+            applyAvailable: apply.available,
+            applyOffSelected: apply.available && apply.value === false,
+            applyOnSelected: apply.available && apply.value === true,
             bokehAvailable: normalized.bokehAvailable,
             selectedBokeh: normalized.bokehAvailable ? normalized.bokeh : null,
             refinementActive: normalized.selectedToolAvailable && normalized.selectedTool === "depth_refinement",

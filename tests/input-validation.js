@@ -431,9 +431,7 @@ async function main() {
         assert.equal(result.body.snapshot.results.Tint.value, null);
 
         result = await getJson(httpPort, "/feedback/result?id=0&slider=Exposure&value=0&min=-5&max=5");
-        assert.equal(result.statusCode, 200);
-        assert.equal(result.body.result.id, 0);
-        assert.equal(result.body.result.value, 0);
+        assert.equal(result.statusCode, 409, "Unowned feedback cannot publish into the current cache");
         for (const suffix of ["", "&value=NaN", "&value=Infinity", "&value=-Infinity", "&value=1e309", "&value=", "&value=%20"]) {
             result = await getJson(httpPort, "/feedback/result?id=" + feedbackId + "&slider=Exposure" + suffix);
             assert.equal(result.statusCode, 400);

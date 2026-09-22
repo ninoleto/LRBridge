@@ -3,7 +3,7 @@ const definition = require("./remove-state");
 module.exports = function installRemoveRoutes(app, state, commands, exact, number) {
     const clientFields = ["selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt", "serverEpoch", "stateRevision", "mode"];
     const snapshotFields = ["available", "reason", "selectedTool", "repair"].concat(definition.preferenceFields);
-    const booleanFields = ["dustApply", "available", "useGenerativeAI", "detectObjects", "visualizeSpots", "otherPreferencesPreserved", "repairRemovalConfirmed", "repairEditConfirmed"];
+    const booleanFields = ["dustApply", "available", "useGenerativeAI", "detectObjects", "visualizeSpots", "otherPreferencesPreserved", "repairRemovalConfirmed", "repairEditConfirmed", "selectionCompletionConfirmed"];
     const numericFields = ["brushSize", "brushFeather", "visualizationThreshold", ...Object.keys(definition.repairParameters), "expectedRemoveRevision",
         "expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt", "contextCounter", "developCounter", "contextChangedAt", "stateRevision"];
     function parse(query) {
@@ -19,7 +19,43 @@ module.exports = function installRemoveRoutes(app, state, commands, exact, numbe
         }
         return out;
     }
-    app.get("/remove/state", (req, res) => res.json({ ok: true, ...state.get(true) }));
+    app.get("/remove/state", (req, res) => {
+        // Native discovery must not delay SDK/Dust feedback or make its polls fail.
+        const current = state.get(true);
+        state.refreshSelection(false);
+        res.json({ ok: true, ...current });
+    });
+    app.get("/remove/diagnostics/refinement", (req, res) => res.set("Cache-Control", "no-store").json({ ok: true, ...state.refinementDiagnostics() }));
+    app.get("/remove/selection-native", async (req, res) => {
+        if (!exact(req, ["operationId", "action"].concat(definition.bindingFields))) return res.status(400).json({ ok: false });
+        const input = parse(req.query);
+        if (!["read", "invoke"].includes(input.action) || !state.validateBinding(input)) return res.status(409).json({ ok: false });
+        const sent = input.action === "invoke" ? await state.invokeSelection(input) : false;
+        await state.refreshSelection();
+        if (!state.validateBinding(input)) return res.status(409).json({ ok: false });
+        res.json({ ok: true, sent, ...state.get(false).selection });
+    });
+    app.get("/remove/selection-refinement-native", (req, res) => {
+        if (!exact(req, ["operationId", "action"].concat(definition.bindingFields))) return res.status(400).json({ ok: false });
+        const input = parse(req.query);
+        if (!["invoke", "status"].includes(input.action) || !state.refinementStatus(input)) return res.status(409).json({ ok: false });
+        if (input.action === "invoke") {
+            if (!state.invokeRefinement(input)) return res.status(409).json({ ok: false });
+            return res.json({ ok: true, queued: true });
+        }
+        res.json({ ok: true, ...state.refinementStatus(input) });
+    });
+    app.get("/remove/selection-validate", async (req, res) => {
+        if (!exact(req, ["operationId"].concat(definition.bindingFields))) return res.status(400).json({ ok: false });
+        res.json({ ok: true, valid: await state.challengeSelection(parse(req.query)) });
+    });
+    app.get("/remove/selection-guard", (req, res) => {
+        if (!exact(req, ["operationId", "phase", "valid"].concat(definition.bindingFields)) ||
+            !["poll", "confirm"].includes(req.query.phase) || !["true", "false", "null"].includes(req.query.valid)) return res.status(400).json({ ok: false });
+        const input = parse(req.query);
+        const accepted = state.selectionGuard(input, req.query.phase, req.query.valid === "true" ? true : req.query.valid === "false" ? false : null);
+        res.json({ ok: true, requested: req.query.phase === "poll" && accepted, accepted });
+    });
     app.get("/remove/diagnostics/selected-repair", (req, res) => {
         const snapshot = state.get(true);
         res.json({ ok: true, sdkOnly: true, capturedAt: snapshot.capturedAt, ageMs: snapshot.ageMs,
@@ -39,9 +75,11 @@ module.exports = function installRemoveRoutes(app, state, commands, exact, numbe
         if (!state.acceptQuery(parse(req.query))) return res.status(409).json({ ok: false });
         res.json({ ok: true });
     });
-    function admit(req, res, panel, repair, dust) {
-        if (!exact(req, ["field", "value"].concat(clientFields, repair ? ["repairToken"] : []))) return res.status(400).json({ ok: false });
+    function admit(req, res, panel, repair, dust, selection) {
+        if (!exact(req, ["field", "value"].concat(clientFields, repair ? ["repairToken"] : [], selection ? ["selectionToken"] : []))) return res.status(400).json({ ok: false });
         const input = parse(req.query);
+        if ((input.field === "selectedSelection") !== Boolean(selection)) return res.status(400).json({ ok: false });
+        state.traceRefinement("http_request", input, { route: req.path });
         if (["dustApply", "dustClose"].includes(input.field) !== Boolean(dust)) return res.status(400).json({ ok: false, error: "Invalid Dust route" });
         if (repair ? !(input.field === "selectedRepair" && ["refresh", "delete"].includes(input.value) ||
             input.field === "selectedRepairFill" && definition.fillChoices.includes(input.value) ||
@@ -49,7 +87,10 @@ module.exports = function installRemoveRoutes(app, state, commands, exact, numbe
             (input.field === "selectedTool") !== panel || !definition.validValue(input.field, input.value))
             return res.status(400).json({ ok: false, error: "Invalid Remove request" });
         const command = state.admit(input.field, input.value, input);
-        if (!command) return res.status(409).json({ ok: false, error: "Remove tool, mode or context changed, or another operation is pending." });
+        if (!command) {
+            state.traceRefinement("http_rejected", input, { status: 409, reason: state.get(false).selection?.refinementReason || "Operation or photo/context/selection binding changed." });
+            return res.status(409).json({ ok: false, error: "Remove tool, mode or context changed, or another operation is pending." });
+        }
         const result = commands.tryEnqueueCommand(command);
         if (result.status !== commands.ADMISSION_ACCEPTED) {
             state.reject(command, "The Remove operation could not be queued.");
@@ -61,9 +102,11 @@ module.exports = function installRemoveRoutes(app, state, commands, exact, numbe
     app.get("/remove/panel", (req, res) => admit(req, res, true));
     app.get("/remove/repair", (req, res) => admit(req, res, false, true));
     app.get("/remove/dust", (req, res) => admit(req, res, false, false, true));
+    app.get("/remove/selection", (req, res) => admit(req, res, false, false, false, true));
     app.get("/remove/operation-result", (req, res) => {
         const fields = ["operationId", "field", "value", "outcome", "detail", "otherPreferencesPreserved", "targetRepairToken", "repairRemovalConfirmed", "repairEditConfirmed"];
-        if (!exact(req, fields.concat(definition.bindingFields, snapshotFields, req.query.dust === undefined ? [] : ["dust"])) || typeof req.query.detail !== "string" ||
+        if (!exact(req, fields.concat(definition.bindingFields, snapshotFields, req.query.dust === undefined ? [] : ["dust"],
+            req.query.selectionCompletionConfirmed === undefined ? [] : ["selectionCompletionConfirmed"])) || typeof req.query.detail !== "string" ||
             req.query.detail.length > 300 || /[\x00-\x1f\x7f]/.test(req.query.detail)) return res.status(400).json({ ok: false });
         if (!state.acceptResult(parse(req.query))) return res.status(409).json({ ok: false });
         res.json({ ok: true });

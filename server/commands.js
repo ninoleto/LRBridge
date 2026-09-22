@@ -198,6 +198,7 @@ function validateCommand(command) {
         ,"remove.dust.off"
         ,"remove.dust.on"
         ,"remove.dust.close"
+        ,"remove.selection.action"
         ,"reflections.set"
         ,"people.action"
         ,"red_eye.action"
@@ -323,7 +324,7 @@ function validateCommand(command) {
     if (command.command === "red_eye.action") return require("./red-eye-state").validCommand(command);
     if (["export.query", "export.dialog", "export.previous"].includes(command.command)) return require("./export-state").validCommand(command);
     if (["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(command.command)) return require("./clipboard-state").validCommand(command);
-    if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return require("./remove-state").validCommand(command);
+    if (["remove.selection.action", "remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return require("./remove-state").validCommand(command);
 
     if (command.command === "masking.component.add" || command.command === "masking.component.subtract" ||
         command.command === "masking.create" || command.command === "masking.panel.set" || command.command === "masking.group.navigate" ||
@@ -861,11 +862,12 @@ function tryEnqueueCommand(command) {
         !peopleAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (command && command.command === "reflections.set" && (!validateCommand(command) || !reflectionsAdmissionProvider ||
         !reflectionsAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
-    if (command && ["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!validateCommand(command) ||
+    if (command && ["remove.selection.action", "remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!validateCommand(command) ||
         !removeAdmissionProvider || !removeAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (!validateCommand(command)) {
         return admissionResult(ADMISSION_INVALID);
     }
+    pruneObsoleteReadQueries();
     command = bindContextBoundDevelopCommand(command);
     if (command === null) return admissionResult(ADMISSION_INVALID);
     if ((command.command === "develop_preset.apply" || command.command === "develop_preset.amount.set") &&
@@ -1218,6 +1220,19 @@ function replacePendingAt(index, command, admittedAt, message) {
     return admissionResult(ADMISSION_COALESCED);
 }
 
+function pruneObsoleteReadQueries() {
+    for (let index = commandQueue.length - 1; index >= 0; index -= 1) {
+        const command = commandQueue[index];
+        // These two commands only discover selection/capabilities. Never prune editing actions here.
+        const provider = command.command === "clipboard.query" ? clipboardAdmissionProvider :
+            command.command === "export.query" ? exportAdmissionProvider : null;
+        if (!provider || provider.matches(command, "pending")) continue;
+        commandQueue.splice(index, 1);
+        queueEntryMetadata.splice(index, 1);
+        provider.reject(command);
+    }
+}
+
 function removePending(predicate) {
     let removed = 0;
     for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
@@ -1271,12 +1286,13 @@ function tryEnqueueBatch(batch) {
     }
     if (batch.some(command => command.command === "reflections.set" || command.command === "people.action" || command.command === "red_eye.action")) return admissionResult(ADMISSION_INVALID);
     // Remove preference writes require the single-operation admission path.
-    if (batch.some(command => ["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command))) return admissionResult(ADMISSION_INVALID);
+    if (batch.some(command => ["remove.selection.action", "remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command))) return admissionResult(ADMISSION_INVALID);
 
     if (!batch.every(isProtectedCommand)) {
         return admissionResult(ADMISSION_INVALID);
     }
 
+    pruneObsoleteReadQueries();
     if (commandQueue.length + batch.length > HARD_QUEUE_CAPACITY) {
         queueFullRejections += 1;
         lastQueueFullRejectionAt = Date.now();
@@ -1304,7 +1320,7 @@ function isProtectedCommand(command) {
     if (command.command === "red_eye.action") return true;
     if (command.command === "people.action") return true;
     if (command.command === "reflections.set") return true;
-    if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return true;
+    if (["remove.selection.action", "remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return true;
     return command.command === "develop.reset" || command.command === "develop.action" ||
         command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset" ||
         command.command === "lightroom.undo" || command.command === "lightroom.redo" ||
@@ -1412,7 +1428,7 @@ function getNextCommand() {
             if (peopleAdmissionProvider) peopleAdmissionProvider.reject(command, "People context changed before dequeue.");
             continue;
         }
-        if (["remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!removeAdmissionProvider || !removeAdmissionProvider.matches(command, "dequeue"))) {
+        if (["remove.selection.action", "remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command) && (!removeAdmissionProvider || !removeAdmissionProvider.matches(command, "dequeue"))) {
             if (removeAdmissionProvider) removeAdmissionProvider.reject(command, "Remove brush context changed before dequeue.");
             continue;
         }
@@ -1490,6 +1506,7 @@ function getQueueDiagnostics(nowMs) {
         ,"remove.dust.off": 0
         ,"remove.dust.on": 0
         ,"remove.dust.close": 0
+        ,"remove.selection.action": 0
         ,"reflections.set": 0
         ,"people.action": 0
         ,"red_eye.action": 0
@@ -1611,7 +1628,7 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
                     pendingByCommand["tone_curve.refine_saturation.reset"] +
                     pendingByCommand["tone_curve.refine_saturation.gesture.cancel"] +
-                    pendingByCommand["red_eye.action"] + pendingByCommand["people.action"] + pendingByCommand["reflections.set"] + pendingByCommand["remove.repair.param.set"] + pendingByCommand["remove.repair.fill.set"] + pendingByCommand["remove.repair.action"] + pendingByCommand["remove.panel.set"] + pendingByCommand["remove.brush.set"] + pendingByCommand["remove.dust.off"] + pendingByCommand["remove.dust.on"] + pendingByCommand["remove.dust.close"] + pendingByCommand["masking.component.add"] + pendingByCommand["masking.component.subtract"] +
+                    pendingByCommand["red_eye.action"] + pendingByCommand["people.action"] + pendingByCommand["reflections.set"] + pendingByCommand["remove.repair.param.set"] + pendingByCommand["remove.repair.fill.set"] + pendingByCommand["remove.repair.action"] + pendingByCommand["remove.panel.set"] + pendingByCommand["remove.brush.set"] + pendingByCommand["remove.dust.off"] + pendingByCommand["remove.dust.on"] + pendingByCommand["remove.dust.close"] + pendingByCommand["remove.selection.action"] + pendingByCommand["masking.component.add"] + pendingByCommand["masking.component.subtract"] +
                     pendingByCommand["masking.create"] + pendingByCommand["masking.panel.set"] + pendingByCommand["masking.group.navigate"] +
                     pendingByCommand["masking.tool.navigate"] + pendingByCommand["masking.group.visibility.set"] +
                     pendingByCommand["masking.tool.visibility.set"] +

@@ -963,8 +963,10 @@ function capturedLookAndProductionBoundaryTests() {
         "Profile discovery must not restore the slow desktop-wide full snapshot traversal");
     assert.match(nativeDiscovery, /browseRuntimeId[\s\S]*comboHandle[\s\S]*listRuntimeId/,
         "Browse-first discovery must retain exact ComboBox and list runtime-ID binding");
-    assert.match(nativeJs, /const background = operation === "readState";/,
-        "full Profile inventory reads must outrank generic native-state polling after a photo-context change");
+    assert.match(nativeJs, /const background = operation === "readState"(?: \|\| operation === "readRemoveSelection")?;/,
+        "native state polling retains its background coalescing classification");
+    assert.match(nativeJs, /else if \(operation === "readProfileSnapshot" \|\| operation === "readProfileLabel"\) \{\s*requestQueue\.push\(job\)/,
+        "Profile discovery retains FIFO order with state reads");
     assert.doesNotMatch(lua, /WM_COMMAND|SendInput|SendKeys|mouse|keyboard|ComboBox/i);
     assert.match(nativePs, /SelectionItemPattern/, "native Profile discovery/readback must remain intact");
     assert.match(helper, /const PROFILE_CONFIRMATION_TIMEOUT_MS = 8000/);
@@ -1016,8 +1018,10 @@ Promise.resolve()
     .then(serverQueueAndReadbackTests)
     .then(serverEarlyLabelPublicationTests)
     .then(serverSdkFeedbackBindingTests)
+    .then(function () { return require("./profile-slider-recovery").run(); })
     .then(function () {
         capturedLookAndProductionBoundaryTests();
+        require("./profile-sdk-validation").run();
         console.log("Profile SDK registry, Look-only writes, authoritative confirmation, and readback contracts passed.");
     })
     .catch(function (error) {

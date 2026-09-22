@@ -404,6 +404,19 @@ assert.equal(profileAmountControl.row.hidden, false, "Capability updates must ke
 assert.equal(profileAmountControl.range.disabled, true);
 assert.equal(profileAmountControl.state.textContent, "Updating Profile Amount…");
 
+for (const unknown of [null,
+    { authoritativeToken: null, authoritativeSource: null, supportsAmount: null, pending: false, updating: false },
+    { authoritativeToken: "profile_camera", authoritativeSource: "CameraProfile", supportsAmount: null,
+        pending: false, updating: false }
+]) {
+    gateContext.profileAmountGate.updateProfileAmountControl(unknown);
+    assert.equal(profileAmountControl.range.disabled, true, "Lost capability feedback must disable Amount");
+    assert.equal(profileAmountControl.number.value, "", "Lost feedback cannot retain a previous Amount");
+    assert.equal(profileAmountControl.state.textContent,
+        unknown === null ? "Updating Profile Amount…" : "Profile Amount capability unknown",
+        "Only explicit SDK SupportsAmount=false may say unavailable for this profile");
+}
+
 const artisticPresentation = {
     authoritativeToken: "profile_artistic_02",
     authoritativeSource: "Look.Name",
@@ -570,8 +583,7 @@ async function runFeedbackContextTests() {
             "&selectedPhotoKey=uuid-photo-a&selectedPhotoUuid=uuid-photo-a");
         assert.equal(response.statusCode, 409, "Previous-photo Profile Amount feedback must be rejected");
         response = await getJson(port, "/feedback/snapshot?id=" + staleRequestId);
-        assert.equal(response.body.snapshot.complete, false);
-        assert.equal(response.body.snapshot.results.ProfileAmount, undefined);
+        assert.equal(response.statusCode, 404, "Previous-photo snapshots and their queued reads are discarded together");
 
         for (const value of [0, 100, 200]) {
             response = await getJson(port, "/feedback/request?slider=ProfileAmount");

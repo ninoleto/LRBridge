@@ -89,6 +89,21 @@ if (httpHeadersTimeoutMs > httpRequestTimeoutMs) {
 }
 const shutdownGraceMs = options.shutdownGraceMs === undefined ? 250 : options.shutdownGraceMs;
 const app = express();
+const pollingTrace = require("./polling-trace").createPollingTrace();
+app.use(pollingTrace.middleware);
+function syncHealingObserverComparison() {
+    if (!pollingTrace.enabled) return { paused: false, sharedReads: { paused: false } };
+    const setting = pollingTrace.readObserverPause();
+    const sharedReads = pollingTrace.readSharedReadPause();
+    if (windowsNativeBackend.setSelectionObserverPaused) windowsNativeBackend.setSelectionObserverPaused(setting.paused);
+    if (windowsNativeBackend.setSharedReadPauseUntil) windowsNativeBackend.setSharedReadPauseUntil(sharedReads.paused && sharedReads.until > Date.now() ? sharedReads.until : null);
+    return { ...setting, sharedReads };
+}
+app.get("/diagnostics/polling", (req, res) => {
+    const comparison = syncHealingObserverComparison();
+    res.set("Cache-Control", "no-store").json({ ok: true, version: 3, developerDiagnostics: pollingTrace.enabled, comparison,
+        native: windowsNativeBackend.getTransportDiagnostics?.() || null });
+});
 const parseDevelopPresetConfiguration = express.json({ limit: "64kb", strict: true });
 const developCategorical = developCategoricalDefinition.createDevelopCategoricalState();
 const profileBackend = typeof windowsNativeBackend.readProfileSnapshot === "function"
@@ -108,7 +123,8 @@ const deletionDiagnostics = deletionDiagnosticsDefinition.create();
 const masking = maskingDefinition.createMaskingState(Object.assign({}, options.maskingStateOptions, {
     onDeletionDiagnostic: (event, data) => deletionDiagnostics.record(event, data)
 }));
-const remove = require("./remove-state").createRemoveState({ getContext: context.getContextFields });
+const remove = require("./remove-state").createRemoveState({ getContext: context.getContextFields, nativeBackend: windowsNativeBackend,
+    beforeNativeObservation: syncHealingObserverComparison });
 commands.setRemoveAdmissionProvider(remove);
 const reflections = require("./reflections-state").createReflectionsState({ getContext: context.getContextFields,
     onChanged() { history.invalidate(); history.requestRefresh(); } });
@@ -170,6 +186,11 @@ const feedbackSnapshots = {};
 const feedbackSnapshotContexts = {};
 const colorGradingSnapshots = {};
 const treatmentSnapshots = {};
+const feedbackRequestMetadata = new Map();
+const feedbackSnapshotWaiters = new Map();
+let feedbackSnapshotWaiterCount = 0;
+const FEEDBACK_READ_TTL_MS = 5000;
+const MAX_PENDING_FEEDBACK_READS = 32;
 let feedbackRequestId = 0;
 let focalRangeCommitCounter = 0;
 const PRESET_AMOUNT_PARAMETER = "PresetAmount";
@@ -180,15 +201,122 @@ function isFeedbackParameter(value) {
     return sliders.exists(value) || dedicatedFeedbackParameters.has(value);
 }
 
-function queueFeedbackRequest(slider, deduplicate) {
-    if (deduplicate === true) {
-        const existing = feedbackRequests.find(function (request) { return request.slider === slider; });
-        if (existing) return existing;
+function feedbackReadContextMatches(binding) {
+    const current = context.getContextFields();
+    return binding && ["activeModule", "selectedPhotoKey", "selectedPhotoUuid", "contextCounter",
+        "contextChangedAt", "developCounter"].every(function (field) { return binding[field] === current[field]; });
+}
+
+function pendingResetReadCanFollowRevision(id, metadata) {
+    const current = context.getContextFields();
+    const snapshot = feedbackSnapshots[id];
+    return metadata.followDevelopRevision && !metadata.dispatched && current.activeModule === "develop" &&
+        feedbackRequests.some(function (request) { return request.id === id; }) &&
+        snapshot && Object.keys(snapshot.results).length === 0 &&
+        ["activeModule", "selectedPhotoKey", "selectedPhotoUuid", "contextCounter", "contextChangedAt"]
+            .every(function (field) { return metadata.context[field] === current[field]; });
+}
+
+function removeQueuedFeedbackRead(id) {
+    const index = feedbackRequests.findIndex(function (request) { return request.id === id; });
+    if (index !== -1) feedbackRequests.splice(index, 1);
+}
+
+function discardFeedbackRead(id) {
+    removeQueuedFeedbackRead(id);
+    feedbackRequestMetadata.delete(id);
+    delete feedbackSnapshots[id];
+    delete feedbackSnapshotContexts[id];
+    delete treatmentSnapshots[id];
+    delete colorGradingSnapshots[id];
+    finishFeedbackSnapshotWaiters(id);
+}
+
+function sendFeedbackSnapshot(res, id) {
+    if (res.destroyed || res.writableEnded) return;
+    const snapshot = feedbackSnapshots[id];
+    res.status(snapshot ? 200 : 404).set("Cache-Control", "no-store").json(snapshot
+        ? { ok: true, snapshot: snapshot }
+        : { ok: false, error: "Unknown feedback snapshot" });
+}
+
+function finishFeedbackSnapshotWaiters(id, failure) {
+    const waiting = feedbackSnapshotWaiters.get(id);
+    if (waiting) Array.from(waiting).forEach(function (finish) { finish(failure); });
+}
+
+function waitForFeedbackSnapshot(res, id) {
+    const waiting = feedbackSnapshotWaiters.get(id) || new Set();
+    // Two active reads per controller; also bound multiple connected controllers.
+    if (feedbackSnapshotWaiterCount >= 64 || waiting.size >= 4 || res.destroyed) return false;
+    let timer, settled = false;
+    function cleanup() {
+        if (settled) return false;
+        settled = true;
+        clearTimeout(timer);
+        res.removeListener("close", cleanup);
+        waiting.delete(finish);
+        feedbackSnapshotWaiterCount -= 1;
+        if (!waiting.size) feedbackSnapshotWaiters.delete(id);
+        return true;
     }
-    feedbackRequestId += 1;
-    const request = { id: feedbackRequestId, slider: slider, requestedAt: Date.now() };
+    function finish(failure) {
+        if (!cleanup() || res.destroyed || res.writableEnded) return;
+        if (failure) res.status(503).set("Cache-Control", "no-store").json({ ok: false, error: failure });
+        else sendFeedbackSnapshot(res, id);
+    }
+    waiting.add(finish);
+    feedbackSnapshotWaiters.set(id, waiting);
+    feedbackSnapshotWaiterCount += 1;
+    res.once("close", cleanup);
+    timer = setTimeout(function () {
+        pruneFeedbackReads();
+        finish();
+    }, 1000);
+    return true;
+}
+
+function pruneFeedbackReads() {
+    const now = Date.now();
+    // Reset demand for the same photo may wait through edits BEFORE SDK dispatch.
+    // Dispatched snapshots always retain their exact revision; never rebind results.
+    for (const [id, metadata] of feedbackRequestMetadata) {
+        if (!feedbackReadContextMatches(metadata.context) && !pendingResetReadCanFollowRevision(id, metadata)) discardFeedbackRead(id);
+    }
+    for (const request of feedbackRequests.slice()) {
+        const metadata = feedbackRequestMetadata.get(request.id);
+        if (!metadata || now - metadata.lastRequestedAt > FEEDBACK_READ_TTL_MS) discardFeedbackRead(request.id);
+    }
+}
+
+function trimFeedbackSnapshots(snapshots) {
+    const ids = Object.keys(snapshots).map(Number).sort(function (a, b) { return a - b; });
+    while (ids.length > 32) discardFeedbackRead(ids.shift());
+}
+
+function queueFeedbackRead(fields, key, followDevelopRevision) {
+    pruneFeedbackReads();
+    if (followDevelopRevision) key = "reset:" + key;
+    const now = Date.now();
+    const existing = feedbackRequests.find(function (request) {
+        return feedbackRequestMetadata.get(request.id).key === key;
+    });
+    if (existing) {
+        // Share only work not yet dispatched. Keep its FIFO position and snapshot ID for all waiters.
+        feedbackRequestMetadata.get(existing.id).lastRequestedAt = now;
+        return existing;
+    }
+    const request = Object.assign({ id: ++feedbackRequestId }, fields, { requestedAt: now });
+    feedbackRequestMetadata.set(request.id, { key: key, context: context.getContextFields(), lastRequestedAt: now,
+        followDevelopRevision: followDevelopRevision === true, dispatched: false });
     feedbackRequests.push(request);
-    createFeedbackSnapshot(request.id, [slider]);
+    while (feedbackRequests.length > MAX_PENDING_FEEDBACK_READS) discardFeedbackRead(feedbackRequests[0].id);
+    return request;
+}
+
+function queueFeedbackRequest(slider, followDevelopRevision) {
+    const request = queueFeedbackRead({ slider: slider }, slider, followDevelopRevision);
+    if (!feedbackSnapshots[request.id]) createFeedbackSnapshot(request.id, [slider]);
     return request;
 }
 
@@ -259,17 +387,7 @@ function createFeedbackSnapshot(id, requestedSliders) {
         selectedPhotoUuid: contextFields.selectedPhotoUuid
     };
 
-    const ids = Object.keys(feedbackSnapshots).map(Number).sort(function (a, b) { return a - b; });
-    while (ids.length > 32) {
-        const expiredId = ids.shift();
-        delete feedbackSnapshots[expiredId];
-        delete feedbackSnapshotContexts[expiredId];
-        for (let i = feedbackRequests.length - 1; i >= 0; i -= 1) {
-            if (feedbackRequests[i].id === expiredId) {
-                feedbackRequests.splice(i, 1);
-            }
-        }
-    }
+    trimFeedbackSnapshots(feedbackSnapshots);
 }
 
 function invalidateContextBoundFeedback() {
@@ -282,11 +400,7 @@ function invalidateContextBoundFeedback() {
         if (!snapshot || !snapshot.requestedSliders.some(function (slider) {
             return contextBoundFeedbackParameters.has(slider);
         })) return;
-        delete feedbackSnapshots[id];
-        delete feedbackSnapshotContexts[id];
-        for (let index = feedbackRequests.length - 1; index >= 0; index -= 1) {
-            if (feedbackRequests[index].id === Number(id)) feedbackRequests.splice(index, 1);
-        }
+        discardFeedbackRead(Number(id));
     });
 }
 
@@ -654,7 +768,7 @@ function queueDevelopPresetApplication(res, uuid, binding) {
         expectedContextChangedAt: operation.expectedContextChangedAt
     };
     invalidatePresetAmountFeedback();
-    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, true);
+    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER);
     res.set("Cache-Control", "no-store").json(responseBody);
 }
 
@@ -828,6 +942,7 @@ app.get("/context/update", function (req, res) {
         selectedPhotoPath: req.query.selectedPhotoPath,
         developFingerprint: req.query.developFingerprint
     });
+    pruneFeedbackReads();
     developPresets.rejectMismatchedApplications(updated);
     const pointCurveNavigationChanged = previousContext.selectedPhotoUuid !== updated.selectedPhotoUuid ||
         previousContext.contextCounter !== updated.contextCounter || updated.activeModule !== "develop";
@@ -1242,7 +1357,7 @@ app.get("/groups", function (req, res) {
 app.get("/develop-presets/state", function (req, res) {
     if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
     const state = developPresetPublicState();
-    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, true);
+    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER);
     res.set("Cache-Control", "no-store").json(state);
 });
 
@@ -1419,7 +1534,7 @@ app.get("/develop-presets/amount", function (req, res) {
             error: "Native Preset Amount command was rejected during queue admission"
         });
     }
-    const feedbackRequest = queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, false);
+    const feedbackRequest = queueFeedbackRequest(PRESET_AMOUNT_PARAMETER);
     res.set("Cache-Control", "no-store").json({
         ok: true,
         queued: command,
@@ -1442,12 +1557,15 @@ app.get("/develop-presets/apply-result", function (req, res) {
         return res.status(409).json({ ok: false, error: "Stale Develop preset application result" });
     }
     invalidatePresetAmountFeedback();
-    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER, true);
+    queueFeedbackRequest(PRESET_AMOUNT_PARAMETER);
     res.set("Cache-Control", "no-store").json(developPresetPublicState());
 });
 
 app.get("/next", function (req, res) {
     const command = commands.getNextCommand();
+    pollingTrace.record("command_dequeue", { command: command?.command || null, operationId: command?.operationId || null,
+        ...(["develop.set", "develop.adjust", "develop.reset"].includes(command?.command)
+            ? { slider: command.slider, value: command.value, amount: command.amount } : {}) });
     res.json({ command: command });
 });
 
@@ -3163,7 +3281,7 @@ app.get("/feedback/request", function (req, res) {
         return;
     }
 
-    const request = queueFeedbackRequest(slider, false);
+    const request = queueFeedbackRequest(slider, req.query.purpose === "reset");
 
     res.json({
         ok: true,
@@ -3172,16 +3290,8 @@ app.get("/feedback/request", function (req, res) {
 });
 
 app.get("/feedback/request-all", function (req, res) {
-    feedbackRequestId += 1;
-
-    const request = {
-        id: feedbackRequestId,
-        slider: "__all__",
-        requestedAt: Date.now()
-    };
-
-    feedbackRequests.push(request);
-    createFeedbackSnapshot(request.id, sliders.getAll()
+    const request = queueFeedbackRead({ slider: "__all__" }, "__all__");
+    if (!feedbackSnapshots[request.id]) createFeedbackSnapshot(request.id, sliders.getAll()
         .filter(function (slider) { return slider.feedbackSupported === true; })
         .map(function (slider) { return slider.id; })
         .concat(["CropAngle", PRESET_AMOUNT_PARAMETER]));
@@ -3221,16 +3331,9 @@ app.get("/feedback/request-many", function (req, res) {
         return;
     }
 
-    feedbackRequestId += 1;
-
-    const request = {
-        id: feedbackRequestId,
-        slider: "__many__:" + validSliders.join(","),
-        requestedAt: Date.now()
-    };
-
-    feedbackRequests.push(request);
-    createFeedbackSnapshot(request.id, validSliders);
+    const request = queueFeedbackRead({ slider: "__many__:" + validSliders.join(",") },
+        "__many__:" + validSliders.slice().sort().join(","), req.query.purpose === "reset");
+    if (!feedbackSnapshots[request.id]) createFeedbackSnapshot(request.id, validSliders);
 
     res.json({
         ok: true,
@@ -3241,7 +3344,21 @@ app.get("/feedback/request-many", function (req, res) {
 });
 
 app.get("/feedback/next", function (req, res) {
+    pruneFeedbackReads();
     const request = feedbackRequests.shift() || null;
+    if (request) {
+        const metadata = feedbackRequestMetadata.get(request.id);
+        metadata.dispatched = true;
+        if (metadata.followDevelopRevision) {
+            metadata.context = context.getContextFields();
+            const binding = {};
+            ["activeModule", "selectedPhotoKey", "selectedPhotoUuid", "contextCounter", "contextChangedAt", "developCounter"]
+                .forEach(function (field) { binding[field] = metadata.context[field]; });
+            feedbackSnapshots[request.id].context = binding;
+            feedbackSnapshotContexts[request.id] = binding;
+        }
+    }
+    pollingTrace.record("feedback_dequeue", { request, pendingReads: feedbackRequests.length });
 
     res.json({
         ok: true,
@@ -3251,12 +3368,9 @@ app.get("/feedback/next", function (req, res) {
 
 app.get("/treatment/request", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
-    feedbackRequestId += 1;
-    const request = { id: feedbackRequestId, treatment: true, requestedAt: Date.now() };
-    feedbackRequests.push(request);
-    treatmentSnapshots[request.id] = { id: request.id, status: "pending", grayscale: null };
-    const treatmentIds = Object.keys(treatmentSnapshots).map(Number).sort(function (a, b) { return a - b; });
-    while (treatmentIds.length > 32) delete treatmentSnapshots[treatmentIds.shift()];
+    const request = queueFeedbackRead({ treatment: true }, "treatment");
+    if (!treatmentSnapshots[request.id]) treatmentSnapshots[request.id] = { id: request.id, status: "pending", grayscale: null };
+    trimFeedbackSnapshots(treatmentSnapshots);
     res.json({ ok: true, request: { id: request.id } });
 });
 
@@ -3269,7 +3383,9 @@ app.get("/treatment/result", function (req, res) {
         (status === "available" && !["true", "false"].includes(req.query.grayscale))) {
         return res.status(400).json({ ok: false, error: "Invalid treatment result" });
     }
+    pruneFeedbackReads();
     if (!treatmentSnapshots[id]) return res.status(404).json({ ok: false, error: "Unknown treatment request" });
+    removeQueuedFeedbackRead(id);
     treatmentSnapshots[id] = {
         id: id,
         status: status,
@@ -3283,6 +3399,7 @@ app.get("/treatment/snapshot", function (req, res) {
     if (id === null || Object.keys(req.query).length !== 1 || Array.isArray(req.query.id)) {
         return res.status(400).set("Cache-Control", "no-store").json({ error: "Invalid treatment request id" });
     }
+    pruneFeedbackReads();
     const snapshot = treatmentSnapshots[id];
     if (!snapshot) return res.status(404).set("Cache-Control", "no-store").json({ error: "Unknown treatment request" });
     res.set("Cache-Control", "no-store").json(snapshot);
@@ -3290,10 +3407,8 @@ app.get("/treatment/snapshot", function (req, res) {
 
 app.get("/color-grading/request", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
-    feedbackRequestId += 1;
-    const request = { id: feedbackRequestId, colorGrading: true, requestedAt: Date.now() };
-    feedbackRequests.push(request);
-    colorGradingSnapshots[request.id] = {
+    const request = queueFeedbackRead({ colorGrading: true }, "colorGrading");
+    if (!colorGradingSnapshots[request.id]) colorGradingSnapshots[request.id] = {
         id: request.id,
         parameters: {},
         view: null,
@@ -3302,6 +3417,7 @@ app.get("/color-grading/request", function (req, res) {
         requestedAt: request.requestedAt,
         completedAt: null
     };
+    trimFeedbackSnapshots(colorGradingSnapshots);
     res.json({ ok: true, request: request });
 });
 
@@ -3317,6 +3433,7 @@ app.get("/color-grading/result", function (req, res) {
     const min = unavailable ? null : numbers.parseFiniteNumber(req.query.min);
     const max = unavailable ? null : numbers.parseFiniteNumber(req.query.max);
     if (!unavailable && (value === null || min === null || max === null || min >= max)) return res.status(400).json({ ok: false, error: "Invalid Color Grading result" });
+    pruneFeedbackReads();
     const snapshot = colorGradingSnapshots[id];
     if (!snapshot) return res.status(404).json({ ok: false, error: "Unknown Color Grading snapshot" });
     const result = { parameter: parameter, available: !unavailable, value: value, range: unavailable ? null : { min: min, max: max } };
@@ -3332,6 +3449,7 @@ app.get("/color-grading/view-result", function (req, res) {
     const allowed = unavailable ? ["id", "available"] : ["id", "view"];
     if (id === null || Object.keys(req.query).some(function (key) { return !allowed.includes(key) || Array.isArray(req.query[key]); }) ||
         (!unavailable && !colorGrading.metadata.views.includes(req.query.view))) return res.status(400).json({ ok: false, error: "Invalid Color Grading view result" });
+    pruneFeedbackReads();
     const snapshot = colorGradingSnapshots[id];
     if (!snapshot) return res.status(404).json({ ok: false, error: "Unknown Color Grading snapshot" });
     snapshot.view = { available: !unavailable, value: unavailable ? null : req.query.view };
@@ -3344,11 +3462,13 @@ function finishColorGradingSnapshot(snapshot) {
         return snapshot.parameters[parameter] !== undefined;
     });
     if (snapshot.complete && snapshot.completedAt === null) snapshot.completedAt = Date.now();
+    if (snapshot.complete) removeQueuedFeedbackRead(snapshot.id);
 }
 
 app.get("/color-grading/snapshot", function (req, res) {
     const id = numbers.parseFiniteInteger(req.query.id);
     if (id === null || Object.keys(req.query).length !== 1 || Array.isArray(req.query.id)) return res.status(400).json({ ok: false, error: "Invalid snapshot id" });
+    pruneFeedbackReads();
     const snapshot = colorGradingSnapshots[id];
     if (!snapshot) return res.status(404).json({ ok: false, error: "Unknown Color Grading snapshot" });
     res.set("Cache-Control", "no-store").json({ ok: true, snapshot: snapshot });
@@ -3483,6 +3603,14 @@ app.get("/feedback/result", function (req, res) {
         return;
     }
 
+    pruneFeedbackReads();
+    const ownedSnapshot = feedbackSnapshots[requestId];
+    const ownedRead = feedbackRequestMetadata.get(requestId);
+    if (!ownedSnapshot || !ownedSnapshot.requestedSliders.includes(slider) ||
+        (ownedRead && ownedRead.followDevelopRevision && !ownedRead.dispatched)) {
+        return res.status(409).json({ ok: false, error: "Stale or unknown feedback request", slider: slider });
+    }
+
     const result = {
         id: requestId,
         slider: slider,
@@ -3511,6 +3639,12 @@ app.get("/feedback/result", function (req, res) {
         });
         if (snapshot.complete && snapshot.completedAt === null) {
             snapshot.completedAt = Date.now();
+        }
+        if (snapshot.complete) {
+            removeQueuedFeedbackRead(requestId);
+            // Deliver while this exact SDK-dispatch context is still valid. A
+            // subsequent context report may invalidate it before another GET.
+            finishFeedbackSnapshotWaiters(requestId);
         }
     }
 
@@ -3548,10 +3682,10 @@ app.get("/feedback/all", function (req, res) {
 app.get("/feedback/snapshot", function (req, res) {
     const requestId = numbers.parseFiniteInteger(req.query.id);
     const hasExtraField = Object.keys(req.query).some(function (field) {
-        return field !== "id";
+        return field !== "id" && field !== "wait";
     });
 
-    if (requestId === null || hasExtraField) {
+    if (requestId === null || hasExtraField || (req.query.wait !== undefined && req.query.wait !== "1")) {
         res.status(400).set("Cache-Control", "no-store").json({
             ok: false,
             error: "Missing or invalid id"
@@ -3559,20 +3693,12 @@ app.get("/feedback/snapshot", function (req, res) {
         return;
     }
 
+    pruneFeedbackReads();
     const snapshot = feedbackSnapshots[requestId];
 
-    if (!snapshot) {
-        res.status(404).set("Cache-Control", "no-store").json({
-            ok: false,
-            error: "Unknown feedback snapshot"
-        });
-        return;
-    }
-
-    res.set("Cache-Control", "no-store").json({
-        ok: true,
-        snapshot: snapshot
-    });
+    if (req.query.wait === "1" && snapshot && !snapshot.complete &&
+        feedbackRequestMetadata.get(requestId)?.followDevelopRevision && waitForFeedbackSnapshot(res, requestId)) return;
+    sendFeedbackSnapshot(res, requestId);
 });
 
 let httpServer = null;
@@ -3786,6 +3912,9 @@ function stop() {
             try { await startPromise; } catch (err) {}
         }
         lifecycleState = "stopping";
+        Array.from(feedbackSnapshotWaiters.keys()).forEach(function (id) {
+            finishFeedbackSnapshotWaiters(id, "Bridge is stopping");
+        });
         await closeListeners();
         lifecycleState = "stopped";
         return api;

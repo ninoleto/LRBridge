@@ -20,6 +20,8 @@ const maskingGrainBrowser = require("./masking-grain-browser");
 const historyBrowser = require("./controller-history-browser");
 const maskCreateBrowser = require("./controller-mask-create-browser");
 const removeBrowser = require("./controller-remove-browser");
+const sourceCorrectionsBrowser = require("./controller-source-corrections-browser");
+const resetFeedbackBrowser = require("./controller-reset-feedback-browser");
 const redEyeBrowser = require("./controller-red-eye-browser");
 const exportBrowser = require("./controller-export-browser");
 const clipboardBrowser = require("./controller-clipboard-browser");
@@ -217,9 +219,11 @@ function createMockControllerServer(options) {
     if (options && (options.historyOnly || options.favoritesOnly)) historyBrowser.install(grainFixture);
     if (options && options.maskCreateOnly) maskCreateBrowser.install(grainFixture);
     if (grainFixture) removeBrowser.install(grainFixture);
+    if (options && options.sourceCorrectionsOnly) sourceCorrectionsBrowser.install(grainFixture, fixtureCategoricalState());
     if (grainFixture) redEyeBrowser.install(grainFixture);
     if (grainFixture) exportBrowser.install(grainFixture);
     if (options && options.clipboardOnly) clipboardBrowser.install(grainFixture);
+    if (options && options.resetFeedbackOnly) resetFeedbackBrowser.install(grainFixture);
     if (options && options.deleteConfirmationOnly) Object.assign(grainFixture.creation,
         { confirmationOnly: true, count: 4, active: true });
     const staticFiles = new Map([
@@ -1785,13 +1789,13 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
         if (grainOnly) {
             await cdp.send("Page.bringToFront");
             await waitFor(function () { return evaluate("document.hasFocus()"); }, "isolated Grain page focus");
-            const grain = await (options.favoritesOnly ? favoritesBrowser : options.clipboardOnly ? clipboardBrowser : options.exportOnly ? exportBrowser : options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
+            const grain = await (options.resetFeedbackOnly ? resetFeedbackBrowser : options.sourceCorrectionsOnly ? sourceCorrectionsBrowser : options.favoritesOnly ? favoritesBrowser : options.clipboardOnly ? clipboardBrowser : options.exportOnly ? exportBrowser : options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
                 reload: async function () {
                     await evaluate("window.__favoritesReloadMarker = true");
                     await cdp.send("Page.reload");
                     await waitFor(() => evaluate("!window.__favoritesReloadMarker && !!document.querySelector('[data-favorite-action]')"), "favorites after browser reload");
                 },
-                peopleOnly: options.peopleOnly, dustOnly: options.dustOnly,
+                peopleOnly: options.peopleOnly, dustOnly: options.dustOnly, selectedOnly: options.selectedOnly,
                 setViewport: function (width, height) {
                     return cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
                 },
@@ -1804,6 +1808,7 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
                     await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...event });
                 },
                 capture: options.screenshotDirectory ? async name => {
+                    await evaluate("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
                     const capture = await cdp.send("Page.captureScreenshot", { format: "png" });
                     const file = path.join(options.screenshotDirectory, name + ".png");
                     fs.writeFileSync(file, Buffer.from(capture.data, "base64"));
@@ -1821,6 +1826,10 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
             } else if (options.favoritesOnly) {
                 assert.deepEqual(non2xxResponses.map(item => ({ path: new URL(item.url).pathname + new URL(item.url).search, status: item.status })),
                     [{ path: "/api/command?command=application.action&action=zoom_in", status: 503 }], "only the explicitly injected favorite-command failure is expected");
+            } else if (options.resetFeedbackOnly) {
+                assert.deepEqual(non2xxResponses.map(item => ({ path: new URL(item.url).pathname + new URL(item.url).search, status: item.status })),
+                    mock.grainFixture.resetFeedback.invalidated.map(id => ({ path: "/api/feedback/snapshot?id=" + id + "&wait=1", status: 404 })),
+                    "only the explicitly invalidated Reset feedback snapshots may return 404");
             } else assert.deepEqual(non2xxResponses, []);
             assert.deepEqual(mock.unexpectedRequests, []);
             return { grain: grain };
@@ -2144,11 +2153,14 @@ async function main() {
     const exportOnly = process.argv.includes("--export-only");
     const favoritesOnly = process.argv.includes("--favorites-only");
     const clipboardOnly = process.argv.includes("--clipboard-only") || favoritesOnly;
+    const sourceCorrectionsOnly = process.argv.includes("--source-corrections-only");
+    const resetFeedbackOnly = process.argv.includes("--reset-feedback-only");
     const dustOnly = process.argv.includes("--dust-only");
-    const removeOnly = process.argv.includes("--remove-only") || peopleOnly || dustOnly;
-    const grainOnly = process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly || exportOnly || clipboardOnly;
+    const selectedOnly = process.argv.includes("--selected-only");
+    const removeOnly = process.argv.includes("--remove-only") || peopleOnly || dustOnly || selectedOnly;
+    const grainOnly = resetFeedbackOnly || sourceCorrectionsOnly || process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly || exportOnly || clipboardOnly;
     const resources = {
-        mock: createMockControllerServer({ grainOnly: grainOnly, historyOnly: historyOnly, maskCreateOnly: maskCreateOnly,
+        mock: createMockControllerServer({ resetFeedbackOnly, sourceCorrectionsOnly, grainOnly: grainOnly, historyOnly: historyOnly, maskCreateOnly: maskCreateOnly,
             deleteConfirmationOnly: deleteConfirmationOnly, removeOnly: removeOnly, redEyeOnly: redEyeOnly, exportOnly: exportOnly, clipboardOnly: clipboardOnly, favoritesOnly: favoritesOnly }),
         browser: null,
         browserProfileDirectory: null,
@@ -2175,6 +2187,8 @@ async function main() {
         assert.ok(target && target.webSocketDebuggerUrl, "the isolated Chromium page target must exist");
         resources.pageCdp = await connectCdp(target.webSocketDebuggerUrl);
         summary = await runLifecycleTest(resources.pageCdp, controllerUrl, resources.mock, {
+            resetFeedbackOnly,
+            sourceCorrectionsOnly,
             presetScrollOnly: presetScrollOnly,
             toneCurveLayoutOnly: toneCurveLayoutOnly,
             grainOnly: grainOnly,
@@ -2187,7 +2201,8 @@ async function main() {
             favoritesOnly: favoritesOnly,
             peopleOnly: peopleOnly,
             dustOnly: dustOnly,
-            screenshotDirectory: favoritesOnly && process.env.LRBRIDGE_LAYOUT_ARTIFACTS ? process.env.LRBRIDGE_LAYOUT_ARTIFACTS : process.argv.includes("--mask-create-screenshot") ? resources.browserProfileDirectory : null
+            selectedOnly: selectedOnly,
+            screenshotDirectory: (favoritesOnly || sourceCorrectionsOnly || removeOnly) && process.env.LRBRIDGE_LAYOUT_ARTIFACTS ? process.env.LRBRIDGE_LAYOUT_ARTIFACTS : process.argv.includes("--mask-create-screenshot") ? resources.browserProfileDirectory : null
         });
         if (maskCreateOnly && process.argv.includes("--mask-create-screenshot")) {
             await resources.pageCdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 1100, deviceScaleFactor: 1, mobile: false });

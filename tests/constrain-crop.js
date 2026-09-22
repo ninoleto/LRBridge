@@ -33,14 +33,13 @@ const lensRenderer = controller.match(/function renderLensCorrectionsSection[\s\
 assert.match(lensRenderer,
     /appendSlider\(manualPanel, "LensManualDistortionAmount", "Amount"\);\s*appendConstrainCropControl\(manualPanel\);\s*manualPanel\.appendChild\(createLensSubheading\("Defringe"\)\)/,
     "Lens Manual Constrain Crop must sit after Distortion Amount and before Defringe");
-assert.equal((controller.match(/name\.textContent = "Constrain Crop"/g) || []).length, 1);
-assert.match(controller, /\[\[0, "Off", "negative"\], \[1, "On", "positive"\]\]/,
-    "Constrain Crop must reuse the touch-friendly Off/On pattern");
+assert.equal((controller.match(/createNativeCheckbox\("Constrain Crop"/g) || []).length, 1);
+assert.match(controller, /createNativeCheckbox\("Constrain Crop", function \(enabled\)/, "Constrain Crop uses a labeled checkbox");
 assert.match(controller, /submitDevelopCategorical\([\s\S]*?"constrainCrop"[\s\S]*?\/api\/develop-categorical\/constrain-crop/);
-assert.match(controller, /syncBinaryButtons\(constrainControl\.buttons, presentation, busy\)/);
+assert.match(controller, /updateNativeCheckbox\(constrainControl\.checkbox, presentation\.available, presentation\.authoritativeValue === 1, busy, busy\)/);
 assert.match(controller, /const constrainControls = Array\.isArray\(developCategoricalControls\.constrainCrop\)[\s\S]*constrainControls\.forEach\(function \(constrainControl\)/,
     "Transform and Lens Manual presentations must receive the same authoritative model update");
-assert.match(controller, /developCategoricalControls\.constrainCrop\.push\(\{ row: row, buttons: buttons, status: status \}\)/,
+assert.match(controller, /developCategoricalControls\.constrainCrop\.push\(\{ row: row, checkbox: checkbox\.input, status: status \}\)/,
     "Each presentation must register without duplicate DOM IDs or duplicate state");
 
 function buttonDouble() {

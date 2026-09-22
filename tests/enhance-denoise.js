@@ -113,10 +113,10 @@ assert.doesNotMatch(productionJs, /title\.textContent = "Enhance"|className = "e
     "The standalone Enhance section must be absent");
 assert.match(productionJs, /includesDetailControls[\s\S]*controls\.appendChild\(renderEnhanceSection\(\)\);\s*controls\.appendChild\(renderRawDetailsControl\(\)\)/,
     "Denoise must be owned by the Detail section");
-assert.match(productionJs, /className = "develop-slider-row denoise-slider-row"/);
+assert.match(productionJs, /className = "develop-slider-row denoise-slider-row native-checkbox-row"/);
 assert.match(productionJs, /dataset\.detailControl = "denoise"/);
-assert.match(productionJs, /label\.className = "slider-name";\s*label\.textContent = "Denoise"/);
-assert.match(productionJs, /controls\.appendChild\(label\); controls\.appendChild\(enhanceOffButton\); controls\.appendChild\(enhanceOnButton\);\s*controls\.appendChild\(enhanceAmountRange\); controls\.appendChild\(enhanceAmountInput\);\s*controls\.appendChild\(enhanceMinusButton\); controls\.appendChild\(enhancePlusButton\); controls\.appendChild\(enhanceStatus\)/,
+assert.match(productionJs, /createNativeCheckbox\("Denoise", setDenoise\)/);
+assert.match(productionJs, /controls\.appendChild\(checkbox\.row\);\s*controls\.appendChild\(enhanceAmountRange\); controls\.appendChild\(enhanceAmountInput\);\s*controls\.appendChild\(enhanceMinusButton\); controls\.appendChild\(enhancePlusButton\); controls\.appendChild\(enhanceStatus\)/,
     "Every Denoise element must belong to one Detail control block");
 assert.match(productionJs, /enhanceAmountInput\.type = "text"; enhanceAmountInput\.inputMode = "numeric"/);
 assert.doesNotMatch(productionJs, /enhanceAmountInput\.type = "number"|\.denoise-slider-row input\[type="number"\]/,
@@ -130,12 +130,12 @@ assert.match(productionJs, /const leadingControls = createSectionControls\(secti
     "Denoise must precede Detail's Sharpening controls");
 assert.doesNotMatch(productionJs, /content\.appendChild\([^)]*(?:enhance|Enhance)/,
     "Denoise must not be an external content sibling");
-assert.match(productionJs, /label\.className = "slider-name"; label\.textContent = "Raw Details"/);
-assert.match(productionJs, /label\.className = "slider-name"; label\.textContent = "Super Resolution"/);
+assert.match(productionJs, /createNativeCheckbox\("Raw Details", setRawDetails\)/);
+assert.match(productionJs, /createNativeCheckbox\("Super Resolution", setSuperResolution\)/);
 assert.match(productionJs, /detailControl = "super-resolution"/);
 assert.doesNotMatch(productionJs.match(/function renderSuperResolutionControl\(\)[\s\S]*?return controls;\s*}/)[0], /type = "range"|Apply|Reset/);
 assert.match(productionJs, /Raw Details enabled by Super Resolution/);
-assert.doesNotMatch(productionJs.match(/superResolutionOnButton\.disabled[^;]+;/)[0], /rawDetailsState/);
+assert.doesNotMatch(productionJs.match(/updateNativeCheckbox\(superResolutionCheckbox[\s\S]*?;/)[0], /rawDetailsState/);
 assert.doesNotMatch(productionJs.match(/function renderRawDetailsControl\(\)[\s\S]*?return controls;\s*}/)[0], /type = "range"/);
 assert.match(productionJs, /Raw Details enabled by Denoise/);
 assert.match(productionJs, /Applying Raw Details…/);
@@ -233,7 +233,7 @@ assert.doesNotMatch(productionJs, /setDenoise\(true\).*amount/i);
     assert.equal(model.displayedAmount, 49);
     assert.equal(model.inFlight, false, "Off-state steps must remain local");
 }
-assert.match(productionJs, /!hasPhoto \|\| !inDevelop \|\| unavailable/,
+assert.match(productionJs, /const denoiseKnown = !unavailable && hasPhoto && inDevelop && typeof state\.denoiseState === "boolean"/,
     "Web Controller must disable Apply outside a valid Develop/photo context");
 assert.match(productionJs, /Denoise On — Amount:/);
 assert.match(productionJs, /Denoise Off/);

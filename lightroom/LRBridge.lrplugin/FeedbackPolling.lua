@@ -5,12 +5,15 @@ local LrApplicationView = import "LrApplicationView"
 local LrDate = import "LrDate"
 local LrDevelopController = import "LrDevelopController"
 local LrFunctionContext = import "LrFunctionContext"
+local Trace = require("PollingTrace").new("feedback")
 
 local running, startChildTask
 local LrHttp = {
     get = function(...)
         if not running() then error("feedback polling stopped") end
-        local body, headers = NativeHttp.get(...)
+        local url = select(1, ...)
+        local route = type(url) == "string" and string.match(url, "^http://127%.0%.0%.1:17891([^?]*)") or "other"
+        local body, headers = Trace.call("http.GET:" .. (route or "other"), NativeHttp.get, ...)
         if not running() then error("feedback polling stopped") end
         return body, headers
     end,
@@ -533,11 +536,11 @@ local function waitForNormalCommandToFinish()
     local safety = 0
 
     while _G.LRBridgeCommandBusy == true and safety < 100 do
-        LrTasks.sleep(0.02)
+        Trace.call("commandBusy.sleep", LrTasks.sleep, 0.02)
         safety = safety + 1
     end
 
-    LrTasks.sleep(0.08)
+    Trace.call("afterCommand.sleep", LrTasks.sleep, 0.08)
 
 end
 
@@ -849,19 +852,20 @@ return function(shouldRun, spawnChildTask)
 
     while running() do
 
+        Trace.mark("enter", "cycle")
         local result = LrHttp.get("http://127.0.0.1:17891/feedback/next")
         local slider = parseSlider(result)
 
         if string.find(result or "", [["colorGrading":true]], 1, true) then
             local id = parseRequestId(result)
-            sendColorGradingSnapshot(id)
+            Trace.call("sdk.colorGradingSnapshot", sendColorGradingSnapshot, id)
             slider = nil
         end
 
         if string.find(result or "", [["treatment":true]], 1, true) then
             local id = parseRequestId(result)
             log("treatment request received: id=" .. tostring(id))
-            startTreatmentWorker(id)
+            Trace.call("startTreatmentWorker", startTreatmentWorker, id)
             slider = nil
         end
 
@@ -871,18 +875,19 @@ return function(shouldRun, spawnChildTask)
 
             if slider == "__all__" then
                 log("feedback all request received")
-                sendAllRequestedValues(id)
+                Trace.call("sdk.allValues", sendAllRequestedValues, id)
             elseif string.sub(slider, 1, 9) == "__many__:" then
                 local requestedSliders = splitManySliderRequest(slider)
                 log("feedback many request received: " .. tostring(#requestedSliders) .. " sliders")
-                sendManyRequestedValues(id, requestedSliders)
+                Trace.call("sdk.manyValues", sendManyRequestedValues, id, requestedSliders)
             else
                 log("feedback request received: " .. tostring(slider))
-                sendRequestedValue(id, slider)
+                Trace.call("sdk.value", sendRequestedValue, id, slider)
             end
 
         end
 
+        Trace.mark("enter", "sdk.observerSetup")
         if toneCurveObserverInstalled ~= true and getActiveModule() == "develop" then
             local observerIdentity = getSelectedPhotoIdentity()
             if observerIdentity.photo ~= nil and observerIdentity.uuid ~= "" then
@@ -903,60 +908,62 @@ return function(shouldRun, spawnChildTask)
             toneCurveDirty = ToneCurve.consumeDirty()
             presetAmountDirty = DevelopPresets.consumeAmountDirty()
         end
-        maybeSendContextHeartbeat(toneCurveDirty or presetAmountDirty)
+        Trace.mark("return", "sdk.observerSetup")
+        Trace.call("sdk.contextHeartbeat", maybeSendContextHeartbeat, toneCurveDirty or presetAmountDirty)
         if presetAmountDirty then
             LrHttp.get("http://127.0.0.1:17891/feedback/request?slider=PresetAmount")
         end
 
         local enhanceRequest = LrHttp.get("http://127.0.0.1:17891/enhance/next")
         if string.find(enhanceRequest or "", [["requested":true]], 1, true) then
-            Enhance.sendCurrentState()
+            Trace.call("sdk.enhance", Enhance.sendCurrentState)
         end
 
         local pointColorRequest = LrHttp.get("http://127.0.0.1:17891/point-color/next")
         if string.find(pointColorRequest or "", [["requested":true]], 1, true) then
-            PointColor.sendCurrentState()
+            Trace.call("sdk.pointColor", PointColor.sendCurrentState)
         end
 
         local historyRequest = LrHttp.get("http://127.0.0.1:17891/history/next")
         if string.find(historyRequest or "", [["requested":true]], 1, true) then
-            History.sendCurrentState()
+            Trace.call("sdk.history", History.sendCurrentState)
         end
 
         local lensBlurRequest = LrHttp.get("http://127.0.0.1:17891/lens-blur/next")
         if string.find(lensBlurRequest or "", [["requested":true]], 1, true) then
-            LensBlur.sendCurrentState()
+            Trace.call("sdk.lensBlur", LensBlur.sendCurrentState)
         end
 
         local categoricalRequest = LrHttp.get("http://127.0.0.1:17891/develop-categorical/next")
         if string.find(categoricalRequest or "", [["requested":true]], 1, true) then
-            DevelopCategorical.sendCurrentState()
+            Trace.call("sdk.developCategorical", DevelopCategorical.sendCurrentState)
         end
 
         local maskingRequest = LrHttp.get("http://127.0.0.1:17891/masking/next")
         if string.find(maskingRequest or "", [["request":{]], 1, true) then
-            Masking.sendRequestedSnapshot(maskingRequest)
+            Trace.call("sdk.masking", Masking.sendRequestedSnapshot, maskingRequest)
         end
 
         local removeRequest = LrHttp.get("http://127.0.0.1:17891/remove/next")
         if string.find(removeRequest or "", [["request":{]], 1, true) then
-            Remove.sendRequestedSnapshot(removeRequest)
+            Trace.call("sdk.remove", Remove.sendRequestedSnapshot, removeRequest)
         end
 
         local reflectionsRequest = LrHttp.get("http://127.0.0.1:17891/reflections/next")
         if string.find(reflectionsRequest or "", [["request":{]], 1, true) then
-            Reflections.sendRequestedSnapshot(reflectionsRequest)
+            Trace.call("sdk.reflections", Reflections.sendRequestedSnapshot, reflectionsRequest)
         end
         local peopleRequest = LrHttp.get("http://127.0.0.1:17891/people/next")
         if string.find(peopleRequest or "", [["request":{]], 1, true) then
-            People.sendRequestedSnapshot(peopleRequest)
+            Trace.call("sdk.people", People.sendRequestedSnapshot, peopleRequest)
         end
         local redEyeRequest = LrHttp.get("http://127.0.0.1:17891/red-eye/next")
         if string.find(redEyeRequest or "", [["request":{]], 1, true) then
-            RedEye.sendRequestedSnapshot(redEyeRequest)
+            Trace.call("sdk.redEye", RedEye.sendRequestedSnapshot, redEyeRequest)
         end
 
-        LrTasks.sleep(0.1)
+        Trace.mark("return", "cycle")
+        Trace.call("sleep", LrTasks.sleep, 0.1)
 
     end
 

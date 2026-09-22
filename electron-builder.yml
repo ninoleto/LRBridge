@@ -16,6 +16,8 @@ files:
 extraResources:
   - from: server/windows-lightroom-native.ps1
     to: native/windows-lightroom-native.ps1
+  - from: server/windows-remove-selected-identification.ps1
+    to: native/windows-remove-selected-identification.ps1
 
 extraFiles:
   - from: runtime/config

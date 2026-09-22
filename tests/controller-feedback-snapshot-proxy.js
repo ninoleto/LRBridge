@@ -172,7 +172,9 @@ async function main() {
             "/api/feedback/snapshot?id=bad",
             "/api/feedback/snapshot?id=1.5",
             "/api/feedback/snapshot?id=1&id=2",
-            "/api/feedback/snapshot?id=1&extra=true"
+            "/api/feedback/snapshot?id=1&extra=true",
+            "/api/feedback/snapshot?id=1&wait=2",
+            "/api/feedback/snapshot?id=1&wait=1&wait=1"
         ]) {
             response = await request(controllerPort, badPath);
             assert.equal(response.statusCode, 400);
@@ -211,6 +213,35 @@ async function main() {
         assert.equal(fullSnapshot.complete, true);
         assert.equal(returned.length, definitions.length);
         assert.deepEqual(missing, []);
+
+        response = await request(controllerPort, "/api/feedback/request?slider=Texture&purpose=reset");
+        const resetRead = JSON.parse(response.body).request;
+        // Completed ordinary requests may remain in the FIFO until its next drain.
+        let next;
+        do { next = JSON.parse((await request(backendPort, "/feedback/next")).body).request; }
+        while (next && next.id !== resetRead.id);
+        assert.equal(next.id, resetRead.id);
+        const waitPath = "/feedback/snapshot?id=" + resetRead.id + "&wait=1";
+        const registered = new Promise(resolve => {
+            function observe(incoming) {
+                if (incoming.url === waitPath) {
+                    bridge.getHttpServer().removeListener("request", observe);
+                    resolve();
+                }
+            }
+            bridge.getHttpServer().on("request", observe);
+        });
+        let settled = false;
+        const held = request(controllerPort, "/api" + waitPath).then(result => { settled = true; return result; });
+        await registered;
+        await new Promise(resolve => setTimeout(resolve, 20));
+        assert.equal(settled, false, "Proxy preserves the pending Reset response");
+        await supplyResult(backendPort, resetRead.id, "Texture", { min: -100, max: 100 }, false);
+        const delivered = await held;
+        assert.equal(delivered.statusCode, 200);
+        assert.equal(delivered.headers["cache-control"], "no-store");
+        assert.equal(JSON.parse(delivered.body).snapshot.results.Texture.value, -100);
+        assert.equal(JSON.parse(delivered.body).snapshot.complete, true);
 
         console.log("Controller feedback snapshot proxy test passed.");
         console.log(

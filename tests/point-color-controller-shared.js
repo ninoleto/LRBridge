@@ -128,7 +128,11 @@ function assertRequestShape(path, pathname, operationFields) {
     assert.equal(pickerSelections, 1, "mask and global Point Color must share the picker presentation and action hook");
     const visualize = find(host, function (element) { return element.textContent === "Toggle Visualize Range"; });
     assert.ok(visualize);
+    assert.equal(visualize.type, "button");
     visualize.dispatch("click");
+    assert.equal(visualize.disabled, true, "The momentary button blocks duplicate pending requests");
+    visualize.dispatch("click");
+    assert.equal(find(host, function (element) { return element.textContent === "State unknown"; }), null);
     await tick();
     assert.equal(visualizeRequests, 1,
         "mask and global Point Color must share the documented momentary visualization action hook");
@@ -240,8 +244,10 @@ function assertRequestShape(path, pathname, operationFields) {
 
     const globalHost = new FakeElement("div");
     const globalRequests = [];
+    const globalVisualize = deferred();
     const globalController = pointColor.createController({
         document: documentRef, routePrefix: "/api/point-color", externalState: true,
+        visualizeAction: function () { return globalVisualize.promise; },
         requestCommand: async function (path) { globalRequests.push(path); return { ok: true }; }
     });
     globalController.applyContext({ scope: "global" });
@@ -258,6 +264,16 @@ function assertRequestShape(path, pathname, operationFields) {
     assert.equal(globalRequest.pathname, "/api/point-color/value");
     assert.deepEqual(Array.from(globalRequest.searchParams.keys()).sort(), ["field", "value"],
         "global Point Color must retain its unchanged global route and public request shape");
+    find(globalHost, element => element.textContent === "Toggle Visualize Range").dispatch("click");
+    globalController.render();
+    const rebuiltToggle = find(globalHost, element => element.textContent === "Toggle Visualize Range");
+    assert.equal(rebuiltToggle.disabled, true, "A render during the request preserves pending state");
+    const colorView = new FakeElement("div");
+    globalHost.replaceChildren(colorView);
+    globalVisualize.resolve({ ok: true });
+    await tick();
+    assert.equal(rebuiltToggle.disabled, false, "Completion settles the current button");
+    assert.deepEqual(globalHost.children, [colorView], "A completed toggle cannot redraw over another Color Mixer view");
     globalController.unmount();
 
     async function rapidScalarIntentTest(scope) {

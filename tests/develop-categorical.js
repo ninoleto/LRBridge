@@ -304,7 +304,7 @@ assert.match(sectionFunction, /section\.id === "transform" && itemIndex === sect
     "The final Transform slider must remain separated from Constrain Crop");
 const lensBlurBlock = html.match(/function renderLensBlurSection[\s\S]*?let lensCorrectionsView/)[0];
 const lensBlurOrder = [
-    'applyName.textContent = "Apply"', 'definitions.has("LensBlurAmount")',
+    'createLensBlurExplicitSwitch("Apply"', 'definitions.has("LensBlurAmount")',
     'appendLensBlurSubheading(groupElement, "BOKEH")', '["LensBlurCatEye", "LensBlurHighlightsBoost"]',
     'appendLensBlurSubheading(groupElement, "FOCUS RANGE")', 'createLensBlurExplicitSwitch("Visualize Depth"',
     'appendLensBlurSubheading(groupElement, "BRUSH REFINEMENT")'
