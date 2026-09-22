@@ -1,8 +1,14 @@
 -- Developer-only polling diagnostics. Normal startup never reads capture files.
--- Enable LRBRIDGE_DEVELOPER_DIAGNOSTICS=1 before launching Lightroom, then arm
--- a bounded local capture. No HTTP, SDK calls, input or retries.
+-- Where the host supports getenv, LRBRIDGE_DEVELOPER_DIAGNOSTICS=1 permits a
+-- bounded local capture. No HTTP, SDK calls, input or retries.
 local Trace = {}
-if os.getenv("LRBRIDGE_DEVELOPER_DIAGNOSTICS") ~= "1" then
+local diagnosticsEnabled = false
+-- Lightroom's restricted Lua omits getenv. Missing/failing opt-in stays off.
+if type(os.getenv) == "function" then
+    local ok, value = pcall(os.getenv, "LRBRIDGE_DEVELOPER_DIAGNOSTICS")
+    diagnosticsEnabled = ok and value == "1"
+end
+if not diagnosticsEnabled then
     function Trace.new()
         return { mark = function() end, call = function(_, fn, ...) return fn(...) end }
     end

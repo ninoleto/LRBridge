@@ -9,10 +9,16 @@ local Dust = {}
 local title = "$$$/CRaw/Filter/DustRemoval/FilterPanelTitle=Dust Removal"
 local offDigest = "6222ed7b14ec731f0d114e24d9bea1d4"
 local seen = {}
+local diagnosticsEnabled = false
+-- Lightroom may omit getenv. Optional diagnostics must never block an edit.
+if type(os.getenv) == "function" then
+    local ok, value = pcall(os.getenv, "LRBRIDGE_DEVELOPER_DIAGNOSTICS")
+    diagnosticsEnabled = ok and value == "1"
+end
 
 -- Bounded, sanitized lifecycle evidence; never log photo paths or settings payloads.
 function Dust.trace(command, stage, detail)
-    if os.getenv("LRBRIDGE_DEVELOPER_DIAGNOSTICS") ~= "1" then return end
+    if not diagnosticsEnabled then return end
     if type(_PLUGIN) ~= "table" or type(_PLUGIN.path) ~= "string" then return end
     local root = string.gsub(_PLUGIN.path, "[/\\]lightroom[/\\]LRBridge%.lrplugin$", "")
     if root == _PLUGIN.path then return end

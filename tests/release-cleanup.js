@@ -42,7 +42,7 @@ async function main() {
         assert(!fs.existsSync(path.join(temp, "cleanup-server.jsonl")));
         const sdk = runtime();
         try {
-            sdk.run("os.getenv=function() return nil end; io.open=function() error('Unexpected diagnostic file access') end");
+            sdk.run("os.getenv=nil; io.open=function() error('Unexpected diagnostic file access') end");
             sdk.run("local info=(function()\n" + fs.readFileSync(path.join(stage, "lightroom/LRBridge.lrplugin/Info.lua"), "utf8") + "\nend)(); assert(info.LrExportMenuItems==nil); assert(#info.LrHelpMenuItems==1); assert(info.LrInitPlugin=='PluginInit.lua')");
             sdk.run("Trace=(function()\n" + fs.readFileSync(path.join(stage, "lightroom/LRBridge.lrplugin/PollingTrace.lua"), "utf8") + "\nend)()");
             sdk.run(`local t=Trace.new('normal'); t.mark('enter','ignored')

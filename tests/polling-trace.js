@@ -57,6 +57,37 @@ try {
     const missing = createPollingTrace(path.join(directory, "missing"), () => now, true);
     missing.middleware({ path: "/next" }, res, () => forwarded++); assert.equal(forwarded, 3);
 } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+// Lightroom's actual restricted Lua environment has no os.getenv. Exercise
+// unavailable/disabled/failing optional configuration without replacing it with
+// a successful stub, and require diagnostics to leave the operation untouched.
+for (const environment of ["nil", "function() return nil end", "function() return '0' end", "function() error('environment unavailable') end"]) {
+    const disabledSdk = runtime();
+    try {
+        disabledSdk.run("os.getenv=" + environment + "; io.open=function() error('Unexpected diagnostic I/O') end");
+        disabledSdk.run("PollingTrace=(function()\n" + fs.readFileSync(path.join(__dirname, "../lightroom/LRBridge.lrplugin/PollingTrace.lua"), "utf8") + "\nend)()");
+        disabledSdk.run(`local t=PollingTrace.new('disabled'); local calls=0
+            t.mark('enter','ignored')
+            local function pack(...) return { n=select('#',...), ... } end
+            local result=pack(t.call('arguments',function(...)
+                calls=calls+1; local args=pack(...)
+                assert(args.n==4 and args[1]==7 and args[2]==nil and args[3]==9 and args[4]==nil)
+                return ...
+            end,7,nil,9,nil))
+            assert(calls==1 and result.n==4 and result[1]==7 and result[2]==nil and result[3]==9 and result[4]==nil)
+            assert(select('#',t.call('noReturns',function() end))==0)
+            local failure={}; local ok,err=pcall(function() t.call('failure',function() error(failure) end) end)
+            assert(not ok and err==failure)
+            local co=coroutine.create(function() return t.call('yield',function(value)
+                local a,b,c=coroutine.yield(value,nil,3); return a,b,c
+            end,7) end)
+            local yielded=pack(coroutine.resume(co)); assert(yielded.n==4 and yielded[1] and yielded[2]==7 and yielded[3]==nil and yielded[4]==3)
+            local returned=pack(coroutine.resume(co,8,nil,10)); assert(returned.n==4 and returned[1] and returned[2]==8 and returned[3]==nil and returned[4]==10)
+            import=function() return {} end
+            require=function(name) assert(name=='DustPasteDiagnostics'); return {fingerprint=function() end} end`);
+        disabledSdk.run("Dust=(function()\n" + fs.readFileSync(path.join(__dirname, "../lightroom/LRBridge.lrplugin/Dust.lua"), "utf8") + "\nend)(); Dust.trace({},'ignored')");
+        disabledSdk.run("import=function() error('Disabled capture must not import SDK') end; (function()\n" + fs.readFileSync(path.join(__dirname, "../lightroom/LRBridge.lrplugin/CaptureProfile.lua"), "utf8") + "\nend)()");
+    } finally { disabledSdk.close(); }
+}
 const sdk = runtime();
 try {
     sdk.run(`_PLUGIN={path='D:/Projects/LRBridge/lightroom/LRBridge.lrplugin'}; unpack=table.unpack or unpack

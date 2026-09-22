@@ -12,6 +12,8 @@ local function setup()
     _G.LRBridgePollingLifecycle, _G.LRBridgePollingStarted, _G.LRBridgeFeedbackPollingStarted = nil, nil, nil
     _G.LRBridgeCommandBusy = false
     package.loaded.PollingLifecycle = nil
+    package.loaded.PollingTrace = nil
+    os.getenv = nil -- Lightroom does not expose this optional Lua library function.
     dofile = function(file)
         file = string.gsub(file, "\\", "/")
         if S.loadFault and string.find(file, S.loadFault, 1, true) then error("injected load failure") end

@@ -1,3 +1,4 @@
+os.getenv = nil -- Real Lightroom omits getenv; diagnostics must not abort Dust edits.
 dofile("tests/remove-preferences.lua")
 local App, SDK, Tasks = import "LrApplication", import "LrDevelopController", import "LrTasks"
 local catalog = App.activeCatalog()

@@ -1,6 +1,11 @@
 -- Development diagnosis only: bounded SDK reads, no navigation or photo writes.
 -- Not registered in the normal menu or included in the distributable.
-if os.getenv("LRBRIDGE_DEVELOPER_DIAGNOSTICS") ~= "1" then return end
+local diagnosticsEnabled = false
+if type(os.getenv) == "function" then
+    local ok, value = pcall(os.getenv, "LRBRIDGE_DEVELOPER_DIAGNOSTICS")
+    diagnosticsEnabled = ok and value == "1"
+end
+if not diagnosticsEnabled then return end
 local LrApplication = import "LrApplication"
 local LrApplicationView = import "LrApplicationView"
 local LrDevelopController = import "LrDevelopController"
