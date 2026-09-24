@@ -124,6 +124,12 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
             margin: 14px 0;
         }
 
+        .box > .help-content-divider {
+            border: 0;
+            border-top: 1px solid #28323d;
+            margin: 16px 0;
+        }
+
         .soft {
             border-color: #35495a;
             background: #131a21;
@@ -159,6 +165,57 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
         .muted {
             color: #9fb0bf;
         }
+
+        #connection-addresses table {
+            display: table;
+        }
+
+        #connection-addresses td:nth-child(2) {
+            width: 1%;
+            white-space: nowrap;
+        }
+
+        #connection-addresses code {
+            white-space: nowrap;
+            overflow-wrap: normal;
+        }
+
+        @media (max-width: 700px) {
+            #connection-addresses table,
+            #connection-addresses tbody,
+            #connection-addresses tr,
+            #connection-addresses td {
+                display: block;
+                width: 100%;
+            }
+
+            #connection-addresses thead {
+                display: none;
+            }
+
+            #connection-addresses tr {
+                padding: 10px 8px;
+                border-bottom: 1px solid #2b3744;
+            }
+
+            #connection-addresses tr:last-child {
+                border-bottom: 0;
+            }
+
+            #connection-addresses td {
+                padding: 4px 0;
+                border: 0;
+            }
+
+            #connection-addresses td:nth-child(2) {
+                width: 100%;
+            }
+
+            #connection-addresses td:first-child {
+                color: #ffffff;
+                font-weight: 700;
+            }
+        }
     </style>
 </head>
 <body>
@@ -170,47 +227,24 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
 </header>
 
 <main>
-<section>
-    <h2>Windows v0.6 beta</h2>
-    <p>Install Lightroom Classic 15.3 or later; this candidate is tested against 15.4.1. See the <a href="/reference/WINDOWS_BETA.md">installation and upgrade guide</a> for the plug-in and required Dust presets. Lens Blur and Profile controls include existing Windows helper dependencies. macOS is not supported by this beta.</p>
-    <p><strong>Favorites:</strong> Undo and Redo are the defaults. Customize searches 71 existing actions grouped by section; add, remove or reorder them and restore defaults. Your browser saves the arrangement. On phones, scroll the bar sideways. Actions keep their original safeguards and availability across tabs.</p>
-    <p><strong>Selection:</strong> Navigate comes first. Export and Copy / Paste Settings are at the bottom. Quick Copy Settings copies values from the active photo without opening a dialog, using the categories last selected in Lightroom’s Copy Settings dialog. It does not copy from the previous photo. Paste Settings targets the displayed selection, including when settings were copied directly in Lightroom, and requests automatic updating of copied AI settings.</p>
-    <p><strong>Export…</strong> requests Lightroom’s full Export dialog. <strong>Export with Previous</strong> reuses Lightroom’s last export settings and may start immediately. “Command sent” acknowledges a request; it does not confirm a completed export or edit.</p>
-    <details><summary>Editing tools and known limitations</summary>
-        <p><strong>Masking</strong> includes native mask/component selection, supported creation, visibility, deletion, inversion and correction controls with presets. Quick Copy/Paste and favorites remain photo-level actions here. Native brush painting and unsupported component operations are not simulated.</p>
-        <p><strong>Healing</strong> controls supported Remove modes, overlay, brush settings and selected-spot operations. <strong>Distraction Removal</strong> provides Reflections, People and Dust controls; install the two bundled Dust presets first. Dust On is restricted to the verified Lightroom 15.4.1 / Process Version 15.4 combination. Adobe processing, People cancellation and preservation alongside existing populated AI edits have limited native evidence.</p>
-        <p><strong>Red Eye</strong> exposes the implemented native panel/find/reset actions; per-eye adjustment sliders and detailed eye readback are not available. <strong>Lens Blur</strong> retains its working sliders, bokeh, Focus Range, Subject/Point, Visualize Depth and Brush Refinement controls. Windows-native controls require the helper and discoverable Lightroom controls. “+ New Refinement” is deferred. <strong>Profiles</strong> use Windows profile inventory and native SDK application/Amount feedback where available.</p>
-        <p>The SDK cannot inspect or validate the native settings clipboard. A true batch Paste result does not establish success for every photo, and pending AI updates are not completed processing. Native single- and multi-photo Quick Copy/Paste acceptance is still pending. Review errors or uncertain results in their original sections; do not retry an uncertain operation automatically.</p>
-    </details>
-    <p>For external controllers, use the <a href="/bitfocus-companion-cheatsheet">HTTP Builder and operation inventory</a>. Guarded actions require the <a href="/reference/HTTP_WORKFLOWS.md">fresh-context workflows</a>; saved URLs cannot substitute for them.</p>
-</section>
-    <section class="box danger">
-        <h3>Security and network exposure</h3>
-        <p>
-            The Web Controller and API are intended only for trusted private networks. No login or password is currently required.
-            Do not expose ports 17890, 17891, or 17892 publicly, including through Tailscale Funnel, a public reverse proxy,
-            or a public cloud tunnel. On shared or event Wi-Fi, restrict access with the operating-system firewall or do not run remote access.
-        </p>
-    </section>
+    <h2 id="controller-purpose">What the Web Controller is for</h2>
 
-    <section class="box">
-        <h3>What the Web Controller is for</h3>
+    <section class="box" aria-labelledby="controller-purpose">
         <p>
             LRBridge Web Controller is a local browser control panel for Lightroom Classic.
-            It provides absolute Develop slider controls, resets an individual slider, runs supported Lightroom actions,
-            and shows authoritative Lightroom feedback values for visible sliders.
+            It lets you adjust Develop sliders, reset individual sliders, run Lightroom actions,
+            and see slider values reported by Lightroom.
         </p>
         <p>
-            The Web Controller can run on the same PC as Lightroom, or from another browser device on the local network.
-            That means a tablet, touchscreen monitor, old phone, laptop, or another computer can become a simple Lightroom control surface.
+            This release runs on Windows and controls Adobe Lightroom Classic, not the cloud-based Lightroom app.
+            Phones and tablets can access the Web Controller on the local network while LRBridge and Lightroom Classic run on the Windows computer.
         </p>
+        <p>Bitfocus Companion is optional. You can use the Web Controller with just LRBridge and Lightroom Classic.</p>
         <p>
             The Web Controller started as a practical side tool for testing LRBridge without configuring external hardware.
             It became useful on its own, especially for touchscreens, tablets, phones, secondary monitors, laptops, and other browser-capable devices.
         </p>
-    </section>
-
-    <section class="box soft">
+        <hr class="help-content-divider">
         <h3>The original idea behind LRBridge</h3>
         <p>
             LRBridge started from a real problem: Loupedeck Live had exactly the kind of knobs Lightroom Classic needs,
@@ -227,8 +261,8 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
         </p>
         <p>
             That solved the hardware side of the problem, but not direct Lightroom slider control.
-            Companion can trigger shortcuts and send commands through supported integrations, but it does not have access
-            to the Lightroom Classic SDK or the Develop slider API.
+            Companion can trigger shortcuts and send commands through supported integrations, but it cannot adjust
+            Lightroom's Develop sliders on its own.
         </p>
         <p>
             Other Lightroom control solutions already exist. MIDI2LR is solid for traditional MIDI controller setups,
@@ -241,7 +275,7 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
         <p>
             That is where LRBridge comes in. Companion sends simple HTTP commands to LRBridge.
             The LRBridge Lightroom plugin receives those commands from inside Lightroom Classic and applies the requested
-            slider change, reset, or action through the SDK.
+            slider change, reset, or action.
         </p>
         <p>
             The result is a direct local control path for Lightroom Classic that works with Companion, browsers, phones,
@@ -249,158 +283,14 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
         </p>
     </section>
 
-    <h2>Lightroom feedback in the Web Controller</h2>
-
-    <section class="box warning">
-        <h3>LRBridge can show current Lightroom slider values</h3>
+    <section class="box danger">
+        <h3>Security and network exposure</h3>
         <p>
-            The Web Controller shows Lightroom's current value in each supported numeric Develop slider's editable field.
-            Feedback works for slider changes made from the Web Controller and for slider changes made directly inside Lightroom.
-        </p>
-        <p>
-            Numeric fields accept direct signed-decimal entry such as <code>-0.3</code>. Enter or a changed blur commits;
-            Escape restores the last authoritative Lightroom value. The <strong>−</strong> and <strong>+</strong>
-            buttons change the absolute value by that slider's declared range step.
-        </p>
-        <p>
-            Temperature keeps actual Lightroom values in feedback, numeric entry, and HTTP commands. Only its range
-            thumb uses LRBridge's logarithmic visual mapping over Lightroom's positive runtime range. Adobe documents
-            RAW/DNG Temperature adjustment as logarithmic but does not publish the exact Lightroom pixel mapping, so
-            LRBridge does not claim pixel-identical placement. Tint and other sliders remain linear.
-        </p>
-        <p>
-            To keep Lightroom responsive, LRBridge requests feedback only for sliders that are currently visible
-            in the Web Controller, and it sends changed values back to the browser.
-        </p>
-        <p>
-            Feedback is polling-based, not true native realtime feedback.
-            A small delay is normal while moving sliders quickly.
-        </p>
-        <p>
-            A new controller or active photo displays <strong>Loading</strong> until Lightroom returns a complete
-            request-scoped snapshot. If Lightroom explicitly cannot provide a value for the active photo or process
-            version, only that control displays <strong>Unavailable</strong>. A failed or timed-out request displays a
-            separate feedback error. While you drag or type, feedback waits until the interaction finishes so it does
-            not fight the local control.
+            The Web Controller and API are intended only for trusted private networks. No login or password is currently required.
+            Do not expose ports 17890, 17891, or 17892 publicly, including through Tailscale Funnel, a public reverse proxy,
+            or a public cloud tunnel. On shared or event Wi-Fi, restrict access with the operating-system firewall or do not run remote access.
         </p>
     </section>
-
-    <h2>Safe everyday commands</h2>
-
-    <table>
-        <tr>
-            <th>What you want</th>
-            <th>Command</th>
-            <th>Meaning</th>
-        </tr>
-        <tr>
-            <td>Set an absolute slider value</td>
-            <td><code>/set?slider=Exposure&amp;value=1.25</code></td>
-            <td>Sets a validated absolute value using the range and precision in LRBridge slider metadata.</td>
-        </tr>
-        <tr>
-            <td>Move slider right</td>
-            <td><code>/adjust?slider=Exposure&amp;amount=1</code></td>
-            <td>Positive amount moves the Lightroom slider to the right.</td>
-        </tr>
-        <tr>
-            <td>Move slider left</td>
-            <td><code>/adjust?slider=Exposure&amp;amount=-1</code></td>
-            <td>Negative amount moves the Lightroom slider to the left.</td>
-        </tr>
-        <tr>
-            <td>Reset an individual slider</td>
-            <td><code>/reset?slider=Exposure</code></td>
-            <td>Returns one Lightroom slider to its default value.</td>
-        </tr>
-        <tr>
-            <td>Run Lightroom action</td>
-            <td><code>/action?action=setAutoTone</code></td>
-            <td>Runs a supported Lightroom action through LRBridge.</td>
-        </tr>
-        <tr>
-            <td>Black &amp; White</td>
-            <td><code>/command?command=photo.treatment&amp;value=grayscale</code></td>
-            <td>Changes the active photo treatment to Black &amp; White.</td>
-        </tr>
-        <tr>
-            <td>Color</td>
-            <td><code>/command?command=photo.treatment&amp;value=color</code></td>
-            <td>Changes the active photo treatment to Color.</td>
-        </tr>
-        <tr>
-            <td>Open Crop Tool</td>
-            <td><code>/command?command=develop.action&amp;action=selectCropTool</code></td>
-            <td>Opens Lightroom’s Crop tool from the dedicated Crop tab.</td>
-        </tr>
-        <tr>
-            <td>Reset Crop</td>
-            <td><code>/command?command=develop.action&amp;action=resetCrop</code></td>
-            <td>Resets the active photo’s complete crop state.</td>
-        </tr>
-        <tr>
-            <td>Original Aspect</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=original</code></td>
-            <td>Changes only the active photo’s crop aspect ratio to Original.</td>
-        </tr>
-        <tr>
-            <td>Camera Crop</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=asshot</code></td>
-            <td>Uses the crop ratio recorded by the camera when available. It may match Original.</td>
-        </tr>
-        <tr>
-            <td>1:1</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=1x1</code></td>
-            <td>Changes the crop aspect ratio to 1:1.</td>
-        </tr>
-        <tr>
-            <td>2:3</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=2x3</code></td>
-            <td>Changes the crop aspect ratio to 2:3.</td>
-        </tr>
-        <tr>
-            <td>4:5</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=4x5</code></td>
-            <td>Changes the crop aspect ratio to 4:5.</td>
-        </tr>
-        <tr>
-            <td>5:7</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=5x7</code></td>
-            <td>Changes the crop aspect ratio to 5:7.</td>
-        </tr>
-        <tr>
-            <td>16:9</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=16x9</code></td>
-            <td>Changes the crop aspect ratio to 16:9.</td>
-        </tr>
-        <tr>
-            <td>16:10</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=16x10</code></td>
-            <td>Changes the crop aspect ratio to the fixed validated 16:10 SDK ratio.</td>
-        </tr>
-        <tr>
-            <td>Custom…</td>
-            <td><code>/command?command=photo.crop_aspect&amp;mode=custom&amp;w=16&amp;h=10</code></td>
-            <td>The HTTP example applies a 16:10 ratio; the controller button opens its own Custom Crop dialog. Width and Height must be whole numbers from 1 to 10000; the supplied ratio is passed through the SDK table form without reduction.</td>
-        </tr>
-        <tr>
-            <td>Crop Angle</td>
-            <td><code>/command?command=photo.crop_angle.set&amp;value=-2.5</code></td>
-            <td>Sets Lightroom’s documented <code>straightenAngle</code> Develop parameter from -45° to +45°. The controller displays real Lightroom polling feedback and coalesces rapid pending updates.</td>
-        </tr>
-        <tr>
-            <td>Reset Angle</td>
-            <td><code>/command?command=photo.crop_angle.reset</code></td>
-            <td>Resets only <code>straightenAngle</code>. Reset Crop remains the separate complete-crop reset.</td>
-        </tr>
-        <tr>
-            <td>Show in Explorer</td>
-            <td><code>/command?command=photo.reveal&amp;scope=active</code></td>
-            <td>Reveals the active photo's existing file in Windows Explorer.</td>
-        </tr>
-    </table>
-
-    <p>The Web Controller provides its own Custom Crop modal; LRBridge does not open Lightroom’s native Enter Custom dialog. Reset Crop remains the separate complete-crop reset.</p>
 
     <h2>Bitfocus Companion integration methods</h2>
 
@@ -411,8 +301,8 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
             or through the native LRBridge Companion module.
         </p>
         <p>
-            In both cases, the command path is the same: Companion sends an HTTP command to LRBridge,
-            LRBridge places it into its local command queue, and the Lightroom plugin applies the requested slider change,
+            In both cases, Companion sends an HTTP command to LRBridge,
+            and the Lightroom plugin applies the requested slider change,
             reset, or action inside Lightroom Classic.
         </p>
         <pre>Loupedeck device -> Bitfocus Companion -> LRBridge app -> LRBridge Lightroom plugin -> Lightroom Classic</pre>
@@ -441,7 +331,7 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
             <p>
                 Companion module GitHub repo:
                 <br>
-                <a href="https://github.com/ninoleto/companion-module-ninoleto-lrbridge">https://github.com/ninoleto/companion-module-ninoleto-lrbridge</a>
+                <a href="https://github.com/ninoleto/companion-module-ninoleto-lrbridge">https://github.com/<wbr>ninoleto/<wbr>companion-<wbr>module-<wbr>ninoleto-<wbr>lrbridge</a>
             </p>
             <p>
                 If the module is not available in the official Companion build yet,
@@ -458,78 +348,136 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
     <h2>PowerShell example</h2>
 
     <section class="box">
+        <p>LRBridge accepts HTTP requests to adjust Lightroom sliders and run actions.</p>
         <p>
             PowerShell can send a command directly to Lightroom through LRBridge:
         </p>
 
         <pre>curl.exe "http://127.0.0.1:17891/adjust?slider=Exposure&amp;amount=1"</pre>
+        <p>For more commands and ready-to-copy examples, open the <a href="/bitfocus-companion-cheatsheet">HTTP Builder</a>.</p>
     </section>
 
-    <h2>Web Controller and API ports</h2>
+    <h2 id="connection-addresses-title">Web Controller and API ports</h2>
 
-    <table>
-        <tr>
-            <th>Service</th>
-            <th>Local URL</th>
-            <th>Purpose</th>
-        </tr>
-        <tr>
-            <td>Web Controller</td>
-            <td><code>http://127.0.0.1:17892</code></td>
-            <td>Readable browser controller and human help pages.</td>
-        </tr>
-        <tr>
-            <td>Readable Help</td>
-            <td><code>http://127.0.0.1:17892/help</code></td>
-            <td>This page.</td>
-        </tr>
-        <tr>
-            <td>Raw API Help through Web Controller</td>
-            <td><code>http://127.0.0.1:17892/api/help</code></td>
-            <td>Raw JSON API information proxied from the LRBridge API server.</td>
-        </tr>
-        <tr>
-            <td>LRBridge API server</td>
-            <td><code>http://127.0.0.1:17891</code></td>
-            <td>The command API used by Companion, scripts, PowerShell, curl, and other HTTP-capable tools.</td>
-        </tr>
-    </table>
-
-    <h2>Raw API help</h2>
-
-    <section class="box">
-        <p>
-            The readable help page is here:
-        </p>
-        <pre>http://127.0.0.1:17892/help</pre>
-
-        <p>
-            Raw API help is available here:
-        </p>
-        <pre>http://127.0.0.1:17892/api/help</pre>
-        <pre>http://127.0.0.1:17891/help</pre>
+    <section id="connection-addresses" class="box" aria-labelledby="connection-addresses-title">
+        <p>These are the default addresses on the computer running LRBridge. Port 17892 opens the browser pages; port 17891 accepts commands from other applications. On another device, use the computer's network address shown in LRBridge instead of <code>127.0.0.1</code>.</p>
+        <table>
+            <thead>
+                <tr><th scope="col">Service</th><th scope="col">Local URL</th><th scope="col">Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Web Controller</td>
+                    <td><code>http://127.0.0.1:17892</code></td>
+                    <td>Open the controls for Lightroom in your browser.</td>
+                </tr>
+                <tr>
+                    <td>This Help page</td>
+                    <td><code>http://127.0.0.1:17892/help</code></td>
+                    <td>Read setup instructions and learn how to use the controls.</td>
+                </tr>
+                <tr>
+                    <td>API for Companion and scripts</td>
+                    <td><code>http://127.0.0.1:17891</code></td>
+                    <td>Send commands from Companion, PowerShell and other applications.</td>
+                </tr>
+            </tbody>
+        </table>
     </section>
 
-    <h2>Known Lightroom issue</h2>
+    <h2 id="known-issues">Known issues and limitations</h2>
 
-    <section class="box warning">
-        <h3>Lightroom does not respond to Web Controller or Companion commands</h3>
-        <p>
-            LRBridge does not switch Lightroom modules when it starts or restarts. Lightroom remains in the currently
-            selected module until an explicit module-navigation command is requested.
-        </p>
-        <p>
-            In rare cases, especially after a Lightroom crash, plugin reload, problematic photo file,
-            or on slower computers, the plug-in heartbeat may not arrive. Check the Web Controller connection status
-            to confirm that Lightroom plug-in polling is active.
-        </p>
-        <p>
-            If LRBridge is running but Lightroom does not respond to Web Controller or Bitfocus Companion commands,
-            switch Lightroom manually to <strong>Library</strong>, then back to <strong>Develop</strong>, and try again.
-        </p>
+    <section class="box warning" aria-labelledby="known-issues">
+        <h3 id="interface-controls">How LRBridge controls Lightroom Classic</h3>
+        <p>LRBridge uses Adobe Lightroom Classic’s official plug-in SDK and Windows interface automation.</p>
+        <p>Many editing controls use the SDK to apply changes without locating or clicking buttons in Lightroom’s interface.</p>
+        <p>Other controls work by operating Lightroom’s own on-screen interface. These depend on Lightroom’s current layout and state. They may respond less reliably, and LRBridge may not always be able to confirm their current state.</p>
+        <p>Controls that use interface automation include:</p>
+        <ul>
+            <li><strong>Healing → Remove → Selected:</strong> Add, Subtract, Cancel and Remove</li>
+            <li><strong>Lens Blur:</strong> Subject Focus and Point / Area Focus</li>
+            <li><strong>Lens Blur → Brush Refinement:</strong> open/close, Focus/Blur, Amount, Size, Feather, Flow, Auto Mask and resets</li>
+        </ul>
+        <p>If one of these controls does not respond, check and use the corresponding control directly in Lightroom Classic.</p>
+
+        <h3>Update delays and temporarily unavailable buttons</h3>
+        <p>Lightroom Classic may apply a change before the Web Controller displays the updated value or button state.</p>
+        <p>After using an action button, allow Lightroom time to respond before using it again. Repeated clicks may queue additional actions that run later.</p>
+        <p id="buttons-unavailable">Some buttons briefly become unavailable during or after edits to allow Lightroom time to update. This includes Auto Tone and Auto White Balance after slider changes. Undo and Redo may also have a short delay. Wait until the button becomes available again.</p>
+
+        <h3>Understanding messages</h3>
+        <ul>
+            <li><strong>Loading</strong> means the controller is waiting for values from Lightroom, usually after opening the page or changing photos.</li>
+            <li><strong>Unavailable</strong> means the control cannot currently be used or its value cannot be read. It does not mean the value is zero. Availability may depend on the selected photo, active Lightroom tool, photo type or Lightroom version.</li>
+            <li><strong>Connection or error messages</strong> can indicate a connection problem, a missing update or an action that could not be completed. Read the specific message and check Lightroom for an open dialog, ongoing processing or an error.</li>
+            <li><strong>Command sent</strong> means the request has been submitted. It does not confirm that Lightroom has applied the change or finished an edit, export or AI operation.</li>
+        </ul>
+        <p>LRBridge cannot verify the contents of Lightroom’s copied settings or confirm every result when settings are pasted to multiple photos. Review the affected photos in Lightroom Classic, especially when masks or AI-based edits are involved.</p>
+
+        <h3>If the controller stops responding</h3>
+        <p>Check the Web Controller’s connection status and make sure:</p>
+        <ul>
+            <li>LRBridge is running.</li>
+            <li>The LRBridge plug-in is enabled in Lightroom Classic.</li>
+            <li>A photo is selected.</li>
+            <li>Lightroom is in <strong>Develop</strong> when using editing controls.</li>
+            <li>No Lightroom dialog is blocking interaction.</li>
+        </ul>
+        <p>Allow Lightroom to finish any current processing. If the Web Controller remains disconnected, reload the browser page.</p>
+        <p>Moving Lightroom between monitors can interrupt the Web Controller’s updates and responsiveness, including ordinary sliders. If this happens, try switching Lightroom to <strong>Library</strong> and then back to <strong>Develop</strong>, then allow time for the controller to resume updating.</p>
+
+        <h3>Control and feedback limitations</h3>
+        <p><strong>Healing → Remove → Selected Add/Subtract</strong></p>
+        <p>Add and Subtract can be activated from LRBridge, but the Web Controller does not show which mode is active. Check Lightroom Classic for the active mode.</p>
+        <p>These buttons are also intermittently unreliable: a request may occasionally have no effect. If this happens, use Add or Subtract directly in Lightroom Classic.</p>
+
+        <p><strong>Healing → Dust</strong></p>
+        <p>LRBridge controls Dust Apply on/off and Reset by applying two included presets in Lightroom Classic. If those presets are not installed, these buttons are unavailable. Dust Size, Visualize Spots and Threshold do not require the presets.</p>
+        <p>This setup is only necessary if you want to use Dust Apply or Reset through LRBridge. See <a href="#install-plugin"><strong>Set up the Lightroom plug-in</strong></a> for instructions.</p>
+        <p>LRBridge’s current Dust implementation is restricted to Lightroom Classic <strong>15.4.1</strong>. Support for other versions has not been established.</p>
+
+        <p><strong>Point Color → Visualize Range</strong></p>
+        <p>LRBridge can switch Visualize Range on or off, but the Web Controller does not display its current state. Check Lightroom Classic to see whether it is enabled.</p>
+
+        <p><strong>Lens Blur focus controls</strong></p>
+        <p>Lightroom’s focus-mode highlight can occasionally lag after switching Subject Focus or Point / Area Focus from the Web Controller. Hovering over the corresponding button in Lightroom may refresh the highlight.</p>
+
+        <h3>Information read from Lightroom’s interface</h3>
+        <p>Some displayed information depends on reading Lightroom’s interface, including:</p>
+        <ul>
+            <li>Camera Profile choices and names</li>
+            <li>Lens Blur Visualize Depth state</li>
+        </ul>
+        <p>This is separate from how LRBridge sends changes to these settings. If the interface information cannot be read, the corresponding controls may temporarily appear unavailable or may not display their current state correctly.</p>
+
+        <h3>Unsupported controls</h3>
+        <p><strong>Changing lens profiles is not supported in LRBridge.</strong></p>
+        <p>Select and configure your lens profile directly in Lightroom Classic.</p>
     </section>
 
+    <h2 id="install-plugin">Set up the Lightroom plug-in</h2>
+
+    <section class="box" aria-labelledby="install-plugin">
+        <p>The plug-in is included with LRBridge. Find the folder containing <strong>LRBridge.exe</strong>. Inside it, the <strong>lightroom</strong> folder contains <strong>LRBridge.lrplugin</strong> — this is the plug-in folder you need to select.</p>
+        <p>On the computer running LRBridge:</p>
+        <ol>
+            <li>Open <strong>Lightroom Classic</strong>.</li>
+            <li>Go to <strong>File → Plug-in Manager</strong> and click <strong>Add</strong>.</li>
+            <li>Browse to your LRBridge folder, open <strong>lightroom</strong>, and select <strong>LRBridge.lrplugin</strong>.</li>
+            <li>Make sure the plug-in is enabled, then click <strong>Done</strong>.</li>
+        </ol>
+        <p>Keep <strong>LRBridge running</strong> while using the Web Controller.</p>
+        <p><strong>Using a newer LRBridge folder?</strong> Make sure Lightroom loads the plug-in from that same folder. Remove the older LRBridge entry from Plug-in Manager and add the current one.</p>
+        <hr class="help-content-divider">
+        <p id="dust-setup"><strong>Healing → Dust:</strong> To use Apply on/off and Reset through LRBridge, you need to add two Dust presets to Lightroom. Close Lightroom Classic and run <strong>Install Dust Presets.cmd</strong> from your LRBridge folder. This adds both presets automatically. Reopen Lightroom when it finishes. If Apply and Reset already work, you can skip this step.</p>
+    </section>
+
+    <h2 id="support-development">Support development</h2>
+
+    <section class="box" aria-labelledby="support-development">
+        <p>LRBridge is an independent project. If you find it useful, you can support its development on Ko-fi. Donations are optional and appreciated.</p>
+        <a class="button-link" href="https://ko-fi.com/ninoleto">Support LRBridge on Ko-fi</a>
+    </section>
 </main>
-<section><h2>Color Grading</h2><p>The controller provides graphical wheels, scalar controls and native view selection. The HTTP Builder supports Set Wheel, Set Scalar Value, Reset Region, Reset Scalar Value and Select Color Grading View. Lightroom runtime ranges are authoritative; unavailable values have no fallback. Commands require Develop and an active photo; view selection requires Process Version 3 or newer. A wheel pair is transported together and executed with two consecutive SDK value calls.</p></section>
 </body>
 </html>

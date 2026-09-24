@@ -1026,6 +1026,9 @@
         .dust-action-row { display: flex; flex-wrap: nowrap; gap: 8px; }
         .dust-action-row > button { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 12px; }
         .dust-capability-note { margin: 0 0 8px; color: #9fb0bf; font-size: 12px; line-height: 18px; }
+        .dust-setup-note { color: #ffb454; font-style: italic; }
+        .dust-setup-note strong { color: #fff; font-weight: 700; font-style: normal; }
+        .dust-setup-note a { color: inherit; text-decoration: underline; }
         @media (max-width: 760px) {
             .remove-mode-controls { min-height: 160px; }
             .remove-mode-controls > div:not([data-remove-field]) { display: block; }
@@ -6576,7 +6579,7 @@
             const actions = cropGroups.find(function (group) { return group.actionBar === true; });
             const limitations = document.createElement("p");
             limitations.className = "crop-sdk-limitations";
-            limitations.textContent = cropSdkLimitations;
+            limitations.innerHTML = cropSdkLimitations.replace(/Auto Straighten|Constrain to Image|Tool Overlay/g, "<strong>$&</strong>");
             section.appendChild(limitations);
             const actionBar = document.createElement("section");
             actionBar.className = "crop-action-bar";

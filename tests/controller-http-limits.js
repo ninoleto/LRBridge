@@ -451,8 +451,10 @@ function testSourceIntegrationAndProductionCompatibility() {
 
 async function testHumanHelpRouteThroughControllerServer() {
     let upstreamRequests = 0;
-    const controller = loadControllerServerForTest(function () {
+    let lastUpstreamPath = null;
+    const controller = loadControllerServerForTest(function (request) {
         upstreamRequests += 1;
+        lastUpstreamPath = request.pathAndQuery;
     });
 
     controller.startControllerServer();
@@ -491,6 +493,31 @@ async function testHumanHelpRouteThroughControllerServer() {
         assert.doesNotMatch(helpResponse.body, /^\s*\{/);
         assert.doesNotMatch(helpResponse.body, /<title>LRBridge Web Controller<\/title>/);
         assert.equal(upstreamRequests, 0, "Human help must be served locally instead of proxying raw API help");
+        const builderHref = "/bitfocus-companion-cheatsheet";
+        assert.ok(helpResponse.body.includes('href="' + builderHref + '">HTTP Builder</a>'));
+        const builderResponse = await request(port, { path: builderHref });
+        assert.equal(builderResponse.statusCode, 200);
+        assert.match(builderResponse.headers["content-type"], /^text\/html\b/);
+        assert.match(builderResponse.body, /<title>Bitfocus Companion HTTP Builder - LRBridge<\/title>/);
+        for (const reference of ["/reference/WINDOWS_BETA.md", "/reference/HTTP_WORKFLOWS.md", "/reference/HTTP_OPERATIONS.md"]) {
+            if (reference === "/reference/WINDOWS_BETA.md") {
+                assert.ok(!helpResponse.body.includes('href="' + reference + '"'), "Plug-in setup must not link the detailed guide");
+            } else {
+                assert.ok((helpResponse.body + builderResponse.body).includes('href="' + reference + '"'));
+            }
+            const result = await request(port, { path: reference });
+            assert.equal(result.statusCode, 200, "Reference route must remain available: " + reference);
+            assert.match(result.headers["content-type"], /^text\/plain\b/);
+            assert.match(result.body, /^# /);
+        }
+        assert.equal(upstreamRequests, 0, "Help, Builder and references must be served locally");
+        assert.ok(!helpResponse.body.includes('href="/api/help"'), "Technical API links belong in HTTP Builder");
+        const rawHelp = await request(port, { path: "/api/help" });
+        assert.equal(rawHelp.statusCode, 200);
+        assert.match(rawHelp.headers["content-type"], /^application\/json\b/);
+        assert.equal(lastUpstreamPath, "/help", "Raw API route must still reach direct API help");
+        assert.equal(upstreamRequests, 1);
+        assert.ok(!helpResponse.body.includes('href="http://127.0.0.1:17891/help"'));
     } finally {
         if (server.listening) await closeServer(server);
     }
@@ -517,6 +544,11 @@ async function testGrainNavigationProxy() {
 }
 
 async function main() {
+    if (process.argv.includes("--help-only")) {
+        await testHumanHelpRouteThroughControllerServer();
+        console.log("Help, Builder and reference links served locally; raw API help proxy route passed (isolated).");
+        return;
+    }
     if (process.argv.includes("--grain-only")) {
         await testGrainNavigationProxy();
         console.log("Controller Grain set/reset proxy preserves scoped navigation and photo binding.");

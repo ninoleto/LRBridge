@@ -655,6 +655,15 @@
             mountDust(parent) {
                 const dust = doc.createElement("section"); dust.className = "dust-controls";
                 const heading = doc.createElement("h4"); heading.textContent = "Dust"; dust.appendChild(heading);
+                const setupNote = doc.createElement("p"); setupNote.className = "dust-capability-note dust-setup-note";
+                setupNote.appendChild(doc.createTextNode("Dust "));
+                const setupApply = doc.createElement("strong"); setupApply.textContent = "Apply"; setupNote.appendChild(setupApply);
+                setupNote.appendChild(doc.createTextNode(" and the main "));
+                const setupReset = doc.createElement("strong"); setupReset.textContent = "Reset"; setupNote.appendChild(setupReset);
+                setupNote.appendChild(doc.createTextNode(" button require LRBridge’s Dust presets to be installed. See "));
+                const setupHelp = doc.createElement("a"); setupHelp.href = "/help#dust-setup"; setupHelp.target = "_blank"; setupHelp.rel = "noopener";
+                setupHelp.textContent = "Help"; setupNote.appendChild(setupHelp);
+                setupNote.appendChild(doc.createTextNode(" for setup instructions.")); dust.appendChild(setupNote);
                 dust.appendChild(preference("dustApply", "Apply"));
                 controls.dustApply.input.dataset.dustApply = "true";
                 dustNote = doc.createElement("p"); dustNote.className = "dust-capability-note";

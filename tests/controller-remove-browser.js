@@ -939,6 +939,31 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     assert.equal(await evaluate("document.querySelectorAll('[data-remove-preference=visualizeSpots]').length"), 2);
     assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=visualizationThreshold]').length"), 2);
     assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('.dust-action-row button')).map(b=>[b.textContent,b.disabled])"), [["Reset", false], ["Close", false]]);
+    async function checkSetupNote() {
+        const note = await evaluate(`(()=>{
+            const note=document.querySelector('.dust-setup-note'),link=note.querySelector('a'),rect=note.getBoundingClientRect(),style=getComputedStyle(note),apply=note.nextElementSibling;
+            const linkStyle=getComputedStyle(link),otherStyle=getComputedStyle(document.querySelector('#dust-native-actions-note'));
+            return {text:note.textContent,heading:note.previousElementSibling.tagName,headingText:note.previousElementSibling.textContent,
+                beforeApply:apply.matches('[data-remove-field="dustApply"]'),href:link.getAttribute('href'),target:link.target,rel:link.rel,
+                helpStyle:note.classList.contains('dust-capability-note'),gap:apply.getBoundingClientRect().top-rect.bottom,
+                color:style.color,fontStyle:style.fontStyle,linkColor:linkStyle.color,linkFontStyle:linkStyle.fontStyle,linkDecoration:linkStyle.textDecorationLine,
+                emphasized:Array.from(note.querySelectorAll('strong')).map(word=>{const s=getComputedStyle(word);return {text:word.textContent,color:s.color,weight:s.fontWeight,style:s.fontStyle};}),
+                otherColor:otherStyle.color,otherFontStyle:otherStyle.fontStyle,
+                visible:!note.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&rect.height>0,
+                fits:rect.left>=0&&rect.right<=innerWidth};
+        })()`);
+        assert.equal(note.text,"Dust Apply and the main Reset button require LRBridge’s Dust presets to be installed. See Help for setup instructions.");
+        assert.equal(note.heading,"H4"); assert.equal(note.headingText,"Dust"); assert(note.beforeApply);
+        assert.equal(note.href,"/help#dust-setup"); assert.equal(note.target,"_blank"); assert.equal(note.rel,"noopener");
+        assert.equal(note.color,"rgb(255, 180, 84)","setup note uses the theme's yellow accent");
+        assert.equal(note.fontStyle,"italic"); assert.equal(note.linkFontStyle,"italic");
+        assert.deepEqual(note.emphasized,["Apply","Reset"].map(text=>({text,color:"rgb(255, 255, 255)",weight:"700",style:"normal"})),"only Apply and Reset are white, bold and non-italic");
+        assert.equal(note.linkColor,note.color); assert(note.linkDecoration.includes("underline"),"Help remains recognisable as a link");
+        assert.equal(note.otherColor,"rgb(159, 176, 191)"); assert.equal(note.otherFontStyle,"normal","other Dust help text keeps its existing styling");
+        assert(note.visible&&note.fits&&note.helpStyle,"Dust prerequisite help remains visible and readable independently of availability");
+        assert(Math.abs(note.gap-8)<1,"setup note uses the existing small help-text gap before Apply");
+    }
+    await checkSetupNote();
     const untouched = structuredClone(r.preferences);
     r.hold = true;
     const apply = '[data-dust-apply]', size = '.dust-controls [data-remove-field="brushSize"] input[type="text"]';
@@ -991,6 +1016,7 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     await waitFor(() => r.pending?.field === "dustApply" && r.pending.value === false, "Dust Off request");
     assert.equal(await evaluate(el(apply) + ".checked"), true, "Apply must wait for native readback");
     await polls(); await sizeAvailability(false); await blockedDustSizeHandlers();
+    await checkSetupNote();
     const offWrites = r.calls.length;
     await evaluate(el(apply) + ".click()"); await polls();
     assert.equal(r.calls.length, offWrites, "No duplicate Dust Off dispatch");
@@ -1106,6 +1132,7 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     r.finish(); await polls();
     r.dust = { available: false }; r.revision++; await polls();
     assert.equal(await evaluate(el(apply) + ".indeterminate"), true, "Unreadable state is unknown");
+    await checkSetupNote();
     await sizeAvailability(false); await blockedDustSizeHandlers();
     r.preferences.brushSize = 37; r.revision++; await polls();
     assert.equal(await evaluate(el(size) + ".value"), "37", "Captured Dust Size preference synchronizes");
@@ -1124,6 +1151,7 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     for (const key of Object.keys(untouched).filter(key => !["brushSize", "visualizeSpots", "visualizationThreshold"].includes(key))) assert.equal(r.preferences[key], untouched[key]);
     for (const width of [1280, 768, 390, 320]) {
         await setViewport(width, 1100);
+        await checkSetupNote();
         assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth"), true, "Dust does not overflow at " + width);
         const heights = await evaluate("Array.from(document.querySelectorAll('.dust-controls .remove-preference-row,.dust-controls button,.dust-controls input[type=range]')).map(e=>e.getBoundingClientRect().height)");
         assert(heights.every(height => height >= 44), "Touch targets at " + width);

@@ -11,6 +11,12 @@ This beta preserves the accepted controller layout, 71-choice favorites bar, Qui
 
 Windows PowerShell 5.1 and Windows accessibility/Win32 support are required for the existing Lens Blur and Profile helper. This is an accepted Windows dependency, not an SDK-only release. macOS is a future port, not a supported package.
 
+### Dust preset setup
+
+`LRBridge Dust On.xmp` and `LRBridge Dust Off.xmp` are LRBridge's preset files for controlling Lightroom Classic's existing Dust feature. Turning Dust **Apply** on uses Dust On; turning Apply off or using Dust **Reset** uses Dust Off. **Close**, Size, Visualize Spots and Threshold do not use these preset files.
+
+The app includes the files but does not install them automatically. Run the separate `Install Dust Presets.cmd` command from the extracted LRBridge folder while Lightroom is closed. It copies the files into `%APPDATA%\Adobe\CameraRaw\Settings`; reopen Lightroom afterward to load them. The installer leaves identical files alone and refuses to overwrite different files with the same names.
+
 ## Upgrade without losing preferences
 
 Quit LRBridge before upgrading. Extract into a **new folder**, copy your old `config/settings.txt` and, if present, `config/develop-presets.json` into its `config` folder, then add/repoint Lightroom to the new plug-in and restart Lightroom. Keep the old folder until the upgrade is accepted. Do not overwrite your configuration with the example files. Favorites and collapsed sections are saved per browser/device and origin; keep the same browser profile and controller address. Clearing site data or changing the address does not migrate them. The preset installer leaves identical installed presets alone and refuses differing files.

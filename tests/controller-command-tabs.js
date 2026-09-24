@@ -613,6 +613,8 @@ const consolidatedCropLimitation =
     "Auto Straighten, Constrain to Image, and Tool Overlay must be controlled manually in Lightroom because they are not exposed through the SDK.";
 assert.ok(source.includes("const cropSdkLimitations = " + JSON.stringify(consolidatedCropLimitation) + ";"),
     "The consolidated Crop SDK limitation text drifted");
+assert.ok(source.includes('limitations.innerHTML = cropSdkLimitations.replace(/Auto Straighten|Constrain to Image|Tool Overlay/g, "<strong>$&</strong>");'),
+    "Only the three manually controlled names should be bold in the Crop limitation note");
 const cropLimitationsCss = source.match(/\.crop-sdk-limitations\s*\{[\s\S]*?\}/)[0];
 assert.match(cropLimitationsCss, /color:\s*#9fb0bf/);
 assert.match(cropLimitationsCss, /font-size:\s*13px/);
