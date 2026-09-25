@@ -53,8 +53,8 @@ Profile choices and native fallback labels use Windows accessibility inventory. 
 
 ## HTTP and development
 
-The HTTP Builder covers ordinary command URLs and provides an operation inventory for guarded workflows. It does not turn context-dependent actions into permanent URLs. See [HTTP workflows](HTTP_WORKFLOWS.md) and [generated operation inventory](HTTP_OPERATIONS.md).
+The HTTP Builder provides searchable SDK/WIN UI cards with URLs and complete PowerShell requests/scripts. Scripts fetch fresh context when required and preserve confirmations and result handling. See [HTTP workflows](HTTP_WORKFLOWS.md) and [generated operation inventory](HTTP_OPERATIONS.md).
 
 Developers: Node.js 24 LTS, `npm ci`, then `npm run test:release` (includes the `npm test` checks) and `npm run test:release -- --browser`. Fengari is a locked test-only dependency; `LRBRIDGE_LUA_TEST_RUNTIME` is an optional override. Browser checks use installed Edge/Chrome or `LRBRIDGE_CHROMIUM_PATH`; they use isolated temporary profiles and mock HTTP/SDK state, never production photos. `npm run dist:win` builds from fresh sanitized staging. Do not run live smoke tests as an automated release gate.
 
-Final native and clean-install/upgrade checks are recorded in [the completion review](RELEASE_REVIEW.md) and CODEX_HANDOFF.md. A local candidate is not a published release.
+Final native and clean-install/upgrade checks are recorded in [the completion review](RELEASE_REVIEW.md). A local candidate is not a published release.

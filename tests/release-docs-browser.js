@@ -1,13 +1,27 @@
 "use strict";
 const fs=require("node:fs"),path=require("node:path"),http=require("node:http"),assert=require("node:assert/strict");
 const browser=require("./controller-browser-lifecycle");
+const checkBuilder=require("./http-builder-browser-checks");
 const root=path.resolve(__dirname,".."),errors=[];
 const helpOnly=process.argv.includes("--help-only");
+const builderToolbarOnly=process.argv.includes("--builder-toolbar-only");
+const builderStepHelpOnly=process.argv.includes("--builder-step-help-only");
+const builderTabsOnly=process.argv.includes("--builder-tabs-only");
+const builderPresentationOnly=process.argv.includes("--builder-presentation-only")||builderToolbarOnly||builderStepHelpOnly||builderTabsOnly;
+const builderOnly=process.argv.includes("--builder-only")||builderPresentationOnly;
 const staticFiles={"/help":"app/controller-help.html","/builder":"app/companion-cheatsheet.html","/controller-http-inventory.js":"app/controller-http-inventory.js"};
+for(const name of ["HTTP_WORKFLOWS.md","HTTP_OPERATIONS.md","WINDOWS_BETA.md"]) staticFiles["/reference/"+name]="docs/"+name;
 const bodies={"/api/help":{operationInventory:require("../server/http-operations.json")},"/api/sliders":{sliders:require("../config/sliders.json")},"/api/color-grading":{colorGrading:require("../server/color-grading").getMetadata()}};
+const unavailable=new Set();
+let reversedMetadata=false;
 const server=http.createServer((req,res)=>{
     const url=new URL(req.url,"http://fixture");if(req.method!=="GET") throw Error("Unexpected mutation request");
-    if(bodies[url.pathname]) {res.setHeader("Content-Type","application/json");res.end(JSON.stringify(bodies[url.pathname]));return;}
+    if(unavailable.has(url.pathname)) {res.writeHead(503);res.end();return;}
+    if(bodies[url.pathname]) {
+        const body=builderToolbarOnly&&reversedMetadata&&url.pathname==='/api/sliders'?{sliders:[...bodies[url.pathname].sliders].reverse()}:bodies[url.pathname];
+        const delay=builderToolbarOnly&&url.pathname===(reversedMetadata?'/api/color-grading':'/api/sliders')?150:0;
+        setTimeout(()=>{res.setHeader("Content-Type","application/json");res.end(JSON.stringify(body));},delay);return;
+    }
     const file=staticFiles[url.pathname];if(file){res.setHeader("Content-Type",file.endsWith(".js")?"application/javascript":"text/html");res.end(fs.readFileSync(path.join(root,file)));return;}
     if(url.pathname==="/favicon.ico"){res.writeHead(204);res.end();return;}
     errors.push(req.url);res.writeHead(404);res.end();
@@ -23,16 +37,27 @@ const server=http.createServer((req,res)=>{
         const cdp=resources.pageCdp;await cdp.send("Runtime.enable");await cdp.send("Page.enable");
         cdp.onEvent=m=>{if(m.method==="Runtime.exceptionThrown")errors.push(JSON.stringify(m.params));};
         async function evaluate(expression){const r=await cdp.send("Runtime.evaluate",{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
-        for(const width of [1280,390,320]) for(const page of helpOnly||width===320?["help"]:["help","builder"]) {
+        const widths=(builderToolbarOnly||builderTabsOnly)&&process.env.LRBRIDGE_BUILDER_WIDTHS?process.env.LRBRIDGE_BUILDER_WIDTHS.split(',').map(Number):builderStepHelpOnly||builderTabsOnly?[1280,390,320]:builderToolbarOnly?[1280,1001,1000,999,861,860,859,621,620,619,521,520,519,390,320]:builderPresentationOnly?[1280,768,390,320]:[1280,390,320];
+        assert(widths.every(width=>Number.isInteger(width)&&width>=320),'valid test widths');
+        let collectionOrder;
+        for(const width of widths) for(const page of helpOnly?["help"]:builderOnly?["builder"]:["help","builder"]) {
+            reversedMetadata=width<=520;
             await cdp.send("Emulation.setDeviceMetricsOverride",{width,height:900,deviceScaleFactor:1,mobile:width<500});
             await cdp.send("Page.navigate",{url:"http://127.0.0.1:"+port+"/"+page});
-            let ready=false;for(let n=0;n<100;n++){ready=await evaluate(page==="builder"?'!!document.querySelector("#httpInventory input[type=search]")':'!!document.querySelector("#support-development")');if(ready)break;await new Promise(r=>setTimeout(r,50));}assert(ready);
+            let ready=false;for(let n=0;n<100;n++){ready=await evaluate(page==="builder"?'document.body.dataset.ready==="true"':'!!document.querySelector("#support-development")');if(ready)break;await new Promise(r=>setTimeout(r,50));}assert(ready);
             if(page==="builder") {
-                await evaluate('document.querySelector("#httpInventory").closest("details").open=true;const input=document.querySelector("#httpInventory input[type=search]");input.value="clipboard";input.dispatchEvent(new Event("input"));input.focus();');
-                assert.match(await evaluate('document.querySelector("#httpInventory").textContent'),/clipboard\/action/);
-                assert.match(await evaluate('document.querySelector("#httpInventory").textContent'),/Not generated as a permanent URL/);
-                assert.equal(await evaluate('document.querySelectorAll("#httpInventory button").length'),0);
-                assert.equal(await evaluate('document.activeElement.type'),"search");
+                if(builderTabsOnly) await require('./http-builder-tabs')({run:evaluate,cdp,width});
+                else await checkBuilder({evaluate,cdp,width,presentationOnly:builderPresentationOnly,toolbarOnly:builderToolbarOnly,stepHelpOnly:builderStepHelpOnly});
+                if(builderToolbarOnly) {
+                    const order=await evaluate('Array.from(document.querySelectorAll(".card")).map(c=>c.dataset.cardId)');
+                    if(collectionOrder) assert.deepEqual(order,collectionOrder,'metadata arrival/slider order cannot change collection order');
+                    collectionOrder=order;
+                }
+                for(const href of builderPresentationOnly?[]:["/reference/HTTP_WORKFLOWS.md"]) {
+                    const response=await fetch("http://127.0.0.1:"+port+href);
+                    assert.equal(response.status,200,href);
+                    assert.equal(await response.text(),fs.readFileSync(path.join(root,"docs/HTTP_WORKFLOWS.md"),"utf8"));
+                }
             } else {
                 const headings=await evaluate('Array.from(document.querySelector("main").children).flatMap(el=>{if(el.matches("h2"))return [el.textContent];if(el.matches("section")&&!el.previousElementSibling?.matches("h2")){const heading=el.querySelector(":scope > h2, :scope > h3");return heading?[heading.textContent]:[];}return [];})');
                 assert.deepEqual(headings,[
@@ -228,6 +253,28 @@ const server=http.createServer((req,res)=>{
                 }
             }
         }
-        assert.deepEqual(errors,[]);console.log((helpOnly?"Help":"Help/Builder")+" rendered at desktop and phone widths: section order, headings/dividers/content boxes and spacing, compact installation, interface-control limitations, final Ko-fi link, readable address layout (1280/390/320px) and no horizontal page overflow passed.");
+        if(!helpOnly&&!builderPresentationOnly) {
+            for(const failedPath of ["/api/sliders","/api/color-grading"]) {
+                unavailable.add(failedPath);
+                await cdp.send("Page.navigate",{url:"http://localhost:"+port+"/builder"});
+                let ready=false;
+                for(let n=0;n<100;n++) {
+                    ready=await evaluate('document.body.dataset.ready==="true" && document.querySelector("#loadError")?.textContent.includes("could not load")');
+                    if(ready)break;await new Promise(r=>setTimeout(r,50));
+                }
+                assert(ready,"metadata failures must be visible: "+failedPath);
+                assert.equal(await evaluate('baseUrlEl.textContent'),"http://localhost:17891");
+                assert.equal(await evaluate('!!document.querySelector(\"[data-card-id=application-module-library] .command\")?.dataset.path'),true,"static actions survive metadata failures");
+                assert.equal(await evaluate(failedPath==="/api/sliders"?'!!document.querySelector(\"[data-card-id=color-wheel-shadows]\")':'!!document.querySelector(\"[data-slider=Contrast]\")'),true,"independent metadata must still render");
+                unavailable.delete(failedPath);
+            }
+        }
+        assert.deepEqual(errors,[]);
+        if(!builderOnly) console.log("Accepted Help layout and text checks passed at 1280/390/320px.");
+        if(builderTabsOnly) console.log("Builder tab interaction passed at "+widths.join('/')+"px: actual mouse press/release and emulated touch in both directions, unchanged tab positions/scroll, atomic selected state/count/cards, Step edits, preserved inputs and accessible keyboard navigation. No live Lightroom or physical-device testing.");
+        else if(builderStepHelpOnly) console.log("Builder Step size text/layout passed at 1280/390/320px: exact wording, divider/subheading inside Base URL, accessible input description, retained tab description and no clipping/overflow. No behavior suites or live Lightroom requests.");
+        else if(builderToolbarOnly) console.log("Builder permanent toolbar passed at "+widths.join('/')+"px: responsive rows, touch/keyboard controls, synchronized Step inputs/validation, unchanged Set/Reset, stable panel/Contrast ordering with reversed metadata arrival, preserved elements, Top and section offsets. Continuous wheel/touch scrolling runs at 1280/320px. No executable requests, live Lightroom or physical Android test.");
+        else if(builderPresentationOnly) console.log("Builder presentation passed at 1280/768/390/320px: amber popup grid, 54px items, wrapping/order, simulated touch scrolling/selection/outside dismissal, keyboard/Escape, viewport limits, filtering, heading offsets and preserved inputs. No actual Android test, executable scripts or live Lightroom requests.");
+        else if(!helpOnly) console.log("Builder cards passed at 1280/390/320px: complete collection, search and groups, hidden-card Step updates, preserved inputs/focus/scroll, all Copy pairs, metadata errors, clipboard fallback, sticky toolbar, touch targets and no overflow. No live Lightroom requests.");
     } finally {await browser.cleanup(resources);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

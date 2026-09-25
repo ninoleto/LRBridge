@@ -1,7 +1,7 @@
 "use strict";
 // Source/staging checks only: never build a package, start a native helper or use Lightroom.
 const assert = require("node:assert/strict"), fs = require("node:fs"), path = require("node:path"), os = require("node:os"), cp = require("node:child_process");
-const { stageProject, walk, defaults } = require("../tools/build-windows-candidate");
+const { stageProject, walk, defaults, sha } = require("../tools/build-windows-candidate");
 const { createPollingTrace } = require("../server/polling-trace");
 const { runtime } = require("./masking-create");
 const root = path.resolve(__dirname, ".."), temp = fs.mkdtempSync(path.join(os.tmpdir(), "lrbridge-cleanup-"));
@@ -12,6 +12,22 @@ async function main() {
         assert(!files.some(file => /(?:^|\/)(?:tests|scripts|local-checkpoints|backups|\.codex|\.git)\/|CODEX_HANDOFF|Research|Prototype|Capture\w*\.lua|Test\w*\.lua|Observe\w*\.lua|\.local\.|\.(?:log|jsonl|tsv|arm)$/i.test(file)));
         assert.equal(fs.readFileSync(path.join(stage, "config/settings.txt"), "utf8"), defaults);
         assert.deepEqual(JSON.parse(fs.readFileSync(path.join(stage, "config/develop-presets.json"))).presets, []);
+        for (const name of ["PollingTrace", "Dust", "PluginInit", "PollingLifecycle"]) {
+            const relative = "lightroom/LRBridge.lrplugin/" + name + ".lua";
+            // Both staging copies matter: extraFiles ships runtime/lightroom.
+            for (const prefix of ["", "runtime/"]) {
+                assert.equal(sha(path.join(stage, prefix + relative)), sha(path.join(root, relative)),
+                    "Stale or missing shipping Lua: " + prefix + relative);
+            }
+        }
+        const presets = JSON.parse(fs.readFileSync(path.join(stage, "resources/presets/manifest.json"), "utf8"));
+        assert.deepEqual(presets.files.map(file => file.name).sort(), ["LRBridge Dust Off.xmp", "LRBridge Dust On.xmp"]);
+        for (const preset of presets.files) {
+            const file = path.join(stage, "resources/presets", preset.name);
+            assert.equal(fs.statSync(file).size, preset.bytes, "Bundled Dust preset size");
+            assert.equal(sha(file), preset.sha256, "Bundled Dust preset integrity");
+        }
+        for (const file of ["Install Dust Presets.cmd", "tools/install-runtime-presets.ps1"]) assert(files.includes(file));
         const manifest = require("../tools/release-runtime-files.json");
         assert.equal(new Set(manifest).size, manifest.length);
         for (const file of manifest) assert(files.includes(file), "Missing reviewed runtime dependency " + file);
@@ -21,6 +37,8 @@ async function main() {
             assert(!/[CD]:[\\/]+(?:Projects[\\/]+LRBridge|Users[\\/]+nino)/i.test(source), "Machine-specific path in " + file);
         }
         const builder = fs.readFileSync(path.join(stage, "electron-builder.yml"), "utf8");
+        assert.match(builder, /from: runtime\/lightroom\r?\n\s+to: lightroom/);
+        assert.match(builder, /from: resources\/presets\r?\n\s+to: resources\/presets/);
         for (const name of ["windows-lightroom-native.ps1", "windows-remove-selected-identification.ps1"]) {
             assert(builder.includes("from: server/" + name + "\n    to: native/" + name) ||
                 builder.includes("from: server/" + name + "\r\n    to: native/" + name), "Packaged native sibling " + name);

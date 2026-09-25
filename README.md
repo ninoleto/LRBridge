@@ -1,10 +1,10 @@
 # LRBridge
 
-**Windows v0.6 beta candidate — feature scope frozen.** Start with the [installation, upgrade and limitations guide](docs/WINDOWS_BETA.md). Windows x64 and Lightroom Classic 15.3+ are required; native evidence is from 15.4.1. Working Lens Blur/Profile Windows helper dependencies are retained. macOS support, Lens Blur + New Refinement and named Export presets are deferred.
+**Windows v0.6 beta candidate — feature scope frozen.** Start with the [installation, upgrade and limitations guide](docs/WINDOWS_BETA.md). The private test baseline is Windows x64 and Lightroom Classic 15.4.1; other Lightroom versions are unverified. SDK 15.3 metadata does not establish an overall supported minimum. Working Lens Blur/Profile Windows helper dependencies are retained. macOS support, Lens Blur + New Refinement and named Export presets are deferred.
 
 The controller includes 71 customizable favorites, Quick Copy Settings / Paste Settings, native Export, Masking, Healing, Distraction Removal, Red Eye, Lens Blur and Profiles. Quick Copy copies values from the **active photo**, using the categories last chosen in Lightroom’s Copy Settings dialog; it does not open the dialog or copy from the previous photo. Paste targets the displayed selection and requests AI updating. Native single- and multi-photo Copy/Paste acceptance is still pending.
 
-Use [Help](app/controller-help.html) for everyday controls and [HTTP workflows](docs/HTTP_WORKFLOWS.md) / the [complete generated route inventory](docs/HTTP_OPERATIONS.md) for integrations. Simple Builder URLs cover ordinary commands; guarded operations require fresh context and result handling. A command acknowledgement is not proof of Lightroom completion.
+With LRBridge running, use [Help](http://127.0.0.1:17892/help) for everyday controls and [HTTP Builder](http://127.0.0.1:17892/bitfocus-companion-cheatsheet) to copy URLs or complete PowerShell requests/scripts. See [HTTP workflows](docs/HTTP_WORKFLOWS.md) / the [complete generated route inventory](docs/HTTP_OPERATIONS.md) for integrations. Guarded operations require fresh context and result handling. A command acknowledgement is not proof of Lightroom completion.
 
 LRBridge is a local Windows bridge for controlling Adobe Lightroom Classic from external control surfaces, browser controls, Bitfocus Companion, Stream Deck-style devices, Loupedeck / Razer Stream Controller setups, scripts, and other HTTP-capable automation tools.
 

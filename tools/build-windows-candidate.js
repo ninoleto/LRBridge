@@ -3,7 +3,7 @@
 const fs = require("node:fs"), path = require("node:path"), cp = require("node:child_process"), crypto = require("node:crypto");
 const root = path.resolve(__dirname, "..");
 const runtimeFiles = require("./release-runtime-files.json");
-const publicDocs = ["WINDOWS_BETA.md", "RELEASE_REVIEW.md", "HTTP_WORKFLOWS.md", "HTTP_OPERATIONS.md", "COMPANION_HTTP_CHEATSHEET.md",
+const publicDocs = ["WINDOWS_BETA.md", "RELEASE_REVIEW.md", "RELEASE_CLEANUP.md", "LENS_BLUR_FOCUS_RANGE_STATE_AND_LIMITATIONS.md", "HTTP_WORKFLOWS.md", "HTTP_OPERATIONS.md", "COMPANION_HTTP_CHEATSHEET.md",
     "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md"];
 const defaults = "poll_interval_ms=100\n";
 function sha(file) { return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex"); }

@@ -1,5 +1,14 @@
 # LRBridge Codex Handoff
 
+## Help and HTTP Builder accepted; private portable test build authorized (2026-09-25)
+
+- **The user accepted both Help and HTTP Builder** and authorized a local checkpoint and private Windows portable test ZIP. This supersedes earlier pending Builder review and packaging deferrals. No push, release publication or automatic Lightroom setup change is authorized.
+- Preserve the accepted searchable SDK/WIN UI cards, executable requests/PowerShell scripts, shared address and Step controls, ordinary sticky toolbar and amber Jump menu. The scrolling/docking and tab-focus regressions are corrected. The final introduction and Base URL helper wording are accepted.
+- Reuse recorded isolated Builder command/PowerShell, classification, browser, wheel/touch scrolling and first-click tab evidence. Latest content checks passed at 1280/390/320px. These were synthetic/browser checks, not live Lightroom or physical Android tests. Reuse the accepted startup/Contrast and improved Reset-feedback baseline.
+- Checkpoint accepted Builder, its references/tests and release-preparation documentation only. Preserve pending Denoise Reset implementation/tests and unrelated settings/research work outside the checkpoint. The private package includes the current Denoise Reset candidate for the user's actual Lightroom test; it is not accepted merely by inclusion.
+- Required remaining manual acceptance: extracted plug-in loading; fresh Dust preset installation/discovery and Apply/Reset; Denoise Reset in Lightroom; copied Builder requests through PowerShell and Companion; clean Windows install/upgrade, native helpers, reconnection and desktop quit/tray; native Quick Copy/Paste and completed/multi-photo Export. Preserve the other bounded limitations in `docs/RELEASE_REVIEW.md`, including the unresolved monitor-move stall and residual feedback delay.
+- The tested beta baseline is Windows x64 / Lightroom Classic 15.4.1. SDK 15.3 is metadata, not a verified application minimum; Dust On also requires photo ProcessVersion 15.4. Only focused build/package gates and extracted-package checks are required now; do not repeat unchanged feature suites.
+
 ## Help accepted; scoped local checkpoint (2026-09-24)
 
 - **Help wording and presentation are accepted.** This entry supersedes earlier Help placement requirements and earlier statements that Help is awaiting acceptance. Preserve the approved section order, yellow headings/dividers/content boxes, compact plug-in setup, Known issues wording and final Ko-fi support section. Dust limitations sit between Selected Add/Subtract and Visualize Range; the setup instructions remain at `#dust-setup`. Companion is optional; this release controls Lightroom Classic on Windows, with browser access from phones/tablets on the local network.

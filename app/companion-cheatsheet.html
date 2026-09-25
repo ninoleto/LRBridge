@@ -1,605 +1,244 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bitfocus Companion HTTP Builder - LRBridge</title>
-    <style>a { color:#83caff; } a:focus-visible { outline:2px solid #83caff; outline-offset:3px; }
-summary { min-height:44px; align-content:center; cursor:pointer; } button, input, select { min-height:44px; } .builder-field { min-width:0; } @media(max-width:720px) { .cards { grid-template-columns:minmax(0,1fr); } } </style>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            background: #101418;
-            color: #d7e1ea;
-            font-family: Segoe UI, Arial, sans-serif;
-            line-height: 1.5;
-        }
-
-        header {
-            padding: 22px 28px;
-            background: #161d24;
-            border-bottom: 1px solid #28323d;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        main {
-            max-width: 1240px;
-            padding: 22px 28px 70px;
-        }
-
-        h1 {
-            margin: 0;
-            color: #ffffff;
-            font-size: 28px;
-        }
-
-        h2 {
-            margin-top: 32px;
-            color: #ffb454;
-            border-bottom: 1px solid #28323d;
-            padding-bottom: 7px;
-            font-size: 21px;
-        }
-
-        h3 {
-            margin: 0 0 10px;
-            color: #ffffff;
-            font-size: 17px;
-        }
-
-        p {
-            color: #c7d4df;
-            font-size: 15px;
-        }
-
-        .subtitle {
-            color: #9fb0bf;
-            margin-top: 6px;
-            font-size: 14px;
-        }
-
-        .box {
-            border: 1px solid #2b3744;
-            border-radius: 10px;
-            background: #141b22;
-            padding: 16px;
-            margin: 14px 0;
-        }
-
-        .warning {
-            border-color: #9b6530;
-            background: #241a10;
-        }
-
-        .plain-examples {
-            background: #080b0f;
-            border-color: #1a222b;
-            opacity: 0.76;
-        }
-
-        .plain-examples h2 {
-            margin-top: 0;
-            color: #80909f;
-            border-bottom-color: #1a222b;
-        }
-
-        .plain-examples p {
-            color: #80909f;
-        }
-
-        .setup-list {
-            margin: 0;
-            padding-left: 22px;
-        }
-
-        .setup-list li {
-            margin: 6px 0;
-            color: #c7d4df;
-        }
-
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            margin-top: 12px;
-        }
-
-        input,
-        select {
-            background: #050708;
-            color: #f4f4f4;
-            border: 1px solid #2b3744;
-            border-radius: 8px;
-            padding: 11px 12px;
-            font-size: 15px;
-        }
-
-        select {
-            width: 100%;
-        }
-
-        #search {
-            width: 100%;
-            margin-top: 16px;
-        }
-
-        #hostInput {
-            width: 310px;
-            max-width: 100%;
-        }
-
-        #stepInput {
-            width: 120px;
-        }
-
-        button {
-            background: #22303d;
-            color: #ffffff;
-            border: 1px solid #35495a;
-            border-radius: 8px;
-            padding: 9px 11px;
-            font-size: 13px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #314151;
-        }
-
-        .primary {
-            background: #2a6f97;
-            border-color: #3a8cc0;
-        }
-
-        .base-url {
-            background: #050708;
-            color: #ffffff;
-            border: 1px solid #2b3744;
-            border-radius: 8px;
-            padding: 13px;
-            font-family: Consolas, monospace;
-            font-size: 15px;
-            overflow-wrap: anywhere;
-            margin: 12px 0;
-        }
-
-        .value-pill {
-            display: inline-block;
-            background: #050708;
-            color: #ffffff;
-            border: 1px solid #2b3744;
-            border-radius: 8px;
-            padding: 8px 14px;
-            font-family: Consolas, monospace;
-            font-size: 15px;
-            min-width: 56px;
-            text-align: center;
-        }
-
-        .builder-form {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(180px, 1fr));
-            gap: 14px;
-            align-items: end;
-        }
-
-        .builder-field label {
-            display: block;
-            margin-bottom: 6px;
-            color: #9fb0bf;
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .builder-field input {
-            width: 100%;
-        }
-
-        .builder-output {
-            margin-top: 16px;
-            padding-top: 14px;
-            border-top: 1px solid #28323d;
-        }
-
-        .builder-description {
-            color: #9fb0bf;
-            min-height: 22px;
-            margin: 8px 0;
-            font-size: 13px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
-            gap: 14px;
-        }
-
-        .card {
-            background: #141b22;
-            border: 1px solid #2b3744;
-            border-radius: 10px;
-            padding: 14px;
-        }
-
-        .card-title {
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 5px;
-            font-size: 16px;
-        }
-
-        .meta {
-            color: #9fb0bf;
-            font-size: 12px;
-            margin-bottom: 10px;
-            overflow-wrap: anywhere;
-        }
-
-        .command {
-            margin-top: 12px;
-            padding-top: 10px;
-            border-top: 1px solid #26313c;
-        }
-
-        .command-label {
-            color: #ffb454;
-            font-size: 13px;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-
-        .path {
-            background: #050708;
-            color: #f4f4f4;
-            border: 1px solid #2b3744;
-            border-radius: 8px;
-            padding: 10px;
-            font-family: Consolas, monospace;
-            font-size: 13px;
-            line-height: 1.45;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-            white-space: normal;
-        }
-
-        .button-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .small {
-            font-size: 12px;
-            padding: 7px 9px;
-        }
-
-        .status {
-            color: #7ee787;
-            font-size: 13px;
-            margin-top: 8px;
-            min-height: 18px;
-        }
-
-        .group-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 12px 0 20px;
-        }
-
-        .group-nav a {
-            color: #d7e1ea;
-            background: #22303d;
-            border: 1px solid #35495a;
-            border-radius: 8px;
-            padding: 8px 10px;
-            text-decoration: none;
-            font-size: 13px;
-        }
-
-        .group-nav a:hover {
-            background: #314151;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        body.searching .hide-when-searching {
-            display: none !important;
-        }
-
-        body.searching main {
-            padding-top: 16px;
-        }
-
-        @media (max-width: 720px) {
-            header,
-            main {
-                padding-left: 16px;
-                padding-right: 16px;
-            }
-
-            .builder-form {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-<style>#httpInventory input[type=search]{box-sizing:border-box;width:100%;min-height:44px;margin:12px 0} #httpInventory label{display:flex;align-items:center;min-height:44px;gap:8px} #httpInventory summary{min-height:44px;display:list-item;align-content:center;cursor:pointer} #httpInventory code{overflow-wrap:anywhere} #httpInventory p{overflow-wrap:anywhere} #httpInventory details{margin:8px 0} </style>
-<script src="/controller-http-inventory.js" defer></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP Builder - LRBridge</title>
+<style>
+    * { box-sizing: border-box; }
+    :root { --toolbar-height: 94px; color-scheme: dark; }
+    body { margin: 0; background: #101418; color: #d7e1ea; font: 15px/1.5 "Segoe UI", Arial, sans-serif; }
+    header, main, .base-section { max-width: 1240px; padding: 22px 28px; }
+    header { padding-bottom: 10px; }
+    .base-section { padding-top: 12px; }
+    #networkWarning { color: #7dd3c7; font-weight: 700; }
+    main { padding-bottom: 70px; }
+    h1 { margin: 0 0 8px; font-size: 28px; color: #fff; }
+    h2 { margin: 26px 0 14px; color: #ffb454; border-bottom: 1px solid #28323d; padding-bottom: 7px; font-size: 21px; }
+    h3 { margin: 0 0 4px; font-size: 17px; color: #fff; }
+    p { margin: 8px 0; overflow-wrap: anywhere; }
+    a { color: #83caff; }
+    button, input, textarea { font: inherit; min-height: 44px; border: 1px solid #35495a; border-radius: 8px; }
+    button { padding: 9px 12px; color: #fff; background: #22303d; cursor: pointer; }
+    button:hover { background: #314151; }
+    button:disabled { opacity: .5; cursor: default; }
+    input { padding: 9px 10px; background: #050708; color: #f4f4f4; width: 100%; min-width: 0; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid #83caff; outline-offset: 3px; }
+    .primary { background: #2a6f97; border-color: #3a8cc0; }
+    .box, .card { border: 1px solid #2b3744; border-radius: 10px; background: #141b22; padding: 16px; }
+    .box h2 { margin-top: 0; }
+    .controls, .button-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .button-row { margin-top: 8px; }
+    .controls label { flex: 1 1 230px; }
+    label { display: block; color: #c7d4df; font-size: 14px; }
+    label input { display: block; margin-top: 4px; }
+    #toolbar { position: sticky; top: 0; z-index: 10; background: #161d24; border-bottom: 1px solid #28323d; padding: 10px 28px 6px; }
+    .toolbar-controls { display: grid; grid-template-areas: "search jump step top"; grid-template-columns: minmax(0, 1fr) 200px max-content max-content; gap: 10px; align-items: center; max-width: 1184px; }
+    .search-controls { grid-area: search; display: flex; min-width: 0; gap: 10px; }
+    #clearSearch { flex-shrink: 0; }
+    .jump-controls { grid-area: jump; display: flex; align-items: center; min-width: 0; }
+    #jumpTo { width: 100%; text-align: left; }
+    #jumpTo::after { content: "▾"; float: right; margin-left: 12px; }
+    #jumpTo:disabled { opacity: .5; }
+    #jumpMenu { position: fixed; z-index: 20; width: 620px; max-width: calc(100vw - 16px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--jump-rows, 1), auto); grid-auto-flow: column; gap: 10px; padding: 14px; border: 2px solid #d18a36; border-radius: 16px; background: linear-gradient(180deg, #7a4c18 0%, #5f3912 100%); box-shadow: 0 20px 55px rgba(0, 0, 0, .68), 0 0 0 2px rgba(209, 138, 54, .22); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+    .jump-link { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 54px; padding: 12px 16px; border: 1px solid #2a2a2a; border-radius: 13px; background: #101010; color: #f4f4f4; font-size: 16px; font-weight: 600; line-height: 1.5; text-align: center; text-decoration: none; white-space: normal; overflow-wrap: anywhere; touch-action: pan-y; }
+    .jump-link:hover, .jump-link:focus { background: #1a1a1a; border-color: #f0a64a; }
+    .jump-link:focus-visible { outline-color: #f0a64a; outline-offset: -3px; }
+    .step-controls { grid-area: step; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+    .step-controls > * { flex-shrink: 0; }
+    .step-controls button { width: 48px; height: 48px; padding: 6px; font-size: 24px; }
+    .base-divider { margin: 18px 0 14px; border: 0; border-top: 1px solid #28323d; }
+    #stepHeading { color: #ffb454; }
+    #stepHint { font-size: 14px; }
+    .step-value { width: 76px; text-align: center; appearance: textfield; }
+    .step-value::-webkit-inner-spin-button, .step-value::-webkit-outer-spin-button { appearance: none; margin: 0; }
+    #baseStepControls { margin: 12px 0; }
+    .execution-switch { background: #161d24; }
+    .execution-tabs { display: flex; padding: 0 28px; background: #101418; border-bottom: 1px solid #35495a; }
+    .execution-tabs button { min-width: 110px; min-height: 48px; margin-bottom: -1px; border-radius: 10px 10px 0 0; background: #101418; border-color: transparent; border-bottom-color: #35495a; }
+    .execution-tabs button:hover { background: #22303d; }
+    .execution-tabs [aria-selected="true"] { background: #161d24; border-color: #35495a; border-bottom-color: #161d24; }
+    .execution-tabs button:focus-visible { position: relative; z-index: 1; outline-offset: -4px; }
+    .execution-notes { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; max-width: 1240px; padding: 10px 28px 0; }
+    #executionDescription { flex: 1 1 360px; margin: 0; }
+    #toTop { grid-area: top; background: #ffb454; border-color: #ffb454; color: #101418; font-weight: 700; }
+    #toTop:hover { background: #ffcb85; border-color: #ffcb85; }
+    #toTop:focus-visible { outline: 3px solid #83caff; outline-offset: 3px; }
+    #status { font-size: 13px; color: #7ee787; min-height: 20px; max-width: 1184px; overflow-wrap: anywhere; }
+    #stepError, #baseStepError, #hostError, .validation, .load-error { color: #ffcb85; }
+    #stepError, #baseStepError { margin: 0; font-size: 13px; }
+    #status:empty, #stepError:empty, #baseStepError:empty, #hostError:empty, .load-error:empty { display: none; }
+    .path, .base-url { background: #050708; border: 1px solid #2b3744; border-radius: 8px; color: #f4f4f4; padding: 10px; font: 13px/1.5 Consolas, monospace; overflow-wrap: anywhere; white-space: pre-wrap; user-select: text; }
+    .base-url { margin-top: 10px; font-size: 15px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
+    .point-color-ranges { margin-top: 16px; }
+    .card { min-width: 0; scroll-margin-top: calc(var(--toolbar-height) + 32px); }
+    .meta { color: #9fb0bf; font-size: 12px; overflow-wrap: anywhere; }
+    .description { font-size: 14px; }
+    .command { margin-top: 14px; padding-top: 12px; border-top: 1px solid #26313c; }
+    .command-label { color: #ffb454; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .card-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px,1fr)); gap: 12px; margin-block: 12px; }
+    .validation { min-height: 21px; font-size: 13px; margin: 6px 0; }
+    .command .path { min-height: 60px; }
+    .workflow .path { margin-top: 12px; }
+    .workflow a { display: inline-flex; align-items: center; min-height: 44px; margin: 8px 12px 0 0; }
+    summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+    .powershell .path, .script-code { max-height: 320px; overflow-y: auto; }
+    textarea { display: block; width: 100%; min-width: 0; padding: 10px; background: #050708; color: #f4f4f4; resize: vertical; }
+    textarea:focus-visible, summary:focus-visible { outline: 2px solid #83caff; outline-offset: 3px; }
+    .command-group, #collection, #resultCount { scroll-margin-top: calc(var(--toolbar-height) + 32px); }
+    [hidden] { display: none !important; }
+    @media (max-width: 1000px) {
+        .toolbar-controls { grid-template-areas: "search search search" "jump step top"; grid-template-columns: minmax(0, 1fr) max-content max-content; }
+    }
+    @media (max-width: 620px) {
+        header, main, .base-section { padding-inline: 16px; }
+        h1 { font-size: 24px; }
+        input { font-size: 16px; }
+        #toolbar { padding-inline: 16px; }
+        .execution-tabs, .execution-notes { padding-inline: 16px; }
+        .toolbar-controls { gap: 8px; }
+        .search-controls { gap: 8px; }
+        .step-controls { gap: 8px; }
+    }
+    @media (max-width: 520px) {
+        .toolbar-controls { grid-template-areas: "search search" "jump jump" "step top"; grid-template-columns: minmax(0, 1fr) max-content; }
+        .step-label { max-width: 28px; white-space: normal; line-height: 1.2; }
+        .step-controls button { width: 44px; }
+        .step-value { width: 56px; }
+        #jumpMenu { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
+    }
+</style>
 </head>
 <body>
 <header>
-    <h1>Bitfocus Companion HTTP Builder</h1>
-    <div class="subtitle">
-        For Bitfocus Companion with the <strong>Generic: HTTP Requests</strong> plugin/add-on.
+    <h1>HTTP Builder</h1>
+    <div id="introduction">
+        <p>Create commands for Bitfocus Companion’s Generic: HTTP Requests module, or copy a command to test LRBridge in PowerShell.</p>
+        <p><strong>Companion:</strong> For cards with a URL, set the module’s Base URL to the address below. Add an http: GET action to a Companion button, then use Copy path and paste it into the action’s URI field.</p>
+        <p><strong>PowerShell:</strong> Use Copy PowerShell, paste into PowerShell and run it. Some actions require a complete script instead of a single URL; those cards provide the script.</p>
+        <p>This page only creates and copies commands. It does not run them. After running a command, allow Lightroom time to respond before repeating it.</p>
+        <p id="developerReference"><strong>For developers and AI coding assistants:</strong> Building an integration or modifying LRBridge? Read the <a href="/reference/HTTP_WORKFLOWS.md">HTTP API developer reference</a>. You can also give this document to your AI coding assistant, together with the source code and tests for the version you are working on.</p>
+        <p id="networkWarning">Use LRBridge only on a trusted local network or through a trusted VPN. Do not expose its ports directly to the internet.</p>
     </div>
-    <input id="search" placeholder="Search slider or action, example: Tint, Exposure, Auto White Balance...">
-    <div id="status" class="status"></div>
 </header>
-
+<div class="base-section">
+    <section class="box" aria-labelledby="baseHeading">
+        <h2 id="baseHeading">Base URL</h2>
+        <p><strong>This is a helper for the command cards below.</strong> Enter the IP address or hostname of the computer running LRBridge, then click <strong>Apply LRBridge address</strong>. That address will be included automatically in the full URLs and PowerShell commands you copy, so you do not need to edit each command manually.</p>
+        <p>Use localhost when Companion or your script runs on the LRBridge PC. From another computer, use the LRBridge PC’s LAN IP or hostname. The starting address uses this page’s host.</p>
+        <div class="controls">
+            <label for="hostInput">LRBridge IP or hostname<input id="hostInput" placeholder="192.168.1.11" aria-describedby="hostError"></label>
+            <button id="useTypedHost" class="primary">Apply LRBridge address</button>
+            <button id="useLocalhost">Use localhost</button>
+        </div>
+        <p id="hostError" role="status"></p>
+        <div id="baseUrl" class="base-url"></div>
+        <div class="button-row"><button id="copyBaseUrl">Copy Base URL</button></div>
+        <p>Copied requests use port <strong>17891</strong>, without <code>/api</code>. Changing this address updates every Copy full URL button; update the Base URL in Companion too.</p>
+        <hr class="base-divider">
+        <h3 id="stepHeading">Step size</h3>
+        <div id="baseStepControls" class="step-controls" role="group" aria-labelledby="stepHeading">
+            <button id="baseDecreaseStep" aria-label="Decrease step size">−</button>
+            <input id="baseStepInput" class="step-value" type="number" min="1" step="1" value="1" aria-describedby="stepHint baseStepError" aria-label="Global relative slider step">
+            <button id="baseIncreaseStep" aria-label="Increase step size">+</button>
+        </div>
+        <p id="baseStepError" role="status"></p>
+        <div id="stepHint">
+            <p>Step size controls how much the −/+ slider commands increase or decrease a value when you run them. Use 1 for one adjustment step, or a larger number for a bigger adjustment. The amount each step changes the displayed value depends on the slider.</p>
+            <p>Choose a positive whole number using the toolbar’s − and + buttons, or type a number directly. The setting updates the generated adjustment commands across both SDK and WIN UI tabs. It does not change Set values or Reset commands.</p>
+            <p>Changing step size here does not edit your photo. If you already copied an adjustment command into Companion, copy it again to use the new step size.</p>
+            <p>You can change Step size here or in the toolbar. Both controls use the same setting.</p>
+        </div>
+    </section>
+</div>
+<div class="execution-switch">
+    <div class="execution-tabs" role="tablist" aria-label="Command execution">
+        <button id="tab-sdk" role="tab" aria-selected="true" aria-controls="commandPanel" data-execution="sdk">SDK</button>
+        <button id="tab-win-ui" role="tab" aria-selected="false" aria-controls="commandPanel" data-execution="win-ui" tabindex="-1">WIN UI</button>
+    </div>
+    <div class="execution-notes">
+        <p id="executionDescription" class="description">These commands apply changes through Lightroom’s plug-in SDK.</p>
+    </div>
+</div>
+<div id="toolbar" role="region" aria-label="Search and global slider step">
+    <div class="toolbar-controls">
+        <div class="search-controls">
+            <input id="search" type="search" aria-label="Search SDK command cards" placeholder="Search names, groups, commands or operations">
+            <button id="clearSearch">Clear</button>
+        </div>
+        <div class="jump-controls">
+            <button id="jumpTo" aria-expanded="false" aria-controls="jumpMenu" disabled>Jump to…</button>
+            <nav id="jumpMenu" aria-label="Jump to section" hidden></nav>
+        </div>
+        <div id="stepControls" class="step-controls" role="group" aria-label="Global step size">
+            <label class="step-label" for="stepInput">Step size</label>
+            <button id="decreaseStep" aria-label="Decrease step size">−</button>
+            <input id="stepInput" class="step-value" type="number" min="1" step="1" value="1" aria-describedby="stepHint stepError" aria-label="Global relative slider step">
+            <button id="increaseStep" aria-label="Increase step size">+</button>
+        </div>
+        <button id="toTop">↑ Top</button>
+    </div>
+    <p id="stepError" role="status"></p>
+    <div id="status" role="status"></div>
+</div>
 <main>
-<section>
-<h2>Supported operations and guarded workflows</h2>
-<p>The simple builders below generate commands supported by the ordinary HTTP routes. A sent acknowledgement does not confirm completion in Lightroom.</p>
-<p>Quick Copy Settings, Paste Settings, Export and other context-dependent actions require fresh state and result handling. The Builder does not generate permanent URLs or complete clients for these workflows. Use the Web Controller or the <a href="/reference/HTTP_WORKFLOWS.md">documented multi-step workflow</a>. Continuous slider gestures also require their begin/change/end lifecycle.</p>
-<details><summary>Search the complete HTTP operation inventory</summary><div id="httpInventory" aria-live="polite">Loading operations…</div><p><a href="/reference/HTTP_OPERATIONS.md">Offline route reference</a> · <a href="/reference/WINDOWS_BETA.md">Windows installation and limitations</a></p></details>
-</section>
-    <section class="box warning hide-when-searching">
-        <h3>Security and network exposure</h3>
-        <p>
-            LRBridge has no login or built-in authentication. Use this API only on a trusted private LAN or a restricted Tailscale network.
-            <strong>127.0.0.1 works only when Companion and LRBridge run on the same computer.</strong>
-            For another computer, use the LRBridge computer's stable LAN or Tailscale address and scope Windows Firewall access to the Companion computer where practical.
-            Never publicly forward ports 17890, 17891, or 17892, and do not use Tailscale Funnel, a public reverse proxy, or a public cloud tunnel.
-        </p>
-    </section>
-
-    <section class="box warning hide-when-searching">
-        <h3>How to use this page with Bitfocus Companion</h3>
-        <ol class="setup-list">
-            <li>Open Bitfocus Companion.</li>
-            <li>Go to <strong>Connections</strong>.</li>
-            <li>Add the connection/plugin called <strong>Generic: HTTP Requests</strong>.</li>
-            <li>In that connection, set the <strong>Base URL</strong> to your LRBridge address. You can use the Base URL helper below to copy it.</li>
-            <li>Save/apply the connection.</li>
-            <li>Go to your Companion button page.</li>
-            <li>Create or edit a button.</li>
-            <li>Add a press action called <strong>http: GET</strong>.</li>
-            <li>In the <strong>URI</strong> field, paste only the command from this page.</li>
-        </ol>
-        <p>
-            The Base URL is set once in the Generic: HTTP Requests connection.
-            Each button only needs the URI.
-        </p>
-        <div class="path">Example URI: /api/command?command=develop.adjust&amp;slider=Exposure&amp;amount=-1</div>
-    </section>
-
-    <section class="box hide-when-searching">
-        <h3>Copy path or copy full URL?</h3>
-        <p>
-            <strong>Copy path</strong> is for Bitfocus Companion button actions.
-            Paste it into the <strong>URI</strong> field of an <strong>http: GET</strong> action.
-        </p>
-        <p>
-            <strong>Copy full URL</strong> is for PowerShell, browser testing, curl, scripts, or other HTTP-capable devices/apps.
-            PowerShell can send a command directly to Lightroom through LRBridge.
-        </p>
-        <div class="path">curl.exe "http://127.0.0.1:17891/api/command?command=develop.adjust&amp;slider=Exposure&amp;amount=1"</div>
-    </section>
-
-    <section class="hide-when-searching">
-        <h2>1. Base URL helper</h2>
-
-        <div class="box">
-            <p>
-                This section only helps you generate the Base URL for Bitfocus Companion or PowerShell.
-            </p>
-
-            <p>
-                If Bitfocus Companion runs on the same PC as LRBridge, use <strong>localhost</strong>.
-                If Bitfocus Companion runs on another PC, type the <strong>LAN IP</strong> of the LRBridge PC.
-            </p>
-
-            <p>
-                All <strong>Copy full URL</strong> buttons on this page are generated from this Base URL.
-            </p>
-
-            <div class="controls">
-                <button id="useLocalhost">Use localhost</button>
-                <input id="hostInput" placeholder="Type your LAN IP, example: 192.168.1.11">
-                <button id="useTypedHost" class="primary">Use typed LAN IP</button>
-            </div>
-
-            <p><strong>Current Base URL:</strong></p>
-            <div id="baseUrl" class="base-url">http://127.0.0.1:17891</div>
-
-            <div class="button-row">
-                <button id="copyBaseUrl" class="primary">Copy Base URL</button>
-            </div>
-        </div>
-    </section>
-
-    <section class="hide-when-searching">
-        <h2>2. Step size</h2>
-
-        <div class="box">
-            <p>
-                Step size controls how strong each slider button is.
-                Default is <strong>1</strong>.
-            </p>
-
-            <p>
-                If you type <strong>4</strong>, slider buttons will generate:
-                <strong>-4</strong>, <strong>Reset</strong>, and <strong>+4</strong>.
-            </p>
-
-            <p>
-                Reset is always included for every slider.
-            </p>
-
-            <div class="controls">
-                <input id="stepInput" type="number" min="1" step="1" value="1">
-                <button id="applyStep" class="primary">Use this step size</button>
-                <span>Current step size:</span>
-                <span id="stepDisplay" class="value-pill">1</span>
-            </div>
-        </div>
-    </section>
-
-    <section id="commandBuilderSection" class="hide-when-searching">
-        <h2>3. v0.6 Command Builder</h2>
-        <div class="box">
-            <p>Select a command family, command type, and value. The URI updates immediately and is ready for Companion or any HTTP client.</p>
-            <div class="builder-form">
-                <div class="builder-field">
-                    <label for="builderFamily">Command family</label>
-                    <select id="builderFamily"></select>
-                </div>
-                <div class="builder-field">
-                    <label for="builderType">Command / action type</label>
-                    <select id="builderType"></select>
-                </div>
-                <div id="builderValueField" class="builder-field">
-                    <label id="builderValueLabel" for="builderValue">Value</label>
-                    <select id="builderValue"></select>
-                </div>
-                <div id="builderAmountField" class="builder-field hidden">
-                    <label id="builderAmountLabel" for="builderAmount">Amount</label>
-                    <input id="builderAmount" type="number" step="1" value="1">
-                </div>
-            </div>
-            <div class="builder-output">
-                <div id="builderDescription" class="builder-description"></div>
-                <div id="builderPath" class="path"></div>
-                <div class="button-row">
-                    <button id="copyBuilderPath" class="primary">Copy path</button>
-                    <button id="copyBuilderFull">Copy full URL</button>
-                </div>
-            </div>
-            <h3>Color Grading</h3>
-            <p>Build native Color Grading commands from authoritative metadata. Runtime ranges appear after Lightroom reports them.</p>
-            <div class="builder-form">
-                <div class="builder-field"><label for="colorGradingOperation">Command</label><select id="colorGradingOperation"><option value="wheel">Set Wheel</option><option value="scalar">Set Scalar Value</option><option value="region-reset">Reset Region</option><option value="scalar-reset">Reset Scalar Value</option><option value="view">Select Color Grading View</option></select></div>
-                <div class="builder-field"><label for="colorGradingTarget">Region / control / view</label><select id="colorGradingTarget"></select></div>
-                <div class="builder-field" id="colorGradingPrimaryField"><label id="colorGradingPrimaryLabel" for="colorGradingPrimary">Hue</label><input id="colorGradingPrimary" type="number" value="0"></div>
-                <div class="builder-field" id="colorGradingSecondaryField"><label for="colorGradingSecondary">Saturation</label><input id="colorGradingSecondary" type="number" value="0"></div>
-            </div>
-            <div class="builder-output"><div id="colorGradingBuilderError" class="builder-description"></div><div id="colorGradingBuilderPath" class="path"></div><div class="button-row"><button id="copyColorGradingPath" class="primary">Copy path</button><button id="copyColorGradingFull">Copy full URL</button></div></div>
-            <h3>Custom Crop</h3>
-            <p>Enter whole-number dimensions from 1 to 10000. LRBridge applies the exact ratio through Lightroom’s SDK table form.</p>
-            <div class="builder-form">
-                <div class="builder-field">
-                    <label for="customCropWidth">Width</label>
-                    <input id="customCropWidth" type="number" min="1" max="10000" step="1" value="16">
-                </div>
-                <div class="builder-field">
-                    <label for="customCropHeight">Height</label>
-                    <input id="customCropHeight" type="number" min="1" max="10000" step="1" value="10">
-                </div>
-            </div>
-            <div class="builder-output">
-                <div id="customCropBuilderError" class="builder-description"></div>
-                <div id="customCropBuilderPath" class="path"></div>
-                <div class="button-row">
-                    <button id="copyCustomCropPath" class="primary">Copy path</button>
-                    <button id="copyCustomCropFull">Copy full URL</button>
-                </div>
-            </div>
-            <h3>Crop Angle</h3>
-            <p>Set the documented <code>straightenAngle</code> parameter from -45° to +45°, or reset only that adjustment.</p>
-            <div class="builder-form">
-                <div class="builder-field">
-                    <label for="cropAngleValue">Angle</label>
-                    <input id="cropAngleValue" type="number" min="-45" max="45" step="0.01" value="0">
-                </div>
-            </div>
-            <div class="builder-output">
-                <div id="cropAngleBuilderError" class="builder-description"></div>
-                <div id="cropAngleBuilderPath" class="path"></div>
-                <div class="button-row">
-                    <button id="copyCropAnglePath" class="primary">Copy path</button>
-                    <button id="copyCropAngleFull">Copy full URL</button>
-                    <button id="copyResetCropAnglePath">Copy Reset Angle path</button>
-                    <button id="copyResetCropAngleFull">Copy Reset Angle full URL</button>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="box plain-examples hide-when-searching">
-        <h2>Plain examples</h2>
-        <p>Same PC Base URL:</p>
-        <div class="path">http://127.0.0.1:17891</div>
-        <p>LAN Base URL example:</p>
-        <div class="path">http://192.168.1.11:17891</div>
-        <p>Companion button URI example:</p>
-        <div class="path">/api/command?command=develop.adjust&amp;slider=Exposure&amp;amount=1</div>
-    </section>
-
-    <section id="quickSection" class="hide-when-searching">
-        <h2>4. Fast setup examples</h2>
-        <div id="quick" class="grid"></div>
-    </section>
-
-    <section id="actionsSection">
-        <h2 class="hide-when-searching">6. Lightroom actions</h2>
-        <div id="actions" class="grid"></div>
-    </section>
-
-    <section id="slidersSection">
-        <h2 class="hide-when-searching">7. Sliders</h2>
-        <div id="groupNav" class="group-nav hide-when-searching"></div>
-        <div id="sliders"></div>
-    </section>
+    <div id="commandPanel" role="tabpanel" aria-labelledby="tab-sdk">
+    <p id="loadError" class="load-error" role="status"></p>
+    <p id="resultCount" role="status"></p>
+    <div id="collection">
+        <p id="noResults" class="box" hidden>No matches in SDK. Try another term or use Clear.</p>
+        <div id="cardGroups"></div>
+    </div>
+    </div>
 </main>
-
 <script>
     let apiBase = "http://127.0.0.1:17891";
     let stepSize = 1;
     let sliders = [];
     let colorGradingMetadata = null;
-
     const searchEl = document.getElementById("search");
     const statusEl = document.getElementById("status");
     const baseUrlEl = document.getElementById("baseUrl");
     const hostInput = document.getElementById("hostInput");
     const stepInput = document.getElementById("stepInput");
-    const stepDisplay = document.getElementById("stepDisplay");
-    const builderFamily = document.getElementById("builderFamily");
-    const builderType = document.getElementById("builderType");
-    const builderValue = document.getElementById("builderValue");
-    const builderValueLabel = document.getElementById("builderValueLabel");
-    const builderAmountField = document.getElementById("builderAmountField");
-    const builderAmountLabel = document.getElementById("builderAmountLabel");
-    const builderAmount = document.getElementById("builderAmount");
-    const builderDescription = document.getElementById("builderDescription");
-    const builderPath = document.getElementById("builderPath");
-    const customCropWidth = document.getElementById("customCropWidth");
-    const customCropHeight = document.getElementById("customCropHeight");
-    const customCropBuilderError = document.getElementById("customCropBuilderError");
-    const customCropBuilderPath = document.getElementById("customCropBuilderPath");
-    const copyCustomCropPath = document.getElementById("copyCustomCropPath");
-    const copyCustomCropFull = document.getElementById("copyCustomCropFull");
-    const cropAngleValue = document.getElementById("cropAngleValue");
-    const cropAngleBuilderError = document.getElementById("cropAngleBuilderError");
-    const cropAngleBuilderPath = document.getElementById("cropAngleBuilderPath");
-    const copyCropAnglePath = document.getElementById("copyCropAnglePath");
-    const copyCropAngleFull = document.getElementById("copyCropAngleFull");
-    const colorGradingOperation = document.getElementById("colorGradingOperation");
-    const colorGradingTarget = document.getElementById("colorGradingTarget");
-    const colorGradingPrimary = document.getElementById("colorGradingPrimary");
-    const colorGradingSecondary = document.getElementById("colorGradingSecondary");
+    const baseStepInput = document.getElementById("baseStepInput");
+    const stepInputs = [stepInput, baseStepInput];
+    const jumpTo = document.getElementById("jumpTo");
+    const jumpMenu = document.getElementById("jumpMenu");
+    const cardRecords = [];
+    const relativeCommands = [];
+    const scriptUpdates = [];
+    let activeExecution = "sdk";
+    const groups = new Map();
+    // Web Controller panel/control order, using Builder's public group names.
+    // Color is split into White Balance/Presence; HSL and Defringe use their panel names.
+    const builderPanelOrder = [
+        ["Develop"],
+        ["Profile", "ProfileAmount"],
+        ["White Balance", "Temperature Tint"],
+        ["Basic", "Exposure Contrast Highlights Shadows Whites Blacks"],
+        ["HDR / SDR Rendition", "HDREditMode HDRMaxValue SDRBrightness SDRContrast SDRClarity SDRHighlights SDRShadows SDRWhites SDRBlend"],
+        ["Presence", "Texture Clarity Dehaze Vibrance Saturation"],
+        ["Tone Curve", "ParametricHighlights ParametricLights ParametricDarks ParametricShadows ParametricShadowSplit ParametricMidtoneSplit ParametricHighlightSplit"],
+        ["Color Mixer", "HueAdjustmentRed HueAdjustmentOrange HueAdjustmentYellow HueAdjustmentGreen HueAdjustmentAqua HueAdjustmentBlue HueAdjustmentPurple HueAdjustmentMagenta SaturationAdjustmentRed SaturationAdjustmentOrange SaturationAdjustmentYellow SaturationAdjustmentGreen SaturationAdjustmentAqua SaturationAdjustmentBlue SaturationAdjustmentPurple SaturationAdjustmentMagenta LuminanceAdjustmentRed LuminanceAdjustmentOrange LuminanceAdjustmentYellow LuminanceAdjustmentGreen LuminanceAdjustmentAqua LuminanceAdjustmentBlue LuminanceAdjustmentPurple LuminanceAdjustmentMagenta"],
+        ["B&W Mixer", "GrayMixerRed GrayMixerOrange GrayMixerYellow GrayMixerGreen GrayMixerAqua GrayMixerBlue GrayMixerPurple GrayMixerMagenta"],
+        ["Point Color"], ["Color Grading"],
+        ["Detail", "Sharpness SharpenRadius SharpenDetail SharpenEdgeMasking LuminanceNR LuminanceNoiseReductionDetail LuminanceNoiseReductionContrast ColorNR ColorNoiseReductionDetail ColorNoiseReductionSmoothness"],
+        ["Enhance"],
+        ["Lens Corrections", "LensProfileEnable AutoLateralCA LensProfileDistortionScale LensProfileVignettingScale LensManualDistortionAmount VignetteAmount VignetteMidpoint DefringePurpleAmount DefringePurpleHueLo DefringePurpleHueHi DefringeGreenAmount DefringeGreenHueLo DefringeGreenHueHi"],
+        ["Transform", "PerspectiveVertical PerspectiveHorizontal PerspectiveRotate PerspectiveScale PerspectiveAspect PerspectiveX PerspectiveY"],
+        ["Lens Blur", "LensBlurAmount LensBlurCatEye LensBlurHighlightsBoost"],
+        ["Lens Blur / Brush Refinement"],
+        ["Effects", "PostCropVignetteAmount PostCropVignetteMidpoint PostCropVignetteRoundness PostCropVignetteFeather PostCropVignetteHighlightContrast GrainAmount GrainSize GrainFrequency"],
+        ["Calibration", "ShadowTint RedHue RedSaturation GreenHue GreenSaturation BlueHue BlueSaturation"],
+        ["Crop"], ["Healing"], ["Healing / Selected"], ["Healing / Dust"], ["People"], ["Reflections"], ["Red Eye"],
+        ["Masking"], ["Masking / Adjustments"], ["Masking / Tone Curve"], ["Masking / Point Color"],
+        ["Selection"], ["Photo"], ["Develop Presets"], ["Copy / Paste"], ["Export"], ["Application"]
+    ];
+    const sliderPresentation = new Map(builderPanelOrder.flatMap(([group, ids]) => (ids || "").split(" ").filter(Boolean).map(id => [id, group])));
 
-    const builderCommandFamilies = [
+const builderCommandFamilies = [
         {
             id: "develop",
             label: "Develop",
@@ -904,18 +543,9 @@ summary { min-height:44px; align-content:center; cursor:pointer; } button, input
         }
     ];
 
-    const developActionType = builderCommandFamilies[0].types[3];
-    const actions = developActionType.options.map(function (option) {
-        return [
-            option.label,
-            buildCommandPath(developActionType, option.value),
-            option.description || ""
-        ];
-    });
-
-    function buildCommandPath(type, value, amount) {
+function buildCommandPath(type, value, amount) {
         if (type.route === "set") {
-            return "/api/set?slider=" + encodeURIComponent(String(value)) +
+            return "/set?slider=" + encodeURIComponent(String(value)) +
                 "&value=" + encodeURIComponent(String(amount));
         }
 
@@ -928,13 +558,13 @@ summary { min-height:44px; align-content:center; cursor:pointer; } button, input
             parameters.push([type.amountField, amount]);
         }
 
-        return "/api/command?" + parameters.map(function (entry) {
+        return "/command?" + parameters.map(function (entry) {
             return encodeURIComponent(entry[0]) + "=" + encodeURIComponent(String(entry[1]));
         }).join("&");
     }
 
-    function parseBuilderAbsoluteValue(slider, rawValue) {
-        if (!slider || typeof rawValue !== "string" || rawValue.trim() !== rawValue || rawValue === "") {
+function parseBuilderAbsoluteValue(slider, rawValue) {
+        if (!slider || typeof rawValue !== "string" || !/^-?\d+(?:\.\d+)?$/.test(rawValue)) {
             return null;
         }
         const value = Number(rawValue);
@@ -942,66 +572,43 @@ summary { min-height:44px; align-content:center; cursor:pointer; } button, input
         const scaled = (value - slider.min) / slider.numericStep;
         if (Math.abs(scaled - Math.round(scaled)) >= 1e-9) return null;
         const decimal = rawValue.split(".")[1] || "";
-        return decimal.length <= slider.displayPrecision ? value : null;
+        const precision = (String(slider.numericStep).split(".")[1] || "").length;
+        return decimal.length <= precision ? value : null;
     }
 
-    function parseCustomCropDimension(value) {
+function parseCustomCropDimension(value) {
         if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
         const number = Number(value);
         return Number.isSafeInteger(number) && number >= 1 && number <= 10000 ? number : null;
     }
 
-    function buildCustomCropPath(widthValue, heightValue) {
+function buildCustomCropPath(widthValue, heightValue) {
         const width = parseCustomCropDimension(widthValue);
         const height = parseCustomCropDimension(heightValue);
         if (width === null || height === null) return null;
-        return "/api/command?command=photo.crop_aspect&mode=custom&w=" +
+        return "/command?command=photo.crop_aspect&mode=custom&w=" +
             encodeURIComponent(String(width)) + "&h=" + encodeURIComponent(String(height));
     }
 
-    function renderCustomCropOutput() {
-        const path = buildCustomCropPath(customCropWidth.value, customCropHeight.value);
-        const valid = path !== null;
-        customCropBuilderPath.textContent = valid ? path : "";
-        customCropBuilderError.textContent = valid
-            ? "Custom Crop uses the supplied Width and Height without reducing the ratio."
-            : "Width and Height must be whole numbers from 1 to 10000.";
-        copyCustomCropPath.disabled = !valid;
-        copyCustomCropFull.disabled = !valid;
-        return path;
-    }
-
-    function parseCropAngleValue(value) {
+function parseCropAngleValue(value) {
         if (typeof value !== "string" || !/^-?\d+(?:\.\d{1,2})?$/.test(value)) return null;
         const number = Number(value);
         return Number.isFinite(number) && number >= -45 && number <= 45 ? number : null;
     }
 
-    function buildCropAnglePath(value) {
+function buildCropAnglePath(value) {
         const angle = parseCropAngleValue(value);
         if (angle === null) return null;
-        return "/api/command?command=photo.crop_angle.set&value=" + encodeURIComponent(String(angle));
+        return "/command?command=photo.crop_angle.set&value=" + encodeURIComponent(String(angle));
     }
 
-    function renderCropAngleOutput() {
-        const path = buildCropAnglePath(cropAngleValue.value);
-        const valid = path !== null;
-        cropAngleBuilderPath.textContent = valid ? path : "";
-        cropAngleBuilderError.textContent = valid
-            ? "Crop Angle uses Lightroom's straightenAngle Develop parameter."
-            : "Angle must be from -45 to 45 with at most two decimal places.";
-        copyCropAnglePath.disabled = !valid;
-        copyCropAngleFull.disabled = !valid;
-        return path;
-    }
-
-    function strictFiniteBuilderNumber(raw) {
+function strictFiniteBuilderNumber(raw) {
         if (typeof raw !== "string" || raw === "" || raw.trim() !== raw || !/^-?\d+(?:\.\d+)?$/.test(raw)) return null;
         const value = Number(raw);
         return Number.isFinite(value) ? value : null;
     }
 
-    function buildColorGradingPath(operation, target, primary, secondary) {
+function buildColorGradingPath(operation, target, primary, secondary) {
         if (!colorGradingMetadata) return null;
         const regions = colorGradingMetadata.regions || {};
         const controls = colorGradingMetadata.scalarControls || {};
@@ -1012,576 +619,934 @@ summary { min-height:44px; align-content:center; cursor:pointer; } button, input
             for (const pair of [[regions[target].hue, hue], [regions[target].saturation, saturation]]) {
                 const range = ranges[pair[0]]; if (range && (pair[1] < range.min || pair[1] > range.max)) return null;
             }
-            return "/api/command?command=color_grading.wheel.set&region=" + encodeURIComponent(target) + "&hue=" + encodeURIComponent(String(hue)) + "&saturation=" + encodeURIComponent(String(saturation));
+            return "/command?command=color_grading.wheel.set&region=" + encodeURIComponent(target) + "&hue=" + encodeURIComponent(String(hue)) + "&saturation=" + encodeURIComponent(String(saturation));
         }
         if (operation === "scalar") {
             const value = strictFiniteBuilderNumber(primary); if (!controls[target] || value === null) return null;
             const range = (colorGradingMetadata.runtimeRanges || {})[controls[target].parameter]; if (range && (value < range.min || value > range.max)) return null;
-            return "/api/command?command=color_grading.value.set&control=" + encodeURIComponent(target) + "&value=" + encodeURIComponent(String(value));
+            return "/command?command=color_grading.value.set&control=" + encodeURIComponent(target) + "&value=" + encodeURIComponent(String(value));
         }
-        if (operation === "region-reset" && regions[target]) return "/api/command?command=color_grading.region.reset&region=" + encodeURIComponent(target);
-        if (operation === "scalar-reset" && controls[target]) return "/api/command?command=color_grading.value.reset&control=" + encodeURIComponent(target);
-        if (operation === "view" && colorGradingMetadata.views.includes(target)) return "/api/command?command=color_grading.view.set&view=" + encodeURIComponent(target);
+        if (operation === "region-reset" && regions[target]) return "/command?command=color_grading.region.reset&region=" + encodeURIComponent(target);
+        if (operation === "scalar-reset" && controls[target]) return "/command?command=color_grading.value.reset&control=" + encodeURIComponent(target);
+        if (operation === "view" && colorGradingMetadata.views.includes(target)) return "/command?command=color_grading.view.set&view=" + encodeURIComponent(target);
         return null;
     }
 
-    function renderColorGradingTargets() {
-        if (!colorGradingMetadata) return;
-        const operation = colorGradingOperation.value;
-        const source = operation === "wheel" || operation === "region-reset" ? colorGradingMetadata.regions : operation === "scalar" || operation === "scalar-reset" ? colorGradingMetadata.scalarControls : colorGradingMetadata.views;
-        colorGradingTarget.innerHTML = "";
-        const entries = Array.isArray(source) ? source.map(function (value) { return [value, value]; }) : Object.keys(source).map(function (key) { return [key, source[key].label]; });
-        for (const entry of entries) { const option = document.createElement("option"); option.value = entry[0]; option.textContent = entry[1]; colorGradingTarget.appendChild(option); }
-        document.getElementById("colorGradingPrimaryField").classList.toggle("hidden", operation !== "wheel" && operation !== "scalar");
-        document.getElementById("colorGradingSecondaryField").classList.toggle("hidden", operation !== "wheel");
-        document.getElementById("colorGradingPrimaryLabel").textContent = operation === "wheel" ? "Hue" : "Value";
-        renderColorGradingOutput();
+function normalizeHost(value) {
+        const input = String(value || "").trim();
+        if (!/^(?:http:\/\/)?(?:[a-z0-9.-]+|\[[a-f0-9:.]+\])(?::1789[12])?\/?$/i.test(input)) return null;
+        try {
+            const url = new URL(/^http:\/\//i.test(input) ? input : "http://" + input);
+            if (url.protocol !== "http:" || url.username || url.password || url.pathname !== "/" ||
+                url.search || url.hash || (url.port && url.port !== "17891" && url.port !== "17892")) return null;
+            if (!url.hostname.startsWith("[") && !url.hostname.split(".").every(function (part) {
+                return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(part);
+            })) return null;
+            return url.hostname;
+        } catch (err) { return null; }
     }
 
-    function renderColorGradingOutput() {
-        const path = buildColorGradingPath(colorGradingOperation.value, colorGradingTarget.value, colorGradingPrimary.value, colorGradingSecondary.value);
-        const valid = path !== null;
-        document.getElementById("colorGradingBuilderPath").textContent = valid ? path : "";
-        document.getElementById("colorGradingBuilderError").textContent = valid ? "Runtime range is enforced when Lightroom has reported it; Lua validates again." : "Enter finite, unpadded numeric values within any known runtime range.";
-        document.getElementById("copyColorGradingPath").disabled = !valid; document.getElementById("copyColorGradingFull").disabled = !valid;
-        return path;
+function normalizeStep(value) {
+        if (!/^\d+$/.test(String(value))) return null;
+        const number = Number(value);
+        return Number.isSafeInteger(number) && number >= 1 ? number : null;
     }
 
-    function selectedBuilderFamily() {
-        return builderCommandFamilies.find(function (family) {
-            return family.id === builderFamily.value;
-        });
+async function copyText(text) {
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            setStatus("Copied to clipboard.");
+        } catch (err) {
+            const focused = document.activeElement;
+            const area = document.createElement("textarea");
+            area.value = text;
+            area.setAttribute("readonly", "");
+            area.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0";
+            document.body.appendChild(area);
+            let copied = false;
+            try {
+                area.select();
+                area.setSelectionRange(0, text.length);
+                copied = document.execCommand("copy");
+            } catch (copyError) {
+                copied = false;
+            } finally {
+                area.remove();
+                if (focused && focused.focus) focused.focus({ preventScroll: true });
+            }
+            setStatus(copied ? "Copied to clipboard." : "Copy failed. Select the displayed path or address and copy it manually.", !copied);
+        }
     }
 
-    function selectedBuilderType() {
-        const family = selectedBuilderFamily();
+    const directCardFamilies = [
+        { group: "White Balance", title: "White Balance", route: "/develop-categorical/white-balance", command: "develop_categorical.white_balance.set", field: "value", values: ["Auto", "Daylight", "Cloudy", "Shade", "Tungsten", "Fluorescent", "Flash"] },
+        { group: "Calibration", title: "Process", route: "/develop-categorical/process", command: "develop_categorical.process.set", field: "value", values: ["Version 6", "Version 5", "Version 4", "Version 3", "Version 2", "Version 1"] },
+        { group: "Effects", title: "Vignette Style", route: "/develop-categorical/vignette-style", command: "develop_categorical.vignette_style.set", field: "value", values: [1, 2, 3], labels: ["Highlight Priority", "Color Priority", "Paint Overlay"] },
+        { group: "Transform", title: "Upright", route: "/develop-categorical/upright-mode", command: "develop_categorical.upright_mode.set", field: "value", values: [0, 1, 5, 3, 4, 2], labels: ["Off", "Auto", "Guided", "Level", "Vertical", "Full"] },
+        { group: "Transform", title: "Constrain Crop", route: "/develop-categorical/constrain-crop", command: "develop_categorical.constrain_crop.set", field: "value", values: [0, 1], labels: ["Off", "On"] },
+        { group: "Transform", title: "Open Guided Upright Tool", route: "/develop-categorical/upright-tool", command: "develop_categorical.upright_tool.select", values: [null] },
+        { group: "Lens Blur", title: "Apply Lens Blur", route: "/lens-blur/apply", command: "lens_blur.active.set", field: "enabled", values: [true, false], labels: ["On", "Off"] },
+        { group: "Lens Blur", title: "Bokeh", route: "/lens-blur/bokeh", command: "lens_blur.bokeh.set", field: "value", values: ["Circle", "SoapBubble", "Blade", "Ring", "Anamorphic"], labels: ["Circle", "Soap Bubble", "Blade", "Ring", "Anamorphic"] },
+        { group: "Point Color", title: "Open Point Color Tool", route: "/point-color/tool/select", command: "point_color.tool.select", values: [null] },
+        { group: "Point Color", title: "Toggle Visualize Range", route: "/point-color/range-visualization/toggle", command: "point_color.range_visualization.toggle", values: [null], description: "Switches Visualize Range; LRBridge does not display its active state." }
+    ];
 
-        return family && family.types.find(function (type) {
-            return type.id === builderType.value;
-        });
+    function getWorkflowDefinitions() {
+        const result = [];
+        function add(group, title, routes, commands, operations, note, section) {
+            result.push({ group, title, routes, commands, operations, note,
+                link: "/reference/HTTP_WORKFLOWS.md" });
+        }
+        const guarded = "Use the Web Controller, or read fresh state, check capability and photo context, then submit the bound request and follow its result.";
+        const mask = "Requires the current photo, selected mask/component IDs and fresh masking revision. Use the Web Controller or follow the guarded workflow.";
+        for (const action of ["undo", "redo"]) add("Application", action === "undo" ? "Undo" : "Redo", ["/command"], ["lightroom." + action], [action], "Check fresh history state and wait for active edits or gestures to finish. Submit once and refresh history afterward.");
+        add("Profile", "Select Camera Profile", ["/develop-categorical/profile"], ["develop_categorical.profile.set"], ["select", "profile", "inventory", "token"], "Resolve a token from the current Profile inventory. Tokens are tied to the photo and inventory; use the Web Controller or the Profile workflow.");
+        add("Develop Presets", "Apply Develop Preset", ["/develop-presets/apply"], ["develop_preset.apply"], ["apply", "UUID", "alias"], "Resolve the current preset UUID and capability, then follow the application result for the same photo.");
+        for (const direction of ["previous", "next"]) add("Develop Presets", direction + " Develop Preset", ["/develop-presets/navigate"], [], [direction, "navigate"], "Uses the configured preset order and current preset inventory. Follow the preset workflow and resulting state.");
+        add("Develop Presets", "Preset Amount", ["/develop-presets/amount"], ["develop_preset.amount.set"], ["set", "amount"], "Requires the current applied preset, Amount capability and photo binding. Wait for the matching result before another change.");
+        add("Develop Presets", "Configure Develop Presets", ["/develop-presets/config"], [], ["configure", "add", "remove", "reorder", "alias", "POST"], "Use the Web Controller’s preset configuration, or the documented POST configuration body. This is not a GET command.");
+        add("Develop Presets", "Refresh Preset Inventory", ["/develop-presets/inventory/refresh"], ["develop_presets.inventory.request"], ["refresh", "inventory"], "Request the inventory and wait until it is ready before resolving preset UUIDs.");
+        for (const [title, route, command] of [["Denoise", "denoise/set", "denoise.set"], ["Denoise Amount", "denoise/amount", "denoise.amount.set"], ["Raw Details", "raw-details/set", "raw_details.set"], ["Super Resolution", "super-resolution/set", "super_resolution.set"]]) {
+            add("Enhance", title, ["/enhance/" + route], ["enhance." + command], title === "Denoise Amount" ? ["set", "amount", "reset"] : ["on", "off", "enable", "disable"], "Read Enhance capability and pending-operation state for the photo. Preserve the other Enhance settings and wait for the matching completion or Amount feedback.");
+        }
+        for (const [title, command] of [["Quick Copy Settings", "clipboard.copy"], ["Paste Settings", "clipboard.paste"], ["Export…", "export.dialog"], ["Export with Previous", "export.previous"]]) {
+            const family = command.split(".")[0];
+            add(family === "clipboard" ? "Copy / Paste" : "Export", title, ["/" + family + "/action", "/" + family + "/acknowledge"], [command], ["copy", "paste", "export", "review"].filter(word => title.toLowerCase().includes(word) || word === "review"), "Capture fresh selection/state, create a unique request ID and follow the matching result. Acknowledge only after reviewing it; never reuse a stored action URL.", "quick-copypaste-and-export");
+        }
+        for (const [field, title] of [["newSpotType", "Remove / Heal / Clone Mode"], ["brushSize", "Healing Brush Size"], ["brushFeather", "Healing Brush Feather"], ["useGenerativeAI", "Use Generative AI"], ["detectObjects", "Detect Objects"], ["toolOverlay", "Healing Tool Overlay"], ["visualizeSpots", "Visualize Spots"], ["visualizationThreshold", "Visualize Spots Threshold"]]) {
+            add("Healing", title, ["/remove/brush"], ["remove.brush.set"], [field, "set", "on", "off", "heal_patchmatch", "heal", "clone", "always", "auto", "selected", "never"], guarded);
+        }
+        add("Healing", "Open / Close Healing Tool", ["/remove/panel"], ["remove.panel.set"], ["open", "close", "selectedTool"], guarded);
+        for (const [title, field, command] of [["Refresh Selected Repair", "refresh", "remove.repair.action"], ["Delete Selected Repair", "delete", "remove.repair.action"], ["Selected Repair Fill", "remove heal clone generative_remove", "remove.repair.fill.set"], ["Selected Repair Opacity", "selectedRepairOpacity", "remove.repair.param.set"], ["Selected Repair Feather", "selectedRepairFeather", "remove.repair.param.set"]]) {
+            add("Healing", title, ["/remove/repair"], [command], [field, "selectedRepair", "set"], "Requires the current selected-repair token, Remove mode and photo binding. " + guarded);
+        }
+        for (const action of ["Add", "Subtract", "Cancel", "Remove"]) add("Healing / Selected", action + " Selected", ["/remove/selection"], ["remove.selection.action"], [action.toLowerCase(), "selectedSelection"], "Requires a fresh selection/refinement token and verified capability. Add/Subtract have no active-mode highlight in LRBridge; inspect Lightroom for the mode.", "remove--selected-and-mode-feedback");
+        add("Healing / Dust", "Dust Apply On", ["/remove/dust"], ["remove.dust.on"], ["on", "dustApply"], "Requires the installed Dust On preset and current supported Lightroom/photo state. " + guarded);
+        add("Healing / Dust", "Dust Apply Off / Reset", ["/remove/dust"], ["remove.dust.off"], ["off", "reset", "dustApply"], "Requires the installed Dust Off preset and fresh photo/state binding. " + guarded);
+        add("Healing / Dust", "Close Dust", ["/remove/dust"], ["remove.dust.close"], ["close", "dustClose", "manualRemove"], guarded);
+        for (const [title, field] of [["Reflections Apply", "checkboxState"], ["Reflections Amount", "amount"], ["Reflections Quality", "quality"]]) add("Reflections", title, ["/reflections/set"], ["reflections.set"], [field, "set", "on", "off", "preview", "standard", "best"], guarded);
+        for (const action of ["open", "detect", "remove"]) add("People", action + " People", ["/people/action"], ["people.action"], [action], "Requires a fresh People inventory token and the corresponding capability. " + guarded);
+        for (const [action, title] of [["red_eye", "Open Red Eye"], ["pet_eye", "Open Pet Eye"], ["reset", "Reset Red Eye"], ["close", "Close Red Eye"]]) add("Red Eye", title, ["/red-eye/action"], ["red_eye.action"], [action], guarded);
+        add("Lens Blur", "Visualize Depth", ["/lens-blur/visualize-depth"], ["lens_blur.depth_visualization.toggle"], ["on", "off", "enabled"], "Requires an explicit target and fresh photo/context plus native state. Use the guarded Visualize Depth workflow; a blind toggle is unsupported.");
+        add("Lens Blur", "Focus Range", ["/lens-blur/focal-range/set", "/lens-blur/focal-range/adjust"], ["lens_blur.focal_range.set"], ["set", "adjust", "near", "far", "range", "expected"], "Read the current range, submit its expected prior value and follow the matching commit readback.");
+        for (const [value, title] of [["subject", "Subject Focus"], ["point-area", "Point / Area Focus"]]) add("Lens Blur", title, ["/lens-blur/focus-action"], [], [value, "focus"], "Read native focus capability, then follow the action and refreshed state. Point / Area Focus requires interaction in Lightroom.");
+        for (const action of ["select", "close"]) add("Lens Blur", (action === "select" ? "Open" : "Close") + " Depth Refinement", ["/lens-blur/depth-refinement/" + action], ["lens_blur.depth_refinement." + action], [action, "depth_refinement"], guarded);
+        for (const control of ["amount", "size", "feather", "flow"]) add("Lens Blur / Brush Refinement", "Brush " + control, ["/lens-blur/brush/:control/set", "/lens-blur/brush/:control/adjust", "/lens-blur/brush/:control/reset"], [], [control, "set", "adjust", "reset"], "Needs a fresh native brush range and the active refinement mode. Use the Web Controller or read native capability/ranges before sending a brush request.");
+        for (const [title, route, ops] of [["Brush Auto Mask", "auto-mask", ["on", "off"]], ["Brush Refinement Mode", "refinement-mode", ["focus", "blur"]], ["Open / Close Brush Refinement", "refinement-disclosure", ["open", "close"]], ["Reset Brush Refinement", "refinement-reset", ["reset", "confirmed"]]]) add("Lens Blur / Brush Refinement", title, ["/lens-blur/" + route], [], ops, "Requires verified native refinement state. Reset also requires explicit confirmation. Follow the Lens Blur workflow.");
+        for (const scope of ["", "masking/"]) {
+            const group = scope ? "Masking / Point Color" : "Point Color";
+            const commands = scope ? [] : ["point_color.value.set"];
+            for (const [field, label] of [["HueShift", "Hue Shift"], ["SatScale", "Saturation Shift"], ["LumScale", "Luminance Shift"], ["Variance", "Variance"], ["RangeAmount", "Range Amount"]]) add(group, label, ["/" + scope + "point-color/value"], commands, [field, "set"], scope ? mask : "Requires a currently selected Point Color swatch and fresh context. Read state and preserve its range limits.");
+            for (const range of ["HueRange", "SatRange", "LumRange"]) add(group, range.replace("Range", " Range"), ["/" + scope + "point-color/range", "/" + scope + "point-color/range/translate"], scope ? [] : ["point_color.range.set", "point_color.range.translate"], [range, "set", "translate", "LowerNone", "LowerFull", "UpperFull", "UpperNone"], "Read the selected swatch and all current range boundaries; retain its marker, valid range width and context. " + (scope ? mask : "Use the Point Color workflow."));
+            if (scope) for (const [title, route] of [["Select Point Color Sample", "sample"], ["Open Local Point Color Tool", "tool/select"], ["Toggle Local Visualize Range", "range-visualization/toggle"]]) add(group, title, ["/masking/point-color/" + route], [], [route, "select", "toggle"], mask);
+        }
+        for (const scope of ["", "masking/"]) {
+            const group = scope ? "Masking / Tone Curve" : "Tone Curve";
+            const base = "/" + scope + "tone-curve";
+            const phases = ["begin", "update", "end", "cancel"];
+            for (const channel of ["rgb", "red", "green", "blue"]) add(group, channel.toUpperCase() + " Point Curve", [...phases.map(p => base + "/gesture/" + p), base + "/reset"], scope ? [] : [...phases.map(p => "tone_curve.gesture." + p), "tone_curve.reset"], [channel, "points", "edit", "reset"], "Curve edits require an owned gesture, current points and photo revision. Reset also needs current context. " + (scope ? mask : "Use the Tone Curve workflow."));
+            add(group, "Refine Saturation", [...phases.map(p => base + "/refine-saturation/gesture/" + p), base + "/refine-saturation/reset"], scope ? [] : [...phases.map(p => "tone_curve.refine_saturation.gesture." + p), "tone_curve.refine_saturation.reset"], ["CurveRefineSaturation", "local_RefineSaturation", "set", "reset"], "Requires current Refine Saturation value, curve state and an owned gesture for changes. " + (scope ? mask : "Use the Tone Curve workflow."));
+            for (const preset of ["Linear", "Medium Contrast", "Strong Contrast"]) add(group, preset + " Curve Preset", [base + "/preset"], scope ? [] : ["tone_curve.preset.set"], [preset, "preset"], "Requires current RGB curve points and photo revision. " + (scope ? mask : "Use the Tone Curve workflow."));
+        }
+        for (const type of ["Subject", "Sky", "Background", "People", "Landscape", "Objects", "Brush", "Linear Gradient", "Radial Gradient", "Color Range", "Luminance Range", "Depth Range"]) for (const action of ["Create", "Add", "Subtract"]) {
+            const kind = action.toLowerCase();
+            add("Masking", action + " " + type + " Mask", [kind === "create" ? "/masking/create" : "/masking/component/" + kind], [kind === "create" ? "masking.create" : "masking.component." + kind], [type, kind, "mask", "component"], mask + " Interactive tools must be completed in Lightroom.");
+        }
+        for (const [title, route, command, ops] of [
+            ["Open / Close Masking", "panel", "masking.panel.set", ["open", "close"]],
+            ["Previous / Next Mask", "group/navigate", "masking.group.navigate", ["previous", "next"]],
+            ["Previous / Next Component", "tool/navigate", "masking.tool.navigate", ["previous", "next"]],
+            ["Mask Visibility", "group/visibility", "masking.group.visibility.set", ["show", "hide"]],
+            ["Component Visibility", "tool/visibility", "masking.tool.visibility.set", ["show", "hide"]],
+            ["Delete All Masks", "all/delete", null, ["delete", "all"]],
+            ["Delete Selected Mask", "selected/delete", null, ["delete", "selected"]],
+            ["Delete Selected Component", "component/delete", "masking.component.delete", ["delete", "component"]],
+            ["Invert Selected Component", "component/invert", "masking.component.invert", ["invert", "component"]],
+            ["Reset Selected Mask", "selected/reset", null, ["reset", "selected"]],
+            ["Apply Masking Preset", "preset/apply", null, ["preset", "apply", "inventory"]]
+        ]) add("Masking", title, ["/masking/" + route], command ? [command] : [], ops, mask);
+        for (const [parameter, label] of [["local_Amount","Amount"],["local_Exposure","Exposure"],["local_Contrast","Contrast"],["local_Highlights","Highlights"],["local_Shadows","Shadows"],["local_Whites","Whites"],["local_Blacks","Blacks"],["local_Temperature","Temperature"],["local_Tint","Tint"],["local_Hue","Hue"],["local_Saturation","Saturation"],["local_ToningHue","Toning Hue"],["local_ToningSaturation","Toning Saturation"],["local_ToningLuminance","Toning Luminance"],["local_Texture","Texture"],["local_Clarity","Clarity"],["local_Dehaze","Dehaze"],["local_Grain","Grain Amount"],["local_Sharpness","Sharpness"],["local_LuminanceNoise","Noise Reduction"],["local_Moire","Moiré"],["local_Defringe","Defringe"]]) {
+            add("Masking / Adjustments", "Local " + label, ["/masking/correction/gesture/begin", "/masking/correction/gesture/update", "/masking/correction/gesture/end", "/masking/correction/gesture/cancel", "/masking/correction/reset"], [], [parameter, "set", "reset"], "Read this parameter’s current capability and range. Changes need an owned gesture; Reset needs the selected mask binding. " + mask);
+        }
+        return result;
     }
 
-    function builderOptions(type) {
-        if (type.valueSource === "sliders") {
-            return sliders
-                .filter(function (slider) {
-                    return slider.id !== "LensProfileChromaticAberrationScale";
-                })
-                .map(function (slider) {
-                    return { value: slider.id, label: slider.label || slider.id };
+    function element(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function getGroup(name) {
+        if (groups.has(name)) return groups.get(name);
+        const section = element("section", "command-group");
+        section.id = "group-" + name.replace(/[^A-Za-z0-9]+/g, "-");
+        const heading = element("h2", "", name);
+        const grid = element("div", "grid");
+        section.append(heading, grid);
+        const rangeGrid = ["Point Color", "Masking / Point Color"].includes(name) ? element("div", "grid point-color-ranges") : null;
+        if (rangeGrid) section.append(rangeGrid);
+        document.getElementById("cardGroups").append(section);
+        const link = element("a", "jump-link", name);
+        link.href = "#" + section.id;
+        link.dataset.groupId = section.id;
+        const group = { section, grid, rangeGrid, link, records: [] };
+        groups.set(name, group);
+        return group;
+    }
+
+    function makeCard(id, title, groupName, keywords, description, execution = "sdk") {
+        const group = getGroup(groupName);
+        const card = element("article", "card search-card");
+        card.dataset.cardId = id;
+        card.dataset.execution = execution;
+        card.append(element("h3", "card-title", title), element("div", "meta", groupName));
+        if (description) card.append(element("p", "description", description));
+        const record = { id, card, execution, search: [title, groupName, ...keywords].join(" ").toLowerCase(), group: groupName };
+        card.dataset.search = record.search;
+        cardRecords.push(record);
+        group.records.push(record);
+        group.grid.append(card);
+        return card;
+    }
+
+    function makeCommand(card, label, getPath, relative, getScript, canCopyUrl) {
+        const command = element("div", "command");
+        const title = element("div", "command-label");
+        const path = element("div", "path");
+        const buttons = element("div", "button-row");
+        const copyPath = element("button", "primary", "Copy path");
+        const copyFull = element("button", "", "Copy full URL");
+        const copyPS = element("button", "", "Copy PowerShell");
+        const details = element("details", "powershell");
+        const script = element("pre", "path");
+        details.append(element("summary", "", "Show PowerShell script"), script);
+        function update() {
+            title.textContent = typeof label === "function" ? label() : label;
+            const value = getPath();
+            path.textContent = value || "Enter valid values to generate a command.";
+            command.dataset.path = value || "";
+            copyPath.disabled = copyFull.disabled = !value || Boolean(canCopyUrl && !canCopyUrl());
+            copyPS.disabled = !value;
+            script.textContent = value ? (getScript ? getScript() : simplePowerShell(apiBase, value)) : "Enter valid values to generate a command.";
+            return value;
+        }
+        copyPath.addEventListener("click", function () { const value = update(); if (value) copyText(value); });
+        copyFull.addEventListener("click", function () { const value = update(); if (value) copyText(apiBase + value); });
+        copyPS.addEventListener("click", function () { if (update()) copyText(script.textContent); });
+        buttons.append(copyPath, copyFull, copyPS);
+        command.append(title, path, buttons, details);
+        card.append(command);
+        if (relative) { command.dataset.relative = "true"; relativeCommands.push(update); }
+        scriptUpdates.push(update);
+        update();
+        return update;
+    }
+
+    function numberInput(card, key, label, value, min, max, step) {
+        let fields = card.querySelector(".card-fields");
+        if (!fields) { fields = element("div", "card-fields"); card.append(fields); }
+        const wrapper = element("label", "", label);
+        const input = element("input");
+        input.type = "number";
+        input.dataset.input = key;
+        input.id = card.dataset.cardId + "-" + key;
+        wrapper.htmlFor = input.id;
+        input.value = value;
+        input.step = step === undefined ? "any" : String(step);
+        if (min !== undefined) input.min = String(min);
+        if (max !== undefined) input.max = String(max);
+        wrapper.append(input); fields.append(wrapper);
+        return input;
+    }
+
+    function validateInputs(card, inputs, updates, message) {
+        const hint = element("p", "validation");
+        hint.id = card.dataset.cardId + "-validation";
+        card.append(hint);
+        inputs.forEach(input => input.setAttribute("aria-describedby", hint.id));
+        function update() {
+            const valid = updates.map(render => render()).every(Boolean);
+            hint.textContent = (valid ? "" : "Invalid value. ") + message;
+            inputs.forEach(input => input.setAttribute("aria-invalid", String(!valid)));
+        }
+        inputs.forEach(input => input.addEventListener("input", update));
+        update();
+    }
+
+    function renderSliderCard(slider) {
+        const commands = ["develop.set"];
+        if (slider.adjustSupported !== false) commands.push("develop.adjust", "adjust", "minus", "plus", "step");
+        if (slider.resetSupported !== false) commands.push("develop.reset", "reset");
+        const card = makeCard("slider-" + slider.id, slider.label || slider.id, sliderPresentation.get(slider.id) || slider.group, [slider.id, slider.group, "set", ...commands]);
+        card.dataset.slider = slider.id;
+        card.append(element("div", "meta", "ID: " + slider.id));
+        const types = builderCommandFamilies[0].types;
+        if (slider.adjustSupported !== false) makeCommand(card, () => "−" + stepSize + " Step", () => buildCommandPath(types[1], slider.id, -stepSize), true);
+        if (slider.resetSupported !== false) makeCommand(card, "Reset", () => buildCommandPath(types[2], slider.id));
+        if (slider.adjustSupported !== false) makeCommand(card, () => "+" + stepSize + " Step", () => buildCommandPath(types[1], slider.id, stepSize), true);
+        const input = numberInput(card, "value", "Set absolute value", String(slider.default === undefined ? slider.min : slider.default), slider.min, slider.max, slider.numericStep);
+        const update = makeCommand(card, "Set", () => parseBuilderAbsoluteValue(slider, input.value) === null ? null : buildCommandPath(types[0], slider.id, input.value));
+        validateInputs(card, [input], [update], "Value: " + slider.min + " to " + slider.max + "; increment " + slider.numericStep + "." + (slider.requireRuntimeRangeForAdmission ? " Requires current Lightroom range feedback." : ""));
+    }
+
+    function renderActionCards() {
+        for (const family of builderCommandFamilies) for (const type of family.types) for (const option of type.options || []) {
+            const group = type.id === "crop-aspect" ? "Crop" : family.label;
+            const id = [family.id, type.id, option.value].join("-");
+            const card = makeCard(id, type.label + " · " + option.label, group, [type.command, type.id, option.value], option.description || type.description);
+            card.dataset.command = type.command;
+            card.dataset.option = String(option.value);
+            if (type.amountField) {
+                const input = numberInput(card, "amount", "Selection count", "1", type.amountMin, type.amountMax, 1);
+                const update = makeCommand(card, option.label, () => {
+                    const value = strictFiniteBuilderNumber(input.value);
+                    return Number.isSafeInteger(value) && value >= type.amountMin && value <= type.amountMax ? buildCommandPath(type, option.value, value) : null;
                 });
+                validateInputs(card, [input], [update], "Whole number from 1 to 100. Global Step does not change this count.");
+            } else makeCommand(card, option.label, () => buildCommandPath(type, option.value));
         }
-
-        return type.options || [];
-    }
-
-    function renderBuilderOutput() {
-        const type = selectedBuilderType();
-        const option = type && builderOptions(type).find(function (item) {
-            return String(item.value) === builderValue.value;
+        const closeCrop = makeCard("crop-close", "Close Crop Tool", "Crop", ["develop.action", "selectCropTool", "loupe", "close"]);
+        makeCommand(closeCrop, "Close Crop", () => "/command?command=develop.action&action=selectCropTool&target=loupe");
+        for (const family of directCardFamilies) family.values.forEach(function (value, index) {
+            const label = family.labels ? family.labels[index] : value === null ? "" : String(value);
+            const card = makeCard("direct-" + family.command + "-" + index, family.title + (label ? " · " + label : ""), family.group, [family.command, family.route, value], family.description);
+            card.dataset.command = family.command;
+            makeCommand(card, label || family.title, () => family.route + (family.field ? "?" + encodeURIComponent(family.field) + "=" + encodeURIComponent(String(value)) : ""));
         });
-
-        if (!type || !option) {
-            builderPath.textContent = "Waiting for command metadata...";
-            builderDescription.textContent = "";
-            return;
-        }
-
-        let valid = true;
-        if (type.route === "set") {
-            const slider = sliders.find(function (item) { return item.id === option.value; });
-            valid = parseBuilderAbsoluteValue(slider, builderAmount.value) !== null;
-        }
-
-        builderDescription.textContent = valid
-            ? (option.description || type.description || "")
-            : "Enter a value within this slider's declared range and precision.";
-        builderPath.textContent = valid ? buildCommandPath(type, option.value, builderAmount.value) : "";
-        document.getElementById("copyBuilderPath").disabled = !valid;
-        document.getElementById("copyBuilderFull").disabled = !valid;
     }
 
-    function renderBuilderSliderSelection() {
-        const type = selectedBuilderType();
-        if (type && type.route === "set") {
-            const slider = sliders.find(function (item) { return item.id === builderValue.value; });
-            if (slider) {
-                builderAmount.min = String(slider.min);
-                builderAmount.max = String(slider.max);
-                builderAmount.step = String(slider.numericStep);
-                builderAmount.value = String(slider.default === undefined ? slider.min : slider.default);
+    function renderCropCards() {
+        const custom = makeCard("crop-custom", "Custom Crop Ratio", "Crop", ["photo.crop_aspect", "custom", "width", "height", "set"]);
+        const width = numberInput(custom, "width", "Width", "16", 1, 10000, 1);
+        const height = numberInput(custom, "height", "Height", "10", 1, 10000, 1);
+        const update = makeCommand(custom, "Set ratio", () => buildCustomCropPath(width.value, height.value));
+        validateInputs(custom, [width, height], [update], "Whole-number dimensions from 1 to 10000, such as 16 × 10.");
+        const angle = makeCard("crop-angle", "Crop Angle", "Crop", ["photo.crop_angle.set", "photo.crop_angle.reset", "straightenAngle", "set", "reset"]);
+        const value = numberInput(angle, "value", "Angle", "0", -45, 45, 0.01);
+        const render = makeCommand(angle, "Set Angle", () => buildCropAnglePath(value.value));
+        validateInputs(angle, [value], [render], "−45° to 45°, with at most two decimal places.");
+        makeCommand(angle, "Reset Angle", () => "/command?command=photo.crop_angle.reset");
+    }
+
+    function renderColorCards() {
+        for (const [region, definition] of Object.entries(colorGradingMetadata.regions)) {
+            const card = makeCard("color-wheel-" + region, definition.label + " Wheel", "Color Grading", [region, definition.hue, definition.saturation, "color_grading.wheel.set", "color_grading.region.reset", "hue", "saturation", "set", "reset"]);
+            const hueRange = (colorGradingMetadata.runtimeRanges || {})[definition.hue];
+            const satRange = (colorGradingMetadata.runtimeRanges || {})[definition.saturation];
+            const hue = numberInput(card, "hue", "Hue", "0", hueRange?.min, hueRange?.max);
+            const saturation = numberInput(card, "saturation", "Saturation", "0", satRange?.min, satRange?.max);
+            const update = makeCommand(card, "Set Wheel", () => buildColorGradingPath("wheel", region, hue.value, saturation.value));
+            validateInputs(card, [hue, saturation], [update], [hueRange ? "Hue: " + hueRange.min + " to " + hueRange.max + "." : "Hue range is checked by Lightroom.", satRange ? "Saturation: " + satRange.min + " to " + satRange.max + "." : "Saturation range is checked by Lightroom."].join(" "));
+            if (colorGradingMetadata.resetSupported !== false) makeCommand(card, "Reset Region", () => buildColorGradingPath("region-reset", region));
+        }
+        for (const [control, definition] of Object.entries(colorGradingMetadata.scalarControls)) {
+            const card = makeCard("color-scalar-" + control, definition.label, "Color Grading", [control, definition.parameter, "color_grading.value.set", "color_grading.value.reset", "set", "reset"]);
+            const range = (colorGradingMetadata.runtimeRanges || {})[definition.parameter];
+            const value = numberInput(card, "value", "Value", "0", range?.min, range?.max);
+            const update = makeCommand(card, "Set Value", () => buildColorGradingPath("scalar", control, value.value));
+            validateInputs(card, [value], [update], range ? "Value: " + range.min + " to " + range.max + "." : "Range has not been reported; Lightroom checks it when sent.");
+            if (colorGradingMetadata.resetSupported !== false) makeCommand(card, "Reset Value", () => buildColorGradingPath("scalar-reset", control));
+        }
+        for (const view of colorGradingMetadata.views) {
+            const card = makeCard("color-view-" + view, "Color Grading View · " + view, "Color Grading", [view, "color_grading.view.set", "select", "view"]);
+            makeCommand(card, "Select View", () => buildColorGradingPath("view", view));
+        }
+    }
+
+    function psLiteral(value) {
+        return "'" + String(value).replace(/'/g, "''") + "'";
+    }
+
+    function simplePowerShell(base, path) {
+        return "$ErrorActionPreference = 'Stop'\nInvoke-RestMethod -Method Get -Uri " + psLiteral(base + path) + " -ErrorAction Stop | ConvertTo-Json -Depth 20";
+    }
+
+    function recipePath(recipe, values, step) {
+        const params = Object.assign({}, recipe.params);
+        for (const field of recipe.inputs || []) {
+            const raw = values[field.key];
+            if (field.type === "number") {
+                const n = strictFiniteBuilderNumber(raw);
+                if (n === null || field.min !== undefined && n < field.min || field.max !== undefined && n > field.max || field.integer && !Number.isSafeInteger(n)) return null;
+                params[field.key] = field.integer ? n : raw;
+            } else {
+                if (!raw || field.type !== "json" && /[\x00-\x1f\x7f]/.test(raw)) return null;
+                if (field.type === "curve") {
+                    if (!/^\d+(,\d+)+$/.test(raw)) return null;
+                    const p = raw.split(",").map(Number);
+                    if (p.length < 4 || p.length > 512 || p.length % 2 || p[0] !== 0 || p[p.length - 2] !== 255 || p.some(n => n > 255) || p.some((n,i) => i % 2 === 0 && i > 0 && n <= p[i-2])) return null;
+                }
+                if (field.type === "json") {
+                    try {
+                        const body = JSON.parse(raw);
+                        if (body.version !== 1 || !Array.isArray(body.presets) || Object.keys(body).some(k => !["version", "presets"].includes(k))) return null;
+                        const ids = new Set();
+                        for (const p of body.presets) {
+                            if (!p || typeof p.uuid !== "string" || !p.uuid.trim() || p.uuid.length > 200 || ids.has(p.uuid) || /[\x00-\x1f\x7f]/.test(p.uuid) ||
+                                ["amountEnabled", "updateAISettings"].some(k => p[k] !== undefined && typeof p[k] !== "boolean") || p.alias !== undefined && p.alias !== null && (typeof p.alias !== "string" || p.alias.trim().length > 160 || /[\x00-\x1f\x7f]/.test(p.alias.trim()))) return null;
+                            ids.add(p.uuid);
+                        }
+                    } catch (_) { return null; }
+                }
+                params[field.key] = raw;
             }
         }
-        renderBuilderOutput();
+        if (recipe.relative) params.amount = step * recipe.relative;
+        for (const [from,to] of Object.entries(recipe.rename || {})) { params[to] = params[from]; delete params[from]; }
+        if (recipe.ordered && !(params.nearOuter <= params.nearInner && params.nearInner <= params.farInner && params.farInner <= params.farOuter)) return null;
+        if (recipe.route.endsWith("/point-color/range/translate")) {
+            const [a,b,c,d] = ["LowerNone","LowerFull","UpperFull","UpperNone"].map(k => Number(params[k]));
+            if (!(a <= b && b < c && c <= d)) return null;
+        }
+        return recipe.route + (Object.keys(params).length ? "?" + Object.entries(params).map(([k,v]) => encodeURIComponent(k) + "=" + encodeURIComponent(v)).join("&") : "");
     }
 
-    function renderBuilderValues() {
-        const type = selectedBuilderType();
-        const previousValue = builderValue.value;
-        builderValue.innerHTML = "";
+    function powerShellPreamble(base) {
+        return `$ErrorActionPreference = 'Stop'
+$base = ${psLiteral(base)}
+function Invoke-LR([string]$path, [hashtable]$query = @{}) {
+    $pairs = foreach ($key in $query.Keys) {
+        $value = $query[$key]
+        if ($null -eq $value) { $value = 'null' }
+        elseif ($value -is [bool]) { $value = $value.ToString().ToLowerInvariant() }
+        elseif ($value -is [System.IFormattable]) { $value = $value.ToString($null, [Globalization.CultureInfo]::InvariantCulture) }
+        [uri]::EscapeDataString($key) + '=' + [uri]::EscapeDataString([string]$value)
+    }
+    $uri = $base + $path
+    if ($pairs) { $uri += '?' + ($pairs -join '&') }
+    $reply = Invoke-RestMethod -Method Get -Uri $uri -ErrorAction Stop
+    if ($reply.ok -eq $false) { throw ($reply | ConvertTo-Json -Depth 20 -Compress) }
+    return $reply
+}
+function Wait-LR([string]$path, [scriptblock]$matches) {
+    $deadline = [DateTime]::UtcNow.AddSeconds(120)
+    do {
+        $state = Invoke-LR $path
+        if (& $matches $state) { return $state }
+        Start-Sleep -Milliseconds 500
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'No matching result within 120 seconds. Check Lightroom before another request; the edit was not retried.'
+}
+function Get-LRBinding($state, [string[]]$fields) {
+    $binding = @{}
+    foreach ($field in $fields) {
+        $source = if ($field -eq 'stateRevision') { 'revision' } else { $field }
+        if ($null -eq $state.$source) { throw "Current state is missing $source. Refresh Lightroom context before trying again." }
+        $binding[$field] = $state.$source
+    }
+    return $binding
+}
+`;
+    }
 
-        if (!type) {
-            renderBuilderOutput();
-            return;
+    function buildRecipeScript(recipe, values, base, step) {
+        const path = recipePath(recipe, values, step);
+        if (!path) return null;
+        const bound = Boolean(recipe.state || recipe.prepare || recipe.method);
+        if (!bound && !recipe.confirm) return simplePowerShell(base, path);
+        let code = powerShellPreamble(base);
+        if (recipe.confirm) code += "if ((Read-Host " + psLiteral(recipe.confirm + " Type YES to continue") + ") -cne 'YES') { throw 'Cancelled; no edit sent.' }\n";
+        if (recipe.method === "POST") {
+            return code + "$body = " + psLiteral(values.body) + "\nInvoke-RestMethod -Method Post -Uri ($base + " + psLiteral(recipe.route) + ") -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ErrorAction Stop | ConvertTo-Json -Depth 20";
         }
-
-        builderValueLabel.textContent = type.valueLabel || "Value";
-        builderAmountField.classList.toggle("hidden", !type.amountField);
-        builderAmountLabel.textContent = type.amountLabel || "Amount";
-        builderAmount.min = type.amountMin === undefined ? "" : String(type.amountMin);
-        builderAmount.max = type.amountMax === undefined ? "" : String(type.amountMax);
-        builderAmount.step = type.amountStep === undefined ? "1" : String(type.amountStep);
-
-        for (const option of builderOptions(type)) {
-            const element = document.createElement("option");
-            element.value = String(option.value);
-            element.textContent = option.label;
-            builderValue.appendChild(element);
+        const params = Object.fromEntries(new URL(path, "http://builder.invalid").searchParams);
+        if (recipe.state) {
+            code += "$s = Invoke-LR " + psLiteral(recipe.state) + (recipe.property ? " | Select-Object -ExpandProperty " + recipe.property : "") + "\n";
+            code += "if ($s.available -eq $false -or $s.pendingOperation -or $s.needsReview) { throw 'Control unavailable, busy or awaiting review. Check Lightroom before running a new request.' }\n";
         }
+        code += "$q = @{ " + Object.entries(params).map(([k,v]) => psLiteral(k) + " = " + psLiteral(v)).join("; ") + " }\n";
+        if (recipe.bindings?.length) code += "$binding = Get-LRBinding $s @( " + recipe.bindings.map(psLiteral).join(", ") + " )\nforeach ($k in $binding.Keys) { $q[$k] = $binding[$k] }\n";
+        code += recipe.prepare || "";
+        if (recipe.gesture) {
+            code += "$q.gestureId = [guid]::NewGuid().ToString('N')\n$end = $q.Clone()\n";
+            const field = recipe.gesture === "curve" ? "points" : "value";
+            code += "$q.Remove(" + psLiteral(field) + ")\n$cancel = $q.Clone()\n$cancel.Remove('baseline')\n";
+            code += "$begun = $true\ntry {\n    $begin = Invoke-LR " + psLiteral(recipe.route + "/gesture/begin") + " $q\n    $r = Invoke-LR " + psLiteral(recipe.route + "/gesture/end") + " $end\n    $begun = $false\n} finally {\n    if ($begun) {\n        # Release only this script's gesture, including an uncertain begin; never retry the edit.\n        Invoke-LR " + psLiteral(recipe.route + "/gesture/cancel") + " $cancel | ConvertTo-Json -Depth 20\n    }\n}\n";
+        } else code += "$r = Invoke-LR " + psLiteral(recipe.route) + " $q\n";
+        code += "$r | ConvertTo-Json -Depth 20\n";
+        if (recipe.result) {
+            const result = recipe.result;
+            code += "$id = " + (result.id || "$r.pendingOperation.operationId") + "\nif (-not $id) { throw 'No operation identifier returned. Check Lightroom; do not repeat the edit automatically.' }\n";
+            code += "$epoch = " + (result.epoch || "$s.serverEpoch") + "\n$done = Wait-LR " + psLiteral(result.state || recipe.state) + " { param($n)\n    if ($n.serverEpoch -ne $epoch) { throw 'Server restarted; result unconfirmed.' }\n    return $n." + (result.field || "lastResult") + "." + (result.key || "operationId") + " -eq $id" + (result.settled ? " -and $null -ne $n.lastApplication.outcome" : "") + "\n}\n$done." + (result.field || "lastResult") + " | ConvertTo-Json -Depth 20\n";
+            if (result.ack) code += "if ($done.needsReview) {\n    if ((Read-Host 'Review this result and Lightroom. Type REVIEWED to acknowledge; this does not retry the action') -ceq 'REVIEWED') {\n        Invoke-LR " + psLiteral(result.ack) + " @{ serverEpoch = $epoch; operationId = $done.lastResult.operationId } | ConvertTo-Json -Depth 20\n    }\n}\n";
+            code += "if ($done." + (result.field || "lastResult") + ".outcome -match 'failed|stale|uncertain|reject|unconfirmed') { throw 'The result above does not confirm the edit. Check Lightroom; no edit was retried.' }\n";
+        } else code += recipe.finish || "Write-Host 'Response shown above. A queued request is not confirmation of an edit; inspect Lightroom before repeating it.'\n";
+        return code.trim();
+    }
 
-        if (Array.from(builderValue.options).some(function (option) {
-            return option.value === previousValue;
-        })) {
-            builderValue.value = previousValue;
+    function workflowRecipes(d) {
+        const route = d.routes[0], op = d.operations[0];
+        const n = (key, label, value, min, max, integer) => ({key, label, value, min, max, integer, type: "number"});
+        const t = (key, label, value, type) => ({key, label, value, type: type || "text"});
+        const simple = (label, params, inputs) => ({label, route, params: params || {}, inputs: inputs || []});
+        const choices = (field, values) => values.map(value => simple(String(value), {[field]: value}));
+        if (route === "/command") return [simple(d.title, {command:d.commands[0]})];
+        if (route.startsWith("/lens-blur/brush/")) {
+            const base = "/lens-blur/brush/" + op;
+            return [
+                {label:"−Step", route:base + "/adjust", relative:-1},
+                {label:"Reset", route:base + "/reset"},
+                {label:"+Step", route:base + "/adjust", relative:1},
+                {label:"Set", route:base + "/set", inputs:[n("value", "Absolute value (native range)", 25)]}
+            ];
         }
+        if (route === "/lens-blur/auto-mask") return choices("enabled", [true,false]);
+        if (route === "/lens-blur/refinement-mode") return choices("value", ["focus","blur"]);
+        if (route === "/lens-blur/refinement-disclosure") return choices("open", [true,false]);
+        if (route === "/lens-blur/refinement-reset") return [{...simple("Reset", {confirmed:true}), confirm:"Reset Brush Refinement for the current photo?"}];
+        if (route === "/lens-blur/focus-action") return [simple(d.title, {value:op})];
+        if (route.startsWith("/lens-blur/depth-refinement/")) return [simple(d.title)];
+        if (route === "/enhance/denoise/amount") return [simple("Set Amount", {}, [n("amount","Denoise Amount",50,1,100,true)]), simple("Reset Amount to 50", {amount:50})];
+        if (route.startsWith("/enhance/")) return [true,false].map(enabled => simple(enabled ? "On" : "Off", {enabled}, route === "/enhance/denoise/set" ? [n("amount","Denoise Amount",50,1,100,true)] : []));
+        if (route === "/point-color/value") return [simple("Set", {field:op}, [n("value", "Value",0, op === "RangeAmount" ? 0 : -1,1)])];
+        if (route === "/point-color/range" || route === "/masking/point-color/range") {
+            const boundaries = ["LowerNone","LowerFull","UpperFull","UpperNone"];
+            const specs = boundaries.map((boundary,i) => simple("Set " + boundary, {range:op,boundary}, [n("value-" + boundary, boundary, [0,0.25,0.75,1][i],0,1)]));
+            specs.forEach(s => { s.rename = {[s.inputs[0].key]:"value"}; });
+            specs.push({label:"Translate range", route:route + "/translate", params:{range:op}, inputs:boundaries.map((b,i) => n(b,b,[0,0.25,0.75,1][i],0,1))});
+            if (route.startsWith("/masking/")) specs.forEach(s => Object.assign(s, maskRecipe("edit"), {prepare:"$q.selectedIndex = $s.pointColor.selectedIndex\n"}));
+            return specs;
+        }
+        return boundWorkflowRecipes(d, {n,t,simple,choices});
+    }
 
-        if (type.route === "set") {
-            const slider = sliders.find(function (item) { return item.id === builderValue.value; });
-            if (slider) {
-                builderAmount.min = String(slider.min);
-                builderAmount.max = String(slider.max);
-                builderAmount.step = String(slider.numericStep);
-                builderAmount.value = String(slider.default === undefined ? slider.min : slider.default);
+    function maskRecipe(kind, extra) {
+        const spec = {state:"/masking/state", bindings:["selectedPhotoUuid","contextCounter","developCounter","contextChangedAt","serverEpoch","stateRevision", ...(extra || ["selectedMaskGroupId"]) ]};
+        spec.result = kind === "edit" ? {id:"$r.editSequence", field:"lastEditResult", key:"sequence", state:"/masking/state"} :
+            kind === "correction" ? {id:"$r.correctionSequence", field:"lastCorrectionResult", key:"sequence"} : {id:"$r.operationId"};
+        return spec;
+    }
+
+    function boundWorkflowRecipes(d, helpers) {
+        const {n,t,simple,choices} = helpers, route = d.routes[0], op = d.operations[0];
+        const fields = ["selectedPhotoUuid","contextCounter","developCounter","contextChangedAt","serverEpoch","stateRevision"];
+        const binding = (state) => ({state, bindings:fields.slice(), result:{}});
+        if (route.startsWith("/remove/")) {
+            let field = op, values;
+            if (route.endsWith("/panel")) {field="selectedTool"; values=["dust","loupe"];}
+            else if (route.endsWith("/selection")) {field="selectedSelection"; values=[op];}
+            else if (route.endsWith("/dust")) {field=op === "close" ? "dustClose" : "dustApply"; values=[op === "close" ? "manualRemove" : op === "on"];}
+            else if (route.endsWith("/repair")) {
+                if (["refresh","delete"].includes(op)) {field="selectedRepair"; values=[op];}
+                else if (op.startsWith("remove heal")) {field="selectedRepairFill"; values=["remove","heal","clone","generative_remove"];}
+            } else values = {newSpotType:["heal_patchmatch","heal","clone"],toolOverlay:["always","auto","selected","never"],useGenerativeAI:[true,false],detectObjects:[true,false],visualizeSpots:[true,false]}[field];
+            const recipes = values ? values.map(value => simple(String(value),{field,value})) : [simple("Set",{field},[n("value", "Value", field === "brushSize" ? 25 : 0, field === "brushSize" ? 1 : 0, field.startsWith("selectedRepair") ? 1 : 100)])];
+            return recipes.map(r => ({...r,...binding("/remove/state"), prepare:"$q.mode = $s.newSpotType\n" +
+                (route.endsWith("/repair") ? "$q.repairToken = $s.repair.token\n" : route.endsWith("/selection") ? "$q.selectionToken = $s.selection." + (["add","subtract"].includes(op) ? "refinementToken" : "token") + "\n" : ""),
+                confirm: r.params.value === "delete" || field === "selectedSelection" && op === "remove" ? "Apply this change to the current Healing selection?" : undefined}));
+        }
+        if (route === "/reflections/set") {
+            const recipes = op === "amount" ? [simple("Set",{field:op},[n("value","Amount",0,-100,100)])] : (op === "quality" ? ["preview","standard","best"] : [true,false]).map(value => simple(String(value),{field:op,value}));
+            return recipes.map(r => ({...r,...binding("/reflections/state")}));
+        }
+        if (["/people/action","/red-eye/action"].includes(route)) return [{...simple(d.title,{operationKind:op}),...binding(route.replace("/action","/state")), confirm:op === "reset" || op === "remove" ? d.title + " for the current photo?" : undefined}];
+        if (["/clipboard/action","/export/action"].includes(route)) {
+            const family = route.split("/")[1];
+            return [{...simple(d.title,{command:d.commands[0]}),...binding("/" + family + "/state"),
+                bindings:[...fields,"selectionToken","activeModule"],
+                prepare:"$q.requestId = [guid]::NewGuid().ToString('N')\n",
+                result:{id:"$q.requestId", key:"requestId", ack:"/" + family + "/acknowledge"}}];
+        }
+        if (route === "/lens-blur/visualize-depth") return [true,false].map(enabled => ({...simple(enabled ? "On" : "Off",{enabled}),state:"/context",bindings:fields.slice(0,3)}));
+        if (route === "/lens-blur/focal-range/set") {
+            const prepare = "$q.expected = @($s.state.focalRange.nearOuter, $s.state.focalRange.nearInner, $s.state.focalRange.farInner, $s.state.focalRange.farOuter) -join ' '\nif (-not $s.state.focalRangeAvailable) { throw 'Focus Range unavailable.' }\n";
+            const finish = "$id = $r.focalRangeCommitId\nif (-not $id) { throw 'Missing Focus Range commit identifier.' }\n$done = Wait-LR '/lens-blur/state' { param($n)\n    if ($n.context.selectedPhotoUuid -ne $s.context.selectedPhotoUuid -or $n.context.contextCounter -ne $s.context.contextCounter) { throw 'Photo changed; result unconfirmed.' }\n    return $n.focalRangeCommitId -eq $id -and $n.state.focalRangeAvailable\n}\n$done | ConvertTo-Json -Depth 20\n";
+            const recipes = [{...simple("Set range",{},["nearOuter","nearInner","farInner","farOuter"].map((key,i) => n(key,key,[0,0,100,100][i],-1000000,1000000,true))),ordered:true}];
+            for (const part of ["whole","near","far"]) for (const sign of [-1,1]) recipes.push({label:(sign < 0 ? "−Step " : "+Step ") + part,route:"/lens-blur/focal-range/adjust",params:{part},relative:sign});
+            return recipes.map(r => ({...r,state:"/lens-blur/state",prepare,finish}));
+        }
+        if (route.startsWith("/masking/point-color/")) {
+            let r;
+            if (route.endsWith("/value")) r = simple("Set",{field:op},[n("value","Value",0,op === "RangeAmount" ? 0 : -1,1)]);
+            else if (route.endsWith("/sample")) r = simple("Select sample",{},[n("selectedIndex","Sample number",1,1,undefined,true)]);
+            else return [{...simple(d.title),...maskRecipe("operation")}];
+            return [{...r,...maskRecipe("edit"),prepare:route.endsWith("/value") ? "$q.selectedIndex = $s.pointColor.selectedIndex\n" : ""}];
+        }
+        if (route.includes("/tone-curve/")) {
+            const local = route.startsWith("/masking/"), base = (local ? "/masking" : "") + "/tone-curve";
+            const refine = route.includes("refine-saturation"), preset = route.endsWith("/preset");
+            const common = local ? {...maskRecipe("edit"),state:base + "/state",property:"pointCurve"} : {state:base + "/state",property:"pointCurve",bindings:fields.slice(0,3),
+                finish:"$done = Wait-LR '/tone-curve/state' { param($n)\n    $curve = $n.pointCurve\n    if ($curve.selectedPhotoUuid -ne $s.selectedPhotoUuid -or $curve.contextCounter -ne $s.contextCounter) { throw 'Photo changed; curve result unconfirmed.' }\n    if (-not $curve.available -or $curve.updatedAt -le $s.updatedAt) { return $false }\n    if ($r.queued.points) {\n        $channel = if ($r.queued.channel) { $r.queued.channel } else { 'rgb' }\n        return ($curve.curves.$channel -join ',') -eq ($r.queued.points -join ',')\n    }\n    if ($null -ne $r.queued.value) { return $curve.refineSaturation.value -eq $r.queued.value }\n    return $true\n}\nWrite-Host 'Fresh Lightroom readback follows. This API has no per-edit completion receipt; inspect the curve before another edit.'\n$done.pointCurve | ConvertTo-Json -Depth 20\n"};
+            const prepare = refine ? "$q.baseline = $s.refineSaturation.value\nif ($q.ContainsKey('value') -and ([double]$q.value -lt $s.refineSaturation.min -or [double]$q.value -gt $s.refineSaturation.max)) { throw 'Value outside the current Lightroom range.' }\n" : "$q.baseline = $s.curves." + (preset ? "rgb" : op) + " -join ','\n";
+            if (preset) return [{...simple("Apply preset",{preset:op}),...common,prepare}];
+            const target = refine ? base + "/refine-saturation" : base;
+            return [{label:"Set",route:target,params:refine ? {} : {channel:op},inputs:[refine ? n("value","Refine Saturation",100,0,100) : t("points","Points: x,y pairs (0–255)","0,0,128,128,255,255","curve")],gesture:refine ? "value" : "curve",...common,prepare},
+                {label:"Reset",route:target + "/reset",params:refine ? {} : {channel:op},...common,prepare}];
+        }
+        if (route === "/masking/correction/gesture/begin") {
+            const prepare = "$parameter = $s.corrections | Where-Object { $_.parameter -eq $q.parameter }\nif (-not $parameter -or $parameter.available -eq $false) { throw 'This correction is unavailable for the selected mask.' }\nif ($q.ContainsKey('value') -and ([double]$q.value -lt $parameter.min -or [double]$q.value -gt $parameter.max)) { throw 'Value outside the current Lightroom range.' }\n";
+            return [{label:"Set",route:"/masking/correction",params:{parameter:op},inputs:[n("value","Absolute value",0)],gesture:"value",...maskRecipe("correction"),prepare},
+                {label:"Reset",route:"/masking/correction/reset",params:{parameter:op},...maskRecipe("correction"),prepare}];
+        }
+        if (route.startsWith("/masking/")) {
+            let recipes, extra = [];
+            if (route === "/masking/create" || route === "/masking/component/add" || route === "/masking/component/subtract") {
+                const types = {Subject:["aiSelection","subject"],Sky:["aiSelection","sky"],Background:["aiSelection","background"],People:["aiSelection","people"],Landscape:["aiSelection","landscape"],Objects:["aiSelection","objects"],Brush:["brush",""],"Linear Gradient":["gradient",""],"Radial Gradient":["radialGradient",""],"Color Range":["rangeMask","color"],"Luminance Range":["rangeMask","luminance"],"Depth Range":["rangeMask","depth"]};
+                recipes=[simple(d.title,{maskType:types[op][0],maskSubtype:types[op][1]})];
+                if (route !== "/masking/create") extra=["selectedMaskGroupId"];
+            } else if (route.endsWith("/panel")) recipes=choices("open",[true,false]);
+            else if (route.endsWith("/navigate")) recipes=choices("direction",["previous","next"]);
+            else if (route.endsWith("/visibility")) recipes=choices("hidden",[false,true]);
+            else {
+                extra = route.endsWith("/all/delete") ? [] : route.includes("/component/") || route.endsWith("/preset/apply") ? ["selectedMaskGroupId","selectedMaskToolId"] : ["selectedMaskGroupId"];
+                recipes = [simple(d.title,{}, route.endsWith("/preset/apply") ? [t("presetName","Installed preset name","Preset name")] : [])];
             }
+            return recipes.map(r => ({...r,...maskRecipe("operation",extra), confirm:/\/(delete|reset)$/.test(route) ? d.title + " for the current photo?" : undefined,
+                prepare:route.endsWith("/preset/apply") ? "$inventory = Invoke-LR '/masking/presets'\n$found = @($inventory.presets | Where-Object { $_.name -ceq $q.presetName -and $_.kind -eq 'file' -and $_.supported })\nif ($found.Count -ne 1) { $inventory.presets | Format-Table name,kind; throw 'Choose one unambiguous supported preset name.' }\n$q.preset = $found[0].id\n$q.Remove('presetName')\n" : ""}));
         }
-
-        renderBuilderOutput();
+        return presetWorkflowRecipes(d, helpers);
     }
 
-    function renderBuilderTypes() {
-        const family = selectedBuilderFamily();
-        const previousType = builderType.value;
-        builderType.innerHTML = "";
-
-        for (const type of family.types) {
-            const element = document.createElement("option");
-            element.value = type.id;
-            element.textContent = type.label;
-            builderType.appendChild(element);
+    function presetWorkflowRecipes(d, helpers) {
+        const {n,t,simple} = helpers, route=d.routes[0];
+        if (route === "/develop-categorical/profile") return [{...simple("Select profile",{},[t("profileName","Profile name (exact label)","Adobe Color")]),state:"/develop-categorical/state",property:"profile",
+            prepare:"$found = @($s.options | Where-Object { $_.label -ceq $q.profileName -and $_.enabled -and $_.writable })\nif ($found.Count -ne 1) { $s.options | Format-Table label,enabled,writable; throw 'Choose one unambiguous writable profile label from the current inventory.' }\n$q.token = $found[0].token\n$q.Remove('profileName')\n",
+            finish:"$done = Wait-LR '/develop-categorical/state' { param($n)\n    if ($n.profile.contextCounter -ne $s.contextCounter -or $n.profile.photoUuid -ne $s.photoUuid) { throw 'Photo context changed; profile result unconfirmed.' }\n    if ($n.profile.validationFailedGeneration -eq $r.generation) { throw 'Lightroom rejected the profile change.' }\n    return $n.profile.validationGeneration -eq $r.generation -and $n.profile.revision -gt $r.confirmationAfterRevision -and $n.profile.selectedLabel -ceq $found[0].label\n}\n$done.profile | ConvertTo-Json -Depth 20\n"}];
+        if (route === "/develop-presets/config") return [{...simple("Save configuration",{},[t("body","Complete configuration JSON",'{"version":1,"presets":[{"uuid":"replace-with-preset-uuid","alias":"My preset","updateAISettings":false,"amountEnabled":false}]}',"json")]),method:"POST",confirm:"Replace the configured Develop preset list with the JSON shown?"}];
+        if (route === "/develop-presets/inventory/refresh") return [{...simple("Refresh inventory"),prepare:"",finish:"$epoch = $r.serverEpoch\n$done = Wait-LR '/develop-presets/state' { param($n)\n    if ($n.serverEpoch -ne $epoch) { throw 'Server restarted.' }\n    if ($n.inventoryStatus -eq 'error') { throw $n.inventoryError }\n    return $n.inventoryStatus -eq 'ready' -and -not $n.inventoryRequestId\n}\n$done.inventory | ConvertTo-Json -Depth 20\n",state:"/develop-presets/state"}];
+        if (route.startsWith("/develop-presets/")) {
+            const amount=route.endsWith("/amount"), apply=route.endsWith("/apply");
+            const r = amount ? simple("Set Amount",{},[n("presetAmount","Preset Amount",100,0,200,true)]) : apply ? simple("Apply",{},[t("presetName","Configured preset alias or exact name","My preset")]) : simple(d.title,{direction:d.operations[0]});
+            let prepare = "$context = Invoke-LR '/context'\n$binding = Get-LRBinding $context @('selectedPhotoUuid','contextCounter','developCounter','contextChangedAt')\nforeach ($k in $binding.Keys) { $q[$k] = $binding[$k] }\n$q.serverEpoch = $s.serverEpoch\n";
+            if (apply) prepare += "$found = @($s.configured | Where-Object { ($_.alias -ceq $q.presetName -or $_.name -ceq $q.presetName) -and $_.available })\nif ($found.Count -ne 1) { $s.configured | Format-Table name,alias,available; throw 'Choose one unambiguous configured, available preset.' }\n$q.uuid = $found[0].uuid\n$q.Remove('presetName')\n";
+            if (amount) prepare += "if (-not $s.cursorAmountEnabled -or -not $s.amountFeedback.available) { throw 'Preset Amount is unavailable; enable Amount for this configured preset and wait for Lightroom feedback.' }\nif ([int]$q.presetAmount -lt $s.amountFeedback.range.min -or [int]$q.presetAmount -gt $s.amountFeedback.range.max) { throw 'Amount outside the current native range.' }\n$q.feedbackId = $s.amountFeedback.id\n";
+            return [{...r,state:"/develop-presets/state",prepare,
+                ...(amount ? {finish:"$done = Wait-LR '/develop-presets/state' { param($n)\n    $c = Invoke-LR '/context'\n    if ($n.serverEpoch -ne $s.serverEpoch -or $n.cursorUuid -ne $s.cursorUuid -or $c.selectedPhotoUuid -ne $context.selectedPhotoUuid -or $c.contextCounter -ne $context.contextCounter) { throw 'Photo or preset changed; Amount result unconfirmed.' }\n    return $n.amountFeedback.available -and $n.amountFeedback.id -gt $s.amountFeedback.id -and $n.amountFeedback.value -eq [int]$q.presetAmount\n}\n$done.amountFeedback | ConvertTo-Json -Depth 20\n"} : {result:{id:"$r.operationId",field:"lastApplication",settled:true}})}];
         }
-
-        if (family.types.some(function (type) {
-            return type.id === previousType;
-        })) {
-            builderType.value = previousType;
-        }
-
-        renderBuilderValues();
+        throw new Error("No executable Builder recipe for " + d.title + ": " + route);
     }
 
-    function initializeBuilder() {
-        for (const family of builderCommandFamilies) {
-            const element = document.createElement("option");
-            element.value = family.id;
-            element.textContent = family.label;
-            builderFamily.appendChild(element);
+    function renderRecipe(card, recipe) {
+        const inputs = {}, ordinal = card.querySelectorAll(".command").length;
+        for (const field of recipe.inputs || []) {
+            if (inputs[field.key]) continue;
+            let input;
+            if (field.type === "number") input = numberInput(card,field.key + "-" + ordinal,field.label,field.value,field.min,field.max,field.integer ? 1 : "any");
+            else {
+                const wrapper = element("label", "", field.label);
+                input = element(field.type === "json" ? "textarea" : "input"); input.value=field.value;
+                input.id=card.dataset.cardId + "-" + field.key + "-" + ordinal; wrapper.htmlFor=input.id;
+                input.dataset.input=field.key; wrapper.append(input); card.append(wrapper);
+            }
+            inputs[field.key]=input;
         }
-
-        renderBuilderTypes();
+        const values = () => Object.fromEntries(Object.entries(inputs).map(([k,v]) => [k,v.value]));
+        let update;
+        if (!recipe.state && !recipe.prepare && !recipe.method && !recipe.gesture) {
+            let confirmed;
+            if (recipe.confirm) {
+                const wrapper=element("label","",recipe.confirm + " Confirm before copying a runnable URL.");
+                confirmed=element("input"); confirmed.type="checkbox"; confirmed.style.width="44px"; wrapper.prepend(confirmed); card.append(wrapper);
+            }
+            update = makeCommand(card,recipe.label,() => recipePath(recipe,values(),stepSize),recipe.relative,() => buildRecipeScript(recipe,values(),apiBase,stepSize),() => !confirmed || confirmed.checked);
+            if (confirmed) confirmed.addEventListener("change",update);
+        } else {
+            const command=element("div","command script-command"), code=element("pre","path script-code");
+            const button=element("button","primary","Copy PowerShell"), buttons=element("div","button-row");
+            const disclosure=element("details","powershell");
+            disclosure.append(element("summary","","Show PowerShell script"),code);
+            command.dataset.route=recipe.route; command.dataset.state=recipe.state || "";
+            command.append(element("div","command-label",recipe.label + (recipe.method ? " · POST JSON" : " · PowerShell")),disclosure);
+            buttons.append(button); command.append(buttons); card.append(command);
+            update=() => { const script=buildRecipeScript(recipe,values(),apiBase,stepSize); code.textContent=script || "Enter valid values to generate a script."; button.disabled=!script; return script; };
+            button.addEventListener("click",() => {const script=update(); if (script) copyText(script);});
+            scriptUpdates.push(update);
+            if (recipe.relative) {command.dataset.relative="true"; relativeCommands.push(update);}
+            update();
+        }
+        if (Object.keys(inputs).length) validateInputs(card,Object.values(inputs),[update],"Enter valid values; Lightroom checks current capability and context when the request runs.");
     }
 
-    function getQuickCommands() {
-        return [
-            ["Exposure +" + stepSize, "/api/command?command=develop.adjust&slider=Exposure&amount=" + stepSize],
-            ["Exposure -" + stepSize, "/api/command?command=develop.adjust&slider=Exposure&amount=-" + stepSize],
-            ["Exposure Reset", "/api/command?command=develop.reset&slider=Exposure"],
-            ["Auto Tone", "/api/command?command=develop.action&action=setAutoTone"],
-            ["Auto White Balance", "/api/command?command=develop.action&action=setAutoWhiteBalance"]
+    function recipeExecution(recipe) {
+        // Explicit action-to-executor map, verified against bridge.js native
+        // calls and Remove.lua -> remove-state.js selection dispatch. Other
+        // generated actions use Commands.lua and its SDK modules; preset
+        // configuration belongs with its SDK workflow (server setup only).
+        const nativeActions = [
+            "/lens-blur/auto-mask", "/lens-blur/refinement-mode",
+            "/lens-blur/refinement-disclosure", "/lens-blur/refinement-reset",
+            "/lens-blur/focus-action", "/remove/selection"
         ];
+        for (const control of ["amount","size","feather","flow"]) for (const action of ["set","adjust","reset"]) nativeActions.push("/lens-blur/brush/" + control + "/" + action);
+        return nativeActions.includes(recipe.route) ? "win-ui" : "sdk";
     }
 
-    function normalizeHost(value) {
-        let host = String(value || "").trim();
-
-        if (!host) {
-            return "127.0.0.1";
+    function partitionRecipes(recipes) {
+        const partitions = new Map();
+        for (const recipe of recipes) {
+            const execution = recipeExecution(recipe);
+            if (!partitions.has(execution)) partitions.set(execution, []);
+            partitions.get(execution).push(recipe);
         }
-
-        host = host.replace(/^https?:\/\//i, "");
-        host = host.split("/")[0];
-
-        if (host.includes(":")) {
-            host = host.split(":")[0];
-        }
-
-        return host || "127.0.0.1";
+        return partitions;
     }
 
-    function normalizeStep(value) {
-        let number = Number(value);
-
-        if (!Number.isFinite(number) || number < 1) {
-            number = 1;
+    function renderWorkflowCards() {
+        for (const [index, definition] of getWorkflowDefinitions().entries()) {
+            const partitions = partitionRecipes(workflowRecipes(definition));
+            for (const [execution, recipes] of partitions) {
+                const card = makeCard("workflow-" + index + (partitions.size > 1 ? "-" + execution : ""), definition.title, definition.group, [...definition.routes, ...definition.commands, ...definition.operations], undefined, execution);
+                card.classList.add("workflow");
+                card.dataset.routes = JSON.stringify(definition.routes);
+                if (definition.routes[0].endsWith("/point-color/range")) getGroup(definition.group).rangeGrid.append(card);
+                if (recipes.some(r => r.state || r.prepare || r.method || r.gesture)) card.append(element("p", "description", "This action needs several requests. Copy the PowerShell script and run it in PowerShell."));
+                if (recipes.some(r => r.state)) card.append(element("p", "description", "PowerShell reads current Lightroom state when run. Review its result before another change."));
+                if (definition.routes[0] === "/develop-categorical/profile") card.append(element("p", "description", "The SDK applies the profile; available choices and the selected label are read from Lightroom’s interface."));
+                if (definition.routes[0] === "/lens-blur/visualize-depth") card.append(element("p", "description", "The SDK changes Visualize Depth; its current checkbox state is read from Lightroom’s interface."));
+                if (definition.group === "Masking" && definition.operations.includes("component") || definition.title === "Point / Area Focus") card.append(element("p", "description", "Interactive tools start in Lightroom; finish the selection or drawing there."));
+                if (definition.group === "Lens Blur / Brush Refinement" && definition.title.startsWith("Brush ") && definition.operations.includes("adjust")) card.append(element("p", "description", "Open Brush Refinement in Lightroom first. The native control checks its current range."));
+                if (definition.group === "Healing / Selected" && ["add","subtract"].includes(definition.operations[0])) card.append(element("p", "description", "Check Add/Subtract mode in Lightroom; LRBridge does not provide an active-mode readback."));
+                if (definition.group === "Export") card.append(element("p", "description", "A requested result confirms invoking Export, not that files finished exporting."));
+                if (definition.routes[0] === "/develop-presets/config") card.append(element("p", "description", "LRBridge setup for SDK presets; this does not edit a photo. Use UUIDs from Refresh Preset Inventory. This JSON replaces the entire configured preset list."));
+                recipes.forEach(recipe => renderRecipe(card, recipe));
+            }
         }
+    }
 
-        number = Math.round(number);
+    function filterCards(scrollToResults) {
+        const words = searchEl.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        let count = 0;
+        for (const record of cardRecords) {
+            record.card.hidden = record.execution !== activeExecution || !words.every(word => record.search.includes(word));
+            if (!record.card.hidden) count++;
+        }
+        for (const group of groups.values()) {
+            const empty = group.records.every(record => record.card.hidden);
+            group.section.hidden = empty;
+            for (const grid of [group.grid, group.rangeGrid].filter(Boolean)) grid.hidden = Array.from(grid.children).every(card => card.hidden);
+        }
+        updateGroupNavigation();
+        document.getElementById("noResults").hidden = count !== 0;
+        const label = activeExecution === "sdk" ? "SDK" : "WIN UI";
+        const total = cardRecords.filter(record => record.execution === activeExecution).length;
+        document.getElementById("noResults").textContent = "No matches in " + label + ". Try another term, use Clear, or switch tabs.";
+        document.getElementById("resultCount").textContent = count + " of " + total + " " + label + " command cards";
+        if (scrollToResults) document.getElementById("resultCount").scrollIntoView({ block: "start" });
+    }
 
-        return number;
+    function updateGroupNavigation() {
+        const visibleGroups = Array.from(groups.values()).filter(group => !group.section.hidden);
+        closeJumpMenu(jumpMenu.contains(document.activeElement));
+        jumpMenu.replaceChildren(...visibleGroups.map(group => group.link));
+        jumpMenu.style.setProperty("--jump-rows", Math.max(1, Math.ceil(visibleGroups.length / 2)));
+        jumpTo.disabled = visibleGroups.length === 0;
+    }
+
+    function positionJumpMenu() {
+        if (jumpMenu.hidden) return;
+        const viewport = window.visualViewport;
+        const left = viewport ? viewport.offsetLeft : 0, top = viewport ? viewport.offsetTop : 0;
+        const width = viewport ? viewport.width : document.documentElement.clientWidth;
+        const height = viewport ? viewport.height : window.innerHeight;
+        const trigger = jumpTo.getBoundingClientRect(), popupWidth = Math.min(620, width - 16);
+        const below = top + height - trigger.bottom - 16, above = trigger.top - top - 16;
+        const openBelow = below >= Math.min(240, above);
+        jumpMenu.style.width = popupWidth + "px";
+        jumpMenu.style.left = Math.max(left + 8, Math.min(trigger.left, left + width - popupWidth - 8)) + "px";
+        jumpMenu.style.maxHeight = Math.max(0, Math.min(520, openBelow ? below : above)) + "px";
+        jumpMenu.style.top = (openBelow ? trigger.bottom + 8 : trigger.top - 8 - jumpMenu.getBoundingClientRect().height) + "px";
+    }
+
+    function closeJumpMenu(returnFocus = false) {
+        jumpMenu.hidden = true;
+        jumpTo.setAttribute("aria-expanded", "false");
+        if (returnFocus) jumpTo.focus({ preventScroll: true });
+    }
+
+    function focusJumpLink(index) {
+        const link = jumpMenu.children[index];
+        if (!link) return;
+        link.focus({ preventScroll: true });
+        const top = link.offsetTop, bottom = top + link.offsetHeight;
+        if (top < jumpMenu.scrollTop) jumpMenu.scrollTop = top;
+        else if (bottom > jumpMenu.scrollTop + jumpMenu.clientHeight) jumpMenu.scrollTop = bottom - jumpMenu.clientHeight;
+    }
+
+    function openJumpMenu(keyboard = false) {
+        if (jumpTo.disabled) return;
+        jumpMenu.hidden = false;
+        jumpTo.setAttribute("aria-expanded", "true");
+        jumpMenu.scrollTop = 0;
+        positionJumpMenu();
+        if (keyboard) focusJumpLink(0);
+    }
+
+    function selectExecution(execution) {
+        if (!["sdk", "win-ui"].includes(execution)) return;
+        activeExecution = execution;
+        for (const tab of document.querySelectorAll('[role="tab"]')) {
+            const selected = tab.dataset.execution === execution;
+            tab.setAttribute("aria-selected", String(selected)); tab.tabIndex = selected ? 0 : -1;
+        }
+        document.getElementById("commandPanel").setAttribute("aria-labelledby", "tab-" + execution);
+        document.getElementById("executionDescription").textContent = execution === "sdk" ? "These commands apply changes through Lightroom’s plug-in SDK." : "These commands operate Lightroom’s on-screen controls using Windows automation.";
+        searchEl.setAttribute("aria-label", "Search " + (execution === "sdk" ? "SDK" : "WIN UI") + " command cards");
+        filterCards();
+    }
+
+    function preserveView(update) {
+        const x = window.scrollX, y = window.scrollY;
+        update();
+        window.scrollTo(x, y);
     }
 
     function setBaseHost(host) {
         const cleanHost = normalizeHost(host);
-        apiBase = "http://" + cleanHost + ":17891";
-        baseUrlEl.textContent = apiBase;
-        renderAll();
+        preserveView(function () {
+            document.getElementById("hostError").textContent = cleanHost ? "" : "Enter an IP or hostname, optionally with http:// and port 17891 or 17892. Leave out paths and login details. The Base URL is unchanged.";
+            hostInput.setAttribute("aria-invalid", String(!cleanHost));
+            if (!cleanHost) return;
+            apiBase = "http://" + cleanHost + ":17891";
+            baseUrlEl.textContent = apiBase;
+            scriptUpdates.forEach(update => update());
+        });
     }
 
     function setStep(value) {
-        stepSize = normalizeStep(value);
-        stepInput.value = String(stepSize);
-        stepDisplay.textContent = String(stepSize);
-        renderAll();
+        const number = normalizeStep(value);
+        preserveView(function () {
+            for (const id of ["stepError", "baseStepError"]) document.getElementById(id).textContent = number === null ? "Enter a positive whole number. Current step: " + stepSize + "." : "";
+            for (const input of stepInputs) {
+                input.setAttribute("aria-invalid", String(number === null));
+                input.value = String(number === null ? stepSize : number);
+            }
+            if (number === null || number === stepSize) return;
+            stepSize = number;
+            relativeCommands.forEach(update => update());
+        });
     }
 
-    function setStatus(text) {
+    let statusTimer;
+    function setStatus(text, persistent) {
+        clearTimeout(statusTimer);
         statusEl.textContent = text;
-
-        if (text) {
-            setTimeout(function () {
-                if (statusEl.textContent === text) {
-                    statusEl.textContent = "";
-                }
-            }, 1600);
-        }
+        if (text && !persistent) statusTimer = setTimeout(() => { statusEl.textContent = ""; }, 2500);
     }
 
-    async function copyText(text) {
-        try {
-            await navigator.clipboard.writeText(text);
-            setStatus("Copied: " + text);
-        } catch (err) {
-            const area = document.createElement("textarea");
-            area.value = text;
-            document.body.appendChild(area);
-            area.select();
-            document.execCommand("copy");
-            document.body.removeChild(area);
-            setStatus("Copied: " + text);
-        }
+    async function loadMetadata() {
+        const errors = [];
+        await Promise.all([
+            fetch("/api/sliders").then(response => { if (!response.ok) throw Error(); return response.json(); }).then(data => {
+                sliders = Array.isArray(data) ? data : data.sliders || [];
+                const order = Array.from(sliderPresentation.keys());
+                const rank = slider => sliderPresentation.has(slider.id) ? order.indexOf(slider.id) : order.length;
+                for (const slider of sliders.filter(item => item.id !== "LensProfileChromaticAberrationScale").sort((a, b) => rank(a) - rank(b) || a.id.localeCompare(b.id))) renderSliderCard(slider);
+                filterCards();
+            }).catch(() => errors.push("Slider cards could not load.")),
+            fetch("/api/color-grading").then(response => { if (!response.ok) throw Error(); return response.json(); }).then(data => {
+                colorGradingMetadata = data.colorGrading;
+                renderColorCards();
+                filterCards();
+            }).catch(() => errors.push("Color Grading cards could not load."))
+        ]);
+        document.getElementById("loadError").textContent = errors.length ? errors.join(" ") + " Refresh after LRBridge reconnects." : "";
+        document.body.dataset.ready = "true";
     }
 
-    function makeCommand(label, path) {
-        const command = document.createElement("div");
-        command.className = "command";
-
-        const labelEl = document.createElement("div");
-        labelEl.className = "command-label";
-        labelEl.textContent = label;
-
-        const pathEl = document.createElement("div");
-        pathEl.className = "path";
-        pathEl.textContent = path;
-        pathEl.title = path;
-
-        const buttons = document.createElement("div");
-        buttons.className = "button-row";
-
-        const copyPath = document.createElement("button");
-        copyPath.className = "primary small";
-        copyPath.textContent = "Copy path";
-        copyPath.addEventListener("click", function () {
-            copyText(path);
+    document.getElementById("useLocalhost").addEventListener("click", () => { hostInput.value = "127.0.0.1"; setBaseHost(hostInput.value); });
+    document.getElementById("useTypedHost").addEventListener("click", () => setBaseHost(hostInput.value));
+    hostInput.addEventListener("keydown", event => { if (event.key === "Enter") setBaseHost(hostInput.value); });
+    for (const [input, minus, plus] of [[stepInput, "decreaseStep", "increaseStep"], [baseStepInput, "baseDecreaseStep", "baseIncreaseStep"]]) {
+        input.addEventListener("keydown", event => { if (event.key === "Enter") setStep(input.value); });
+        input.addEventListener("blur", () => setStep(input.value));
+        document.getElementById(minus).addEventListener("click", () => setStep(String(Math.max(1, stepSize - 1))));
+        document.getElementById(plus).addEventListener("click", () => setStep(String(stepSize + 1)));
+    }
+    const toTop = document.getElementById("toTop");
+    toTop.addEventListener("click", () => window.scrollTo(0, 0));
+    document.querySelectorAll('[role="tab"]').forEach(tab => {
+        tab.addEventListener("click", () => selectExecution(tab.dataset.execution));
+        tab.addEventListener("keydown", event => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            selectExecution(event.key === "Home" ? "sdk" : event.key === "End" ? "win-ui" : activeExecution === "sdk" ? "win-ui" : "sdk");
+            document.getElementById("tab-" + activeExecution).focus();
         });
-
-        const copyFull = document.createElement("button");
-        copyFull.className = "small";
-        copyFull.textContent = "Copy full URL";
-        copyFull.addEventListener("click", function () {
-            copyText(apiBase + path);
+    });
+    document.getElementById("copyBaseUrl").addEventListener("click", () => copyText(apiBase));
+    jumpTo.addEventListener("click", event => jumpMenu.hidden ? openJumpMenu(event.detail === 0) : closeJumpMenu());
+    jumpTo.addEventListener("keydown", event => {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault(); openJumpMenu(true);
+            if (event.key === "ArrowUp") focusJumpLink(jumpMenu.children.length - 1);
+        }
+    });
+    let jumpPointer = null, jumpMoved = false;
+    jumpMenu.addEventListener("pointerdown", event => {
+        jumpPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        jumpMoved = false;
+    });
+    jumpMenu.addEventListener("pointermove", event => {
+        if (jumpPointer && jumpPointer.id === event.pointerId && Math.hypot(event.clientX - jumpPointer.x, event.clientY - jumpPointer.y) > 10) jumpMoved = true;
+    });
+    jumpMenu.addEventListener("pointercancel", () => { jumpMoved = true; jumpPointer = null; });
+    jumpMenu.addEventListener("click", event => {
+        const link = event.target.closest(".jump-link");
+        if (!link) return;
+        event.preventDefault();
+        if (event.detail && jumpMoved) return;
+        const section = document.getElementById(link.dataset.groupId);
+        closeJumpMenu(true);
+        if (section && !section.hidden) requestAnimationFrame(() => {
+            if (!section.hidden) section.scrollIntoView({ block: "start" });
         });
-
-        buttons.appendChild(copyPath);
-        buttons.appendChild(copyFull);
-
-        command.appendChild(labelEl);
-        command.appendChild(pathEl);
-        command.appendChild(buttons);
-
-        return command;
+    });
+    jumpMenu.addEventListener("keydown", event => {
+        const index = Array.from(jumpMenu.children).indexOf(document.activeElement);
+        const last = jumpMenu.children.length - 1;
+        const next = { ArrowDown: Math.min(last, index + 1), ArrowUp: Math.max(0, index - 1), Home: 0, End: last }[event.key];
+        if (next !== undefined) { event.preventDefault(); focusJumpLink(next); }
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !jumpMenu.hidden) { event.preventDefault(); closeJumpMenu(true); }
+    });
+    document.addEventListener("pointerdown", event => {
+        if (!jumpMenu.hidden && !jumpMenu.contains(event.target) && !jumpTo.contains(event.target)) closeJumpMenu();
+    });
+    document.addEventListener("focusin", event => {
+        if (!jumpMenu.hidden && !jumpMenu.contains(event.target) && event.target !== jumpTo) closeJumpMenu();
+    });
+    window.addEventListener("resize", positionJumpMenu);
+    window.addEventListener("scroll", positionJumpMenu, { passive: true });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", positionJumpMenu);
+        window.visualViewport.addEventListener("scroll", positionJumpMenu);
     }
-
-    function makeCard(title, commands, meta, description) {
-        const card = document.createElement("div");
-        card.className = "card search-card";
-
-        const searchableParts = [title, meta || "", description || ""];
-        for (const command of commands) {
-            searchableParts.push(command[0], command[1]);
-        }
-
-        card.dataset.search = searchableParts.join(" ").toLowerCase();
-
-        const titleEl = document.createElement("div");
-        titleEl.className = "card-title";
-        titleEl.textContent = title;
-
-        const metaEl = document.createElement("div");
-        metaEl.className = "meta";
-        metaEl.textContent = meta || "";
-
-        card.appendChild(titleEl);
-
-        if (meta) {
-            card.appendChild(metaEl);
-        }
-
-        if (description) {
-            const descriptionEl = document.createElement("div");
-            descriptionEl.className = "meta description";
-            descriptionEl.textContent = description;
-            card.appendChild(descriptionEl);
-        }
-
-        for (const command of commands) {
-            card.appendChild(makeCommand(command[0], command[1]));
-        }
-
-        return card;
-    }
-
-    function renderSimple(containerId, items) {
-        const container = document.getElementById(containerId);
-        container.innerHTML = "";
-
-        for (const item of items) {
-            container.appendChild(makeCard(
-                item[0],
-                [["Path", item[1]]],
-                apiBase + item[1],
-                item[2] || ""
-            ));
-        }
-    }
-
-    function groupBy(items, key) {
-        const map = new Map();
-
-        for (const item of items) {
-            const group = item[key] || "Other";
-
-            if (!map.has(group)) {
-                map.set(group, []);
-            }
-
-            map.get(group).push(item);
-        }
-
-        return map;
-    }
-
-    function sliderCommands(id) {
-        const encoded = encodeURIComponent(id);
-
-        return [
-            ["-" + stepSize, "/api/command?command=develop.adjust&slider=" + encoded + "&amount=-" + stepSize],
-            ["Reset", "/api/command?command=develop.reset&slider=" + encoded],
-            ["+" + stepSize, "/api/command?command=develop.adjust&slider=" + encoded + "&amount=" + stepSize]
-        ];
-    }
-
-    function renderSliderCard(slider) {
-        return makeCard(
-            slider.label || slider.id,
-            sliderCommands(slider.id),
-            "ID: " + slider.id + " | group: " + slider.group
-        );
-    }
-
-    function renderSliders() {
-        const root = document.getElementById("sliders");
-        const nav = document.getElementById("groupNav");
-
-        root.innerHTML = "";
-        nav.innerHTML = "";
-
-        const cleanSliders = sliders.filter(function (slider) {
-            return slider.id !== "LensProfileChromaticAberrationScale";
-        });
-
-        const grouped = groupBy(cleanSliders, "group");
-
-        for (const groupName of grouped.keys()) {
-            const groupId = "group-" + groupName.replace(/[^A-Za-z0-9]+/g, "-");
-
-            const link = document.createElement("a");
-            link.href = "#" + groupId;
-            link.textContent = groupName;
-            nav.appendChild(link);
-        }
-
-        for (const entry of grouped.entries()) {
-            const groupName = entry[0];
-            const items = entry[1];
-            const groupId = "group-" + groupName.replace(/[^A-Za-z0-9]+/g, "-");
-
-            const heading = document.createElement("h2");
-            heading.id = groupId;
-            heading.className = "slider-group-heading hide-when-searching";
-            heading.textContent = groupName;
-            root.appendChild(heading);
-
-            const grid = document.createElement("div");
-            grid.className = "grid slider-group-grid";
-
-            for (const slider of items) {
-                grid.appendChild(renderSliderCard(slider));
-            }
-
-            root.appendChild(grid);
-        }
-    }
-
-    function renderAll() {
-        renderSimple("quick", getQuickCommands());
-        renderSimple("actions", actions);
-        renderSliders();
-        renderBuilderValues();
-        filterCards();
-    }
-
-    function filterCards() {
-        const query = searchEl.value.trim().toLowerCase();
-        const searching = Boolean(query);
-
-        document.body.classList.toggle("searching", searching);
-
-        for (const card of document.querySelectorAll(".search-card")) {
-            card.classList.toggle("hidden", searching && !card.dataset.search.includes(query));
-        }
-
-        for (const grid of document.querySelectorAll(".slider-group-grid")) {
-            const visibleCards = grid.querySelectorAll(".search-card:not(.hidden)").length;
-            grid.classList.toggle("hidden", searching && visibleCards === 0);
-        }
-
-        document.getElementById("actionsSection").classList.toggle(
-            "hidden",
-            searching && document.querySelectorAll("#actions .search-card:not(.hidden)").length === 0
-        );
-
-        document.getElementById("slidersSection").classList.toggle(
-            "hidden",
-            searching && document.querySelectorAll("#sliders .search-card:not(.hidden)").length === 0
-        );
-    }
-
-    async function loadSliders() {
-        const responses = await Promise.all([fetch("/api/sliders"), fetch("/api/color-grading")]);
-        const data = await responses[0].json();
-        const colorData = await responses[1].json();
-
-        sliders = Array.isArray(data) ? data : data.sliders || [];
-        colorGradingMetadata = colorData.colorGrading;
-        renderColorGradingTargets();
-        renderAll();
-    }
-
-    document.getElementById("useLocalhost").addEventListener("click", function () {
-        hostInput.value = "";
-        setBaseHost("127.0.0.1");
+    searchEl.addEventListener("input", () => filterCards(true));
+    document.getElementById("clearSearch").addEventListener("click", () => { searchEl.value = ""; searchEl.focus({ preventScroll: true }); filterCards(true); });
+    const toolbar = document.getElementById("toolbar");
+    let toolbarHeight = 0;
+    new ResizeObserver(entries => {
+        const height = Math.ceil(entries[0].borderBoxSize?.[0]?.blockSize ?? toolbar.offsetHeight);
+        if (height === toolbarHeight) return;
+        toolbarHeight = height;
+        document.documentElement.style.setProperty("--toolbar-height", height + "px");
+        positionJumpMenu();
+    }).observe(toolbar);
+    let keyboardFocus = false;
+    document.addEventListener("keydown", event => { keyboardFocus = event.key === "Tab"; }, true);
+    document.addEventListener("pointerdown", () => { keyboardFocus = false; }, true);
+    document.addEventListener("focusin", event => {
+        // Only keyboard traversal into a card can need help clearing the sticky toolbar.
+        // Tabs and Base URL controls precede it in the page and must never move on focus.
+        if (!keyboardFocus || !event.target.closest(".card")) return;
+        const bar = toolbar.getBoundingClientRect();
+        if (bar.top > 0) return;
+        const bounds = event.target.getBoundingClientRect();
+        if (bounds.bottom > bar.top && bounds.top < bar.bottom) window.scrollBy(0, bounds.top - bar.bottom - 12);
     });
+    for (const [name] of builderPanelOrder) getGroup(name);
+    renderActionCards();
+    renderCropCards();
+    renderWorkflowCards();
+    hostInput.value = normalizeHost(window.location.hostname) || "127.0.0.1";
+    setBaseHost(hostInput.value);
+    filterCards();
+    loadMetadata();
 
-    document.getElementById("useTypedHost").addEventListener("click", function () {
-        setBaseHost(hostInput.value);
-    });
-
-    hostInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter") {
-            setBaseHost(hostInput.value);
-        }
-    });
-
-    document.getElementById("applyStep").addEventListener("click", function () {
-        setStep(stepInput.value);
-    });
-
-    stepInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter") {
-            setStep(stepInput.value);
-        }
-    });
-
-    document.getElementById("copyBaseUrl").addEventListener("click", function () {
-        copyText(apiBase);
-    });
-
-    builderFamily.addEventListener("change", renderBuilderTypes);
-    builderType.addEventListener("change", renderBuilderValues);
-    builderValue.addEventListener("change", renderBuilderSliderSelection);
-    builderAmount.addEventListener("input", renderBuilderOutput);
-    customCropWidth.addEventListener("input", renderCustomCropOutput);
-    customCropHeight.addEventListener("input", renderCustomCropOutput);
-    cropAngleValue.addEventListener("input", renderCropAngleOutput);
-    colorGradingOperation.addEventListener("change", renderColorGradingTargets);
-    colorGradingTarget.addEventListener("change", renderColorGradingOutput);
-    colorGradingPrimary.addEventListener("input", renderColorGradingOutput);
-    colorGradingSecondary.addEventListener("input", renderColorGradingOutput);
-    document.getElementById("copyColorGradingPath").addEventListener("click", function () { const path = renderColorGradingOutput(); if (path) copyText(path); });
-    document.getElementById("copyColorGradingFull").addEventListener("click", function () { const path = renderColorGradingOutput(); if (path) copyText(apiBase + path); });
-
-    document.getElementById("copyBuilderPath").addEventListener("click", function () {
-        copyText(builderPath.textContent);
-    });
-
-    document.getElementById("copyBuilderFull").addEventListener("click", function () {
-        copyText(apiBase + builderPath.textContent);
-    });
-
-    copyCustomCropPath.addEventListener("click", function () {
-        const path = renderCustomCropOutput();
-        if (path) copyText(path);
-    });
-
-    copyCustomCropFull.addEventListener("click", function () {
-        const path = renderCustomCropOutput();
-        if (path) copyText(apiBase + path);
-    });
-
-    copyCropAnglePath.addEventListener("click", function () {
-        const path = renderCropAngleOutput();
-        if (path) copyText(path);
-    });
-
-    copyCropAngleFull.addEventListener("click", function () {
-        const path = renderCropAngleOutput();
-        if (path) copyText(apiBase + path);
-    });
-
-    document.getElementById("copyResetCropAnglePath").addEventListener("click", function () {
-        copyText("/api/command?command=photo.crop_angle.reset");
-    });
-
-    document.getElementById("copyResetCropAngleFull").addEventListener("click", function () {
-        copyText(apiBase + "/api/command?command=photo.crop_angle.reset");
-    });
-
-    searchEl.addEventListener("input", filterCards);
-
-    initializeBuilder();
-    renderCustomCropOutput();
-    renderCropAngleOutput();
-    setBaseHost("127.0.0.1");
-    setStep(1);
-
-    loadSliders().catch(function (err) {
-        document.getElementById("sliders").innerHTML =
-            '<div class="box warning">Could not load sliders from /api/sliders. Make sure LRBridge backend is running.<br>' +
-            String(err.message || err) +
-            '</div>';
-
-        renderSimple("quick", getQuickCommands());
-        renderSimple("actions", actions);
-    });
 </script>
 </body>
 </html>

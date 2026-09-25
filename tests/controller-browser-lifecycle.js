@@ -316,6 +316,15 @@ function createMockControllerServer(options) {
             sendJson(response, { ok: true, ...fixtureContext(), available: false, serverEpoch: "reflections-unavailable", revision: 1, ageMs: 0 });
             return;
         }
+        if (parsed.pathname === "/api/people/state") {
+            // The broad lifecycle fixture has no People SDK capabilities. The
+            // dedicated People fixture above still owns its available/action cases.
+            sendJson(response, { ok: true, ...fixtureContext(), available: false,
+                reason: "Native People state is unavailable.", serverEpoch: "people-unavailable", revision: 1,
+                capturedAt: null, ageMs: null, pendingOperation: null, lastResult: null,
+                removalAvailable: false, refreshRequired: true });
+            return;
+        }
         if (parsed.pathname === "/api/remove/state") {
             sendJson(response, { ok: true, ...fixtureContext(), available: false, serverEpoch: "remove-fixture", revision: 1,
                 capturedAt: Date.now(), pendingOperation: null, lastResult: null });
@@ -1996,6 +2005,17 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
                             "option => option.textContent === " + JSON.stringify(authoritativeProfileLabel) + ")");
                     }, "isolated authoritative Profile label");
                 }
+                if (tab === "tools") {
+                    await waitFor(function () {
+                        return evaluate("document.querySelector('.people-status')?.textContent === 'Native People state is unavailable.'");
+                    }, "People unavailable SDK feedback");
+                    const peopleButtons = await evaluate("Array.from(document.querySelectorAll('.people-controls button')).map(button => ({ label: button.textContent, disabled: button.disabled }))");
+                    assert.deepEqual(peopleButtons, [
+                        { label: "Open People Panel", disabled: true },
+                        { label: "Detect People", disabled: true },
+                        { label: "Remove Detected", disabled: true }
+                    ], "unavailable People feedback must keep all actions disabled across tab remounts");
+                }
                 await sleep(100);
                 const state = await tabState(tab, round);
                 assert.equal(state.metadataError, false, tab + " must not show a false metadata failure");
@@ -2093,6 +2113,10 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
         assert.ok(sliderResponse, "the fresh Controller must request /api/sliders");
         assert.equal(sliderResponse.status, 200);
         assert.equal(sliderResponse.mimeType, "application/json");
+        assert.ok(mock.requestLog.some(request => request.path === "/api/people/state"),
+            "the lifecycle fixture must exercise People state polling");
+        assert.ok(!mock.requestLog.some(request => request.path === "/api/people/action"),
+            "unavailable People controls must not submit actions");
         assert.deepEqual(mock.unexpectedRequests, [], "unexpected isolated requests: " + JSON.stringify(mock.unexpectedRequests));
         assert.ok(mock.requestLog.every(function (request) { return request.method === "GET"; }),
             "the lifecycle test must never issue a mutating HTTP request");
@@ -2258,7 +2282,7 @@ async function main() {
     }
 }
 
-module.exports = { findBrowserExecutable, createBrowserProfileDirectory, launchBrowser, waitForDevTools, connectCdp, cleanup, listen };
+module.exports = { findBrowserExecutable, createBrowserProfileDirectory, launchBrowser, waitForDevTools, connectCdp, cleanup, listen, createMockControllerServer };
 if (require.main === module) main().catch(function (error) {
     console.error(error.stack || error);
     process.exitCode = 1;

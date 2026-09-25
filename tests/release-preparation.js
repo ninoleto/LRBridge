@@ -17,10 +17,29 @@ try {
     }
     assert.deepEqual([...new Set(inventory.operations.map(o=>o.path))].sort(),require("./contract-fixture.json").routes.slice().sort(),"inventory must cover captured runtime route registrations, including dynamic families");
     for(const item of inventory.operations.filter(o=>o.path.includes("/gesture/") && !o.path.endsWith("/state"))) assert.notEqual(item.kind,"ordinary");
+    for(const p of ["/remove/selection-native", "/remove/selection-refinement-native", "/remove/selection-validate", "/remove/selection-guard",
+        "/masking/correction-result", "/masking/edit-result", "/enhance/amount-result", "/color-grading/view-result", "/tone-curve/feedback",
+        "/develop-presets/inventory/item", "/develop-presets/inventory/complete", "/develop-presets/inventory/fail"]) {
+        assert.equal(inventory.operations.find(o=>o.path===p)?.kind,"internal","plug-in protocol is not a client action: "+p);
+    }
+    assert.equal(inventory.operations.find(o=>o.path==="/remove/selection")?.kind,"workflow");
+    for(const p of ["/color-grading", "/color-grading/metadata", "/feedback/request-many", "/feedback/snapshot", "/remove/diagnostics/refinement"]) {
+        assert.equal(inventory.operations.find(o=>o.path===p)?.kind,"read","state/discovery classification: "+p);
+    }
     const stage=path.join(temp,"stage"); const result=build.stageProject(stage);
     assert(result.luaModules>25,"transitive runtime dependencies including dofile loops must be staged");
     for(const f of ["AutoStartPolling.lua","FeedbackPolling.lua","SettingsClipboard.lua","Export.lua","DustOnPreset.lua","DustPasteDiagnostics.lua","People.lua","Remove.lua"]) assert(fs.existsSync(path.join(stage,"lightroom/LRBridge.lrplugin",f)),"missing "+f);
     const files=build.walk(stage);
+    for(const file of files.filter(f=>f.endsWith(".md"))) {
+        const source=fs.readFileSync(path.join(stage,file),"utf8");
+        for(const match of source.matchAll(/\[[^\]\r\n]*\]\(([^)\s]+)\)/g)) {
+            const target=match[1].split("#")[0];
+            if(!target || /^[a-z]+:|^\//i.test(target)) continue;
+            const resolved=path.resolve(stage,path.dirname(file),decodeURIComponent(target));
+            assert(resolved.startsWith(stage+path.sep),"Reference escapes package: "+file+" -> "+target);
+            assert(fs.existsSync(resolved),"Missing packaged reference: "+file+" -> "+target);
+        }
+    }
     const {lua,lauxlib,to_luastring}=require("fengari");
     for(const f of files.filter(f=>f.startsWith("lightroom/") && f.endsWith(".lua"))) {
         const state=lauxlib.luaL_newstate();
