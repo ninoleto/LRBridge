@@ -4,6 +4,23 @@ This document records an audit of the official Lightroom Classic 15.3 SDK refere
 
 Audit source: local Lightroom Classic 15.3 SDK API Reference, SDK Guide, Controller Guide, release notes/readme, and sample plug-ins under `C:\Users\nino\Downloads\LrC_15.3_SDK`.
 
+September 26 release-pass clarification: the installed `LrDevelopController`
+catalog still has no documented Masking Brush Size/Feather/Flow/Density/Auto Mask,
+Radial Gradient Feather or Color Range Refine control. Remove `brushSize`,
+`brushFeather` and `toolOverlay` describe a different panel. `local_RefineSaturation`
+is an ordinary mask adjustment and is not Color Range Refine. Lens Blur
+`LensBlurFocalRange` and `selectTool("depth_refinement")` do not provide a documented
+**New Refinement** creation action. `selectTool("loupe")` is the documented tool
+exit used for Upright Close; it does not reset a correction.
+
+The prior Crop-vs-Transform Constrain distinction is superseded: the
+[developer's published example](https://community.adobe.com/feature-requests-676/p-shortcut-key-for-constrain-crop-666054)
+identifies both checkboxes as `CropConstrainToWarp`, already used by LRBridge's
+working Transform/Lens Manual controls despite omission from the installed 15.3
+parameter list. A new Crop presentation still needs 15.4.1 native equivalence and
+preservation verification. See the [bounded release investigation](RELEASE_REVIEW.md#bounded-additions-investigation)
+for all five candidates and the unverified preset boundary.
+
 Key:
 
 - **DIRECT** — documented API performs the operation.

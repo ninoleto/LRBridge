@@ -73,7 +73,7 @@ function Commands.execute(command)
     if command.command == "lightroom.undo" then History.undo(); return end
     if command.command == "lightroom.redo" then History.redo(); return end
     if command.command == "lens_blur.active.set" then LensBlur.setActive(command.enabled); return end
-    if command.command == "lens_blur.bokeh.set" then LensBlur.setBokeh(command.value); return end
+    if command.command == "lens_blur.bokeh.set" then LensBlur.setBokeh(command.value); LensBlur.sendCurrentState(); return end
     if command.command == "lens_blur.depth_visualization.toggle" then LensBlur.toggleDepthVisualization(command.enabled, command.expectedSelectedPhotoUuid, command.expectedContextCounter, command.expectedDevelopCounter); return end
     if command.command == "lens_blur.depth_refinement.select" then LensBlur.selectDepthRefinement(); return end
     if command.command == "lens_blur.depth_refinement.close" then LensBlur.closeDepthRefinement(); LensBlur.sendCurrentState(); return end
@@ -84,7 +84,7 @@ function Commands.execute(command)
     if command.command == "develop_categorical.vignette_style.set" then DevelopCategorical.setVignetteStyle(command.value); return end
     if command.command == "develop_categorical.upright_mode.set" then DevelopCategorical.setUprightMode(command.value); return end
     if command.command == "develop_categorical.constrain_crop.set" then DevelopCategorical.setConstrainCrop(command.value); return end
-    if command.command == "develop_categorical.upright_tool.select" then DevelopCategorical.selectUprightTool(); return end
+    if command.command == "develop_categorical.upright_tool.select" then DevelopCategorical.selectUprightTool(command.value); DevelopCategorical.sendCurrentState(); return end
     if command.command == "tone_curve.gesture.begin" then ToneCurve.beginGesture(command); return end
     if command.command == "tone_curve.gesture.update" then ToneCurve.updateGesture(command); return end
     if command.command == "tone_curve.gesture.end" then ToneCurve.endGesture(command); return end

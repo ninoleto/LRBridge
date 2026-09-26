@@ -1038,6 +1038,7 @@
             .people-status { min-height: 32px; }
         }
         .masking-component-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .masking-tool-limitations { flex-basis: 100%; margin: 0; }
         .masking-component-heading { flex-basis: 100%; margin: 0; font-size: 16px; line-height: 24px; }
         .masking-component-invert-label, .masking-component-invert-button { box-sizing: border-box; min-height: 56px; padding: 12px 18px; }
         .masking-component-invert-label { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; }
@@ -3556,6 +3557,8 @@
         .native-checkbox-label input[type="checkbox"], .remove-preference-row input[type="checkbox"] { width: 18px; height: 18px; min-width: 18px; margin: 0; accent-color: #eab061; }
         .native-checkbox-label:has(input:disabled) { cursor: default; color: #999; }
         .native-checkbox-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 8px; }
+        .develop-subheading { border-top: 1px solid #555; padding-top: 14px; margin: 18px 0 10px; font-weight: 700; color: #ddd; }
+        .develop-subheading.minor { border-top: 0; padding-top: 0; margin-top: 12px; color: #bbb; }
         .denoise-slider-row.native-checkbox-row { display: grid; grid-template-columns: 240px minmax(120px, 1fr) 76px 44px 44px; }
         .denoise-slider-row.native-checkbox-row .enhance-status { grid-column: 1 / -1; }
         @media (max-width: 768px) {
@@ -4158,7 +4161,7 @@
                 }
         ];
 
-        const cropSdkLimitations = "Auto Straighten, Constrain to Image, and Tool Overlay must be controlled manually in Lightroom because they are not exposed through the SDK.";
+        const cropSdkLimitations = "Use Auto Straighten, Constrain to Image and Crop Tool Overlay directly in Lightroom. LRBridge's existing Constrain Crop control is under Transform.";
 
         const applicationGroups = [
                 {
@@ -6998,9 +7001,11 @@
 
         function applyDevelopSliderFeedbackIfChanged(control, result) {
             const feedbackFloor = control.feedbackRequestFloor;
-            if (feedbackFloor && developSliderFeedbackBindingMatches(feedbackFloor.binding) && Number.isSafeInteger(result.id)) {
-                if (result.id < feedbackFloor.id) return;
-                feedbackFloor.id = result.id;
+            if (Number.isSafeInteger(result.id)) {
+                if (feedbackFloor && developSliderFeedbackBindingMatches(feedbackFloor.binding) && result.id < feedbackFloor.id) return;
+                // Panel snapshots can confirm an edit before its targeted read
+                // returns. Both paths must advance the same per-slider floor.
+                control.feedbackRequestFloor = { id: result.id, binding: developSliderFeedbackBinding() };
             }
             if (isProfileAmountControl(control) && control.profileAmountEnabled !== true) return;
             if (result.available === false && control.definition.authoritativeUnavailableImmediate === true) {
@@ -7263,14 +7268,8 @@
         }
 
         function applyTargetedDevelopSliderFeedback(control, result, requestId, binding) {
-            // A targeted read may finish before an older full-panel snapshot.
-            const feedbackFloor = control.feedbackRequestFloor;
-            control.feedbackRequestFloor = {
-                id: feedbackFloor && developSliderFeedbackBindingMatches(feedbackFloor.binding)
-                    ? Math.max(feedbackFloor.id, requestId) : requestId,
-                binding: binding
-            };
-            applyDevelopSliderFeedbackIfChanged(control, result);
+            if (!developSliderFeedbackBindingMatches(binding)) return;
+            applyDevelopSliderFeedbackIfChanged(control, Object.assign({}, result, { id: requestId }));
         }
 
         const pendingDevelopSliderResetFeedback = new Map();
@@ -8185,11 +8184,11 @@
                 const button = lensBlurBokehButtons[option.value];
                 if (!button) return;
                 const selected = presentation.selectedBokeh === option.value;
-                button.disabled = !presentation.bokehAvailable;
+                button.disabled = !presentation.bokehAvailable || lensBlurBokehPending;
                 button.classList.toggle("active", selected);
                 button.setAttribute("aria-pressed", String(selected));
             });
-            if (lensBlurBokehStatus) lensBlurBokehStatus.textContent = presentation.bokehAvailable ? "" : "Unavailable";
+            if (lensBlurBokehStatus) lensBlurBokehStatus.textContent = lensBlurBokehPending ? "Awaiting Lightroom…" : presentation.bokehAvailable ? "" : "Unavailable";
             if (lensBlurRefinementButton) {
                 const disclosureAvailable = presentation.refinementDisclosure &&
                     presentation.refinementDisclosure.available === true &&
@@ -8546,6 +8545,7 @@
                 const busy = presentation.pending || developCategoricalSubmitting.has("uprightTool");
                 toolControl.button.disabled = !presentation.available || !uprightPresentation.available || busy;
                 toolControl.button.classList.toggle("active", active);
+                toolControl.button.textContent = active ? "Close Upright Tool" : "Open Upright Tool";
                 toolControl.button.classList.toggle("pending", presentation.pending);
                 toolControl.button.setAttribute("aria-pressed", String(active));
                 toolControl.status.className = "develop-categorical-status";
@@ -8956,6 +8956,8 @@
                     }
                     return;
                 }
+                if (lensBlurBokehFeedbackFloor && developSliderFeedbackBindingMatches(lensBlurBokehFeedbackFloor.binding) &&
+                    data.revision < lensBlurBokehFeedbackFloor.revision) return;
                 if (Number.isSafeInteger(data.revision)) lensBlurStateRevision = data.revision;
                 lensBlurFocalRangeCommitId = typeof data.focalRangeCommitId === "string" ? data.focalRangeCommitId : null;
                 lensBlurModel.applyAuthoritative(data.state);
@@ -8968,17 +8970,52 @@
             }
         }
 
+        let lensBlurBokehPending = false;
+        let lensBlurBokehFeedbackFloor = null;
         async function setLensBlurBokeh(value) {
-            if (!lensBlurHelper) return false;
+            if (!lensBlurHelper || lensBlurBokehPending) return false;
             const current = lensBlurModel.get();
             if (!current.bokehAvailable) return false;
-            const accepted = await sendCommand("/api/lens-blur/bokeh?value=" + encodeURIComponent(value));
-            if (accepted) {
-                lensBlurModel.applyAuthoritative(Object.assign({}, current, { bokehAvailable: false, bokeh: null }));
+            const binding = developSliderFeedbackBinding();
+            const baselineRevision = lensBlurStateRevision;
+            const sameOwner = function () {
+                const next = developSliderFeedbackBinding();
+                return activeTab === "sliders" && ["generation", "activeModule", "selectedPhotoUuid", "contextCounter", "contextChangedAt"]
+                    .every(function (key) { return binding[key] === next[key]; });
+            };
+            lensBlurBokehPending = true;
+            updateLensBlurPresentation();
+            try {
+                const accepted = await sendCommand("/api/lens-blur/bokeh?value=" + encodeURIComponent(value));
+                if (!accepted || !sameOwner()) return false;
+                const deadline = Date.now() + 2500;
+                while (sameOwner() && Date.now() < deadline) {
+                    // Bokeh is SDK state; do not wait for unrelated Windows brush reads.
+                    const response = await fetch("/api/lens-blur/state?sdkOnly=true", { cache: "no-store", signal: AbortSignal.timeout(1000) });
+                    const data = await response.json();
+                    if (!sameOwner()) return false;
+                    if (!response.ok || !data.state) throw new Error("Bokeh feedback unavailable");
+                    if (lensBlurResponseContextMatchesCurrent(data.context) && data.revision > baselineRevision &&
+                        data.revision >= lensBlurStateRevision && data.state.bokehAvailable) {
+                        lensBlurStateRevision = data.revision;
+                        lensBlurBokehFeedbackFloor = { revision: data.revision, binding: developSliderFeedbackBinding() };
+                        lensBlurModel.applyAuthoritative(Object.assign({}, lensBlurModel.get(), {
+                            bokehAvailable: true, bokeh: data.state.bokeh
+                        }));
+                        updateLensBlurPresentation();
+                        if (data.state.bokeh === value) return true;
+                    }
+                    await sleep(80);
+                }
+                if (sameOwner()) setStatus("WARNING: Lens Blur bokeh confirmation timed out; check Lightroom.");
+                return false;
+            } catch (error) {
+                if (sameOwner()) setStatus("ERROR: Lens Blur bokeh feedback: " + error.message);
+                return false;
+            } finally {
+                lensBlurBokehPending = false;
                 updateLensBlurPresentation();
-                requestLensBlurState();
             }
-            return accepted;
         }
 
         function appendLensBlurSubheading(parent, text) {
@@ -9771,7 +9808,7 @@
             const focusRangeExperimentalNote = document.createElement("div");
             focusRangeExperimentalNote.className = "lens-blur-experimental-note";
             focusRangeExperimentalNote.setAttribute("role", "note");
-            focusRangeExperimentalNote.innerHTML = "<strong>Experimental:</strong> When switching focus modes from the Web Controller, Lightroom may occasionally leave the previous Subject Focus or Point / Area Focus button highlighted. Hovering over the button in Lightroom updates the highlight. This is only a visual issue and does not occur when switching focus modes directly in Lightroom. The Web Controller always shows the correct active mode.";
+            focusRangeExperimentalNote.innerHTML = "Focus Range (near/far) uses the Lightroom SDK. Subject Focus, Point / Area Focus and Brush Refinement use Windows interface automation. Create <strong>New Refinement</strong> directly in Lightroom; the installed SDK has no documented action to create it. Focus-mode feedback may lag or be unavailable; check Lightroom if the displayed mode is unclear.";
             groupElement.appendChild(focusRangeExperimentalNote);
             groupElement.appendChild(lensBlurFocusRangeView.root);
 
@@ -10626,6 +10663,7 @@
             appendEmbeddedActionGroups(controls, actionGroups);
             appendEmbeddedSwitchGroups(controls, switchGroups);
             if (includesDetailControls) {
+                appendDevelopSubheading(controls, "Enhancement");
                 controls.appendChild(renderEnhanceSection());
                 controls.appendChild(renderRawDetailsControl());
                 controls.appendChild(renderSuperResolutionControl());
@@ -10637,10 +10675,10 @@
             "ParametricShadowSplit",
             "ParametricMidtoneSplit",
             "ParametricHighlightSplit",
-            "ParametricShadows",
-            "ParametricDarks",
+            "ParametricHighlights",
             "ParametricLights",
-            "ParametricHighlights"
+            "ParametricDarks",
+            "ParametricShadows"
         ]);
         const toneCurveLabels = Object.freeze({
             "ParametricShadowSplit": "Shadow Split",
@@ -11295,7 +11333,7 @@
             presentation.button.textContent = "B&W";
             presentation.status.textContent = treatmentAvailable
                 ? (authoritativeBlackAndWhite ? "Black & White" : "Color")
-                : "Treatment unavailable";
+                : "B&W: treatment feedback unavailable";
         }
 
         function updatePresetTreatmentPresentation(presentation) {
@@ -11480,7 +11518,9 @@
                 treatmentDesiredState = null;
                 treatmentStateFresh = false;
                 updateTreatmentButton();
-                setStatus("WARNING: Could not read Lightroom treatment; slider feedback remains active.");
+                // The B&W control displays the read failure locally. A background
+                // treatment poll must not overwrite AUTO's own result or error.
+                console.warn("B&W treatment feedback unavailable:", err.message);
             } finally {
                 if (generation === treatmentGeneration) {
                     treatmentRequestInFlight = false;
@@ -11658,7 +11698,8 @@
             toolName.className = "slider-name";
             toolName.textContent = "Upright Tool";
             const toolButton = makeButton("Select", "command-primary develop-categorical-action", function () {
-                submitDevelopCategorical("uprightTool", "upright", "/api/develop-categorical/upright-tool");
+                const target = developCategoricalModel.presentation("uprightTool").authoritativeValue === "upright" ? "loupe" : "upright";
+                submitDevelopCategorical("uprightTool", target, "/api/develop-categorical/upright-tool?target=" + target);
             });
             toolButton.disabled = true;
             toolButton.setAttribute("aria-pressed", "false");
@@ -11748,6 +11789,7 @@
                     "/api/develop-categorical/white-balance", function (value) { return value; }
                 ));
             } else if (sectionId === "effects") {
+                appendDevelopSubheading(groupElement, "Post-Crop Vignetting");
                 groupElement.appendChild(createDevelopCategoricalSelector(
                     "vignetteStyle", "Style", developCategoricalHelper.vignetteStyleOptions,
                     "/api/develop-categorical/vignette-style", function (value) { return Number(value); }
@@ -11760,6 +11802,13 @@
             } else if (sectionId === "transform") {
                 appendTransformCategoricalControls(groupElement);
             }
+        }
+
+        function appendDevelopSubheading(parent, label, minor) {
+            const heading = document.createElement("div");
+            heading.className = "develop-subheading" + (minor ? " minor" : "");
+            heading.textContent = label;
+            parent.appendChild(heading);
         }
 
         function createDevelopSectionElement(section) {
@@ -11797,6 +11846,15 @@
             }
             let currentSubheading = null;
             section.items.forEach(function (item, itemIndex) {
+                if (section.id === "detail") {
+                    if (item.definition.id === "Sharpness") appendDevelopSubheading(groupElement, "Sharpening");
+                    if (item.definition.id === "LuminanceNR") {
+                        appendDevelopSubheading(groupElement, "Manual Noise Reduction");
+                        appendDevelopSubheading(groupElement, "Luminance", true);
+                    }
+                    if (item.definition.id === "ColorNR") appendDevelopSubheading(groupElement, "Color", true);
+                }
+                if (section.id === "effects" && item.definition.id === "GrainAmount") appendDevelopSubheading(groupElement, "Grain");
                 if (section.id === "hdr-sdr-rendition" && item.definition.id === "HDRMaxValue") {
                     const divider = document.createElement("div");
                     divider.className = "hdr-section-divider";
@@ -11832,7 +11890,7 @@
                 if (section.id === "hdr-sdr-rendition" && item.definition.id === "HDRMaxValue") {
                     const visualizeNote = document.createElement("p");
                     visualizeNote.className = "command-group-note hdr-visualize-note";
-                    visualizeNote.textContent = "Visualize HDR must be enabled manually in Lightroom; LRBridge cannot observe or control it.";
+                    visualizeNote.innerHTML = "<strong>Visualize HDR</strong> must be enabled manually in Lightroom; LRBridge cannot observe or control it.";
                     groupElement.appendChild(visualizeNote);
                 }
             });

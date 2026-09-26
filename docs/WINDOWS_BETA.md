@@ -1,5 +1,12 @@
 # LRBridge Windows v0.6 beta
 
+**September 26 source corrections:** the manually tested private build
+`20260925T022735Z` is unchanged. B&W-specific feedback, shared-slider response
+ordering, bokeh confirmation, Upright Close, presentation and guidance fixes
+await the [short source retest](RELEASE_REVIEW.md#short-retest-before-rebuilding)
+before a new release candidate is packaged. No new preset-based controls were
+verified or bundled in this pass.
+
 This beta preserves the accepted controller layout, 71-choice favorites bar, Quick Copy Settings, Paste Settings and native Export buttons. New features are frozen. Lens Blur **+ New Refinement**, named export presets and broader MIDI2LR parity are deferred.
 
 ## Install
@@ -39,6 +46,16 @@ People removal dispatch is verified, but successful Adobe processing and Cancel 
 
 Masking creation/component actions and adjustments use SDK inventory and target guards. Actual last-component deletion and comprehensive AI preservation still need bounded native evidence. Masking brush Size/Feather/Flow/Density, Auto Mask and related native options are not supported. Healing Selected Repair Reset uses explicit LRBridge defaults (Opacity 100, Feather 50), not claimed Lightroom factory defaults.
 
+Masking Radial Gradient Feather and Color Range Refine also remain manual; the
+latter is distinct from the supported Refine Saturation adjustment. Red Eye
+Pupil Size and Darken must be adjusted directly in Lightroom.
+
+Remove → Selected Add/Subtract are Experimental Windows automation, may stop
+responding and do not report the active mode. If they fail, use Lightroom's
+buttons. The private-package test reported recovery after resetting Spot Removal;
+that is diagnostic evidence, not a recommended workaround, because reset can
+clear corrections.
+
 Retain the intermittent Healing unavailable/greyed-out report, Point Color Visualize Range availability and historical unreproduced Blue curve report. Cycle Loupe Info remains a known backend compatibility limitation and is excluded from the Builder/controller choices. These are not newly reproduced failures.
 
 </details>
@@ -46,6 +63,10 @@ Retain the intermittent Healing unavailable/greyed-out report, Point Color Visua
 <details><summary>Lens Blur and Profile Windows dependencies</summary>
 
 Apply, Blur Amount/Cat Eye/Boost with resets, Bokeh and Focus Range editing use SDK writes/readback. Subject and Point/Area activation, refinement disclosure/modes/sliders/resets and Auto Mask use the Windows helper. Visualize Depth uses an SDK mutation with Windows checkbox readback. Native button availability and layout/language/version changes can affect the helper. Subject highlighting is reconciled from SDK ranges/source and action history; the raw source value alone is not a reliable active flag. + New Refinement is deferred.
+
+Create New Refinement in Lightroom: the installed SDK has no documented creation
+action. Focus-mode feedback can lag or be unavailable; there is no guarantee of
+an always-correct active highlight. Focus Range near/far remains on the SDK path.
 
 Profile choices and native fallback labels use Windows accessibility inventory. Supported profile application and Profile Amount use SDK operations; unsupported profiles remain readback-only. The combined Profile availability model still depends on native inventory. Windows automation is retained as implemented; no new automation or macOS equivalent is introduced by release preparation.
 

@@ -1,5 +1,13 @@
 # Release cleanup status
 
+**2026-09-26 update:** private build `20260925T022735Z` has now been manually tested
+by the user. The focused source fixes and bounded additions investigation are
+recorded in [the release review](RELEASE_REVIEW.md#september-26-private-package-feedback-fixes--source-retest-pending).
+The old package is unchanged. Affected source behavior awaits the short retest in
+that review before a fresh release candidate is built, verified and published.
+This supersedes the older no-feedback-work scope below for this requested batch
+only. Denoise Reset and unrelated uncommitted work remain preserved separately.
+
 The verified startup correction is saved separately in local commit `1b63969`
 (`fix: keep Lightroom polling running when getenv is unavailable`), on top of
 `e55f64c`. It contains only the three diagnostic guards, four regression-test

@@ -4,12 +4,16 @@ const fs=require("node:fs"),path=require("node:path"),cp=require("node:child_pro
 const root=path.resolve(__dirname,".."),pkg=require("../package.json");
 const extra=["clipboard","export","controller-history","controller-tab-actions","masking-create","masking-components",
     "masking-component-delete","masking-component-invert","masking-preset-application","remove-preferences",
-    "dust-controls","dust-preset","red-eye","polling-lifecycle","release-preparation"];
+    "dust-controls","dust-preset","red-eye","polling-lifecycle","release-preparation",
+    "polling-trace","release-cleanup","reset-feedback-queue","reset-feedback-delivery",
+    "remove-selection","remove-selection-refinement","remove-selection-polling",
+    "release-feedback-fixes","release-sdk-fixes"];
 const core=pkg.scripts.test.split(" && ").map(s=>pkg.scripts[s.replace("npm run ","")]).flatMap(s=>s.split(" && "));
 for(const name of extra) { const file="tests/"+name+".js"; if(!fs.existsSync(path.join(root,file))) throw Error("Missing release check "+file); core.push("node "+file); }
 // Legacy TestDustPaste diagnostic scenarios are separate from the shipping runtime gate.
-const browser=["--history-only","--favorites-only","--clipboard-only","--export-only","--red-eye-only"].map(mode=>"node tests/controller-browser-lifecycle.js "+mode);
+const browser=["", "--history-only","--favorites-only","--clipboard-only","--export-only","--red-eye-only", "--reset-feedback-only", "--selected-only"].map(mode=>"node tests/controller-browser-lifecycle.js"+(mode?" "+mode:""));
 browser.push("node tests/release-docs-browser.js");
+browser.push("node tests/release-fixes-browser.js");
 const checks=process.argv.includes("--browser")?browser:core;
 const logDir=path.join(root,"local-checkpoints","release-checks-"+new Date().toISOString().replace(/[:.]/g,"-"));fs.mkdirSync(logDir,{recursive:true});
 const results=[];

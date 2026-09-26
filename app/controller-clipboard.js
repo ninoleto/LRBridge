@@ -123,10 +123,10 @@
                     button.setAttribute("aria-describedby", command === "clipboard.copy" ? "clipboardCopyHelp" : "clipboardPasteHelp clipboardSelectionCount");
                     button.addEventListener("click", () => action(command)); row.appendChild(button);
                 }
-                const copyHelp = element("p", "command-group-note", "Copies settings from the active photo without opening a dialog. Uses the categories last selected in Lightroom’s Copy Settings dialog.");
+                const copyHelp = element("p", "command-group-note", "Choose the settings categories in Lightroom’s Copy Settings dialog. Use Quick Copy Settings to copy the active photo’s current settings, select destination photos, then Paste Settings. Copying directly in Lightroom also works; Quick Copy is not required.");
                 copyHelp.id = "clipboardCopyHelp";
                 selection = element("p", "command-group-note clipboard-selection"); selection.id = "clipboardSelectionCount";
-                const pasteHelp = element("p", "command-group-note", "Paste targets the shown selection. Copied AI settings will request updating."); pasteHelp.id = "clipboardPasteHelp";
+                const pasteHelp = element("p", "command-group-note", "Paste targets the shown selection. Allow Lightroom to process AI edits, then review the destination photos."); pasteHelp.id = "clipboardPasteHelp";
                 details = element("details", "clipboard-details");
                 details.appendChild(element("summary", "", "Details"));
                 const scope = element("p", "command-group-note", "Photo-level actions, including in Masking. You can copy directly in Lightroom; a web Copy is not required. Clipboard contents and validity cannot be inspected."); scope.id = "clipboardScopeHelp";

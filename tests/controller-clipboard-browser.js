@@ -44,8 +44,8 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab }) {
     const text = () => evaluate("document.getElementById('clipboardStatus').textContent");
     const polls = async () => { const n = c.reads; await waitFor(() => c.reads >= n + 2, "Clipboard state polls"); };
     await selectTab("selection"); await ready();
-    assert.equal(await evaluate("document.getElementById('clipboardCopyHelp').textContent"), "Copies settings from the active photo without opening a dialog. Uses the categories last selected in Lightroom’s Copy Settings dialog.");
-    assert.match(await evaluate("document.getElementById('clipboardPasteHelp').textContent"), /Copied AI settings will request updating/);
+    assert.equal(await evaluate("document.getElementById('clipboardCopyHelp').textContent"), "Choose the settings categories in Lightroom’s Copy Settings dialog. Use Quick Copy Settings to copy the active photo’s current settings, select destination photos, then Paste Settings. Copying directly in Lightroom also works; Quick Copy is not required.");
+    assert.match(await evaluate("document.getElementById('clipboardPasteHelp').textContent"), /Allow Lightroom to process AI edits, then review the destination photos/);
     assert.match(await evaluate("document.getElementById('clipboardScopeHelp').textContent"), /Photo-level.*Masking.*directly in Lightroom.*cannot be inspected/);
     assert.match(await evaluate(button("copy") + ".getAttribute('aria-describedby')"), /clipboardCopyHelp/);
     await evaluate("window.clipboardOriginalButton = document.getElementById('pasteSettingsButton')");

@@ -644,14 +644,13 @@ assert.doesNotMatch(visualizeRoute, /setCheckbox|BM_CLICK|SendInput|SetCursorPos
     "Visualize Depth mutation must not use the Windows native writer or input automation");
 const lensBlurUiBlock = controller.match(/function renderLensBlurSection[\s\S]*?let lensCorrectionsView/)[0];
 const lensBlurControllerBlock = controller.match(/function updateLensBlurExplicitSwitch[\s\S]*?let lensCorrectionsView/)[0];
-const experimentalWarningHtml = "<strong>Experimental:</strong> When switching focus modes from the Web Controller, Lightroom may occasionally leave the previous Subject Focus or Point / Area Focus button highlighted. Hovering over the button in Lightroom updates the highlight. This is only a visual issue and does not occur when switching focus modes directly in Lightroom. The Web Controller always shows the correct active mode.";
+const experimentalWarningHtml = "Focus Range (near/far) uses the Lightroom SDK. Subject Focus, Point / Area Focus and Brush Refinement use Windows interface automation. Create <strong>New Refinement</strong> directly in Lightroom; the installed SDK has no documented action to create it. Focus-mode feedback may lag or be unavailable; check Lightroom if the displayed mode is unclear.";
 assert.match(lensBlurUiBlock,
     /groupElement\.appendChild\(lensBlurFocusRangeView\.nativeActions\);\s*const focusRangeExperimentalNote[\s\S]*?setAttribute\("role", "note"\)[\s\S]*?focusRangeExperimentalNote\.innerHTML[\s\S]*?groupElement\.appendChild\(focusRangeExperimentalNote\);\s*groupElement\.appendChild\(lensBlurFocusRangeView\.root\)/,
     "The non-error experimental warning must remain directly between the labeled Focus Range actions and range control");
 assert.ok(lensBlurUiBlock.includes('focusRangeExperimentalNote.innerHTML = "' + experimentalWarningHtml + '";'),
     "The complete approved Lens Blur experimental warning must remain present verbatim");
-assert.match(lensBlurUiBlock, /innerHTML = "<strong>Experimental:<\/strong>/,
-    "Experimental must use semantic strong markup");
+assert.match(lensBlurUiBlock, /<strong>New Refinement<\/strong>/);
 assert.match(controller, /\.lens-blur-experimental-note strong\s*\{\s*font-weight:\s*700;/,
     "The semantic Experimental label must be visibly bold");
 assert.doesNotMatch(lensBlurUiBlock, /\*\*Experimental:/,

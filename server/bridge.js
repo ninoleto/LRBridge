@@ -1582,11 +1582,12 @@ app.get("/point-color/state", function (req, res) {
 });
 
 app.get("/lens-blur/state", async function (req, res) {
-    if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
+    if (!exactQueryFields(req, req.query.sdkOnly === undefined ? [] : ["sdkOnly"]) ||
+        (req.query.sdkOnly !== undefined && req.query.sdkOnly !== "true")) return res.status(400).json({ ok: false, error: "Invalid request" });
     lensBlur.requestRefresh();
     const contextBeforeRead = context.getContextFields();
     let windowsNative;
-    try { windowsNative = await windowsNativeBackend.readState(); }
+    try { if (req.query.sdkOnly !== "true") windowsNative = await windowsNativeBackend.readState(); }
     catch (error) { windowsNative = windowsNativeDefinition.unavailableNativeState(error.message); }
     const contextFields = context.getContextFields();
     if (contextBeforeRead.activeModule !== contextFields.activeModule ||
@@ -1597,7 +1598,8 @@ app.get("/lens-blur/state", async function (req, res) {
     }
     res.set("Cache-Control", "no-store").json({
         ok: true,
-        state: Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) }),
+        state: req.query.sdkOnly === "true" ? lensBlur.get() :
+            Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) }),
         revision: lensBlur.getRevision(),
         focalRangeCommitId: lensBlur.getFocalRangeCommitId(),
         context: {
@@ -1835,13 +1837,16 @@ app.get("/develop-categorical/constrain-crop", function (req, res) {
 });
 
 app.get("/develop-categorical/upright-tool", function (req, res) {
-    if (Object.keys(req.query).length !== 0) return rejectInvalidCommand(res);
+    if (!exactQueryFields(req, req.query.target === undefined ? [] : ["target"]) ||
+        (req.query.target !== undefined && !["upright", "loupe"].includes(req.query.target))) return rejectInvalidCommand(res);
     const current = developCategorical.get();
     if (current.selectedToolAvailable !== true || current.uprightModeAvailable !== true) {
         return res.status(409).json({ ok: false, error: "Guided Upright tool unavailable" });
     }
     const confirmationAfterRevision = developCategorical.getRevision();
-    queueOrReject(res, { command: "develop_categorical.upright_tool.select" }, {
+    const command = { command: "develop_categorical.upright_tool.select" };
+    if (req.query.target !== undefined) command.value = req.query.target;
+    queueOrReject(res, command, {
         confirmationAfterRevision: confirmationAfterRevision
     }, function () {
         developCategorical.invalidate("selectedTool");

@@ -428,8 +428,7 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
 
         <h3>Control and feedback limitations</h3>
         <p><strong>Healing → Remove → Selected Add/Subtract</strong></p>
-        <p>Add and Subtract can be activated from LRBridge, but the Web Controller does not show which mode is active. Check Lightroom Classic for the active mode.</p>
-        <p>These buttons are also intermittently unreliable: a request may occasionally have no effect. If this happens, use Add or Subtract directly in Lightroom Classic.</p>
+        <p><strong>Experimental:</strong> Add/Subtract use Windows interface automation, may stop responding and do not report the active mode. If they fail, use Add/Subtract directly in Lightroom.</p>
 
         <p><strong>Healing → Dust</strong></p>
         <p>LRBridge controls Dust Apply on/off and Reset by applying two included presets in Lightroom Classic. If those presets are not installed, these buttons are unavailable. Dust Size, Visualize Spots and Threshold do not require the presets.</p>
@@ -440,7 +439,11 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
         <p>LRBridge can switch Visualize Range on or off, but the Web Controller does not display its current state. Check Lightroom Classic to see whether it is enabled.</p>
 
         <p><strong>Lens Blur focus controls</strong></p>
-        <p>Lightroom’s focus-mode highlight can occasionally lag after switching Subject Focus or Point / Area Focus from the Web Controller. Hovering over the corresponding button in Lightroom may refresh the highlight.</p>
+        <p>Focus Range (near/far) uses the Lightroom SDK. Subject Focus, Point / Area Focus and Brush Refinement use Windows interface automation. Create <strong>New Refinement</strong> directly in Lightroom; the installed SDK has no documented action to create it. Focus-mode feedback may lag or be unavailable; check Lightroom if the displayed mode is unclear.</p>
+        <p><strong>Copy / Paste Settings</strong></p>
+        <p>Choose the settings categories in Lightroom’s Copy Settings dialog. Use Quick Copy Settings to copy the active photo’s current settings, select destination photos, then Paste Settings. Copying directly in Lightroom also works; Quick Copy is not required. Allow Lightroom to process AI edits, then review the destination photos. Technical feedback is in Details.</p>
+        <p><strong>Red Eye:</strong> Adjust Pupil Size and Darken directly in Lightroom.</p>
+        <p><strong>Masking:</strong> Adjust Brush Size, Feather, Flow, Density and Auto Mask; Radial Gradient Feather; and Color Range Refine directly in Lightroom. These tool settings have no documented controls in the installed SDK. Ordinary mask adjustment sliders are supported separately.</p>
 
         <h3>Information read from Lightroom’s interface</h3>
         <p>Some displayed information depends on reading Lightroom’s interface, including:</p>

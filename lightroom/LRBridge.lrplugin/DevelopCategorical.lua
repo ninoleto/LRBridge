@@ -104,9 +104,11 @@ function DevelopCategorical.setConstrainCrop(value)
     return true
 end
 
-function DevelopCategorical.selectUprightTool()
+function DevelopCategorical.selectUprightTool(target)
+    target = target or "upright"
+    if target ~= "upright" and target ~= "loupe" then error("Invalid Upright tool target") end
     requireDevelop("lensCorrectionsPanel")
-    LrDevelopController.selectTool("upright")
+    LrDevelopController.selectTool(target)
     return true
 end
 

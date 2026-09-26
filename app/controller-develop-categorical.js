@@ -57,7 +57,7 @@
         vignetteStyle: Object.freeze({ available: "vignetteStyleAvailable", value: "vignetteStyle", values: vignetteStyleOptions.map(function (option) { return option.value; }) }),
         uprightMode: Object.freeze({ available: "uprightModeAvailable", value: "uprightMode", values: uprightModeOptions.map(function (option) { return option.value; }) }),
         constrainCrop: Object.freeze({ available: "constrainCropAvailable", value: "constrainCrop", values: [0, 1] }),
-        uprightTool: Object.freeze({ available: "selectedToolAvailable", value: "selectedTool", values: ["upright"] })
+        uprightTool: Object.freeze({ available: "selectedToolAvailable", value: "selectedTool", values: ["upright", "loupe"] })
     });
 
     function unavailableState() {

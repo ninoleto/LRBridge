@@ -14,13 +14,13 @@ Use these paths directly on port **17891**; prepend `/api` only for the Web Cont
 |---|---|---|---|
 | Color Grading | GET `/color-grading` | read | server/bridge.js:1342 |
 | Color Grading | GET `/color-grading/metadata` | read | server/bridge.js:1346 |
-| Color Grading | GET `/color-grading/request` | read | server/bridge.js:3408 |
-| Color Grading | GET `/color-grading/result` | internal | server/bridge.js:3424 |
-| Color Grading | GET `/color-grading/snapshot` | read | server/bridge.js:3468 |
-| Color Grading | GET `/color-grading/view-result` | internal | server/bridge.js:3446 |
-| Core / action | GET `/action` | ordinary | server/bridge.js:3199 |
-| Core / adjust | GET `/adjust` | ordinary | server/bridge.js:3137 |
-| Core / command | GET `/command` | ordinary | server/bridge.js:2976 |
+| Color Grading | GET `/color-grading/request` | read | server/bridge.js:3413 |
+| Color Grading | GET `/color-grading/result` | internal | server/bridge.js:3429 |
+| Color Grading | GET `/color-grading/snapshot` | read | server/bridge.js:3473 |
+| Color Grading | GET `/color-grading/view-result` | internal | server/bridge.js:3451 |
+| Core / action | GET `/action` | ordinary | server/bridge.js:3204 |
+| Core / adjust | GET `/adjust` | ordinary | server/bridge.js:3142 |
+| Core / command | GET `/command` | ordinary | server/bridge.js:2981 |
 | Core / context | GET `/context` | read | server/bridge.js:930 |
 | Core / context | GET `/context/update` | internal | server/bridge.js:936 |
 | Core / diagnostics | GET `/diagnostics/masking-deletion` | read | server/bridge.js:886 |
@@ -30,42 +30,42 @@ Use these paths directly on port **17891**; prepend `/api` only for the Web Cont
 | Core / diagnostics | GET `/diagnostics/people` | read | server/people-routes.js:17 |
 | Core / diagnostics | GET `/diagnostics/polling` | read | server/bridge.js:102 |
 | Core / diagnostics | GET `/diagnostics/queue` | read | server/bridge.js:879 |
-| Core / feedback | GET `/feedback/all` | read | server/bridge.js:3675 |
-| Core / feedback | GET `/feedback/next` | internal | server/bridge.js:3346 |
-| Core / feedback | GET `/feedback/request` | read | server/bridge.js:3272 |
-| Core / feedback | GET `/feedback/request-all` | read | server/bridge.js:3292 |
-| Core / feedback | GET `/feedback/request-many` | read | server/bridge.js:3305 |
-| Core / feedback | GET `/feedback/result` | internal | server/bridge.js:3477 |
-| Core / feedback | GET `/feedback/snapshot` | read | server/bridge.js:3682 |
-| Core / feedback | GET `/feedback/value` | read | server/bridge.js:3657 |
-| Core / get | GET `/get` | read | server/bridge.js:3233 |
+| Core / feedback | GET `/feedback/all` | read | server/bridge.js:3680 |
+| Core / feedback | GET `/feedback/next` | internal | server/bridge.js:3351 |
+| Core / feedback | GET `/feedback/request` | read | server/bridge.js:3277 |
+| Core / feedback | GET `/feedback/request-all` | read | server/bridge.js:3297 |
+| Core / feedback | GET `/feedback/request-many` | read | server/bridge.js:3310 |
+| Core / feedback | GET `/feedback/result` | internal | server/bridge.js:3482 |
+| Core / feedback | GET `/feedback/snapshot` | read | server/bridge.js:3687 |
+| Core / feedback | GET `/feedback/value` | read | server/bridge.js:3662 |
+| Core / get | GET `/get` | read | server/bridge.js:3238 |
 | Core / groups | GET `/groups` | read | server/bridge.js:1351 |
 | Core / help | GET `/help` | read | server/bridge.js:785 |
-| Core / last-result | GET `/last-result` | read | server/bridge.js:3266 |
+| Core / last-result | GET `/last-result` | read | server/bridge.js:3271 |
 | Core / next | GET `/next` | internal | server/bridge.js:1564 |
-| Core / reset | GET `/reset` | ordinary | server/bridge.js:3210 |
-| Core / result | GET `/result` | internal | server/bridge.js:3242 |
-| Core / set | GET `/set` | ordinary | server/bridge.js:3170 |
+| Core / reset | GET `/reset` | ordinary | server/bridge.js:3215 |
+| Core / result | GET `/result` | internal | server/bridge.js:3247 |
+| Core / set | GET `/set` | ordinary | server/bridge.js:3175 |
 | Core / sliders | GET `/sliders` | read | server/bridge.js:981 |
 | Core / status | GET `/` | read | server/bridge.js:775 |
 | Core / status | GET `/status` | read | server/bridge.js:875 |
-| Core / treatment | GET `/treatment/request` | read | server/bridge.js:3369 |
-| Core / treatment | GET `/treatment/result` | internal | server/bridge.js:3377 |
-| Core / treatment | GET `/treatment/snapshot` | read | server/bridge.js:3397 |
+| Core / treatment | GET `/treatment/request` | read | server/bridge.js:3374 |
+| Core / treatment | GET `/treatment/result` | internal | server/bridge.js:3382 |
+| Core / treatment | GET `/treatment/snapshot` | read | server/bridge.js:3402 |
 | Core / wake-lightroom | GET `/wake-lightroom` | deprecated | server/bridge.js:865 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/constrain-crop` | workflow | server/bridge.js:1829 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/metadata` | read | server/bridge.js:1612 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/next` | internal | server/bridge.js:1683 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/process` | workflow | server/bridge.js:1805 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/profile` | workflow | server/bridge.js:1747 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/profile-feedback` | internal | server/bridge.js:1647 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/profile-validation` | internal | server/bridge.js:1789 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/result` | internal | server/bridge.js:1688 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/state` | read | server/bridge.js:1624 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/upright-mode` | workflow | server/bridge.js:1821 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/upright-tool` | workflow | server/bridge.js:1837 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/vignette-style` | workflow | server/bridge.js:1813 |
-| Develop / Profiles (Windows inventory) | GET `/develop-categorical/white-balance` | workflow | server/bridge.js:1738 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/constrain-crop` | workflow | server/bridge.js:1831 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/metadata` | read | server/bridge.js:1614 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/next` | internal | server/bridge.js:1685 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/process` | workflow | server/bridge.js:1807 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/profile` | workflow | server/bridge.js:1749 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/profile-feedback` | internal | server/bridge.js:1649 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/profile-validation` | internal | server/bridge.js:1791 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/result` | internal | server/bridge.js:1690 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/state` | read | server/bridge.js:1626 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/upright-mode` | workflow | server/bridge.js:1823 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/upright-tool` | workflow | server/bridge.js:1839 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/vignette-style` | workflow | server/bridge.js:1815 |
+| Develop / Profiles (Windows inventory) | GET `/develop-categorical/white-balance` | workflow | server/bridge.js:1740 |
 | Develop Presets | GET `/develop-presets/amount` | workflow | server/bridge.js:1470 |
 | Develop Presets | GET `/develop-presets/apply` | workflow | server/bridge.js:1434 |
 | Develop Presets | GET `/develop-presets/apply-result` | internal | server/bridge.js:1546 |
@@ -76,14 +76,14 @@ Use these paths directly on port **17891**; prepend `/api` only for the Web Cont
 | Develop Presets | GET `/develop-presets/inventory/refresh` | workflow | server/bridge.js:1384 |
 | Develop Presets | GET `/develop-presets/navigate` | workflow | server/bridge.js:1443 |
 | Develop Presets | GET `/develop-presets/state` | read | server/bridge.js:1357 |
-| Enhance | GET `/enhance/amount-result` | internal | server/bridge.js:2948 |
-| Enhance | GET `/enhance/denoise/amount` | workflow | server/bridge.js:2966 |
-| Enhance | GET `/enhance/denoise/set` | workflow | server/bridge.js:2892 |
-| Enhance | GET `/enhance/next` | internal | server/bridge.js:2866 |
-| Enhance | GET `/enhance/raw-details/set` | workflow | server/bridge.js:2915 |
-| Enhance | GET `/enhance/result` | internal | server/bridge.js:2871 |
+| Enhance | GET `/enhance/amount-result` | internal | server/bridge.js:2953 |
+| Enhance | GET `/enhance/denoise/amount` | workflow | server/bridge.js:2971 |
+| Enhance | GET `/enhance/denoise/set` | workflow | server/bridge.js:2897 |
+| Enhance | GET `/enhance/next` | internal | server/bridge.js:2871 |
+| Enhance | GET `/enhance/raw-details/set` | workflow | server/bridge.js:2920 |
+| Enhance | GET `/enhance/result` | internal | server/bridge.js:2876 |
 | Enhance | GET `/enhance/state` | read | server/bridge.js:1572 |
-| Enhance | GET `/enhance/super-resolution/set` | workflow | server/bridge.js:2927 |
+| Enhance | GET `/enhance/super-resolution/set` | workflow | server/bridge.js:2932 |
 | Export… / Export with Previous | GET `/export/acknowledge` | workflow | server/export-routes.js:38 |
 | Export… / Export with Previous | GET `/export/action` | workflow | server/export-routes.js:15 |
 | Export… / Export with Previous | GET `/export/claim` | internal | server/export-routes.js:24 |
@@ -106,83 +106,83 @@ Use these paths directly on port **17891**; prepend `/api` only for the Web Cont
 | Healing / Distraction Removal | GET `/remove/selection-validate` | internal | server/remove-routes.js:48 |
 | Healing / Distraction Removal | GET `/remove/state` | read | server/remove-routes.js:22 |
 | Healing / Distraction Removal | GET `/remove/validate` | internal | server/remove-routes.js:69 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/apply` | workflow | server/bridge.js:2492 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/auto-mask` | workflow | server/bridge.js:2626 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/bokeh` | workflow | server/bridge.js:2501 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/brush/:control/adjust` | workflow | server/bridge.js:2557 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/brush/:control/reset` | workflow | server/bridge.js:2568 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/brush/:control/set` | workflow | server/bridge.js:2536 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/depth-refinement/close` | workflow | server/bridge.js:2742 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/depth-refinement/select` | workflow | server/bridge.js:2734 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/depth-visualization/toggle` | deprecated | server/bridge.js:2511 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/focal-range/adjust` | workflow | server/bridge.js:2718 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/focal-range/set` | workflow | server/bridge.js:2704 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/focus-action` | workflow | server/bridge.js:2662 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/next` | internal | server/bridge.js:2453 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/refinement-disclosure` | workflow | server/bridge.js:2643 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/refinement-mode` | workflow | server/bridge.js:2634 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/refinement-reset` | workflow | server/bridge.js:2652 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/result` | internal | server/bridge.js:2458 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/apply` | workflow | server/bridge.js:2497 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/auto-mask` | workflow | server/bridge.js:2631 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/bokeh` | workflow | server/bridge.js:2506 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/brush/:control/adjust` | workflow | server/bridge.js:2562 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/brush/:control/reset` | workflow | server/bridge.js:2573 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/brush/:control/set` | workflow | server/bridge.js:2541 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/depth-refinement/close` | workflow | server/bridge.js:2747 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/depth-refinement/select` | workflow | server/bridge.js:2739 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/depth-visualization/toggle` | deprecated | server/bridge.js:2516 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/focal-range/adjust` | workflow | server/bridge.js:2723 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/focal-range/set` | workflow | server/bridge.js:2709 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/focus-action` | workflow | server/bridge.js:2667 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/next` | internal | server/bridge.js:2458 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/refinement-disclosure` | workflow | server/bridge.js:2648 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/refinement-mode` | workflow | server/bridge.js:2639 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/refinement-reset` | workflow | server/bridge.js:2657 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/result` | internal | server/bridge.js:2463 |
 | Lens Blur (SDK and Windows) | GET `/lens-blur/state` | read | server/bridge.js:1584 |
-| Lens Blur (SDK and Windows) | GET `/lens-blur/visualize-depth` | workflow | server/bridge.js:2579 |
-| Masking | GET `/masking/all/delete` | workflow | server/bridge.js:2013 |
-| Masking | GET `/masking/component/add` | workflow | server/bridge.js:1963 |
-| Masking | GET `/masking/component/delete` | workflow | server/bridge.js:2022 |
-| Masking | GET `/masking/component/invert` | workflow | server/bridge.js:2028 |
-| Masking | GET `/masking/component/subtract` | workflow | server/bridge.js:1963 |
-| Masking | GET `/masking/correction-result` | internal | server/bridge.js:2295 |
-| Masking | GET `/masking/correction/gesture/begin` | workflow | server/bridge.js:2263 |
-| Masking | GET `/masking/correction/gesture/cancel` | workflow | server/bridge.js:2282 |
-| Masking | GET `/masking/correction/gesture/end` | workflow | server/bridge.js:2275 |
-| Masking | GET `/masking/correction/gesture/update` | workflow | server/bridge.js:2268 |
-| Masking | GET `/masking/correction/reset` | workflow | server/bridge.js:2287 |
-| Masking | GET `/masking/create` | workflow | server/bridge.js:1954 |
-| Masking | GET `/masking/edit-result` | internal | server/bridge.js:2338 |
-| Masking | GET `/masking/group/navigate` | workflow | server/bridge.js:1981 |
-| Masking | GET `/masking/group/visibility` | workflow | server/bridge.js:1997 |
-| Masking | GET `/masking/next` | internal | server/bridge.js:1867 |
-| Masking | GET `/masking/operation-result` | internal | server/bridge.js:2372 |
-| Masking | GET `/masking/panel` | workflow | server/bridge.js:1973 |
-| Masking | GET `/masking/point-color/range` | workflow | server/bridge.js:2074 |
-| Masking | GET `/masking/point-color/range-visualization/toggle` | workflow | server/bridge.js:2107 |
-| Masking | GET `/masking/point-color/range/translate` | workflow | server/bridge.js:2083 |
-| Masking | GET `/masking/point-color/sample` | workflow | server/bridge.js:2094 |
-| Masking | GET `/masking/point-color/tool/select` | workflow | server/bridge.js:2100 |
-| Masking | GET `/masking/point-color/value` | workflow | server/bridge.js:2066 |
-| Masking | GET `/masking/preset/apply` | workflow | server/bridge.js:2039 |
-| Masking | GET `/masking/presets` | read | server/bridge.js:2054 |
-| Masking | GET `/masking/query-result` | internal | server/bridge.js:1872 |
-| Masking | GET `/masking/selected/delete` | workflow | server/bridge.js:2017 |
-| Masking | GET `/masking/selected/reset` | workflow | server/bridge.js:2034 |
-| Masking | GET `/masking/state` | read | server/bridge.js:1859 |
-| Masking | GET `/masking/tone-curve/gesture/begin` | workflow | server/bridge.js:2170 |
-| Masking | GET `/masking/tone-curve/gesture/cancel` | workflow | server/bridge.js:2173 |
-| Masking | GET `/masking/tone-curve/gesture/end` | workflow | server/bridge.js:2172 |
-| Masking | GET `/masking/tone-curve/gesture/update` | workflow | server/bridge.js:2171 |
-| Masking | GET `/masking/tone-curve/preset` | workflow | server/bridge.js:2183 |
-| Masking | GET `/masking/tone-curve/refine-saturation/gesture/begin` | workflow | server/bridge.js:2204 |
-| Masking | GET `/masking/tone-curve/refine-saturation/gesture/cancel` | workflow | server/bridge.js:2207 |
-| Masking | GET `/masking/tone-curve/refine-saturation/gesture/end` | workflow | server/bridge.js:2206 |
-| Masking | GET `/masking/tone-curve/refine-saturation/gesture/update` | workflow | server/bridge.js:2205 |
-| Masking | GET `/masking/tone-curve/refine-saturation/reset` | workflow | server/bridge.js:2208 |
-| Masking | GET `/masking/tone-curve/reset` | workflow | server/bridge.js:2175 |
-| Masking | GET `/masking/tone-curve/state` | read | server/bridge.js:2151 |
-| Masking | GET `/masking/tool/navigate` | workflow | server/bridge.js:1989 |
-| Masking | GET `/masking/tool/visibility` | workflow | server/bridge.js:2005 |
+| Lens Blur (SDK and Windows) | GET `/lens-blur/visualize-depth` | workflow | server/bridge.js:2584 |
+| Masking | GET `/masking/all/delete` | workflow | server/bridge.js:2018 |
+| Masking | GET `/masking/component/add` | workflow | server/bridge.js:1968 |
+| Masking | GET `/masking/component/delete` | workflow | server/bridge.js:2027 |
+| Masking | GET `/masking/component/invert` | workflow | server/bridge.js:2033 |
+| Masking | GET `/masking/component/subtract` | workflow | server/bridge.js:1968 |
+| Masking | GET `/masking/correction-result` | internal | server/bridge.js:2300 |
+| Masking | GET `/masking/correction/gesture/begin` | workflow | server/bridge.js:2268 |
+| Masking | GET `/masking/correction/gesture/cancel` | workflow | server/bridge.js:2287 |
+| Masking | GET `/masking/correction/gesture/end` | workflow | server/bridge.js:2280 |
+| Masking | GET `/masking/correction/gesture/update` | workflow | server/bridge.js:2273 |
+| Masking | GET `/masking/correction/reset` | workflow | server/bridge.js:2292 |
+| Masking | GET `/masking/create` | workflow | server/bridge.js:1959 |
+| Masking | GET `/masking/edit-result` | internal | server/bridge.js:2343 |
+| Masking | GET `/masking/group/navigate` | workflow | server/bridge.js:1986 |
+| Masking | GET `/masking/group/visibility` | workflow | server/bridge.js:2002 |
+| Masking | GET `/masking/next` | internal | server/bridge.js:1872 |
+| Masking | GET `/masking/operation-result` | internal | server/bridge.js:2377 |
+| Masking | GET `/masking/panel` | workflow | server/bridge.js:1978 |
+| Masking | GET `/masking/point-color/range` | workflow | server/bridge.js:2079 |
+| Masking | GET `/masking/point-color/range-visualization/toggle` | workflow | server/bridge.js:2112 |
+| Masking | GET `/masking/point-color/range/translate` | workflow | server/bridge.js:2088 |
+| Masking | GET `/masking/point-color/sample` | workflow | server/bridge.js:2099 |
+| Masking | GET `/masking/point-color/tool/select` | workflow | server/bridge.js:2105 |
+| Masking | GET `/masking/point-color/value` | workflow | server/bridge.js:2071 |
+| Masking | GET `/masking/preset/apply` | workflow | server/bridge.js:2044 |
+| Masking | GET `/masking/presets` | read | server/bridge.js:2059 |
+| Masking | GET `/masking/query-result` | internal | server/bridge.js:1877 |
+| Masking | GET `/masking/selected/delete` | workflow | server/bridge.js:2022 |
+| Masking | GET `/masking/selected/reset` | workflow | server/bridge.js:2039 |
+| Masking | GET `/masking/state` | read | server/bridge.js:1864 |
+| Masking | GET `/masking/tone-curve/gesture/begin` | workflow | server/bridge.js:2175 |
+| Masking | GET `/masking/tone-curve/gesture/cancel` | workflow | server/bridge.js:2178 |
+| Masking | GET `/masking/tone-curve/gesture/end` | workflow | server/bridge.js:2177 |
+| Masking | GET `/masking/tone-curve/gesture/update` | workflow | server/bridge.js:2176 |
+| Masking | GET `/masking/tone-curve/preset` | workflow | server/bridge.js:2188 |
+| Masking | GET `/masking/tone-curve/refine-saturation/gesture/begin` | workflow | server/bridge.js:2209 |
+| Masking | GET `/masking/tone-curve/refine-saturation/gesture/cancel` | workflow | server/bridge.js:2212 |
+| Masking | GET `/masking/tone-curve/refine-saturation/gesture/end` | workflow | server/bridge.js:2211 |
+| Masking | GET `/masking/tone-curve/refine-saturation/gesture/update` | workflow | server/bridge.js:2210 |
+| Masking | GET `/masking/tone-curve/refine-saturation/reset` | workflow | server/bridge.js:2213 |
+| Masking | GET `/masking/tone-curve/reset` | workflow | server/bridge.js:2180 |
+| Masking | GET `/masking/tone-curve/state` | read | server/bridge.js:2156 |
+| Masking | GET `/masking/tool/navigate` | workflow | server/bridge.js:1994 |
+| Masking | GET `/masking/tool/visibility` | workflow | server/bridge.js:2010 |
 | People | GET `/people/action` | workflow | server/people-routes.js:31 |
 | People | GET `/people/next` | internal | server/people-routes.js:21 |
 | People | GET `/people/operation-result` | internal | server/people-routes.js:42 |
 | People | GET `/people/query-result` | internal | server/people-routes.js:26 |
 | People | GET `/people/state` | read | server/people-routes.js:16 |
 | People | GET `/people/validate` | internal | server/people-routes.js:22 |
-| Point Color | GET `/point-color/next` | internal | server/bridge.js:2774 |
-| Point Color | GET `/point-color/range` | workflow | server/bridge.js:2822 |
-| Point Color | GET `/point-color/range-visualization/toggle` | workflow | server/bridge.js:2856 |
-| Point Color | GET `/point-color/range/translate` | workflow | server/bridge.js:2840 |
-| Point Color | GET `/point-color/result` | internal | server/bridge.js:2779 |
+| Point Color | GET `/point-color/next` | internal | server/bridge.js:2779 |
+| Point Color | GET `/point-color/range` | workflow | server/bridge.js:2827 |
+| Point Color | GET `/point-color/range-visualization/toggle` | workflow | server/bridge.js:2861 |
+| Point Color | GET `/point-color/range/translate` | workflow | server/bridge.js:2845 |
+| Point Color | GET `/point-color/result` | internal | server/bridge.js:2784 |
 | Point Color | GET `/point-color/state` | read | server/bridge.js:1578 |
-| Point Color | GET `/point-color/tool/select` | workflow | server/bridge.js:2861 |
-| Point Color | GET `/point-color/value` | workflow | server/bridge.js:2809 |
+| Point Color | GET `/point-color/tool/select` | workflow | server/bridge.js:2866 |
+| Point Color | GET `/point-color/value` | workflow | server/bridge.js:2814 |
 | Quick Copy Settings / Paste Settings | GET `/clipboard/acknowledge` | workflow | server/clipboard-routes.js:42 |
 | Quick Copy Settings / Paste Settings | GET `/clipboard/action` | workflow | server/clipboard-routes.js:15 |
 | Quick Copy Settings / Paste Settings | GET `/clipboard/claim` | internal | server/clipboard-routes.js:24 |
@@ -215,6 +215,6 @@ Use these paths directly on port **17891**; prepend `/api` only for the Web Cont
 | Tone Curve | GET `/tone-curve/refine-saturation/reset` | workflow | server/bridge.js:1297 |
 | Tone Curve | GET `/tone-curve/reset` | workflow | server/bridge.js:1177 |
 | Tone Curve | GET `/tone-curve/state` | read | server/bridge.js:1023 |
-| Undo / Redo | GET `/history/next` | internal | server/bridge.js:2762 |
-| Undo / Redo | GET `/history/result` | internal | server/bridge.js:2766 |
-| Undo / Redo | GET `/history/state` | read | server/bridge.js:2757 |
+| Undo / Redo | GET `/history/next` | internal | server/bridge.js:2767 |
+| Undo / Redo | GET `/history/result` | internal | server/bridge.js:2771 |
+| Undo / Redo | GET `/history/state` | read | server/bridge.js:2762 |

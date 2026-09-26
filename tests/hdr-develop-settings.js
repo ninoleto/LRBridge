@@ -350,7 +350,7 @@ assert.equal(renderedHDR.children.find(function (child) {
 }).textContent, "Preview for SDR Display must be enabled manually in Lightroom. LRBridge cannot observe or control that preview setting.");
 assert.equal(renderedHDR.children.find(function (child) {
     return child.className === "command-group-note hdr-visualize-note";
-}).textContent, "Visualize HDR must be enabled manually in Lightroom; LRBridge cannot observe or control it.");
+}).innerHTML, "<strong>Visualize HDR</strong> must be enabled manually in Lightroom; LRBridge cannot observe or control it.");
 const renderedOrdinary = sectionContext.createDevelopSectionElement({
     id: "presence", label: "Presence",
     items: [{ definition: { id: "Clarity", label: "Clarity" } }]

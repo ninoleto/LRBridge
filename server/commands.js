@@ -589,7 +589,8 @@ function validateCommand(command) {
         return Object.keys(command).length === 2 && developCategorical.constrainCropValues.includes(command.value);
     }
     if (command.command === "develop_categorical.upright_tool.select") {
-        return Object.keys(command).length === 1;
+        return Object.keys(command).length === 1 ||
+            (Object.keys(command).length === 2 && ["upright", "loupe"].includes(command.value));
     }
     if (command.command === "enhance.denoise.set") {
         return Object.keys(command).length === 3 && typeof command.enabled === "boolean" && Number.isInteger(command.amount) &&

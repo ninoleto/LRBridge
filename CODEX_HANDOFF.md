@@ -1,5 +1,46 @@
 # LRBridge Codex Handoff
 
+## Private-package feedback fixes — scoped source checkpoint, native retest pending (2026-09-26)
+
+- User completed manual testing of private build `20260925T022735Z` and requested
+  this focused source-fix batch plus a local checkpoint, with packaging/publication
+  targeted by September 30. Starting HEAD verified as `f1c4cd0`, eight ahead/zero
+  behind the configured upstream, index empty. No push or publication this pass.
+- Full pre-edit recovery archive uploaded and downloaded back with all 445 manifest
+  entries verified; credentials excluded. Detailed evidence stays in the ignored
+  local handoff. Preserve Denoise Reset, private configuration, research and stash.
+- Fixed a reproducible shared-slider display race: ordinary panel snapshots now
+  advance the same per-slider feedback floor as targeted reads. A delayed older
+  response can no longer undo newer confirmation. Rapid two-slider HSL/Effects,
+  delayed responses, exact writes and photo/Develop guards pass in mocks; the
+  regression fails against the pre-edit source. Native retest remains necessary.
+- B&W treatment-read failures are labelled beside B&W and no longer replace AUTO's
+  status. AUTO commands/errors are unchanged. Lens Blur bokeh now reads SDK state
+  immediately after its action and checks it through a bounded SDK-only route,
+  avoiding unrelated Windows-helper reads. Pending requests are not confirmed
+  highlights. Upright Close selects `loupe` and preserves corrections/crop.
+- Tone Curve order, Detail/Effects grouping, HDR emphasis and Copy/Paste, Lens Blur,
+  Red Eye, Masking and Experimental Selected Add/Subtract guidance are updated.
+  Color Grading and Masking Point Color implementations are untouched. Add/Subtract
+  stopping until Spot Removal was reset is recorded as user evidence; cause remains
+  unknown and reset is not recommended because it can clear corrections.
+- Bounded investigation ended: no new preset controls. HDR/SDR minimal exports and
+  independent behavior were unavailable for verification; Crop overlay and Auto
+  Straighten have no verified route. The developer's Constrain example identifies
+  the existing `CropConstrainToWarp` setting with both checkboxes, superseding the
+  old “distinct setting” statement below. No preset dependency needed; a Crop
+  presentation awaits native 15.4.1 equivalence/preservation verification.
+- Source/mock Lua/HTTP and desktop/narrow CSS browser checks are distinct from
+  Lightroom acceptance. See [completed fixes, evidence and exact short retest](docs/RELEASE_REVIEW.md#september-26-private-package-feedback-fixes--source-retest-pending).
+  This checkpoint is authorized source work, not acceptance of the new behavior.
+  Next: run source bridge, reload source plug-in once and refresh the Controller;
+  retest AUTO/B&W, rapid Green/Aqua/Effects, bokeh timing and Upright Close, then
+  glance at the changed layout/notices. Rebuild only after those checks pass.
+- The old ZIP and extracted test package are unchanged. Do not publish them as
+  containing these fixes. Reuse prior unaffected evidence; no full-suite rerun,
+  broad automation investigation, new dependencies, keyboard injection or unrelated
+  refactoring is required for this batch.
+
 ## Help and HTTP Builder accepted; private portable test build authorized (2026-09-25)
 
 - **The user accepted both Help and HTTP Builder** and authorized a local checkpoint and private Windows portable test ZIP. This supersedes earlier pending Builder review and packaging deferrals. No push, release publication or automatic Lightroom setup change is authorized.

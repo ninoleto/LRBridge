@@ -611,7 +611,7 @@
                 }
                 refinement.appendChild(refinementModes);
                 const refinementHelp = doc.createElement("p"); refinementHelp.className = "remove-reset-defaults";
-                refinementHelp.textContent = "Button feedback is not yet supported. Please check Lightroom Classic for the active Add/Subtract mode.";
+                refinementHelp.textContent = "Experimental: Add/Subtract use Windows interface automation, may stop responding and do not report the active mode. If they fail, use Add/Subtract directly in Lightroom.";
                 refinement.appendChild(refinementHelp);
                 selectionNote = doc.createElement("p"); selectionNote.className = "remove-reset-defaults"; selectionNote.hidden = true;
                 refinement.appendChild(selectionNote);

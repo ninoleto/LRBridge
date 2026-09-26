@@ -6,6 +6,20 @@ HTTP admission means queued, not confirmed Lightroom execution. Check subsequent
 
 After clicking an action button, allow Lightroom time to respond before clicking it again. Repeated clicks can queue additional actions.
 
+September 26 source update (not in private build `20260925T022735Z`):
+`GET /develop-categorical/upright-tool?target=loupe` closes the Upright tool by
+selecting Loupe, preserving the applied correction. `target=upright` opens it;
+omitting `target` retains the original Open behavior. Other targets are rejected.
+Observe `selectedTool` in `/develop-categorical/state` after admission; queue
+acceptance does not confirm tool selection. This is separate from Upright Off,
+Reset Transforms and Reset Crop.
+
+`GET /lens-blur/state?sdkOnly=true` returns the existing SDK snapshot, revision
+and context without waiting for or including Windows helper state. Bokeh uses
+bounded reads after submission and highlights only SDK-read values. The ordinary
+`/lens-blur/state` route keeps its Windows feedback. Only `sdkOnly=true` is accepted;
+this query does not itself execute a bokeh edit or prove a queued action completed.
+
 ## Ordinary URLs
 
 The Builder can generate existing Set/Adjust/Reset, Develop actions, Selection, Photo/Crop, Application and Color Grading URLs. Example: `/set?slider=Exposure&value=1.25`. These use validated native-current context and queue admission; they do not acquire the full captured-selection protocol of Export/Paste. `/command?command=photo.crop_aspect&mode=custom&w=16&h=10` **applies** that aspect ratio; the web controller's own Custom Crop button opens its input dialog.

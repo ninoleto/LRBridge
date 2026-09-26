@@ -2144,6 +2144,10 @@
             componentControls.appendChild(componentHeading);
             componentControls.appendChild(invertCheckboxLabel);
             componentControls.appendChild(invertComponent);
+            const toolLimitations = documentRef.createElement("p");
+            toolLimitations.className = "command-group-note masking-tool-limitations";
+            toolLimitations.textContent = "Adjust these directly in Lightroom: Brush Size, Feather, Flow, Density and Auto Mask; Radial Gradient Feather; and Color Range Refine. The installed SDK has no documented controls for these tool settings. Mask adjustment sliders remain available below.";
+            componentControls.appendChild(toolLimitations);
             const status = documentRef.createElement("div");
             status.className = "masking-status";
             status.setAttribute("aria-live", "polite");

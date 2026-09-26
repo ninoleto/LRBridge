@@ -171,7 +171,7 @@ const server=http.createServer((req,res)=>{
                     }
                     return entries;
                 })()`);
-                assert.deepEqual(controlLimits.map(entry=>entry.label),["Healing → Remove → Selected Add/Subtract","Healing → Dust","Point Color → Visualize Range","Lens Blur focus controls"],"control limitations must use bold paragraph labels in the approved order");
+                assert.deepEqual(controlLimits.map(entry=>entry.label),["Healing → Remove → Selected Add/Subtract","Healing → Dust","Point Color → Visualize Range","Lens Blur focus controls","Copy / Paste Settings"],"control limitations must use bold paragraph labels in order");
                 assert.deepEqual(controlLimits[1].paragraphs,[
                     "LRBridge controls Dust Apply on/off and Reset by applying two included presets in Lightroom Classic. If those presets are not installed, these buttons are unavailable. Dust Size, Visualize Spots and Threshold do not require the presets.",
                     "This setup is only necessary if you want to use Dust Apply or Reset through LRBridge. See Set up the Lightroom plug-in for instructions.",
@@ -223,12 +223,11 @@ const server=http.createServer((req,res)=>{
                 assert.deepEqual(knownSections[3].items,["LRBridge is running.","The LRBridge plug-in is enabled in Lightroom Classic.","A photo is selected.","Lightroom is in Develop when using editing controls.","No Lightroom dialog is blocking interaction."]);
                 assert.match(knownSections[3].text,/Allow Lightroom to finish any current processing\. If the Web Controller remains disconnected, reload the browser page/);
                 assert.doesNotMatch(limits,/Reset feedback has improved|in our tests|underlying issue remains unresolved|user-reported issue remains unresolved/);
-                assert.match(knownSections[4].text,/Add and Subtract can be activated from LRBridge, but the Web Controller does not show which mode is active/);
-                assert.match(knownSections[4].text,/intermittently unreliable: a request may occasionally have no effect/);
-                assert.match(knownSections[4].text,/use Add or Subtract directly in Lightroom Classic/);
+                assert.match(knownSections[4].text,/Experimental: Add\/Subtract use Windows interface automation, may stop responding and do not report the active mode/);
+                assert.match(knownSections[4].text,/use Add\/Subtract directly in Lightroom/);
                 assert.match(knownSections[4].text,/LRBridge can switch Visualize Range on or off, but the Web Controller does not display its current state/);
-                assert.match(knownSections[4].text,/focus-mode highlight can occasionally lag after switching Subject Focus or Point \/ Area Focus/);
-                assert.match(knownSections[4].text,/Hovering over the corresponding button in Lightroom may refresh the highlight/);
+                assert.match(knownSections[4].text,/Focus Range \(near\/far\) uses the Lightroom SDK/);
+                assert.match(knownSections[4].text,/Focus-mode feedback may lag or be unavailable/);
                 assert.deepEqual(knownSections[5].items,["Camera Profile choices and names","Lens Blur Visualize Depth state"]);
                 assert.match(knownSections[5].text,/This is separate from how LRBridge sends changes to these settings/);
                 assert.match(knownSections[5].text,/controls may temporarily appear unavailable or may not display their current state correctly/);

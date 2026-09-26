@@ -30,7 +30,7 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab, relo
         }
         return previous(url, reply);
     };
-    const copyLabel = "Quick Copy Settings", copyHelp = "Copies settings from the active photo without opening a dialog. Uses the categories last selected in Lightroom’s Copy Settings dialog.";
+    const copyLabel = "Quick Copy Settings", copyHelp = "Choose the settings categories in Lightroom’s Copy Settings dialog. Use Quick Copy Settings to copy the active photo’s current settings, select destination photos, then Paste Settings. Copying directly in Lightroom also works; Quick Copy is not required.";
     const favorite = id => "document.querySelector('[data-favorite-action=\"" + id + "\"]')";
     const enabled = id => waitFor(() => evaluate(favorite(id) + "?.getAttribute('aria-disabled')==='false'"), "feedback favorite available: " + id);
     const click = id => evaluate(favorite(id) + ".click()");

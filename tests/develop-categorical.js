@@ -200,7 +200,7 @@ for (const command of [
     { command: "develop_categorical.vignette_style.set", value: 0 },
     { command: "develop_categorical.upright_mode.set", value: 6 },
     { command: "develop_categorical.constrain_crop.set", value: 2 },
-    { command: "develop_categorical.upright_tool.select", value: "upright" }
+    { command: "develop_categorical.upright_tool.select", value: "crop" }
 ]) assert.equal(commands.validateCommand(command), false, JSON.stringify(command));
 
 const lua = read("lightroom/LRBridge.lrplugin/DevelopCategorical.lua");
@@ -223,7 +223,7 @@ assert.match(lua, /getValue\("CropConstrainToWarp"\)/);
 assert.match(lua, /setValue\("CropConstrainToWarp", value\)/);
 assert.match(lua, /type\(constrainCrop\) == "number"/);
 assert.match(lua, /local constrainCropValues = \{ \[0\] = true, \[1\] = true \}/);
-assert.match(lua, /selectTool\("upright"\)/);
+assert.match(lua, /selectTool\(target\)/);
 assert.doesNotMatch(lua, /SendInput|SetCursorPos|keybd_event|mouse_event|Update\s*\(/i);
 assert.match(polling, /require "DevelopCategorical"/);
 assert.match(polling, /develop-categorical\/next/);

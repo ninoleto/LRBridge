@@ -75,7 +75,7 @@ const metadataToneCurveIds = [
 ];
 const expectedToneCurveDisplayOrder = [
     "ParametricShadowSplit", "ParametricMidtoneSplit", "ParametricHighlightSplit",
-    "ParametricShadows", "ParametricDarks", "ParametricLights", "ParametricHighlights"
+    "ParametricHighlights", "ParametricLights", "ParametricDarks", "ParametricShadows"
 ];
 assert.deepEqual(toneCurveDefinitions.map((item) => item.id), metadataToneCurveIds, "Tone Curve metadata group drifted");
 assert.equal(new Set(toneCurveDefinitions.map((item) => item.id)).size, 7, "Tone Curve slider ID duplicated");
@@ -1182,13 +1182,13 @@ assert.deepEqual(submittedStepValues, [{ value: 9, kind: "step" }]);
 assert.equal(handledSubmissions, 1);
 
 assert.match(builder, /id:\s*"set"[\s\S]*route:\s*"set"[\s\S]*valueSource:\s*"sliders"/);
-assert.match(builder, /return "\/api\/set\?slider="/);
+assert.match(builder, /return "\/set\?slider="/);
 assert.match(builder, /slider\.numericStep/);
-assert.match(builder, /builderAmount\.min = String\(slider\.min\)/);
-assert.match(builder, /builderAmount\.max = String\(slider\.max\)/);
-assert.match(builder, /builderAmount\.step = String\(slider\.numericStep\)/);
-assert.match(builder, /copyBuilderPath"\)\.disabled = !valid/);
-assert.match(builder, /copyBuilderFull"\)\.disabled = !valid/);
+assert.match(builder, /numberInput\(card, "value"[^\n]+slider\.min, slider\.max, slider\.numericStep\)/);
+assert.match(builder, /input\.min = String\(min\)/);
+assert.match(builder, /input\.max = String\(max\)/);
+assert.match(builder, /input\.step = step === undefined \? "any" : String\(step\)/);
+assert.match(builder, /copyPath\.disabled = copyFull\.disabled = !value/);
 assert.match(builder, /fetch\("\/api\/sliders"\)/);
 
 for (const item of feedbackDefinitions) {

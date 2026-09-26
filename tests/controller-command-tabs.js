@@ -428,7 +428,7 @@ assert.match(source, /row\.appendChild\(autoButton\)[\s\S]*developTreatmentPrese
     updateTreatmentButton();
     assert.equal(developView.button.textContent, "B&W");
     assert.equal(developView.button.attributes["aria-pressed"], "false");
-    assert.equal(developView.status.textContent, "Treatment unavailable");
+    assert.equal(developView.status.textContent, "B&W: treatment feedback unavailable");
     assert.equal(developView.button.disabled, true);
     for (const view of treatmentPresentationContext.presetTreatmentPresentations) {
         assert.equal(view.colorButton.attributes["aria-pressed"], "false");
@@ -610,7 +610,7 @@ for (const unsupportedLabel of ["Auto", "Auto Straighten", "Constrain to Image",
 assert.ok(!cropGroups.some((group) => group.name === "Constrain to Image" || group.name === "Tool Overlay"),
     "Unsupported Crop settings must not render as separate sections");
 const consolidatedCropLimitation =
-    "Auto Straighten, Constrain to Image, and Tool Overlay must be controlled manually in Lightroom because they are not exposed through the SDK.";
+    "Use Auto Straighten, Constrain to Image and Crop Tool Overlay directly in Lightroom. LRBridge's existing Constrain Crop control is under Transform.";
 assert.ok(source.includes("const cropSdkLimitations = " + JSON.stringify(consolidatedCropLimitation) + ";"),
     "The consolidated Crop SDK limitation text drifted");
 assert.ok(source.includes('limitations.innerHTML = cropSdkLimitations.replace(/Auto Straighten|Constrain to Image|Tool Overlay/g, "<strong>$&</strong>");'),
