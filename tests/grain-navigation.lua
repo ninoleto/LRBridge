@@ -29,7 +29,8 @@ local imports = {
 }
 function import(name) assert(imports[name], name); return imports[name] end
 for _, name in ipairs({ "DevelopCategorical", "Query", "Selection", "Application", "Photo", "Crop",
-    "ColorGrading", "Enhance", "PointColor", "History", "LensBlur", "ToneCurve", "Profile", "DevelopPresets", "Masking" }) do
+    "ColorGrading", "Enhance", "PointColor", "History", "LensBlur", "ToneCurve", "Profile", "DevelopPresets", "Masking",
+    "Remove", "Reflections", "People", "RedEye", "Export", "SettingsClipboard" }) do
     package.loaded[name] = {}
 end
 local Parser = require "Parser"
@@ -49,7 +50,8 @@ for index, json in ipairs(wireCommands) do
         else assert(values[command.slider] == (command.slider == "GrainSize" and 25 or 50)) end
     else
         assert(calls[1][1] == "module")
-        assert(calls[3][1] == "panel" and calls[3][2] == "GrainSize")
+        assert(calls[2][1] == "panel" and calls[2][2] == "GrainSize")
+        assert(calls[3][1] == "sleep", "global Grain retains panel preparation in Develop")
     end
     assert(values.local_Grain == 27 and selectedMask == "mask-a" and selectedComponent == "component-b")
 end

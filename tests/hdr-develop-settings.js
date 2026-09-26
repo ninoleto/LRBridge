@@ -288,7 +288,7 @@ assert.match(sliderControlBlock,
     /parseDevelopSliderValue\([\s\S]*number\.value[\s\S]*flushDevelopSliderValue\(control, nextValue, "numeric"\)/,
     "Numeric entry must continue submitting actual SDK values");
 assert.match(sliderControlBlock,
-    /sendCommand\("\/api\/reset\?slider=" \+ encodeURIComponent\(definition\.id\) \+ developSliderNavigationQuery\(control\)\)/,
+    /resetDevelopSlider\(control\)/,
     "HDR Limit must retain the generic native Reset route");
 
 function fakeElement(tagName) {

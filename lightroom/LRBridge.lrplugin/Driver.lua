@@ -137,8 +137,13 @@ local function prepareDevelopSlider(developSlider, command)
         return true
     end
 
+    local alreadyInDevelop = LrApplicationView.getCurrentModuleName() == "develop"
     LrApplicationView.switchToModule("develop")
-    LrTasks.sleep(0.2)
+    -- Keep the existing SDK wake request, but only wait for an actual module
+    -- transition. Repeating this wait for every drag/Reset backs up the queue.
+    if not alreadyInDevelop then
+        LrTasks.sleep(0.2)
+    end
 
     if developSlider == "HDREditMode" or developSlider == "HDRMaxValue" or
         string.sub(developSlider, 1, 3) == "SDR" then

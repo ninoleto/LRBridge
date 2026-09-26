@@ -1,0 +1,216 @@
+{
+  "description": "Real touchscreen capture on 2026-09-26 at 23:24 local; source 9ce462f plus uncommitted feedback correction. Personal photo identity omitted. Timings are observations BEFORE the preparation change, not mock performance assertions.",
+  "activeModule": "develop",
+  "commands": [
+    {
+      "kind": "develop.set",
+      "slider": "HueAdjustmentGreen",
+      "value": -55,
+      "beganMs": 37622,
+      "returnedMs": 37891.1
+    },
+    {
+      "kind": "develop.set",
+      "slider": "SaturationAdjustmentGreen",
+      "value": 35,
+      "beganMs": 38137.9,
+      "returnedMs": 38420
+    },
+    {
+      "kind": "develop.set",
+      "slider": "LuminanceAdjustmentGreen",
+      "value": -39,
+      "beganMs": 38536.1,
+      "returnedMs": 38805.1
+    },
+    {
+      "kind": "develop.set",
+      "slider": "HueAdjustmentAqua",
+      "value": 40,
+      "beganMs": 38936.2,
+      "returnedMs": 39209.1
+    },
+    {
+      "kind": "develop.set",
+      "slider": "SaturationAdjustmentAqua",
+      "value": -55,
+      "beganMs": 39332.4,
+      "returnedMs": 39601.8
+    },
+    {
+      "kind": "develop.set",
+      "slider": "LuminanceAdjustmentAqua",
+      "value": 53,
+      "beganMs": 39724.2,
+      "returnedMs": 39991.9
+    },
+    {
+      "kind": "develop.set",
+      "slider": "HueAdjustmentAqua",
+      "value": -10,
+      "beganMs": 40207.1,
+      "returnedMs": 40476.1
+    },
+    {
+      "kind": "develop.set",
+      "slider": "SaturationAdjustmentAqua",
+      "value": 21,
+      "beganMs": 40591.5,
+      "returnedMs": 40871.6
+    },
+    {
+      "kind": "develop.set",
+      "slider": "LuminanceAdjustmentAqua",
+      "value": -7,
+      "beganMs": 40979.8,
+      "returnedMs": 41252.1
+    },
+    {
+      "kind": "develop.set",
+      "slider": "SaturationAdjustmentAqua",
+      "value": -27,
+      "beganMs": 41518.1,
+      "returnedMs": 41809
+    },
+    {
+      "kind": "develop.set",
+      "slider": "HueAdjustmentAqua",
+      "value": -36,
+      "beganMs": 41953.1,
+      "returnedMs": 42225.4
+    },
+    {
+      "kind": "develop.set",
+      "slider": "LuminanceAdjustmentGreen",
+      "value": -70,
+      "beganMs": 42343.1,
+      "returnedMs": 42611.8
+    },
+    {
+      "kind": "develop.set",
+      "slider": "SaturationAdjustmentGreen",
+      "value": 0,
+      "beganMs": 42831.1,
+      "returnedMs": 43096.8
+    },
+    {
+      "kind": "develop.set",
+      "slider": "HueAdjustmentGreen",
+      "value": -2,
+      "beganMs": 43219.4,
+      "returnedMs": 43485.9
+    },
+    {
+      "kind": "develop.set",
+      "slider": "LuminanceAdjustmentGreen",
+      "value": 13,
+      "beganMs": 43594.5,
+      "returnedMs": 43865.8
+    },
+    {
+      "kind": "develop.set",
+      "slider": "SaturationAdjustmentGreen",
+      "value": 32,
+      "beganMs": 44009,
+      "returnedMs": 44275.8
+    },
+    {
+      "kind": "develop.set",
+      "slider": "HueAdjustmentGreen",
+      "value": 0,
+      "beganMs": 44553.7,
+      "returnedMs": 44833.2
+    },
+    {
+      "kind": "develop.set",
+      "slider": "SaturationAdjustmentGreen",
+      "value": -12,
+      "beganMs": 44948.7,
+      "returnedMs": 45217.4
+    },
+    {
+      "kind": "develop.set",
+      "slider": "LuminanceAdjustmentGreen",
+      "value": -14,
+      "beganMs": 45325.8,
+      "returnedMs": 45593.6
+    },
+    {
+      "kind": "develop.reset",
+      "slider": "SaturationAdjustmentGreen",
+      "beganMs": 45701.3,
+      "returnedMs": 45964.8
+    },
+    {
+      "kind": "develop.reset",
+      "slider": "LuminanceAdjustmentGreen",
+      "beganMs": 46198.4,
+      "returnedMs": 46470
+    },
+    {
+      "kind": "develop.reset",
+      "slider": "HueAdjustmentAqua",
+      "beganMs": 46579.7,
+      "returnedMs": 46845.7
+    },
+    {
+      "kind": "develop.reset",
+      "slider": "SaturationAdjustmentAqua",
+      "beganMs": 47066.5,
+      "returnedMs": 47334.1
+    },
+    {
+      "kind": "develop.reset",
+      "slider": "LuminanceAdjustmentAqua",
+      "beganMs": 47444.8,
+      "returnedMs": 47712.1
+    }
+  ],
+  "resets": [
+    {
+      "slider": "SaturationAdjustmentGreen",
+      "clickMs": 45583,
+      "dispatchMs": 45583,
+      "luaBeganMs": 45701.3,
+      "luaReturnedMs": 45964.8,
+      "sdkResultReceivedMs": 46578,
+      "browserAppliedMs": 46591
+    },
+    {
+      "slider": "LuminanceAdjustmentGreen",
+      "clickMs": 45982,
+      "dispatchMs": 45982,
+      "luaBeganMs": 46198.4,
+      "luaReturnedMs": 46470,
+      "sdkResultReceivedMs": 46956,
+      "browserAppliedMs": 46961
+    },
+    {
+      "slider": "HueAdjustmentAqua",
+      "clickMs": 46349,
+      "dispatchMs": 46349,
+      "luaBeganMs": 46579.7,
+      "luaReturnedMs": 46845.7,
+      "sdkResultReceivedMs": 47442,
+      "browserAppliedMs": 47448
+    },
+    {
+      "slider": "SaturationAdjustmentAqua",
+      "clickMs": 46666,
+      "dispatchMs": 46666,
+      "luaBeganMs": 47066.5,
+      "luaReturnedMs": 47334.1,
+      "sdkResultReceivedMs": 47838,
+      "browserAppliedMs": 47843
+    },
+    {
+      "slider": "LuminanceAdjustmentAqua",
+      "clickMs": 46967,
+      "dispatchMs": 46968,
+      "luaBeganMs": 47444.8,
+      "luaReturnedMs": 47712.1,
+      "sdkResultReceivedMs": 48059,
+      "browserAppliedMs": 48065
+    }
+  ]
+}

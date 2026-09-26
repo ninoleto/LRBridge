@@ -448,8 +448,8 @@ assert.match(controller, /function markSliderCommandSent\(\) \{\s*startAutoActio
     "Every actual generic slider submission must restart the history cooldown");
 assert.match(controller, /markSliderCommandSent\(\);\s*const accepted = await sendCommand\(/,
     "Reusable slider Set submissions must restart the history cooldown");
-assert.match(controller, /const reset = makeButton\("Reset"[\s\S]*markSliderCommandSent\(\);\s*sendCommand\("\/api\/reset/,
-    "Reusable slider Reset must restart the history cooldown");
+assert.match(controller, /function resetDevelopSlider\(control\)[\s\S]*submitDevelopSliderValue\(control, null, "reset"/,
+    "Reusable slider Reset must share the ordered writer and its history cooldown");
 assert.doesNotMatch(controller, /SendKeys|keybd_event|mouse_event|AutoHotkey/i,
     "Web Controller must not emulate keyboard input for history");
 assert.match(historyLua, /LrUndo\.canUndo\(\)/);

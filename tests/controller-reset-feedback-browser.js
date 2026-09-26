@@ -435,7 +435,8 @@ async function verify({ evaluate, waitFor, selectTab, fixture }) {
         const reads = state.requests.slice(earlyReadStart).filter(read => read.sliders.length <= 3 && read.sliders.includes(slider));
         assert(reads.length >= 2 && reads.length <= 4, "Bound renewal of early same-value feedback");
         assert(applied.at - execution.at < 350, "Prompt readback after the SDK executes " + slider);
-        return { slider, resetToDomMs: applied.at - edit.at, executionToDomMs: applied.at - execution.at, reads: reads.length };
+        return { slider, dispatchToExecutionMs: execution.at - edit.at,
+            resetToDomMs: applied.at - edit.at, executionToDomMs: applied.at - execution.at, reads: reads.length };
     });
     console.log("Early Reset read recovery: " + JSON.stringify(earlyTimings));
     state.resetExecutionDelay = 0;

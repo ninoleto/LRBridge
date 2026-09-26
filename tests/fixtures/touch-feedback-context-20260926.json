@@ -1,0 +1,81 @@
+{
+  "description": "Two actual obsolete snapshot failures from the 23:04 touchscreen recording. Only photo identity is sanitized; no native behavior is inferred from replay.",
+  "cases": [
+    {
+      "errorAtMs": 50873,
+      "requestId": 17733,
+      "status": 404,
+      "body": {
+        "ok": false,
+        "error": "Unknown feedback snapshot"
+      },
+      "browserContext": {
+        "activeModule": "develop",
+        "selectedPhotoUuid": "captured-photo",
+        "contextCounter": 2,
+        "contextChangedAt": 1790453966535,
+        "developCounter": 65
+      },
+      "nextContextAtMs": 51078,
+      "nextContext": {
+        "activeModule": "develop",
+        "selectedPhotoUuid": "captured-photo",
+        "contextCounter": 2,
+        "contextChangedAt": 1790453966535,
+        "developCounter": 66
+      },
+      "affected": [
+        {
+          "slider": "LensProfileDistortionScale",
+          "feedbackState": "unavailable",
+          "authoritativeValue": null,
+          "disabled": true
+        },
+        {
+          "slider": "LensProfileVignettingScale",
+          "feedbackState": "unavailable",
+          "authoritativeValue": null,
+          "disabled": true
+        }
+      ]
+    },
+    {
+      "errorAtMs": 57318,
+      "requestId": 17759,
+      "status": 404,
+      "body": {
+        "ok": false,
+        "error": "Unknown feedback snapshot"
+      },
+      "browserContext": {
+        "activeModule": "develop",
+        "selectedPhotoUuid": "captured-photo",
+        "contextCounter": 2,
+        "contextChangedAt": 1790453966535,
+        "developCounter": 66
+      },
+      "nextContextAtMs": 57576,
+      "nextContext": {
+        "activeModule": "develop",
+        "selectedPhotoUuid": "captured-photo",
+        "contextCounter": 2,
+        "contextChangedAt": 1790453966535,
+        "developCounter": 67
+      },
+      "affected": [
+        {
+          "slider": "LensProfileDistortionScale",
+          "feedbackState": "unavailable",
+          "authoritativeValue": null,
+          "disabled": true
+        },
+        {
+          "slider": "LensProfileVignettingScale",
+          "feedbackState": "unavailable",
+          "authoritativeValue": null,
+          "disabled": true
+        }
+      ]
+    }
+  ]
+}

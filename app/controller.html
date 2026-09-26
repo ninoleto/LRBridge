@@ -1234,7 +1234,7 @@
 
         .develop-categorical-options button.active,
         .develop-categorical-options button.active:hover,
-        .develop-categorical-action.active {
+        .develop-categorical-action.active:not(.command-danger) {
             background: #2a6f97;
             color: #ffffff;
         }
@@ -5769,6 +5769,8 @@
                 }
                 if (!response.ok) {
                     const failure = new Error("Feedback snapshot HTTP " + response.status);
+                    failure.feedbackSnapshotMissing = response.status === 404 && data &&
+                        data.error === "Unknown feedback snapshot";
                     failure.feedbackDiagnostic = {
                         endpoint: endpoint,
                         requestId: requestId,
@@ -5893,6 +5895,7 @@
             const binding = developSliderFeedbackBinding();
             const abortController = new AbortController();
             genericFeedbackAbortController = abortController;
+            let refreshObsoleteSnapshot = false;
 
             try {
                 const response = await fetch("/api/feedback/request-many?sliders=" + encodeURIComponent(visibleSliders.join(",")), {
@@ -5927,6 +5930,17 @@
             } catch (err) {
                 if (abortController.signal.aborted || generation !== genericFeedbackGeneration ||
                     !developSliderFeedbackBindingMatches(binding)) return;
+                if (err.feedbackSnapshotMissing === true) {
+                    // The server can discard an old revision before our regular
+                    // context poll sees the edit. Verify a fresh context before
+                    // classifying this as a failure of the current controls.
+                    const contextRead = await pollControllerContext(true);
+                    if (abortController.signal.aborted || generation !== genericFeedbackGeneration) return;
+                    if (contextRead && !developSliderFeedbackBindingMatches(binding)) {
+                        refreshObsoleteSnapshot = true;
+                        return;
+                    }
+                }
                 logFeedbackSnapshotFailure(err.feedbackDiagnostic || {
                     endpoint: "/api/feedback/snapshot",
                     reason: "connection-or-response-failure",
@@ -5939,17 +5953,20 @@
                 if (generation !== genericFeedbackGeneration) return;
                 genericFeedbackAbortController = null;
                 liveFeedbackSnapshotInFlight = false;
-                if (pendingFullFeedbackSnapshot && genericFeedbackActive && isGenericDevelopFeedbackTab(activeTab)) {
+                if ((pendingFullFeedbackSnapshot || refreshObsoleteSnapshot) && genericFeedbackActive && isGenericDevelopFeedbackTab(activeTab)) {
+                    const requestAll = pendingFullFeedbackSnapshot || (refreshObsoleteSnapshot && forceAll === true);
                     pendingFullFeedbackSnapshot = false;
-                    requestLiveFeedbackSnapshot(true);
+                    requestLiveFeedbackSnapshot(requestAll);
                 }
             }
         }
 
         let controllerContextPollInFlight = null;
 
-        async function pollControllerContext() {
+        async function pollControllerContext(requireFresh) {
             // Reset retries need a fresh context without racing the interval poll.
+            // Error classification must not reuse a read started before the error.
+            if (requireFresh === true && controllerContextPollInFlight) await controllerContextPollInFlight;
             if (!controllerContextPollInFlight) {
                 controllerContextPollInFlight = readControllerContext().finally(function () {
                     controllerContextPollInFlight = null;
@@ -5962,6 +5979,7 @@
             try {
                 const response = await fetch("/api/context", { cache: "no-store" });
                 const data = await response.json();
+                if (!response.ok || !data || data.ok !== true) throw new Error("Controller context request failed");
                 const previous = {
                     contextCounter: lastControllerContextCounter,
                     contextChangedAt: lastControllerContextChangedAt,
@@ -6896,14 +6914,14 @@
             return !!control && control.definition.id === "ProfileAmount";
         }
 
-        function profileAmountSubmissionBlocked(control) {
+        function profileAmountSubmissionBlocked(control, submittingPendingEdit) {
             if (!isProfileAmountControl(control)) return false;
             return control.profileAmountEnabled !== true ||
                 control.feedbackState !== "available" ||
                 !Number.isFinite(Number(control.authoritativeValue)) ||
                 control.range.disabled || control.number.disabled ||
                 control.decrement.disabled || control.increment.disabled || control.reset.disabled ||
-                control.confirmationPending;
+                (!submittingPendingEdit && control.confirmationPending);
         }
 
         function notifyDevelopSliderPresentation(control) {
@@ -6961,7 +6979,7 @@
             if (control.hideWhenUnavailable) control.row.hidden = false;
 
             if (control.desiredValue !== null) {
-                if (valuesMatchDevelopSlider(control.definition, numericValue, control.desiredValue)) {
+                if (!developSliderSubmissionPending(control) && valuesMatchDevelopSlider(control.definition, numericValue, control.desiredValue)) {
                     const confirmedValue = control.desiredValue;
                     cancelDevelopSliderStep(control);
                     if (rangeChanged || !valuesMatchDevelopSlider(
@@ -7027,7 +7045,7 @@
                     control.authoritativeValue = Number(result.value);
                     control.hasAuthoritativeValueEver = true;
                     hasReceivedAnyAuthoritativeDevelopValue = true;
-                    if (valuesMatchDevelopSlider(control.definition, result.value, control.desiredValue)) {
+                    if (!developSliderSubmissionPending(control) && valuesMatchDevelopSlider(control.definition, result.value, control.desiredValue)) {
                         const confirmedValue = control.desiredValue;
                         control.numberCommittedValue = Number(result.value);
                         cancelDevelopSliderStep(control);
@@ -7133,8 +7151,16 @@
             });
         }
 
+        function developSliderSubmissionPending(control) {
+            return control.requestInFlight || control.pendingValue != null ||
+                Boolean(control.pendingResets && control.pendingResets.length);
+        }
+
         async function submitDevelopSliderValue(control, value, kind, completion) {
-            if (profileAmountSubmissionBlocked(control)) {
+            const reset = kind === "reset";
+            // UI entry points already guard re-entry. The current edit itself
+            // may have set confirmationPending before reaching this writer.
+            if (profileAmountSubmissionBlocked(control, true)) {
                 if (completion) completion(false);
                 return;
             }
@@ -7145,7 +7171,7 @@
                 return;
             }
             if (
-                value === control.lastSubmittedValue &&
+                !reset && value === control.lastSubmittedValue &&
                 !control.requestInFlight &&
                 control.authoritativeValue !== null &&
                 valuesMatchDevelopSlider(control.definition, control.authoritativeValue, value)
@@ -7154,9 +7180,15 @@
                 return;
             }
             if (control.requestInFlight) {
+                if (reset) {
+                    if (!control.pendingResets) control.pendingResets = [];
+                    control.pendingResets.push({ completion: completion, owner: developSliderFeedbackBinding() });
+                    return;
+                }
                 control.pendingValue = value;
                 control.pendingKind = kind || null;
                 control.pendingCompletion = completion || null;
+                control.pendingOwner = developSliderFeedbackBinding();
                 return;
             }
 
@@ -7164,30 +7196,47 @@
             control.lastSubmittedValue = value;
             markSliderCommandSent();
             const accepted = await sendCommand(
-                "/api/set?slider=" + encodeURIComponent(control.definition.id) +
-                "&value=" + encodeURIComponent(String(value)) + developSliderNavigationQuery(control)
+                (reset ? "/api/reset?slider=" : "/api/set?slider=") + encodeURIComponent(control.definition.id) +
+                (reset ? "" : "&value=" + encodeURIComponent(String(value))) + developSliderNavigationQuery(control)
             );
             control.requestInFlight = false;
+            if (!accepted) control.lastSubmittedValue = null;
             if (completion) completion(accepted);
 
-            if (control.pendingValue !== null) {
+            drainDevelopSliderSubmissions(control);
+        }
+
+        function drainDevelopSliderSubmissions(control) {
+            if (control.requestInFlight) return;
+            const binding = developSliderFeedbackBinding();
+            const sameOwner = function (owner) {
+                return control.row.isConnected && owner && Object.keys(owner).every(function (field) {
+                    return field === "developCounter" || owner[field] === binding[field];
+                });
+            };
+            while (control.pendingResets && control.pendingResets.length) {
+                const reset = control.pendingResets.shift();
+                if (!sameOwner(reset.owner)) continue;
+                submitDevelopSliderValue(control, null, "reset", reset.completion);
+                return;
+            }
+            if (control.pendingValue !== null && control.throttleTimer === null) {
                 const nextValue = control.pendingValue;
                 const nextKind = control.pendingKind;
                 const nextCompletion = control.pendingCompletion;
+                const nextOwner = control.pendingOwner;
                 control.pendingValue = null;
                 control.pendingKind = null;
                 control.pendingCompletion = null;
-                if (nextValue !== control.lastSubmittedValue) {
-                    submitDevelopSliderValue(control, nextValue, nextKind, nextCompletion);
-                } else if (nextCompletion) {
-                    nextCompletion(true);
-                }
+                if (!sameOwner(nextOwner)) return;
+                submitDevelopSliderValue(control, nextValue, nextKind, nextCompletion);
             }
         }
 
         function scheduleDevelopSliderValue(control, value) {
             control.pendingValue = value;
             control.pendingKind = "range";
+            control.pendingOwner = developSliderFeedbackBinding();
             if (control.throttleTimer !== null) return;
 
             control.throttleTimer = setTimeout(function () {
@@ -7204,6 +7253,8 @@
         }
 
         function flushDevelopSliderValue(control, value, kind) {
+            cancelDevelopSliderStep(control);
+            const editGeneration = control.editGeneration;
             if (control.throttleTimer !== null) {
                 clearTimeout(control.throttleTimer);
                 control.throttleTimer = null;
@@ -7227,6 +7278,7 @@
             control.confirmationPending = true;
             control.stepConfirmationExpired = false;
             submitDevelopSliderValue(control, value, kind || null, function (accepted) {
+                if (control.editGeneration !== editGeneration) return;
                 handleDevelopSliderStepSubmission(control, value, accepted);
             });
         }
@@ -7243,6 +7295,7 @@
         }
 
         function cancelDevelopSliderStep(control) {
+            control.editGeneration = (control.editGeneration || 0) + 1;
             clearDevelopSliderStepTimers(control);
             control.desiredValue = null;
             control.confirmationPending = false;
@@ -7280,7 +7333,7 @@
         function requestDevelopSliderResetFeedback(control, owner, beforeValue) {
             pendingDevelopSliderResetFeedback.set(control, {
                 owner: owner || developSliderFeedbackBinding(), deadline: Date.now() + 4000, attempts: 0, readyAt: 0,
-                beforeValue: beforeValue
+                beforeValue: beforeValue, editGeneration: control.editGeneration
             });
             scheduleDevelopSliderResetFeedback();
         }
@@ -7296,7 +7349,7 @@
             pendingDevelopSliderResetFeedback.forEach(function (demand, control) {
                 // Only demand survives same-photo revisions. Each result still
                 // requires the complete binding captured for its own read.
-                if (!control.row.isConnected || Date.now() >= demand.deadline ||
+                if (!control.row.isConnected || demand.editGeneration !== control.editGeneration || Date.now() >= demand.deadline ||
                     (demand.attempts >= 4 && !hasDevelopSliderResetFeedbackRead(control)) ||
                     !Object.keys(demand.owner).every(function (field) {
                         return field === "developCounter" || demand.owner[field] === binding[field];
@@ -7373,7 +7426,7 @@
                 invalidated = invalidated || !developSliderFeedbackBindingMatches(binding);
                 if (!invalidated) batch.forEach(function (entry) {
                     const control = entry[0], demand = entry[1];
-                    if (pendingDevelopSliderResetFeedback.get(control) !== demand) return;
+                    if (pendingDevelopSliderResetFeedback.get(control) !== demand || demand.editGeneration !== control.editGeneration) return;
                     const result = outcome.snapshot && outcome.snapshot.results && outcome.snapshot.results[control.definition.id];
                     if (control.row.isConnected && result) {
                         applyTargetedDevelopSliderFeedback(control, result, data.request.id, binding);
@@ -7403,6 +7456,7 @@
         async function requestDevelopSliderStepFeedback(control, adoptResult) {
             const slider = control.definition.id;
             const binding = developSliderFeedbackBinding();
+            const editGeneration = control.editGeneration;
             try {
                 const response = await fetch(
                     "/api/feedback/request?slider=" + encodeURIComponent(slider),
@@ -7414,7 +7468,7 @@
                     throw new Error("Targeted feedback request failed");
                 }
                 const outcome = await pollFeedbackSnapshot(request.id, 1900);
-                if (!control.row.isConnected || !developSliderFeedbackBindingMatches(binding)) return;
+                if (!control.row.isConnected || control.editGeneration !== editGeneration || !developSliderFeedbackBindingMatches(binding)) return;
                 const result = outcome.snapshot &&
                     outcome.snapshot.results &&
                     outcome.snapshot.results[slider];
@@ -7431,7 +7485,7 @@
                 if (adoptResult) control.stepConfirmationExpired = true;
                 applyTargetedDevelopSliderFeedback(control, result, request.id, binding);
             } catch (err) {
-                if (!control.row.isConnected || !developSliderFeedbackBindingMatches(binding)) return;
+                if (!control.row.isConnected || control.editGeneration !== editGeneration || !developSliderFeedbackBindingMatches(binding)) return;
                 if (adoptResult) {
                     cancelDevelopSliderStep(control);
                     if (control.authoritativeValue !== null) {
@@ -7463,9 +7517,10 @@
             }
 
             requestDevelopSliderStepFeedback(control, false);
+            const editGeneration = control.editGeneration;
             control.stepConfirmationTimer = setTimeout(function () {
                 control.stepConfirmationTimer = null;
-                if (control.desiredValue === null) return;
+                if (control.desiredValue === null || control.editGeneration !== editGeneration) return;
                 requestDevelopSliderStepFeedback(control, true);
             }, 2000);
         }
@@ -7488,7 +7543,9 @@
                     control.numberCommittedValue = preparedValue;
                 }
                 const desiredAtSubmission = control.desiredValue;
+                const editGeneration = control.editGeneration;
                 submitDevelopSliderValue(control, desiredAtSubmission, "step", function (accepted) {
+                    if (control.editGeneration !== editGeneration) return;
                     handleDevelopSliderStepSubmission(control, desiredAtSubmission, accepted);
                 });
             }, 350);
@@ -7508,6 +7565,7 @@
                 : (control.localValue !== null ? control.localValue : control.authoritativeValue);
             if (nextValue === baseValue) return;
             clearDevelopSliderStepTimers(control);
+            control.editGeneration = (control.editGeneration || 0) + 1;
             control.desiredValue = nextValue;
             control.stepConfirmationExpired = false;
             showDevelopSliderLocal(control, nextValue);
@@ -7517,12 +7575,32 @@
 
         function beginDevelopSliderReset(control) {
             if (!control) return null;
+            cancelDevelopSliderThrottle(control);
             cancelDevelopSliderStep(control);
+            control.pendingValue = null;
+            control.pendingKind = null;
+            control.pendingCompletion = null;
+            control.lastSubmittedValue = null;
             if (control.definition.id !== "ProfileAmount") return null;
             control.desiredValue = 100;
             control.confirmationPending = true;
             control.stepConfirmationExpired = false;
             return 100;
+        }
+
+        function resetDevelopSlider(control) {
+            const beforeResetValue = control.authoritativeValue;
+            const authoritativeResetValue = beginDevelopSliderReset(control);
+            const resetOwner = developSliderFeedbackBinding();
+            const editGeneration = control.editGeneration;
+            submitDevelopSliderValue(control, null, "reset", function (accepted) {
+                if (control.editGeneration !== editGeneration) return;
+                if (authoritativeResetValue !== null) {
+                    handleDevelopSliderStepSubmission(control, authoritativeResetValue, accepted);
+                } else if (accepted) {
+                    requestDevelopSliderResetFeedback(control, resetOwner, beforeResetValue);
+                }
+            });
         }
 
         function hdrModeBindingMatches(binding) {
@@ -7665,6 +7743,92 @@
                 "&contextCounter=" + encodeURIComponent(lastControllerContextCounter);
         }
 
+        function makeDevelopSliderResetButton(onActivate) {
+            let tap = null;
+            let blockLegacyTouchClick = false;
+            const handlesTouch = typeof PointerEvent === "function";
+            const button = makeButton("Reset", "reset", function (event) {
+                // A completed touch owns its activation even when the browser omits
+                // click. Consume both PointerEvent and older MouseEvent touch clicks.
+                const touchClick = event.pointerType === "touch" ||
+                    (event.sourceCapabilities && event.sourceCapabilities.firesTouchEvents);
+                if (handlesTouch && (touchClick ||
+                    (blockLegacyTouchClick && !event.pointerType && event.detail > 0))) {
+                    event.preventDefault();
+                    return;
+                }
+                cancelTap();
+                onActivate();
+            });
+            button.type = "button";
+            if (!handlesTouch) return button;
+
+            function cancelTap() {
+                tap = null;
+                document.removeEventListener("pointerdown", anotherPointer, true);
+                document.removeEventListener("scroll", cancelTap, true);
+                document.removeEventListener("visibilitychange", cancelTap);
+                window.removeEventListener("blur", cancelTap);
+            }
+            function anotherPointer(event) {
+                if (tap && event.pointerId !== tap.pointerId) cancelTap();
+            }
+            function cancelPointerTap(event) {
+                if (tap && event.pointerId === tap.pointerId) cancelTap();
+            }
+            function sameTapContext(completed) {
+                const current = developSliderFeedbackBinding();
+                // Like queued Reset ownership, allow the preceding edit to advance
+                // Develop revision. Feedback still binds to the revision at submission.
+                return Object.keys(completed.binding).every(function (field) {
+                    return field === "developCounter" || completed.binding[field] === current[field];
+                });
+            }
+            function withinTap(event) {
+                return Math.hypot(event.clientX - tap.x, event.clientY - tap.y) <= 10;
+            }
+            button.addEventListener("pointerdown", function (event) {
+                cancelTap();
+                if (event.pointerType !== "touch") {
+                    blockLegacyTouchClick = false;
+                    return;
+                }
+                blockLegacyTouchClick = true;
+                if (!event.isPrimary || event.button !== 0 || event.defaultPrevented ||
+                    button.disabled || !button.isConnected) return;
+                tap = { pointerId: event.pointerId, x: event.clientX, y: event.clientY,
+                    scrollX: window.scrollX, scrollY: window.scrollY, binding: developSliderFeedbackBinding() };
+                document.addEventListener("pointerdown", anotherPointer, true);
+                document.addEventListener("scroll", cancelTap, true);
+                document.addEventListener("visibilitychange", cancelTap);
+                window.addEventListener("blur", cancelTap);
+            });
+            button.addEventListener("pointermove", function (event) {
+                if (tap && event.pointerId === tap.pointerId && !withinTap(event)) cancelTap();
+            });
+            button.addEventListener("pointercancel", cancelPointerTap);
+            button.addEventListener("lostpointercapture", cancelPointerTap);
+            button.addEventListener("contextmenu", cancelTap);
+            button.addEventListener("pointerup", function (event) {
+                if (!tap || event.pointerId !== tap.pointerId) return;
+                const completed = tap;
+                const rect = button.getBoundingClientRect();
+                const valid = event.pointerType === "touch" && event.isPrimary && event.button === 0 &&
+                    !event.defaultPrevented && !button.disabled && button.isConnected &&
+                    withinTap(event) && event.clientX >= rect.left && event.clientX <= rect.right &&
+                    event.clientY >= rect.top && event.clientY <= rect.bottom &&
+                    window.scrollX === tap.scrollX && window.scrollY === tap.scrollY && sameTapContext(tap);
+                cancelTap();
+                if (!valid) return;
+                event.preventDefault();
+                // Match normal button focus/blur ordering before the existing Reset
+                // cancels unsent edits and joins the ordered command path.
+                button.focus({ preventScroll: true });
+                if (!button.disabled && button.isConnected && sameTapContext(completed)) onActivate();
+            });
+            return button;
+        }
+
         function createDevelopSliderControl(definition, navigationOptions) {
             const previousControl = developSliderControls[definition.id];
             const row = document.createElement("div");
@@ -7703,23 +7867,13 @@
             });
             increment.setAttribute("aria-label", "Increase " + definition.label);
 
-            const reset = makeButton("Reset", "reset", function () {
+            const reset = makeDevelopSliderResetButton(function () {
                 if (profileAmountSubmissionBlocked(control)) return;
                 if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                     restoreWhiteBalanceDependentSlider(control);
                     return;
                 }
-                const beforeResetValue = control.authoritativeValue;
-                const authoritativeResetValue = beginDevelopSliderReset(control);
-                const resetOwner = developSliderFeedbackBinding();
-                markSliderCommandSent();
-                sendCommand("/api/reset?slider=" + encodeURIComponent(definition.id) + developSliderNavigationQuery(control)).then(function (accepted) {
-                    if (authoritativeResetValue !== null) {
-                        handleDevelopSliderStepSubmission(control, authoritativeResetValue, accepted);
-                    } else if (accepted) {
-                        requestDevelopSliderResetFeedback(control, resetOwner, beforeResetValue);
-                    }
-                });
+                resetDevelopSlider(control);
             });
 
             control = {
@@ -7744,6 +7898,9 @@
                 pendingValue: null,
                 pendingKind: null,
                 pendingCompletion: null,
+                pendingOwner: null,
+                pendingResets: [],
+                editGeneration: 0,
                 lastSubmittedValue: null,
                 authoritativeValue: null,
                 hasAuthoritativeValueEver: previousControl && definition.retainAuthoritativeAcrossRender !== false
@@ -7847,8 +8004,8 @@
                     endDevelopSliderInteraction(control);
                     return;
                 }
-                cancelDevelopSliderStep(control);
                 if (control.contextInvalidated) {
+                    cancelDevelopSliderStep(control);
                     cancelDevelopSliderThrottle(control);
                     endDevelopSliderInteraction(control);
                     return;
@@ -7859,6 +8016,7 @@
                     parametricCurveSplitOuterBounds(control)
                 );
                 if (parsedValue === null) {
+                    cancelDevelopSliderStep(control);
                     setStatus("ERROR: Invalid " + definition.label + " value.");
                     if (control.authoritativeValue !== null) {
                         showDevelopSliderLocal(control, control.authoritativeValue);
@@ -7871,6 +8029,8 @@
                 }
                 const nextValue = constrainParametricCurveSplitValue(control, parsedValue);
                 showDevelopSliderLocal(control, nextValue);
+                // Revisiting an unchanged field must not cancel a previous edit
+                // that is still waiting for authoritative SDK confirmation.
                 if (nextValue !== control.numberCommittedValue) {
                     control.numberCommittedValue = nextValue;
                     flushDevelopSliderValue(control, nextValue, "numeric");
@@ -8545,6 +8705,8 @@
                 const busy = presentation.pending || developCategoricalSubmitting.has("uprightTool");
                 toolControl.button.disabled = !presentation.available || !uprightPresentation.available || busy;
                 toolControl.button.classList.toggle("active", active);
+                toolControl.button.classList.toggle("command-danger", active);
+                toolControl.button.classList.toggle("command-primary", !active);
                 toolControl.button.textContent = active ? "Close Upright Tool" : "Open Upright Tool";
                 toolControl.button.classList.toggle("pending", presentation.pending);
                 toolControl.button.setAttribute("aria-pressed", String(active));
@@ -8805,7 +8967,7 @@
                         const profileRejectionMessages = {
                             "context-changed": "The Lightroom photo context changed during the Profile update.",
                             "option-unavailable": "The requested Lightroom Profile is no longer available.",
-                            "sdk-validation-failed": "Lightroom did not produce a safe validated Profile state."
+                            "sdk-validation-failed": "The previous Profile change failed validation. The displayed profile name does not confirm that change. See the Lightroom plug-in log for the failed check."
                         };
                         developCategoricalErrors.profile = profileRejectionMessages[profileApplied.rejectionReason] ||
                             "Lightroom rejected the Profile change.";
@@ -9808,7 +9970,7 @@
             const focusRangeExperimentalNote = document.createElement("div");
             focusRangeExperimentalNote.className = "lens-blur-experimental-note";
             focusRangeExperimentalNote.setAttribute("role", "note");
-            focusRangeExperimentalNote.innerHTML = "Focus Range (near/far) uses the Lightroom SDK. Subject Focus, Point / Area Focus and Brush Refinement use Windows interface automation. Create <strong>New Refinement</strong> directly in Lightroom; the installed SDK has no documented action to create it. Focus-mode feedback may lag or be unavailable; check Lightroom if the displayed mode is unclear.";
+            focusRangeExperimentalNote.innerHTML = "<strong>Experimental:</strong> Subject Focus and Point / Area Focus use Windows automation. These buttons may not always respond, and LRBridge may not show which mode is active. If needed, use them directly in Lightroom.";
             groupElement.appendChild(focusRangeExperimentalNote);
             groupElement.appendChild(lensBlurFocusRangeView.root);
 
@@ -9829,6 +9991,11 @@
             });
             toolActions.appendChild(lensBlurRefinementButton);
             groupElement.appendChild(toolActions);
+            const refinementNote = document.createElement("div");
+            refinementNote.className = "lens-blur-experimental-note";
+            refinementNote.setAttribute("role", "note");
+            refinementNote.innerHTML = "<strong>Experimental:</strong> Brush Refinement uses Windows automation and may not always respond.<br>To create a new refinement, click <strong>+ New Refinement</strong> directly in Lightroom. LRBridge cannot create one.";
+            groupElement.appendChild(refinementNote);
             const modeRow = document.createElement("div");
             modeRow.className = "switch-row lens-blur-apply-row lens-blur-mode-row touch-group-gap";
             const modeName = document.createElement("div"); modeName.className = "slider-name"; modeName.textContent = "Mode";
@@ -10315,20 +10482,9 @@
             state.setAttribute("role", "status");
 
             let compound = null;
-            const reset = makeButton("Reset", "reset", function () {
-                cancelDevelopSliderStep(lowControl);
-                cancelDevelopSliderStep(highControl);
-                const resetOwner = developSliderFeedbackBinding();
-                const beforeResetValues = [lowControl.authoritativeValue, highControl.authoritativeValue];
-                markSliderCommandSent();
-                Promise.all([
-                    sendCommand("/api/reset?slider=" + encodeURIComponent(lowDefinition.id)),
-                    sendCommand("/api/reset?slider=" + encodeURIComponent(highDefinition.id))
-                ]).then(function (accepted) {
-                    [lowControl, highControl].forEach(function (control, index) {
-                        if (accepted[index]) requestDevelopSliderResetFeedback(control, resetOwner, beforeResetValues[index]);
-                    });
-                });
+            const reset = makeDevelopSliderResetButton(function () {
+                resetDevelopSlider(lowControl);
+                resetDevelopSlider(highControl);
             });
             reset.setAttribute("aria-label", "Reset both " + label + " endpoints");
 

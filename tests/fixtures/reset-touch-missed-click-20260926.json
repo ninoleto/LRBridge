@@ -1,0 +1,233 @@
+{
+  "description": "Four real enabled touchscreen Reset taps without click/callback/HTTP, from three recordings; user confirmed missed activation. Pointer coordinates/order retained; personal photo identity omitted.",
+  "cases": [
+    {
+      "capture": "touch-evidence-20260926-230553",
+      "slider": "SaturationAdjustmentGreen",
+      "activeInteractionsAtDown": [],
+      "enabledAtDown": true,
+      "enabledAtUp": true,
+      "events": [
+        {
+          "type": "pointerdown",
+          "offsetMs": 0,
+          "pointerId": 21,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 1,
+          "clientX": 911,
+          "clientY": 342,
+          "defaultPrevented": false
+        },
+        {
+          "type": "gotpointercapture",
+          "offsetMs": 89,
+          "pointerId": 21,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 911,
+          "clientY": 342,
+          "defaultPrevented": false
+        },
+        {
+          "type": "pointerup",
+          "offsetMs": 89,
+          "pointerId": 21,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 911,
+          "clientY": 342,
+          "defaultPrevented": false
+        },
+        {
+          "type": "lostpointercapture",
+          "offsetMs": 89,
+          "pointerId": 21,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 911,
+          "clientY": 342,
+          "defaultPrevented": false
+        }
+      ]
+    },
+    {
+      "capture": "touch-retest-20260926-232547",
+      "slider": "HueAdjustmentGreen",
+      "activeInteractionsAtDown": [],
+      "enabledAtDown": true,
+      "enabledAtUp": true,
+      "events": [
+        {
+          "type": "pointerdown",
+          "offsetMs": 0,
+          "pointerId": 27,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 1,
+          "clientX": 891,
+          "clientY": 344,
+          "defaultPrevented": false
+        },
+        {
+          "type": "gotpointercapture",
+          "offsetMs": 82,
+          "pointerId": 27,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 891,
+          "clientY": 344,
+          "defaultPrevented": false
+        },
+        {
+          "type": "pointerup",
+          "offsetMs": 82,
+          "pointerId": 27,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 891,
+          "clientY": 344,
+          "defaultPrevented": false
+        },
+        {
+          "type": "lostpointercapture",
+          "offsetMs": 82,
+          "pointerId": 27,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 891,
+          "clientY": 344,
+          "defaultPrevented": false
+        }
+      ]
+    },
+    {
+      "capture": "touch-20260926-234537",
+      "slider": "SaturationAdjustmentGreen",
+      "activeInteractionsAtDown": [],
+      "enabledAtDown": true,
+      "enabledAtUp": true,
+      "events": [
+        {
+          "type": "pointerdown",
+          "offsetMs": 0,
+          "pointerId": 19,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 1,
+          "clientX": 907,
+          "clientY": 398,
+          "defaultPrevented": false
+        },
+        {
+          "type": "gotpointercapture",
+          "offsetMs": 66,
+          "pointerId": 19,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 907,
+          "clientY": 398,
+          "defaultPrevented": false
+        },
+        {
+          "type": "pointerup",
+          "offsetMs": 66,
+          "pointerId": 19,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 907,
+          "clientY": 398,
+          "defaultPrevented": false
+        },
+        {
+          "type": "lostpointercapture",
+          "offsetMs": 66,
+          "pointerId": 19,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 907,
+          "clientY": 398,
+          "defaultPrevented": false
+        }
+      ]
+    },
+    {
+      "capture": "touch-20260926-234537",
+      "slider": "LuminanceAdjustmentGreen",
+      "activeInteractionsAtDown": [],
+      "enabledAtDown": true,
+      "enabledAtUp": true,
+      "events": [
+        {
+          "type": "pointerdown",
+          "offsetMs": 0,
+          "pointerId": 25,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 1,
+          "clientX": 888,
+          "clientY": 488,
+          "defaultPrevented": false
+        },
+        {
+          "type": "gotpointercapture",
+          "offsetMs": 67,
+          "pointerId": 25,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 888,
+          "clientY": 488,
+          "defaultPrevented": false
+        },
+        {
+          "type": "pointerup",
+          "offsetMs": 67,
+          "pointerId": 25,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 888,
+          "clientY": 488,
+          "defaultPrevented": false
+        },
+        {
+          "type": "lostpointercapture",
+          "offsetMs": 67,
+          "pointerId": 25,
+          "pointerType": "touch",
+          "isPrimary": true,
+          "button": 0,
+          "buttons": 0,
+          "clientX": 888,
+          "clientY": 488,
+          "defaultPrevented": false
+        }
+      ]
+    }
+  ]
+}

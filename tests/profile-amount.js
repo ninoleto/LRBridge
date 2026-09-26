@@ -130,8 +130,8 @@ assert.match(genericSliderFactory, /function commitNumericValue\([\s\S]*flushDev
     "Profile Amount numeric entry must use the generic absolute writer");
 assert.match(genericSliderFactory, /makeButton\("−"[\s\S]*stepDevelopSliderValue\(control, -1\)/);
 assert.match(genericSliderFactory, /makeButton\("\+"[\s\S]*stepDevelopSliderValue\(control, 1\)/);
-assert.match(genericSliderFactory, /makeButton\("Reset"[\s\S]*\/api\/reset\?slider=/);
-assert.match(genericSliderFactory,
+assert.match(genericSliderFactory, /makeDevelopSliderResetButton\([\s\S]*resetDevelopSlider\(control\)/);
+assert.match(controller,
     /const authoritativeResetValue = beginDevelopSliderReset\(control\)[\s\S]*handleDevelopSliderStepSubmission\(control, authoritativeResetValue, accepted\)/,
     "Profile Amount Reset must use the normal reset endpoint and authoritative confirmation path");
 
@@ -142,6 +142,7 @@ const resetPreparationSource = sourceBlock(
 );
 let resetCancellationCount = 0;
 const resetPreparationContext = {
+    cancelDevelopSliderThrottle() {},
     cancelDevelopSliderStep(control) {
         resetCancellationCount += 1;
         control.desiredValue = null;
@@ -488,10 +489,10 @@ const absoluteSubmissionSource = sourceBlock(
     "function scheduleDevelopSliderValue"
 );
 assert.match(absoluteSubmissionSource,
-    /if \(profileAmountSubmissionBlocked\(control\)\)[\s\S]*return;[\s\S]*\/api\/set\?slider=/,
+    /if \(profileAmountSubmissionBlocked\(control, true\)\)[\s\S]*return;[\s\S]*\/api\/set\?slider=/,
     "All Profile Amount slider, numeric, and step writes must pass the disabled submission guard");
 assert.match(genericSliderFactory,
-    /makeButton\("Reset"[\s\S]*if \(profileAmountSubmissionBlocked\(control\)\) return;[\s\S]*\/api\/reset\?slider=/,
+    /makeDevelopSliderResetButton\([\s\S]*if \(profileAmountSubmissionBlocked\(control\)\) return;[\s\S]*resetDevelopSlider\(control\)/,
     "Profile Amount Reset must pass the same disabled presentation guard");
 
 assert.deepEqual(profileRegistry.authoritativeReadOnlyProfiles, ["Adaptive Color", "Adaptive B&W"],

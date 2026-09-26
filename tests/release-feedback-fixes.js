@@ -36,7 +36,8 @@ const context = {
 vm.createContext(context);
 vm.runInContext([
     "clearDevelopSliderStepTimers", "cancelDevelopSliderStep", "developSliderConfirmationTolerance", "valuesMatchDevelopSlider",
-    "applyDevelopSliderFeedbackIfChanged", "applyTargetedDevelopSliderFeedback", "submitDevelopSliderValue",
+    "applyDevelopSliderFeedbackIfChanged", "applyTargetedDevelopSliderFeedback", "developSliderSubmissionPending",
+    "submitDevelopSliderValue", "drainDevelopSliderSubmissions",
     "flushDevelopSliderValue", "handleDevelopSliderStepSubmission"
 ].map(fn).join("\n"), context);
 function control(id) {
@@ -49,7 +50,7 @@ async function pair(first, second) {
     const a = control(first), b = control(second), owner = { ...binding };
     a.localValue = 28; context.flushDevelopSliderValue(a, 28, "range");
     b.localValue = -17; context.flushDevelopSliderValue(b, -17, "range");
-    await Promise.resolve();
+    await new Promise(resolve => setImmediate(resolve));
     // Delayed pre-edit feedback while both edits await Lightroom must not move either control.
     context.applyDevelopSliderFeedbackIfChanged(a, { id: 10, available: true, value: 0 });
     context.applyDevelopSliderFeedbackIfChanged(b, { id: 11, available: true, value: 4 });

@@ -1,5 +1,73 @@
 # LRBridge Codex Handoff
 
+## September 27 accepted follow-up checkpoint — capture cleanup complete
+
+- The user explicitly accepts the tested Profile, feedback, responsiveness and
+  touchscreen Reset fixes and authorizes this scoped local checkpoint (parent
+  `9ce462f`). Preserve the accepted implementation. No build, push or publication.
+- Reused the verified accepted-state recovery archive and independent FTP readback;
+  archive SHA-256 `fc00a9079d0e588a82349045d493ad30153038d3022d81e6d379e9b80eccbd3e`.
+  Preserved the raw recordings, accepted source copies and all capture-manifest hashes.
+  Detailed evidence and the recovery/cleanup locations remain in the ignored local
+  handoff. Capture tools, recordings and absolute capture paths are outside release assets.
+- Removed only temporary capture loading/marks/observer hooks from six Lua files.
+  The accepted non-capture Lua lines are unchanged; normal PollingTrace and Profile
+  mismatch diagnostics remain. The working Controller is byte-identical to physical
+  acceptance (SHA-256 `95fdfb5a0586a14e76a7603b4f5732f4ce4e0839446ef157818e827c26046098`).
+  Only the verified, finished recorder helper was stopped; Lightroom and LRBridge stayed running.
+- **Accepted Profile sequence:** Reset All → Auto → Adobe Vivid passed in live Lightroom
+  with five stable SDK readbacks. The failing operation had preserved all 167 existing
+  non-Look settings; Lightroom added inactive legacy Brightness 50, Contrast 25,
+  Exposure 0 and Shadows 5. Only those exact absent-to-default additions on process
+  `15.4` qualify, with all six active modern tone values resolved and unchanged.
+  Complete Look identity, unrelated settings, context and one-write checks remain.
+  Existing Look Version 18.3/18.4 compatibility was present and was not this failure.
+- **Accepted feedback/responsiveness:** per-edit pending confirmation and ordered
+  submissions remain; Reset cancels older unsent values and follows admitted writes.
+  The proven obsolete-snapshot race requires a fresh context before replacement;
+  genuine errors remain visible. Skip only the 200 ms preparation wait when already
+  in Develop; retain the SDK wake request, 50 ms panel wait, module-transition wait
+  and Masking guards. A live Contrast preparation measured 63 ms, previously 264 ms.
+- **Accepted physical touch session:** all 8,394 browser events retained; eight deliberate
+  Reset taps → eight callbacks → eight HTTP commands → eight successful Lightroom
+  executions → eight authoritative zero confirmations. No lost/duplicate activation
+  or recorded feedback error/disabling. Two missing native clicks were recovered by
+  completed-touch activation; six compatibility clicks produced no duplicate.
+  Finger release to confirmation: Contrast 291, Exposure 718; rapid Exposure 539,
+  Contrast 228, Highlights 471, Shadows 477, Whites 495, Blacks 534 ms (median 486 ms).
+  Callbacks 0–1 ms, HTTP dispatch 0–3 ms, Lua return 100–189 ms, SDK receipt 223–713 ms;
+  Controller application followed within 3–5 ms. These are real captured timings.
+- Two physical scrolls sent zero Reset commands; both began on panel/label. Scrolling
+  from a Reset button and Reset overtaking an unsent same-slider drag remain covered
+  only by automation. Completed-touch cancellation, click deduplication and normal
+  mouse/keyboard activation retain focused regressions. Controller use was entirely
+  touch on a 24-inch screen; the earlier wheel interpretation was incorrect.
+  Jumping was **not observed in the latest tests**; intermittent jumping is not
+  declared universally resolved. Effects was not exercised in these live captures.
+- Accepted Upright red Close styling and separate Lens Blur Experimental notes remain.
+  Point Color and Color Grading are untouched. The checkpoint excludes the exact five
+  pre-existing Denoise Controller hunks, Denoise implementation/tests, private settings,
+  unrelated fixtures/research, AGENTS/.gitignore edits and stash contents; all remain intact.
+- Cleanup verification: six-file Lua and working/scoped Controller syntax; captured
+  Profile (55 scenarios), preparation (24 commands), polling lifecycle and focused
+  Reset/feedback/order regressions. These are automated checks; physical acceptance
+  above is reused, not repeated. No broad suite or new slider changes.
+- **Unload old diagnostic hooks once:** reload the source plug-in through Lightroom's
+  Plug-in Manager, using `D:\Projects\LRBridge\lightroom\LRBridge.lrplugin`.
+  Close the recorder page and open/refresh the normal source Controller at
+  `http://127.0.0.1:17892/`. No Lightroom or LRBridge application restart is required.
+- **Packaging state:** this source checkpoint contains the accepted follow-up fixes;
+  the old private build `20260925T022735Z` is unchanged. Do not run it alongside the
+  source app. No replacement candidate has been built. Retain the outstanding gates
+  in [release review](docs/RELEASE_REVIEW.md#remaining-acceptance-and-limitations):
+  unrecorded earlier source checks (AUTO/B&W separately, Effects, bokeh highlight,
+  Upright correction/crop preservation, layout/notices, Constrain Crop equivalence),
+  Denoise acceptance and fresh/package/native integration checks. Confirm those records
+  before the next affected checks; do not repeat accepted Profile/touch sessions.
+  HDR/SDR preset support stays **unverified**, not impossible; deferred additions are
+  not new release requirements. Next authorized phase is remaining acceptance and a
+  freshly verified candidate; publication remains a later explicitly authorized step.
+
 ## Private-package feedback fixes — scoped source checkpoint, native retest pending (2026-09-26)
 
 - User completed manual testing of private build `20260925T022735Z` and requested

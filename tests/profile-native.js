@@ -930,7 +930,7 @@ function capturedLookAndProductionBoundaryTests() {
     assert.match(unchanged, /key == "Look" or key == "AILook"/);
     assert.match(unchanged, /treatmentChanges and treatmentKey\(key\)/,
         "only Profile state and an actual color\/B&W treatment transition may differ");
-    assert.match(lua, /if not unchangedOutsideProfile\(before, current, definition\) then[\s\S]*An unrelated Develop setting changed/,
+    assert.match(lua, /local preserved, difference = unchangedOutsideProfile\(before, current, definition\)[\s\S]*if not preserved then[\s\S]*An unrelated Develop setting changed/,
         "every validation poll must reject unrelated Develop-setting changes");
     assert.doesNotMatch(lua, /LrDevelopController|setValue\s*\(\s*"CameraProfile"/,
         "Adobe Standard must never use the failed CameraProfile setter path");

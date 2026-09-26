@@ -543,9 +543,8 @@ assert.equal(greenCompound.reset.disabled, true);
 assert.equal(greenCompound.value.textContent, "-- / --");
 assert.equal(greenCompound.state.textContent, "Unavailable");
 
-assert.match(compoundFactory, /sendCommand\("\/api\/reset\?slider=" \+ encodeURIComponent\(lowDefinition\.id\)\)/);
-assert.match(compoundFactory, /sendCommand\("\/api\/reset\?slider=" \+ encodeURIComponent\(highDefinition\.id\)\)/);
-assert.match(compoundFactory, /markSliderCommandSent\(\)/);
+assert.match(compoundFactory, /resetDevelopSlider\(lowControl\)/);
+assert.match(compoundFactory, /resetDevelopSlider\(highControl\)/);
 assert.match(controller, /submitDevelopSliderValue[\s\S]*control\.definition\.id/,
     "Each compound endpoint must retain generic submission through its own Lightroom parameter ID");
 

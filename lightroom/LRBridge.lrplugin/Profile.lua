@@ -250,6 +250,48 @@ local function treatmentKey(key)
     return false
 end
 
+local function validationDifference(expected, actual, path)
+    if type(expected) == "table" and type(actual) == "table" then
+        local keys, included = {}, {}
+        for key in pairs(expected) do keys[#keys + 1] = key; included[key] = true end
+        for key in pairs(actual) do if not included[key] then keys[#keys + 1] = key end end
+        table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+        for _, key in ipairs(keys) do
+            if not graphEqual(expected[key], actual[key]) then
+                return validationDifference(expected[key], actual[key], path .. "." .. tostring(key))
+            end
+        end
+    end
+    local function describe(value)
+        if type(value) == "string" then
+            return string.format("%q", string.sub(value, 1, 96)) .. (#value > 96 and " (truncated)" or "")
+        end
+        if type(value) == "table" then return "<table>" end
+        return tostring(value)
+    end
+    return path .. ": expected " .. describe(expected) .. " (" .. type(expected) ..
+        "), actual " .. describe(actual) .. " (" .. type(actual) .. ")"
+end
+
+-- Complete SDK 15.4.1 Reset -> Auto -> Profile capture: Lightroom adds these
+-- inactive legacy defaults without changing any active PV2012 tone adjustment.
+-- Only normalize absent -> exact observed default on the captured process;
+-- existing legacy values and every active/unrelated setting stay exact.
+local inactiveLegacyToneDefaults = { Brightness = 50, Contrast = 25, Exposure = 0, Shadows = 5 }
+local modernToneLimits = { Exposure2012 = 5, Contrast2012 = 100, Highlights2012 = 100,
+    Shadows2012 = 100, Whites2012 = 100, Blacks2012 = 100 }
+
+local function legacyToneDefaultsAreInactive(before, after)
+    if before.ProcessVersion ~= "15.4" or after.ProcessVersion ~= "15.4" then return false end
+    for key, limit in pairs(modernToneLimits) do
+        local value = before[key]
+        if type(value) ~= "number" or not (value >= -limit and value <= limit) or after[key] ~= value then
+            return false
+        end
+    end
+    return true
+end
+
 local function unchangedOutsideProfile(before, after, definition)
     local treatmentChanges = before.ConvertToGrayscale ~= definition.grayscale
     local function ignored(key)
@@ -257,10 +299,17 @@ local function unchangedOutsideProfile(before, after, definition)
             (treatmentChanges and treatmentKey(key))
     end
     for key, value in pairs(before) do
-        if not ignored(key) and not graphEqual(value, after[key]) then return false end
+        if not ignored(key) and not graphEqual(value, after[key]) then
+            return false, validationDifference(value, after[key], tostring(key))
+        end
     end
+    local legacyDefaultsInactive = legacyToneDefaultsAreInactive(before, after)
     for key, value in pairs(after) do
-        if not ignored(key) and not graphEqual(value, before[key]) then return false end
+        local materializedLegacyDefault = legacyDefaultsInactive and before[key] == nil and
+            inactiveLegacyToneDefaults[key] ~= nil and value == inactiveLegacyToneDefaults[key]
+        if not ignored(key) and not materializedLegacyDefault and not graphEqual(value, before[key]) then
+            return false, validationDifference(before[key], value, tostring(key))
+        end
     end
     return true
 end
@@ -345,8 +394,10 @@ local function applyAndValidate(requestedProfile, generation)
         end
         local current = photo:getDevelopSettings()
         if type(current) ~= "table" then error("Complete post-Profile settings were unavailable") end
-        if not unchangedOutsideProfile(before, current, definition) then
-            error("An unrelated Develop setting changed during Profile validation")
+        local preserved, difference = unchangedOutsideProfile(before, current, definition)
+        if not preserved then
+            error("An unrelated Develop setting changed during Profile validation (operation " ..
+                tostring(generation) .. ", " .. requestedProfile .. "): " .. difference)
         end
         if desiredState(current, definition) then
             if stableSettings ~= nil and graphEqual(stableSettings, current) then
