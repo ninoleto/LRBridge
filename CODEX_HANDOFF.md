@@ -1,5 +1,51 @@
 # LRBridge Codex Handoff
 
+## September 27 fresh private Windows package — ready for manual package checks
+
+- Release source checkpoint: **`7bd6db95f58897922c1984736e9fe8066a573912`**
+  (`Checkpoint accepted Copy/Paste, Denoise and release presentation`), on
+  `feature/v0.6-more-sdk-and-web-controller`. The reviewed 24-file checkpoint includes
+  accepted Copy/Paste and Denoise work, Point Color confirmation/spacing, presentation
+  notes, focused tests and acceptance documentation. All mixed Controller hunks were
+  reviewed and fall within this accepted scope. A documentation-only follow-up records
+  this package result; the package's source commit remains the one above.
+- Built with the existing sanitized workflow from an isolated Git export of that
+  checkpoint, with publication disabled: Windows x64, LRBridge **0.6.0**, Electron
+  **43.1.1**, build **`20260927T174904Z`**. The portable candidate is unsigned/private.
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20260927T174904Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - Extracted application: `D:\Projects\LRBridge\dist\private-test-20260927T174904Z\LRBridge.exe`
+  - Matching bundled plug-in: `D:\Projects\LRBridge\dist\private-test-20260927T174904Z\lightroom\LRBridge.lrplugin`
+  - ZIP SHA-256: `50d4d025312058734671841dab16532b96b18cf9eb303e0df23e580ca1966801`.
+  - Adjacent `candidate.json`, checksum sidecar and `build-identification.json` identify
+    the candidate. Detailed checks and recovery evidence remain in the ignored local handoff.
+- **Passed:** required staging/route/reference/defaults and isolated Dust installer
+  checks; release cleanup and Lua syntax; focused favorites and Enhance checks;
+  builder/ZIP manifest verification; extraction hashes; 69 runtime files and 40 Lua
+  modules matched to the checkpoint, including both native helpers and exact Dust
+  presets/installer; credential/development-artifact exclusion. Settings are exactly
+  `poll_interval_ms=100` and the bundled Develop preset configuration is empty.
+- Extracted Electron Node smoke passed two start/stop cycles, empty polling/metadata
+  and unchanged settings. Extracted Controller/Help/Builder/reference routes serve the
+  checkpoint content; isolated browser checks at 1280/390/320px pass with packaged
+  dependencies, working links and no overflow or JS errors. GUI lifecycle was stubbed;
+  these checks did not start a second desktop bridge or invoke Lightroom/native helpers.
+  Completed feature/physical checks below were reused without a broad suite rerun.
+- Private settings, unrelated `.gitignore`/`AGENTS.md`/test edits, research, protected
+  cheat sheets, existing stash and diagnostics are preserved. The old private ZIP
+  `20260925T022735Z` retains its original checksum. No push, tag or publication.
+- **Still manual:** desktop startup/restart and settings/favorites preservation;
+  Companion/PowerShell commands; phone/tablet LAN use; clean Dust installation,
+  discovery and operation. These are not marked passed. Existing limitations and
+  deferred Constrain Crop optimization remain unchanged.
+- **Switch to this candidate:** fully quit the running source LRBridge first. To carry
+  preferences over, copy its `config/settings.txt` and, if used, `config/develop-presets.json`
+  into the new extraction after verifying the fresh defaults; keep the ZIP unchanged.
+  Start the extracted `LRBridge.exe`. In Lightroom's Plug-in Manager, disable the old
+  source/package LRBridge entries, add/enable the bundled path above and reload that
+  plug-in once. Refresh the same Controller address/browser profile to retain favorites.
+  Do not run source and package simultaneously. For the separate clean Dust check,
+  run the bundled installer while Lightroom is closed and restart Lightroom afterward.
+
 ## September 27 accepted release checkpoint and private package preparation
 
 - The user reports that **Copy/Paste and Export work in the cases they tested, with
