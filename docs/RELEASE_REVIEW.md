@@ -1,5 +1,86 @@
 # Windows v0.6 beta completion review
 
+## September 27 scoped checkpoint and fresh private candidate
+
+- The user reports **Copy/Paste and Export work in the cases tested, with no problems
+  observed**. This does not enumerate additional photo counts, output-file checks,
+  selection edge cases or AI/mask-preservation scenarios. Earlier specific evidence
+  and all SDK limitations remain; the blanket Copy/Paste pending status is superseded.
+- **Denoise, Raw Details and Super Resolution are accepted for the tested behavior.**
+  Denoise's disabled controls, grey appearance and alignment with standard sliders
+  are accepted, and **Denoise Reset is included in this release**. Reset requests
+  Amount 50 without toggling Enhance and retains authoritative display until feedback.
+  Amount availability uses confirmed On state and existing pending guards; On at 50
+  remains adjustable even though Reset is disabled. The checkbox stays independent.
+- Copy/Paste keeps its two buttons and three approved help paragraphs with bold labels
+  and shortcut. Count/technical Details UI is removed; useful feedback and required
+  review remain. Batch and AI results retain their uncertainty limits. Successful
+  paste-result messages use italic `#c9a227`; existing error styling is preserved.
+- Completed focused clipboard, Denoise model/Reset/availability (including Amount 50),
+  Off/On appearance, desktop/narrow alignment and Point Color checks are reused.
+  No repeated accepted native/slider suite or new recorder is required.
+- The user authorizes the scoped local checkpoint and a fresh private Windows package,
+  built from an isolated checkpoint export with public defaults and matching runtime
+  resources. Private settings, unrelated edits, research, stash and diagnostic evidence
+  stay outside the release. Preserve the old `20260925T022735Z` package. No push or publication.
+- Remaining manual package acceptance: startup/restart and settings/favorites preservation;
+  Companion/PowerShell commands; phone/tablet LAN use; clean Dust setup and discovery.
+  Isolated package tests do not establish these real-use results in advance.
+
+Earlier sections below are historical evidence. Their pending/exclusion/no-build notes
+are superseded only by the explicit acceptance and authorized scope above.
+
+Checkpoint preparation passed the existing release staging/route/reference/defaults,
+isolated Dust installer, cleanup/diagnostic exclusion, Lua syntax and staged startup
+gates. The focused favorites presentation and Enhance contract checks also passed;
+obsolete tooltip/custom-grid fixture expectations were reconciled without runtime
+changes. Completed feature checks remain applicable; the broad suite and accepted
+native scenarios were not rerun. Fresh extracted-package checks follow the build.
+
+## September 27 latest source acceptance and limited note cleanup
+
+The user reports the following physical touchscreen results on the updated source:
+
+| Area | Latest manual result |
+| --- | --- |
+| AUTO and B&W | Passed. |
+| Lens Blur bokeh shapes | Passed. |
+| Guided Upright | Passed. |
+| Color Mixer / Effects | No problems observed in this session. |
+| Copy / Paste Settings | Later accepted for the user's tested cases; see the latest report above. |
+| Tone Curve order | Highlights → Lights → Darks → Shadows passed. |
+| Detail / Effects layout | Acceptable for this release. |
+| HDR / Crop | Existing functionality accepted; missing features deferred. |
+| Lens Blur | Accepted for this release with experimental limitations. |
+
+These results supplement the accepted Profile, main-slider, Reset and Point Color
+work. They do not claim universal resolution of intermittent jumping or acceptance
+of untested cases. Do not repeat these checks for this presentation-only cleanup.
+
+Constrain Crop works in both directions; the user observes approximately two seconds
+before a change made directly in Lightroom appears in the Controller. Inspection
+found scheduling/cached-state dependencies before rendering: the 500 ms browser poll
+permits one categorical request at a time; the server queues a separate SDK refresh
+with requests rate-limited to 400 ms apart; the plug-in services it in its sequential feedback loop. The
+shared categorical/Profile response can await a Profile read, and it returns the
+current cached categorical snapshot rather than awaiting that particular SDK request.
+The production-handler probe demonstrates both returning the old snapshot before
+SDK arrival and holding fresh categorical feedback behind Profile. Rendering applies
+an accepted revision immediately. The exact contribution of each stage to the user's
+two-second observation was not measured live. There is no evidence here of an Adobe
+limitation. A change would need to separate shared refresh/response responsibilities;
+defer it, keeping accepted confirmation/context protections and polling unchanged.
+
+Red Eye and Masking limitation notes now bold their actual control names. Selected
+Add/Subtract's existing experimental notice reuses the Focus Range amber background
+and border; its wording, placement and buttons are unchanged. Syntax and existing
+Constrain Crop synchronization checks pass, as does the bounded handler probe.
+Isolated source-page Chromium checks at 1280/390/320px verify unchanged text, nine
+bold names, matching notice treatment and no note overflow or write commands.
+These are mock/rendering checks, not additional native acceptance. Refresh only the
+source Controller; no plug-in reload or application restart is required for this cleanup.
+Changes remain uncommitted on `4c5f863`; no candidate was built, pushed or published.
+
 ## September 27 accepted follow-up checkpoint — diagnostic cleanup complete
 
 The user accepts the tested Profile, feedback, responsiveness and touchscreen Reset
@@ -16,10 +97,10 @@ The checkpoint excludes the same pre-existing Denoise Reset Controller hunks as
 The working folder still contains them. Do not mistake this checkpoint for acceptance
 of Denoise Reset or copy the dirty working folder directly into a release package.
 
-Reload the source plug-in once through Plug-in Manager to unload the old Lua hooks:
-`D:\Projects\LRBridge\lightroom\LRBridge.lrplugin`. Close the recorder tab and
-open/refresh the normal source Controller at `http://127.0.0.1:17892/`. No Lightroom
-or LRBridge restart or repeat of the accepted physical sequence is requested.
+That checkpoint required one source plug-in reload to unload old Lua hooks, using
+`D:\Projects\LRBridge\lightroom\LRBridge.lrplugin`, and the normal source Controller
+at `http://127.0.0.1:17892/`. The user subsequently tested the cleaned-up source.
+The current note cleanup needs only a browser refresh, as stated above.
 
 Only syntax and focused Profile, preparation, polling, Reset/feedback/order checks
 were run for cleanup; previous physical and desktop/narrow presentation evidence is
@@ -290,10 +371,10 @@ unrelated adjustments, crop and masks on disposable photos. Only then bundle
 assets/setup and expose independent On/Off actions; never infer a toggle from
 browser memory. This bounded pass has ended; no speculative preset controls ship.
 
-### Short retest before rebuilding
+### Earlier source retest sequence — latest results recorded above
 
-Run the updated source bridge, load/reload the **source** plug-in once, and refresh
-the Controller. On a disposable photo:
+This was the earlier source retest request on a disposable photo. The latest manual
+results above supersede its pending status; do not repeat accepted checks for note cleanup.
 
 1. AUTO should still act in Lightroom; any unavailable treatment message must
    clearly identify B&W. Check the B&W control separately.
@@ -308,8 +389,9 @@ the Controller. On a disposable photo:
    desktop/narrow widths. Previously tested Color Grading and Masking Point Color
    were not changed and need no repeated broad audit.
 
-If those pass, build a new identified candidate from accepted source and run the
-existing package gates. Keep original package evidence and pending acceptance
+When the remaining gates and build authorization are satisfied, build a new identified
+candidate from accepted source and run the existing package gates. Keep original
+package evidence and pending acceptance
 items below scoped to what was actually reported; the general manual-testing
 statement does not independently certify every historical edge case.
 
@@ -330,25 +412,27 @@ Feature scope is frozen. The working Lens Blur and Profile Windows helper depend
 ## Remaining acceptance and limitations
 
 **Testing order:** Profile, feedback, responsiveness and touchscreen Reset are accepted
-within the recorded limits above. No repetition is required for capture cleanup.
-The earlier source retest record still lacks explicit results for AUTO/B&W separately,
-Effects, Circle/Bubble/5-blade highlight timing, Upright Open/Close preserving correction
-and crop, layout/notices and the existing Transform Constrain Crop versus Crop-panel
-Constrain to Image control. Confirm existing results before any remaining focused
-checks. Then build and verify a fresh private candidate in a new writable extraction;
-complete the package/native gates below before publication. The old private package
+within the recorded limits above; the mask-local Point Color confirmation candidate
+also has a successful user touchscreen retest. The latest AUTO/B&W, bokeh, Guided
+Upright, Color Mixer / Effects, Tone Curve, layout and existing HDR / Crop results are
+recorded above. Preserve them without repeated checks. Copy/Paste, Export and Enhance
+now have the bounded acceptance above; the package/native gates below remain pending. A new Crop-panel
+presentation stays deferred without explicit checkbox equivalence and crop/mask
+preservation evidence; this does not revoke acceptance of the existing control.
+Build and verify the authorized fresh private candidate in a new writable extraction
+and complete the package/native gates before publication. The old private package
 must not run beside the source app or be published as containing these fixes. Do not
 install presets, repoint the plug-in or send live edits automatically.
 
-**Denoise Reset:** The private candidate includes the pending Amount-only Reset to 50. It must keep Denoise on, preserve Raw Details/Super Resolution and wait for Lightroom feedback. Prior model/mock-browser checks passed; actual Lightroom validation remains required.
+**Denoise Reset:** Included by the user's release decision. The Amount-only Reset to 50 keeps Denoise on, preserves Raw Details/Super Resolution command logic and waits for Lightroom feedback. Prior focused model/browser checks and the user's acceptance are recorded above; no additional native scenarios are inferred.
 
 **Dust setup dependency (2026-09-24 source review):** Adding the plug-in alone on a fresh computer does not enable Dust Apply on/off or Reset. The runtime resolves the exact presets from Lightroom's registered preset inventory; it does not load them directly from the bundled `resources/presets` folder. The separate `Install Dust Presets.cmd` copies them to CameraRaw Settings, and neither app nor plug-in startup runs it. The development computer already had both presets during the September 16 capture, before the packaging/installer checkpoint. Current files match the bundled hashes; the precise save/import action cannot be established from the capture. Isolated missing-preset and installer checks pass, but actual fresh-computer preset discovery and Dust operation after setup remain release acceptance items. Existing working presets were not changed.
 
 **Compatibility boundary:** The private test target is Windows x64 and Lightroom Classic 15.4.1. SDK metadata declares 15.3; that does not establish an overall supported minimum. Dust's current state/Apply/Close code explicitly requires exactly Lightroom 15.4.1, and Apply on also requires photo ProcessVersion 15.4. Other Lightroom versions remain unverified.
 
-1. **Native Quick Copy/Paste:** still unaccepted. On disposable photos, confirm Lightroom Copy → web Paste without preceding web Copy; Quick Copy with deliberately chosen harmless categories; one destination and a small multi-photo selection; same-active-photo selection changes and authoritative history/results. Only the user performs these operations. Batch true does not mean every photo succeeded. Clipboard contents/timing and AI completion cannot be inspected or frozen by the SDK.
-2. **Windows clean install and upgrade:** extract into a new writable folder; verify preset discovery, plug-in loading, normal desktop start/quit/tray, polling/reconnection, helper controls and preservation of settings/favorites with the same browser origin. Automated packaged-runtime checks do not replace a clean machine or real Lightroom session. The candidate is unsigned and unpublished.
-3. **Packaged integration checks:** confirm the accepted Help/Builder and their reference links load from the extraction, then run a copied command through PowerShell and Companion on a disposable photo. Export acceptance remains limited to the full Export dialog, Previous destination chooser and one selected-photo count. No completed file export or multi-photo Export acceptance is claimed.
+1. **Windows startup/restart and settings preservation:** extract into a new writable folder; verify matching plug-in loading, normal desktop start/quit/tray, polling/reconnection, helper controls and preservation of settings/favorites with the same browser origin. Automated packaged-runtime checks do not replace a real desktop/Lightroom session. The candidate is unsigned and unpublished.
+2. **Packaged integrations and LAN:** verify copied commands through PowerShell and Companion on disposable photos, and Controller access/use from a phone/tablet on the private LAN. Copy/Paste and Export's source acceptance does not establish these package integrations. Batch paste success still means at least one photo; AI completion and comprehensive preservation remain unverified.
+3. **Clean Dust setup:** on a clean setup, install the bundled presets while Lightroom is closed, restart Lightroom, then confirm preset discovery and Dust operation. Existing-machine success and isolated installer checks do not establish this clean-setup result.
 
 Known limits remain documented in [Windows beta notes](WINDOWS_BETA.md): People processing/Cancel; arbitrary-photo Dust redetection and preservation with populated AI/manual edits; broad copied-mask/AI preservation; actual last-component deletion and broader Red Eye reset preservation; native fault/reconnect cases. Historical Healing/Point Color/Blue-curve reports have no current reproduction. `cycle_loupe_info` remains excluded from visible choices because the prior native test had no visible effect. No speculative fixes or disabled working controls were introduced.
 

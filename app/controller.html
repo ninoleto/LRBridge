@@ -250,6 +250,13 @@
         .point-color-range-outer::before { content: ""; display: block; margin: 7px auto 0; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 13px solid #c8d9e4; }
         .point-color-range-marker { position: absolute; top: 14px; width: 14px; height: 14px; transform: translateX(-50%); border-radius: 50%; border: 2px solid #eef7fc; background: #4db3e7; box-shadow: 0 0 0 2px #17242d; pointer-events: none; z-index: 5; }
         .point-color-range-full-box:focus-visible, .point-color-range-inner-edge:focus-visible, .point-color-range-outer:focus-visible { outline: 2px solid #55b8ed; outline-offset: 2px; }
+        @media (max-width: 620px) {
+            .point-color-range-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
+            /* Leave room for the unchanged 30px handles at the ends of each track. */
+            .point-color-range-track { grid-column: 1 / -1; grid-row: 1; margin-inline: 15px; }
+            .point-color-range-pair:first-child { text-align: left; }
+            .point-color-range-pair:last-child { text-align: right; }
+        }
 
         .develop-section-leading-controls {
             margin-bottom: 28px;
@@ -1324,6 +1331,9 @@
             min-width: 0;
         }
 
+        /* Match Tone's spacing: 8px margin + 16px feedback line + 8px grid gap. */
+        .point-color-slider-row { margin-bottom: 32px; }
+
         .develop-slider-row input[type="range"],
         .angle-control input[type="range"] {
             width: 100%;
@@ -1378,15 +1388,23 @@
         .develop-slider-row button,
         .angle-control button { min-height: 44px; }
 
-        .denoise-slider-row {
-            grid-template-columns: minmax(140px, 210px) 64px 64px minmax(180px, 1fr) 92px 44px 44px;
-        }
-
         .denoise-slider-row > * { min-width: 0; }
-        .denoise-slider-row button { padding-inline: 8px; }
         .denoise-slider-row button.active { background: #3f6f5a; border-color: #5b9679; }
+        .denoise-slider-row input[type="range"]:disabled { cursor: not-allowed; }
+        .denoise-slider-row input[type="range"]:disabled::-webkit-slider-runnable-track { background: #505050; }
+        .denoise-slider-row input[type="range"]:disabled::-webkit-slider-thumb { background: #858585; border-color: #a0a0a0; }
+        .denoise-slider-row input[type="range"]:disabled::-moz-range-track,
+        .denoise-slider-row input[type="range"]:disabled::-moz-range-progress { background: #505050; }
+        .denoise-slider-row input[type="range"]:disabled::-moz-range-thumb { background: #858585; border-color: #a0a0a0; }
+        .denoise-slider-row input[type="text"]:disabled {
+            background: #242424;
+            color: #aaa;
+            -webkit-text-fill-color: #aaa;
+            border-color: #505050;
+            cursor: not-allowed;
+        }
         .denoise-slider-row .enhance-status {
-            grid-column: 4 / -1;
+            grid-column: 1 / -1;
             min-height: 16px;
             color: #9fb0bf;
             font-size: 12px;
@@ -2916,17 +2934,6 @@
                 margin-left: 0;
             }
 
-            .denoise-slider-row {
-                grid-template-columns: minmax(92px, 1fr) 64px 64px;
-            }
-
-            .denoise-slider-row input[type="range"],
-            .denoise-slider-row .enhance-status {
-                grid-column: 1 / -1;
-            }
-
-            .denoise-slider-row .slider-name { grid-column: 1; }
-
             .lens-blur-bokeh-options { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
             .lens-blur-focus-fields { grid-template-columns: repeat(2, minmax(95px, 1fr)); }
 
@@ -3546,10 +3553,7 @@
         .clipboard-controls button { min-height: 44px; }
         .clipboard-controls button[aria-disabled="true"] { opacity: .45; cursor: default; }
         .clipboard-controls .command-group-note { margin: 8px 0 0; }
-        .clipboard-selection { font-weight: 600; }
-        .clipboard-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: #d0dce7; font-size: 13px; }
-        .clipboard-details summary::before { content: "▸"; margin-right: 8px; }
-        .clipboard-details[open] summary::before { content: "▾"; }
+        .clipboard-status.clipboard-paste-result { color: #c9a227; font-style: italic; }
         .clipboard-review { margin-top: 8px; }
         .clipboard-review[hidden], .clipboard-status[hidden] { display: none; }
         .clipboard-controls, .export-controls { scroll-margin-top: calc(var(--controller-toolbar-height, 64px) + 12px); }
@@ -3559,13 +3563,9 @@
         .native-checkbox-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 8px; }
         .develop-subheading { border-top: 1px solid #555; padding-top: 14px; margin: 18px 0 10px; font-weight: 700; color: #ddd; }
         .develop-subheading.minor { border-top: 0; padding-top: 0; margin-top: 12px; color: #bbb; }
-        .denoise-slider-row.native-checkbox-row { display: grid; grid-template-columns: 240px minmax(120px, 1fr) 76px 44px 44px; }
-        .denoise-slider-row.native-checkbox-row .enhance-status { grid-column: 1 / -1; }
-        @media (max-width: 768px) {
-            .denoise-slider-row.native-checkbox-row { grid-template-columns: minmax(0, 1fr) 76px 44px 44px; }
+        .denoise-slider-row.native-checkbox-row { display: grid; gap: 8px; }
+        @media (max-width: 760px) {
             .denoise-slider-row.native-checkbox-row .native-checkbox-label { grid-column: 1 / -1; }
-            .denoise-slider-row.native-checkbox-row input[type="range"] { grid-column: 1 / -1; }
-            .denoise-slider-row.native-checkbox-row input[type="text"] { grid-column: 2; }
         }
     </style>
 </head>
@@ -5511,6 +5511,7 @@
         let enhanceCheckbox = null;
         let enhanceMinusButton = null;
         let enhancePlusButton = null;
+        let enhanceResetButton = null;
         let enhanceStatus = null;
         let rawDetailsCheckbox = null;
         let rawDetailsStatus = null;
@@ -11926,6 +11927,10 @@
             status.className = "switch-status develop-categorical-status";
             status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
             row.append(checkbox.row, status); groupElement.appendChild(row);
+            const note = document.createElement("div");
+            note.className = "command-group-note";
+            note.textContent = "If you change this setting directly in Lightroom Classic, the Web Controller checkbox may take a moment to update.";
+            groupElement.appendChild(note);
             if (!Array.isArray(developCategoricalControls.constrainCrop)) developCategoricalControls.constrainCrop = [];
             developCategoricalControls.constrainCrop.push({ row: row, checkbox: checkbox.input, status: status });
         }
@@ -12138,11 +12143,11 @@
             if (updateText !== false && !enhanceAmountModel.editing) enhanceAmountInput.value = String(value);
         }
 
-        async function sendDenoiseAmount(amount) {
+        async function sendDenoiseAmount(amount, waitForFeedback) {
             if (validDenoiseAmount(amount)) enhanceAmountModel.setDesired(amount);
             amount = enhanceAmountModel.desired;
             if (!validDenoiseAmount(amount) || enhanceAmountModel.inFlight || amount === enhanceAmountModel.authoritative) return false;
-            if (!enhanceAmountModel.markSent(amount)) return false;
+            if (!enhanceAmountModel.markSent(amount, waitForFeedback)) return false;
             enhanceState = Object.assign({}, enhanceState || {}, { amountOperation: "starting", requestedAmount: amount });
             updateEnhanceControls();
             const accepted = await sendCommand("/api/enhance/denoise/amount?amount=" + encodeURIComponent(String(amount)));
@@ -12180,12 +12185,16 @@
             const denoiseKnown = !unavailable && hasPhoto && inDevelop && typeof state.denoiseState === "boolean";
             updateNativeCheckbox(enhanceCheckbox, denoiseKnown, isOn,
                 pending || localAmountPending || (!isOn && state?.denoiseEnabled !== true), pending || localAmountPending);
-            enhanceAmountRange.disabled = pending || unavailable || !hasPhoto || !inDevelop;
+            enhanceAmountRange.disabled = pending || unavailable || !hasPhoto || !inDevelop || !isOn || enhanceAmountModel.waitingForFeedback;
             enhanceAmountInput.disabled = enhanceAmountRange.disabled;
             const displayedAmount = enhanceAmountModel.displayedAmount;
             displayDenoiseAmount(displayedAmount, !enhanceAmountModel.editing);
             enhanceMinusButton.disabled = enhanceAmountRange.disabled || !validDenoiseAmount(displayedAmount) || displayedAmount <= 1;
             enhancePlusButton.disabled = enhanceAmountRange.disabled || !validDenoiseAmount(displayedAmount) || displayedAmount >= 100;
+            if (enhanceResetButton) enhanceResetButton.disabled = enhanceAmountRange.disabled || !isOn ||
+                localAmountPending || enhanceAmountModel.debouncePending || enhanceAmountModel.editing ||
+                !validDenoiseAmount(state?.denoiseAmount) || !validDenoiseAmount(enhanceAmountModel.authoritative) ||
+                enhanceAmountModel.authoritative === LRBridgeDenoiseState.DEFAULT_AMOUNT;
             const rawOn = !!state && state.rawDetailsState === true;
             const denoiseOwnsRaw = !!state && state.denoiseState === true && rawOn && state.rawDetailsEnabled === false;
             const superResolutionOwnsRaw = !!state && state.superResState === true && rawOn && state.rawDetailsEnabled === false;
@@ -12349,11 +12358,18 @@
             }
             enhanceMinusButton = makeButton("−", "develop-slider-step denoise-minus", function () { stepDenoiseAmount(-1); });
             enhancePlusButton = makeButton("+", "develop-slider-step denoise-plus", function () { stepDenoiseAmount(1); });
+            enhanceResetButton = makeButton("Reset", "reset denoise-reset", function () {
+                if (enhanceResetButton.disabled) return;
+                sendDenoiseAmount(LRBridgeDenoiseState.DEFAULT_AMOUNT, true);
+            });
+            enhanceResetButton.setAttribute("aria-label", "Reset Denoise Amount");
+            enhanceResetButton.title = "Reset Amount to Lightroom's documented default (50). Available while Denoise is on.";
             enhanceStatus = document.createElement("div");
             enhanceStatus.className = "enhance-status"; enhanceStatus.setAttribute("role", "status");
             controls.appendChild(checkbox.row);
             controls.appendChild(enhanceAmountRange); controls.appendChild(enhanceAmountInput);
-            controls.appendChild(enhanceMinusButton); controls.appendChild(enhancePlusButton); controls.appendChild(enhanceStatus);
+            controls.appendChild(enhanceMinusButton); controls.appendChild(enhancePlusButton);
+            controls.appendChild(enhanceResetButton); controls.appendChild(enhanceStatus);
             updateEnhanceControls();
             return controls;
         }
@@ -12726,7 +12742,7 @@
                         showDetails: showCommandStatus };
                 }),
                 ...[["clipboard.copy", "Quick Copy Settings"], ["clipboard.paste", "Paste Settings"]].map(function ([id, label]) {
-                    return { id, label, group: "Selection — Copy / Paste Settings", groupOrder: 19, feedbackGroup: "clipboard", description: id === "clipboard.copy" ? "Copies settings from the active photo without opening a dialog. Uses the categories last selected in Lightroom’s Copy Settings dialog." : label + ". Photo-level action; explanations and destination count are in Selection.",
+                    return { id, label, group: "Selection — Copy / Paste Settings", groupOrder: 19, feedbackGroup: "clipboard", description: id === "clipboard.copy" ? "Copies settings from the active photo without opening a dialog. Uses the categories last selected in Lightroom’s Copy Settings dialog." : "Select the destination photos, then click this button to apply the copied settings.",
                         available: function () { return clipboardController.actionAvailable(id); }, run: function () { clipboardController.runAction(id); },
                         feedback: clipboardController.getFeedback, showDetails: function () { openSelection(clipboardController); } };
                 }),

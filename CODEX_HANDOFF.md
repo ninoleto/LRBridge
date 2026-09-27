@@ -1,5 +1,151 @@
 # LRBridge Codex Handoff
 
+## September 27 accepted release checkpoint and private package preparation
+
+- The user reports that **Copy/Paste and Export work in the cases they tested, with
+  no problems observed**. The report does not identify additional photo counts,
+  output-file checks, cancellation, fault cases or AI/mask-preservation scenarios;
+  do not infer those were tested. This supersedes the earlier blanket Copy/Paste
+  pending status while retaining all documented SDK and coverage limitations.
+- **Denoise, Raw Details and Super Resolution are accepted for the tested behavior.**
+  The user also accepts Denoise's disabled controls, grey appearance and alignment
+  with the standard sliders, and explicitly includes **Denoise Reset** in this release.
+  Reset uses the existing Amount-only command to request 50, keeps the displayed
+  authoritative Amount until feedback, and does not toggle Enhance. Amount controls
+  require confirmed Denoise On and retain the existing pending-operation guards;
+  Amount remains adjustable at 50 although Reset is disabled. Checkbox availability
+  remains independent. No Raw Details/Super Resolution command logic changed.
+- Copy/Paste retains its two buttons and the three approved help paragraphs, with
+  bold labels/shortcut. The destination-count line and technical Details panel are
+  removed. Progress/errors and required acknowledgement remain; results distinguish
+  incomplete batch confirmation and pending/unknown AI processing. Successful paste
+  result notices use italic dark yellow (`#c9a227`), without changing error styling.
+- Reuse the completed focused Copy/Paste browser checks, Denoise model/Reset and
+  availability checks (including On at Amount 50), Off/On rendering and desktop/narrow
+  alignment checks. These are isolated automated checks, separate from the user's
+  bounded native acceptance. No repeated functional slider suite or new recorder.
+- Previously accepted Profile, feedback, touchscreen Reset, Point Color, visual
+  spacing/notes and all recorded limitations remain intact. Constrain Crop's delay
+  note is accepted; its feedback optimization stays deferred.
+- The user authorizes a scoped local checkpoint and a fresh private Windows portable
+  package, with **no push or publication**. Starting branch is
+  `feature/v0.6-more-sdk-and-web-controller`, parent `4c5f863`, ten ahead / zero behind
+  the configured upstream, with an empty index. Private settings, unrelated edits,
+  research, diagnostic evidence and the existing stash remain outside the checkpoint.
+  Build from an isolated export of the checkpoint using the existing sanitized workflow;
+  preserve old private build `20260925T022735Z`.
+- Remaining **manual package checks**: desktop startup/restart and settings/favorites
+  preservation; Companion/PowerShell commands; phone/tablet LAN use; and clean Dust
+  installation/discovery/operation. Automated package checks do not pass these in advance.
+  Earlier pending/no-build notes below are historical and superseded only within this scope.
+- Checkpoint preparation passed the existing release staging/route/reference/defaults,
+  isolated Dust installer, cleanup/diagnostic exclusion, Lua syntax and staged startup
+  gates, plus the focused favorites presentation and Enhance contract checks. Only
+  obsolete tooltip/custom-grid fixture expectations needed reconciliation; runtime
+  code stayed unchanged. The broad feature suite and accepted native tests were not repeated.
+
+## September 27 end-of-day handoff — accepted state preserved
+
+- The user accepts the latest visual changes, including Point Color touch spacing,
+  bold control names in the Red Eye / Masking notes, the Selected Add/Subtract amber
+  notice, and the helper note directly below Constrain Crop:
+  "If you change this setting directly in Lightroom Classic, the Web Controller
+  checkbox may take a moment to update."
+  The Constrain Crop note changes text only; behaviour and feedback timing are unchanged.
+- Keep all completed manual checks below marked accepted, with their recorded limits.
+  Preserve the accepted Profile, slider feedback/responsiveness, touchscreen Reset,
+  Point Color and Color Grading implementations. Do not reopen completed checks or
+  claim intermittent jumping is universally resolved.
+- Preserve all existing uncommitted work, including Denoise Reset, private settings,
+  unrelated edits, stash contents and diagnostic evidence. HEAD remains `4c5f863`,
+  ten commits ahead / zero behind upstream; the index is empty. No checkpoint today.
+- **Next:** test Copy / Paste Settings and resolve Denoise Reset's release status;
+  then create a scoped checkpoint, build a fresh package and complete the remaining
+  package/integration checks. Copy / Paste remains untested. Denoise Reset remains
+  pending a release decision; its uncommitted implementation must be preserved.
+  The old private build `20260925T022735Z` does not contain these source changes.
+- Work stopped at the user's request. This final step updates this handoff only:
+  no further tests, application changes, commit, build, push or publication.
+
+## September 27 limited release cleanup — latest manual results recorded
+
+- User's source touchscreen results: **AUTO and B&W passed; Lens Blur bokeh shapes
+  passed; Guided Upright passed.** Color Mixer / Effects had no problems observed
+  in this session; this does not establish universal resolution of intermittent jumping.
+- **Tone Curve order passed:** Highlights → Lights → Darks → Shadows. Detail / Effects
+  layout is acceptable for this release. Existing HDR / Crop functionality is accepted;
+  missing features remain deferred. Lens Blur is accepted with its experimental limitations.
+- **Copy / Paste Settings was not tested and remains pending.** Do not repeat the
+  accepted checks unnecessarily or infer acceptance for other historical edge cases.
+- Constrain Crop: the user reports correct Controller-issued updates, but direct
+  Lightroom changes take about two seconds to appear. Source inspection found a
+  500 ms browser refresh with one categorical request in flight, a separately queued
+  SDK read (requests rate-limited to 400 ms apart) in the sequential plug-in feedback loop, and a shared
+  HTTP response that can await Profile refresh. It returns the latest cached SDK state,
+  not a result bound to that refresh request. New revisions render without a separate delay.
+  An isolated probe through the production handler confirmed both an older response
+  before SDK arrival and fresh categorical feedback held behind Profile. These are
+  automated scheduling findings, not a live timing breakdown of the reported two seconds.
+  No fixed two-second SDK wait or evidence of an Adobe limitation was found. Improving
+  this requires separating shared refresh/response responsibilities; defer that work
+  and preserve the accepted Profile path, intervals, confirmation and context safeguards.
+- Presentation only: bold the actual unsupported control names in the existing Red Eye
+  and Masking notes; reuse the Focus Range amber notice styling for Selected Add/Subtract's
+  experimental explanation. Text, placement, action buttons and control behaviour stay unchanged.
+- Syntax, existing Constrain Crop synchronization checks and the bounded handler probe
+  pass. Isolated Chromium visual checks at 1280/390/320px confirm nine bold names,
+  unchanged explanations/placement, matching amber styling and no note overflow or commands.
+  No repeated native tests, broad slider suite or new recorder. Local evidence remains ignored.
+- **Refresh the source Controller only** to load these note changes; no plug-in reload
+  or application restart is needed. HEAD remains `4c5f863`; changes are uncommitted.
+  All previously accepted fixes, Point Color spacing, Denoise work and unrelated edits
+  are preserved. No packaging, push or publication; Copy / Paste, Denoise acceptance and
+  the remaining fresh-candidate/native gates in the release review still apply.
+
+## September 27 Point Color touch spacing — accepted, uncommitted
+
+- User's latest physical touchscreen retest of the mask-local confirmation candidate:
+  slider behaviour looks good and responsiveness feels "almost instant". Preserve
+  that working implementation. This is user-reported acceptance evidence, not a
+  measured latency or proof of the earlier intermittent jump's cause.
+- CSS-only follow-up: both global and mask-local Point Color scalar rows now have
+  32px bottom spacing, accounting for Tone's existing 8px margin plus 16px feedback
+  line and 8px grid gap. Desktop/tablet slider centres are 76px apart instead of 52px;
+  control dimensions/alignment and Tone's layout are unchanged. The detailed Range
+  controls retain separation; below 620px their endpoint values wrap beneath the
+  tracks, avoiding their previous narrow-screen overflow with unchanged handles.
+- Isolated Chromium/mock-data visual checks at 1280/768/390/320px verify both
+  sections, consistent spacing, wrapping, retained control geometry and no commands.
+  The extra 320px check retains an existing ~8px Tools-page overflow from the
+  surrounding Masking preset/Tone Curve minimum widths; it is outside this change.
+  No slider suite or live recorder. Preview/evidence paths stay in the local handoff.
+- The user accepts the spacing as part of the latest visual changes. No further
+  spacing review or reload is pending. Lua, input/feedback/Reset code, SDK behaviour, Denoise and unrelated work
+  are preserved. Confirmation and CSS changes remain uncommitted; no build/push/publication.
+
+## September 27 mask-local Point Color confirmation — successful user retest, uncommitted
+
+- Starting checkpoint remains `4c5f863`; accepted Profile, main-slider feedback,
+  touchscreen Reset, preparation timing, global Point Color and Color Grading are
+  preserved, as are all pre-existing uncommitted changes including Denoise Reset.
+- The user's physical report concerns **only Masking Point Color Hue Shift**.
+  A regression through production Lua, server state and parent/shared controllers
+  reproduces a confirmation weakness: SDK success plus 12 nonmatching readbacks
+  reported confirmed, releasing the pending display as a presumed normalization.
+  This is a correction candidate, **not proof of the observed touchscreen cause**.
+- Only runtime change: mask-local scalar confirmation now requires the requested
+  value within the existing Point Color numeric tolerance (`0.000001`). The same
+  bounded reads, errors and context checks remain; no retry, added wait or Hue-only
+  exception. Delayed feedback stays pending until a match or bounded failure.
+- Focused production-Lua/SDK-double and controller tests pass for delayed/missing
+  matches, tolerance, SDK errors, newer edits, photo/Develop/mask/swatch changes,
+  exact write counts and Saturation/Luminance. Existing Point Color checks pass.
+  These are automated results; the separate 225 ms input-debounce finding is untouched.
+- The user completed the requested touchscreen retest and reports good behaviour
+  with responsiveness feeling almost instant. No repeat performance test or recorder
+  is requested. Preserve the correction; the subsequent CSS spacing is also accepted.
+  No commit, packaging, push or publication is authorized by this result alone.
+
 ## September 27 accepted follow-up checkpoint — capture cleanup complete
 
 - The user explicitly accepts the tested Profile, feedback, responsiveness and
@@ -60,10 +206,10 @@
   the old private build `20260925T022735Z` is unchanged. Do not run it alongside the
   source app. No replacement candidate has been built. Retain the outstanding gates
   in [release review](docs/RELEASE_REVIEW.md#remaining-acceptance-and-limitations):
-  unrecorded earlier source checks (AUTO/B&W separately, Effects, bokeh highlight,
-  Upright correction/crop preservation, layout/notices, Constrain Crop equivalence),
-  Denoise acceptance and fresh/package/native integration checks. Confirm those records
-  before the next affected checks; do not repeat accepted Profile/touch sessions.
+  the latest manual results above supersede the earlier pending source-check list.
+  Copy / Paste and Denoise acceptance plus fresh/package/native integration checks remain;
+  the deferred Crop-panel presentation still lacks explicit equivalence/preservation evidence.
+  Do not repeat accepted source checks or Profile/touch sessions unnecessarily.
   HDR/SDR preset support stays **unverified**, not impossible; deferred additions are
   not new release requirements. Next authorized phase is remaining acceptance and a
   freshly verified candidate; publication remains a later explicitly authorized step.

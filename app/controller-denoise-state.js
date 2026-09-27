@@ -4,6 +4,11 @@
 }(typeof self !== "undefined" ? self : this, function () {
     "use strict";
 
+    // Adobe Lightroom Classic 15.3 SDK reference, LrDevelopController.setEnhance:
+    // denoiseAmount has a documented default of 50. Reset uses changeDenoiseAmount
+    // through the existing amount command; it never toggles Enhance.
+    const DEFAULT_AMOUNT = 50;
+
     function valid(value) { return Number.isInteger(value) && value >= 1 && value <= 100; }
     function parse(text) {
         if (typeof text !== "string" || !/^\d{1,3}$/.test(text)) return null;
@@ -20,9 +25,11 @@
         let debouncePending = false;
         let inFlight = false;
         let inFlightAmount = null;
+        let waitingForFeedback = false;
         let isOn = false;
 
         function displayedAmount() {
+            if (waitingForFeedback && valid(authoritative)) return authoritative;
             if (valid(desired)) return desired;
             if (valid(authoritative)) return authoritative;
             return 50;
@@ -40,6 +47,7 @@
                 const completedAmount = inFlightAmount;
                 inFlight = false;
                 inFlightAmount = null;
+                waitingForFeedback = false;
                 if (!failed && desired === completedAmount && authoritative === completedAmount) desired = null;
                 if (failed && desired === completedAmount) desired = null;
             }
@@ -94,14 +102,19 @@
             return next;
         }
 
-        function markSent(amount) {
+        function markSent(amount, waitForFeedback) {
             if (inFlight || !valid(amount)) return false;
+            if (waitForFeedback && (!isOn || !valid(authoritative))) return false;
             inFlight = true;
             inFlightAmount = amount;
+            waitingForFeedback = waitForFeedback === true;
             return true;
         }
 
-        function sendFailed() { inFlight = false; inFlightAmount = null; }
+        function sendFailed() {
+            if (waitingForFeedback) desired = null;
+            inFlight = false; inFlightAmount = null; waitingForFeedback = false;
+        }
         function cancelLocal() {
             editing = false;
             editBuffer = null;
@@ -113,6 +126,7 @@
         function reset() {
             authoritative = null; desired = null; editBuffer = null; editing = false;
             editStartAmount = null; debouncePending = false; inFlight = false; inFlightAmount = null; isOn = false;
+            waitingForFeedback = false;
         }
 
         return {
@@ -125,11 +139,12 @@
             get debouncePending() { return debouncePending; },
             get inFlight() { return inFlight; },
             get inFlightAmount() { return inFlightAmount; },
+            get waitingForFeedback() { return waitingForFeedback; },
             get isOn() { return isOn; },
             get displayedAmount() { return displayedAmount(); },
             get displayedText() { return editing ? editBuffer : String(displayedAmount()); }
         };
     }
 
-    return { create: create, valid: valid, parse: parse };
+    return { create: create, valid: valid, parse: parse, DEFAULT_AMOUNT: DEFAULT_AMOUNT };
 }));

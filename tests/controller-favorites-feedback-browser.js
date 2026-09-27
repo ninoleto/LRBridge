@@ -30,7 +30,7 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab, relo
         }
         return previous(url, reply);
     };
-    const copyLabel = "Quick Copy Settings", copyHelp = "Choose the settings categories in Lightroom’s Copy Settings dialog. Use Quick Copy Settings to copy the active photo’s current settings, select destination photos, then Paste Settings. Copying directly in Lightroom also works; Quick Copy is not required.";
+    const copyLabel = "Quick Copy Settings", copyHelp = "Copies settings from the active photo without opening a dialog. Uses the categories last selected in Lightroom’s Copy Settings dialog.";
     const favorite = id => "document.querySelector('[data-favorite-action=\"" + id + "\"]')";
     const enabled = id => waitFor(() => evaluate(favorite(id) + "?.getAttribute('aria-disabled')==='false'"), "feedback favorite available: " + id);
     const click = id => evaluate(favorite(id) + ".click()");
@@ -55,7 +55,7 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab, relo
             await setViewport(width, 900); await selectTab("selection"); await enabled("clipboard.copy");
             assert.equal(await evaluate("document.getElementById('copySettingsButton').textContent"), copyLabel);
             assert.equal(await evaluate("document.getElementById('copySettingsButton').title"), copyHelp);
-            assert.equal(await evaluate("document.getElementById('clipboardCopyHelp').textContent"), copyHelp);
+            assert.equal(await evaluate("document.getElementById('clipboardCopyHelp').textContent"), "Quick Copy Settings: Copies the current photo’s settings using those choices, without opening the dialog.");
             assert.equal(await evaluate("document.getElementById('copySettingsButton').scrollWidth<=document.getElementById('copySettingsButton').clientWidth"), true, "longer copy label fits");
             await evaluate("document.getElementById('clipboardSection').scrollIntoView({block:'end'})");
             if (capture && width !== 320) await capture("copy-last-used-" + width);
@@ -107,7 +107,7 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab, relo
         await click("clipboard.copy"); assert.equal(c.calls.length, count + 1);
         await evaluate("document.getElementById('favoritesNotice').click()");
         assert.equal(await evaluate("document.activeElement.id"), "clipboardReview");
-        assert.equal(await evaluate("document.querySelector('.clipboard-details').open"), true);
+        assert.equal(await evaluate("document.getElementById('clipboardStatus').hidden"), false);
         assert.equal(await evaluate("document.getElementById('favoritesFeedback').hidden"), true, "notice cannot cover required acknowledgement");
         await evaluate("document.getElementById('clipboardReview').click()"); await enabled("clipboard.copy");
         await waitFor(() => evaluate("document.getElementById('favoritesFeedback').hidden"), "review resolved only through original acknowledgement");

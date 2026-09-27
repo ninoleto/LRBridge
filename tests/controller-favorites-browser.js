@@ -27,9 +27,9 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab, relo
         if (capture && [1280, 390].includes(width)) await capture("favorites-default-" + width);
         await selectTab("selection");
         await waitFor(() => evaluate("!!document.getElementById('clipboardSection')"), "clipboard section");
-        assert.equal(await evaluate("document.querySelector('.clipboard-details').open"), false);
+        assert.equal(await evaluate("document.querySelector('.clipboard-details')"), null);
         assert.equal(await evaluate("document.getElementById('clipboardStatus').getBoundingClientRect().height"), 0, "no reserved empty feedback");
-        assert.match(await evaluate("document.getElementById('clipboardCopyHelp').textContent"), /categories last selected/);
+        assert.match(await evaluate("document.getElementById('clipboardCopyHelp').textContent"), /using those choices, without opening the dialog/);
         if (capture && [1280, 390].includes(width)) { await evaluate("document.getElementById('clipboardSection').scrollIntoView({block:'end'})"); await capture("selection-copy-paste-" + width); }
     }
     await selectTab("sliders"); await setViewport(390, 900);
@@ -93,7 +93,7 @@ async function verify({ evaluate, waitFor, fixture, setViewport, selectTab, relo
     assert.equal(await evaluate("document.getElementById('favoritesNotice').hidden"), false, "removing favorite cannot hide required review");
     await evaluate("document.getElementById('favoritesNotice').click()");
     assert.equal(await evaluate("document.querySelector('.tab-button.active').dataset.tab"), "selection");
-    assert.equal(await evaluate("document.querySelector('.clipboard-details').open"), true);
+    assert.equal(await evaluate("document.getElementById('clipboardStatus').hidden"), false);
     assert.equal(await evaluate("document.activeElement.id"), "clipboardReview");
     await evaluate("document.getElementById('clipboardReview').click()"); await enabled("clipboard.copy");
     await selectTab("sliders"); await enabled("export.dialog"); e.hold = true;

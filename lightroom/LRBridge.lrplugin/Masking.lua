@@ -1420,7 +1420,12 @@ local function executePointColor(command)
         if not PointColor.validValue(command.field, command.value) then
             error("Invalid mask Point Color value")
         end
-        predicate = function(value) return value.selectedIndex == command.expectedSelectedIndex and value[command.field] == command.value end
+        predicate = function(value)
+            local actual = value[command.field]
+            -- Match PointColor's collection tolerance; every scalar is within [-1, 1].
+            return value.selectedIndex == command.expectedSelectedIndex and finiteNumber(actual) and
+                math.abs(actual - command.value) <= 0.000001
+        end
         if not correctionBindingMatches(command) then
             sendEditResult(command, "stale", "The selected mask or Lightroom context changed.", unavailable("context_changed")); return false
         end
@@ -1464,7 +1469,9 @@ local function executePointColor(command)
         end)
     else error("Invalid mask Point Color command") end
     local after = pointColorSettled(command, predicate)
-    if updateOk == true and success == true and pointColorBinding(command, after) then
+    -- SDK-call success alone cannot confirm an unsettled scalar after the bounded reads.
+    if updateOk == true and success == true and pointColorBinding(command, after) and
+        (command.command ~= "masking.point_color.value.set" or predicate(after.pointColor)) then
         sendEditResult(command, "confirmed", "", after); return true
     end
     local detail = message == "range_excludes_selected_color" and "That range would exclude the selected color." or

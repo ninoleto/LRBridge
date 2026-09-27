@@ -610,7 +610,7 @@
                     button.title = "Request " + label + " in Lightroom; active refinement mode is not exposed."; refinementModes.appendChild(button);
                 }
                 refinement.appendChild(refinementModes);
-                const refinementHelp = doc.createElement("p"); refinementHelp.className = "remove-reset-defaults";
+                const refinementHelp = doc.createElement("p"); refinementHelp.className = "remove-reset-defaults lens-blur-experimental-note";
                 refinementHelp.textContent = "Experimental: Add/Subtract use Windows interface automation, may stop responding and do not report the active mode. If they fail, use Add/Subtract directly in Lightroom.";
                 refinement.appendChild(refinementHelp);
                 selectionNote = doc.createElement("p"); selectionNote.className = "remove-reset-defaults"; selectionNote.hidden = true;

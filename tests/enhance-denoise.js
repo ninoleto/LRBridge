@@ -116,7 +116,7 @@ assert.match(productionJs, /includesDetailControls[\s\S]*controls\.appendChild\(
 assert.match(productionJs, /className = "develop-slider-row denoise-slider-row native-checkbox-row"/);
 assert.match(productionJs, /dataset\.detailControl = "denoise"/);
 assert.match(productionJs, /createNativeCheckbox\("Denoise", setDenoise\)/);
-assert.match(productionJs, /controls\.appendChild\(checkbox\.row\);\s*controls\.appendChild\(enhanceAmountRange\); controls\.appendChild\(enhanceAmountInput\);\s*controls\.appendChild\(enhanceMinusButton\); controls\.appendChild\(enhancePlusButton\); controls\.appendChild\(enhanceStatus\)/,
+assert.match(productionJs, /controls\.appendChild\(checkbox\.row\);\s*controls\.appendChild\(enhanceAmountRange\); controls\.appendChild\(enhanceAmountInput\);\s*controls\.appendChild\(enhanceMinusButton\); controls\.appendChild\(enhancePlusButton\);\s*controls\.appendChild\(enhanceResetButton\); controls\.appendChild\(enhanceStatus\)/,
     "Every Denoise element must belong to one Detail control block");
 assert.match(productionJs, /enhanceAmountInput\.type = "text"; enhanceAmountInput\.inputMode = "numeric"/);
 assert.doesNotMatch(productionJs, /enhanceAmountInput\.type = "number"|\.denoise-slider-row input\[type="number"\]/,
@@ -125,7 +125,10 @@ assert.match(productionJs, /\.develop-slider-row input\[type="text"\][\s\S]*bord
     "Denoise value must inherit the standard Develop value style");
 assert.match(productionJs, /makeButton\("−", "develop-slider-step denoise-minus"/);
 assert.match(productionJs, /makeButton\("\+", "develop-slider-step denoise-plus"/);
-assert.doesNotMatch(productionJs, /makeButton\("Reset Denoise"|denoise-reset/);
+assert.match(productionJs, /makeButton\("Reset", "reset denoise-reset"/);
+assert.match(productionJs, /sendDenoiseAmount\(LRBridgeDenoiseState\.DEFAULT_AMOUNT, true\)/,
+    "Reset must reuse the Amount-only command and wait for Lightroom feedback");
+assert.equal(denoiseUi.DEFAULT_AMOUNT, 50, "Adobe's setEnhance reference documents an Amount default of 50");
 assert.match(productionJs, /const leadingControls = createSectionControls\(section, "leading"\);\s*if \(leadingControls\) \{[\s\S]*?groupElement\.appendChild\(leadingControls\);\s*\}[\s\S]*let currentSubheading = null;\s*section\.items\.forEach/,
     "Denoise must precede Detail's Sharpening controls");
 assert.doesNotMatch(productionJs, /content\.appendChild\([^)]*(?:enhance|Enhance)/,
@@ -140,10 +143,8 @@ assert.doesNotMatch(productionJs.match(/function renderRawDetailsControl\(\)[\s\
 assert.match(productionJs, /Raw Details enabled by Denoise/);
 assert.match(productionJs, /Applying Raw Details…/);
 assert.match(productionJs, /Removing Raw Details…/);
-assert.match(productionJs, /\.denoise-slider-row \{\s*grid-template-columns: minmax\(140px, 210px\) 64px 64px minmax\(180px, 1fr\) 92px 44px 44px/);
-assert.match(productionJs, /@media \(max-width: 760px\)[\s\S]*\.denoise-slider-row \{\s*grid-template-columns: minmax\(92px, 1fr\) 64px 64px/);
-assert.match(productionJs, /\.denoise-slider-row input\[type="range"\],[\s\S]*\.denoise-slider-row \.enhance-status[\s\S]*grid-column: 1 \/ -1/,
-    "Narrow wrapping must keep controls inside the Denoise row");
+// Denoise now inherits the standard Develop grid. Rendered desktop/narrow checks
+// cover alignment and overflow; the obsolete custom-grid assertions are removed.
 
 const state = createEnhanceState();
 state.syncContext(1);
@@ -232,6 +233,39 @@ assert.doesNotMatch(productionJs, /setDenoise\(true\).*amount/i);
     model.step(-1);
     assert.equal(model.displayedAmount, 49);
     assert.equal(model.inFlight, false, "Off-state steps must remain local");
+}
+{
+    const model = denoiseUi.create();
+    assert.equal(model.markSent(denoiseUi.DEFAULT_AMOUNT, true), false, "Reset requires Lightroom Amount feedback");
+    model.feedback(73, false);
+    assert.equal(model.markSent(denoiseUi.DEFAULT_AMOUNT, true), false, "Reset must not apply Denoise while it is off");
+    model.feedback(73, true);
+    model.setDesired(denoiseUi.DEFAULT_AMOUNT);
+    assert.equal(model.markSent(denoiseUi.DEFAULT_AMOUNT, true), true);
+    assert.equal(model.displayedAmount, 73, "Reset must not optimistically display its target");
+    assert.equal(model.waitingForFeedback, true);
+    assert.equal(model.markSent(denoiseUi.DEFAULT_AMOUNT, true), false, "Duplicate Reset must stay blocked");
+    model.feedback(73, true, "processing");
+    assert.equal(model.displayedAmount, 73);
+    model.feedback(denoiseUi.DEFAULT_AMOUNT, true, "applied");
+    assert.equal(model.displayedAmount, denoiseUi.DEFAULT_AMOUNT);
+    assert.equal(model.waitingForFeedback, false);
+    assert.equal(model.desired, null);
+}
+for (const terminal of ["failed", "uncertain", "sendFailed", "navigation"]) {
+    const model = denoiseUi.create();
+    model.feedback(73, true);
+    model.setDesired(denoiseUi.DEFAULT_AMOUNT);
+    model.markSent(denoiseUi.DEFAULT_AMOUNT, true);
+    if (terminal === "sendFailed") model.sendFailed();
+    else if (terminal === "navigation") model.reset();
+    else model.feedback(68, true, terminal);
+    assert.equal(model.waitingForFeedback, false, terminal+": Reset cannot remain pending");
+    assert.equal(model.inFlight, false);
+    assert.equal(model.desired, null, terminal+": Reset must not retry automatically");
+    if (terminal === "navigation") model.feedback(22, true);
+    assert.equal(model.displayedAmount, terminal === "navigation" ? 22 : terminal === "sendFailed" ? 73 : 68,
+        terminal+": display Lightroom's value, not the Reset target");
 }
 assert.match(productionJs, /const denoiseKnown = !unavailable && hasPhoto && inDevelop && typeof state\.denoiseState === "boolean"/,
     "Web Controller must disable Apply outside a valid Develop/photo context");

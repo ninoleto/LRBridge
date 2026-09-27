@@ -56,8 +56,8 @@ const browser = require("./controller-browser-lifecycle");
             assert.match(await run("document.querySelector('.red-eye-help').textContent"), /Pupil Size and Darken/);
             assert(await run("document.documentElement.scrollWidth <= innerWidth"), "Tools overflow at " + width);
             await run("activeTab='selection'; render();");
-            assert.match(await run("document.querySelector('#clipboardCopyHelp').textContent"), /Quick Copy is not required/);
-            assert.match(await run("document.querySelector('#clipboardPasteHelp').textContent"), /process AI edits/);
+            assert.match(await run("document.querySelector('#clipboardCopyHelp').textContent"), /using those choices, without opening the dialog/);
+            assert.match(await run("document.querySelector('#clipboardPasteHelp').textContent"), /Select the destination photos, then click this button to apply the copied settings/);
             assert(await run("document.documentElement.scrollWidth <= innerWidth"), "Selection overflow at " + width);
         }
         assert.deepEqual(errors, []);

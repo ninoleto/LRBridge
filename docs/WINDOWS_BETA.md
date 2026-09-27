@@ -1,11 +1,12 @@
 # LRBridge Windows v0.6 beta
 
-**September 26 source corrections:** the manually tested private build
-`20260925T022735Z` is unchanged. B&W-specific feedback, shared-slider response
-ordering, bokeh confirmation, Upright Close, presentation and guidance fixes
-await the [short source retest](RELEASE_REVIEW.md#short-retest-before-rebuilding)
-before a new release candidate is packaged. No new preset-based controls were
-verified or bundled in this pass.
+**September 27 accepted source:** the latest Copy/Paste, Export and Enhance reports
+are accepted within the user's tested scope, including Denoise Reset and its
+availability/appearance/alignment. Earlier accepted Profile, slider feedback,
+touchscreen Reset, Point Color and presentation fixes remain intact. See the
+[completion review](RELEASE_REVIEW.md) for coverage limits and the remaining manual
+package checks. The old private build `20260925T022735Z` is unchanged and does not
+contain these updates. This is a fresh private candidate, not a published release.
 
 This beta preserves the accepted controller layout, 71-choice favorites bar, Quick Copy Settings, Paste Settings and native Export buttons. New features are frozen. Lens Blur **+ New Refinement**, named export presets and broader MIDI2LR parity are deferred.
 
@@ -38,9 +39,11 @@ Quit LRBridge before upgrading. Extract into a **new folder**, copy your old `co
 
 <details><summary>Native acceptance and known limitations</summary>
 
-Native Quick Copy/Paste acceptance is still pending: one photo, multiple selected photos, selection changes with the active photo unchanged, and native-Lightroom Copy → web Paste. SDK batch true means at least one photo, not all photos. The clipboard cannot be inspected or frozen; it is consumed at execution time. AI-needed readback does not establish completed processing, visual correctness or preservation of every existing mask/AI edit. Uncertain operations require review and never retry automatically.
+The user reports Copy/Paste working in the cases tested, with no problems observed. The report does not enumerate photo counts, same-active-photo selection changes or other edge cases; do not claim those as additional native coverage. SDK batch true means at least one photo, not all photos. The clipboard cannot be inspected or frozen; it is consumed at execution time. AI-needed readback does not establish completed processing, visual correctness or preservation of every existing mask/AI edit. Uncertain operations require review and never retry automatically.
 
-Export acceptance covers the full dialog, Previous destination chooser and a count of one selected photo only. It does not establish file creation, cancellation or multi-photo export.
+The latest Export report says the tested cases work with no problems observed. Earlier specific acceptance covers the full dialog, Previous destination chooser and a count of one selected photo. The latest report does not specify file creation, cancellation or multi-photo export, so those are not newly claimed as tested.
+
+Denoise, Raw Details and Super Resolution are accepted for the tested behavior. Denoise Reset requests Amount 50 through the existing Amount command and waits for Lightroom feedback; it does not toggle Denoise. Amount controls are grey and disabled while Denoise is off/unavailable, and remain adjustable at 50 when On. Reset may be disabled at 50 independently of Amount and the checkbox.
 
 People removal dispatch is verified, but successful Adobe processing and Cancel remain unresolved; the user saw the same Adobe error in native Lightroom. Return to Healing is not Cancel. Dust controls are accepted within the recorded test scope; arbitrary-photo redetection and preservation beside populated AI edits remain limited. Required Dust presets must retain their inspected bytes. Red Eye/Pet Eye open/reset/close buttons are accepted; per-eye sliders, identity and broad reset preservation are not established.
 

@@ -112,8 +112,9 @@
                 }
                 toolStatus = element("div", "red-eye-tool-status"); toolStatus.setAttribute("role", "status");
                 actionStatus = element("div", "red-eye-action-status"); actionStatus.setAttribute("role", "status");
-                section.append(toolStatus, actionStatus, element("p", "remove-reset-defaults red-eye-help",
-                    "Place corrections in Lightroom. Pupil Size and Darken must be adjusted directly in Lightroom."));
+                const help = element("p", "remove-reset-defaults red-eye-help");
+                help.innerHTML = "Place corrections in Lightroom. <strong>Pupil Size</strong> and <strong>Darken</strong> must be adjusted directly in Lightroom.";
+                section.append(toolStatus, actionStatus, help);
                 parent.appendChild(section); render(); refresh();
             },
             deactivate() { section = toolStatus = actionStatus = null; buttons = {}; clearTimeout(timer); if (busy()) timer = setTimeout(refresh, 0); },

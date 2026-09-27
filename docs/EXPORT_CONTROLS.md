@@ -1,5 +1,10 @@
 # Native Export controls (v0.6)
 
+September 27 update: the user reports Export working in the cases tested, with no
+problems observed. This report does not enumerate output-file checks, photo counts,
+cancellation or fault cases. Preserve the earlier specific evidence below without
+claiming those additional scenarios were tested.
+
 Native button behavior was accepted by the user on 2026-09-17 after restarting LRBridge and Lightroom: **Export…** opened Lightroom's full Export dialog; **Export with Previous** opened Lightroom's destination-folder chooser; the web controller correctly displayed **one selected photo**. This does not establish completed file export, dialog cancellation or multi-photo export behavior. The agent invoked no production export during development. Custom named-export-preset discovery/import/execution is deferred.
 
 The Selection page has a compact Export section. **Export…** requests `photo:openExportDialog()`. **Export with Previous** requests `photo:openExportWithPreviousDialog()` and explains that it reuses Lightroom's last export settings and may start immediately. Both methods are documented from SDK 7.4. Library and Develop are supported contexts; controls fail closed without fresh native selection feedback.
