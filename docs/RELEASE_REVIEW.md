@@ -12,6 +12,23 @@
 
 # Windows v0.6 beta completion review
 
+## September 28 accepted fixes integrated for private packaging
+
+The feature branch now contains slider/Reset checkpoint `246d11b` and lifecycle
+checkpoint `95e3592`, retaining their original history. Production Controller,
+bridge and plug-in implementations match the tested isolated worktree; line-ending
+differences do not change content. The HTTP inventory is regenerated solely to update
+157 source-line references after the bridge edit. All 206 routes and their categories
+are unchanged. No slider tuning or additional feature work is included.
+
+Reuse the completed feature checks, bounded native acceptances and 35 cooperative
+lifecycle scenarios. Required staging/cleanup and package-integrity checks remain
+separate from physical package acceptance. The fresh private package must still pass
+desktop startup/restart/settings, Companion/PowerShell, phone/tablet LAN and clean
+Dust setup in a later session. Existing limitations and Constrain Crop deferral remain.
+The source app, active diagnostic plug-in and previous packages are preserved tonight;
+do not start the new package against Lightroom or publish it.
+
 ## September 28 native lifecycle sequence passed
 
 The user restarted Lightroom before completing the requested sequence. Logs verify
@@ -144,6 +161,33 @@ Next: quit the old candidate before starting the isolated source app, verify app
 and the single diagnostic worker, then record rapid Brightness/alternating SDR drags and
 immediate Reset. No Lua changed; no reload is required. Keep release blocked until the
 focused native result is assessed. Broader package checks below remain outstanding.
+
+## September 27 new release blocker — SDR quick adjustments
+
+> Historical investigation note preserved during integration. Its pending-test
+> instructions are superseded by the accepted September 28 results above.
+
+The user reports backward jumps in **Highlight Saturation** (`SDRBlend`) and the other
+six SDR Rendition controls during quick adjustments. The running executable and served
+Controller assets are verified as private candidate `20260927T174904Z`, from `7bd6db9`;
+the bundled plug-in's 40 Lua modules match that candidate. Both source and packaged
+plug-in copies show fresh, distinct command/feedback activity. A single bridge process
+does not imply a single Lightroom plug-in command consumer.
+
+All seven SDR controls use the corrected shared Develop-slider implementation and direct
+integer values. Focused isolated browser coverage of repeated drags, alternating SDR
+controls, delayed feedback, legitimate later Lightroom changes, rejection handling and
+Reset after adjustment passes on the unchanged runtime. Existing shared-feedback and HDR
+contracts pass too. The ordinary FIFO/SDK loop serializes within each plug-in instance;
+two copies can overlap. Logs establish the duplicate consumers but do not prove actual
+SDK write order or the complete cause of the reported jumps.
+
+Keep the blocker open. Leave only the packaged plug-in enabled and perform one short
+native sequence: two quick Highlight Saturation drags, alternate with SDR Highlights,
+then Reset immediately after a drag. If it persists, isolate command/feedback ordering
+with the existing diagnostics under that single plug-in. No speculative runtime fix or
+rebuild has been made. Rebuild waits for native acceptance; the previous package and
+all unrelated work are preserved. Earlier acceptance remains limited to its tested scope.
 
 ## September 27 scoped checkpoint and fresh private candidate
 

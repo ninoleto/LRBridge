@@ -1,5 +1,32 @@
 # LRBridge Codex Handoff
 
+## September 28 accepted fixes integrated; fresh private candidate next
+
+- `feature/v0.6-more-sdk-and-web-controller` now contains the original accepted
+  slider/Reset commit **`246d11b1381c07e77fa29aa60e9a721e99c6f8e2`** and the scoped
+  lifecycle commit **`95e35920451f4bc5be4f2c385803c1d74e571679`** by fast-forward
+  from `8f9ce61`. The isolated branch and its tested implementation remain preserved.
+- All 112 runtime/configuration inputs match the tested isolated source, allowing
+  line-ending normalization. All 40 production Lua modules and the three verified
+  Controller assets match the native-test preparation. The generated HTTP inventory
+  then received source-line-number updates only: all 206 routes, classifications and
+  command contracts are unchanged. This is packaging integration, not slider tuning.
+- Preserve the bounded acceptance: no jumps observed in the earlier corrected run;
+  current Reset responsiveness accepted for the tested controls; native lifecycle
+  sequence accepted after the user's Lightroom restart. Copy/Paste and Export work
+  in the user's tested cases only. Denoise, Raw Details, Super Resolution, Denoise
+  Reset/availability/grey appearance/alignment and all earlier accepted checks and
+  documented limitations remain intact. Constrain Crop feedback optimization stays deferred.
+- Historical root investigation notes have been retained below with a superseded
+  marker. The original SDR browser test is preserved locally; its integrated version
+  retains those cases and adds the captured-failure regression. Unrelated work,
+  private settings, protected cheat sheets, stash and old packages are preserved.
+  Active source app and diagnostic plug-in files/registration have not been changed.
+- Reuse completed slider/Reset and 35-scenario lifecycle verification. Finish required
+  integration/package checks and build only from the committed, sanitized source.
+  The next entry will identify the fresh candidate and its remaining manual gates.
+  No new desktop launch, Lightroom edits, recording, push or publication tonight.
+
 ## September 28 lifecycle acceptance and private package preparation
 
 - The user explicitly accepts the completed native Disable → Enable → Reload
@@ -210,6 +237,60 @@
 - The disabled-plug-in worker lifecycle defect remains separate and unresolved.
   A fresh credential-free recovery backup was uploaded and read back successfully
   before implementation; private evidence, manifests and timings remain local.
+
+## September 27 SDR quick-adjustment report — release blocker, diagnosis pending
+
+> Historical investigation note preserved during integration. Its pending-test
+> instructions are superseded by the accepted September 28 results above.
+
+- The user reports backward jumps during quick changes to **Highlight Saturation**
+  and the other **SDR Rendition** sliders. Keep this as a release blocker; the previous
+  accepted results remain bounded and do not establish universal slider stability.
+- Actual running app verified: `dist/private-test-20260927T174904Z/LRBridge.exe`,
+  PID 33368 owns ports 17890–17892. Served Controller/Point Color/Denoise assets match
+  the candidate's ASAR and have `Cache-Control: no-store`; all 40 bundled Lua modules
+  match build identification for source checkpoint `7bd6db9`. No source Electron app
+  is running. Repository HEAD remains `8f9ce61`, twelve ahead / zero behind the
+  configured upstream, with the pre-existing private/unrelated work and stash retained.
+- **Setup discrepancy:** both the source and packaged Lightroom plug-in copies are
+  actively consuming commands and feedback requests. Their independently rooted logs
+  both contain fresh, distinct events during the reported session; Lightroom preferences
+  list both installed paths and do not disable the source path. The package plug-in is
+  selected. This is not merely an old source log. The bridge's `/next` FIFO has one
+  consumer assumption; each plug-in serializes only its own SDK execution. Two consumers
+  permit overlapping execution. Existing logs do not establish the actual SDK write
+  order or prove this is the sole cause of the reported jumps. User confirmation of
+  Plug-in Manager state was requested; no Lightroom UI automation was used.
+- Exact affected metadata IDs: `SDRBlend` (Highlight Saturation), `SDRBrightness`,
+  `SDRContrast`, `SDRClarity`, `SDRHighlights`, `SDRShadows`, `SDRWhites`. They use the
+  shared `createDevelopSliderControl` path: local range input, throttled `/set`, final
+  serialized submission, server per-slider coalescing, `Driver.setSlider`, SDK readback
+  and shared targeted/panel request-order protection. Values are direct integers with
+  current runtime ranges; no SDR-only conversion discrepancy was found. `HDRMaxValue`
+  has a separate log2 visual scale and is not the Highlight Saturation control.
+- This shared path also serves ordinary Tone, HSL/B&W, Detail, Effects, Calibration,
+  lens corrections/transform, parametric Tone Curve and SDK Lens Blur sliders (some
+  have their own constraints). Global Point Color uses separate intent/edit sequencing
+  and waits for authoritative settlement before advancing its write queue. Its behavior
+  cannot simply be transplanted into generic slider/Reset handling.
+- Added `tests/controller-sdr-feedback-browser.js`, reusing the isolated browser/mock
+  infrastructure and actual production UI handlers. PASS on unchanged runtime: all
+  seven controls, repeated drags with held HTTP admission, alternating controls, stale
+  feedback after newer confirmation, legitimate subsequent Lightroom values, Reset
+  ordered after the admitted drag with the unsent drag cancelled, and rejected writes
+  with visible errors/no retry. Existing `tests/release-feedback-fixes.js` and
+  `tests/hdr-develop-settings.js` also pass. These checks do not pass the native report.
+- **Next native check:** disable the source/other LRBridge plug-in entries and leave
+  only the bundled `20260927T174904Z` plug-in enabled. On the same disposable HDR photo,
+  quickly drag Highlight Saturation twice, alternate with SDR Highlights, then Reset
+  immediately after a drag. Report whether the Controller and Lightroom settle together
+  or jump. Verify source polling has stopped before attributing any remaining failure
+  to the shared implementation. No plug-in code changed or reload is requested here.
+- Runtime, private settings and existing packages are unchanged. No speculative delay,
+  suppressed feedback, new recorder, checkpoint, rebuild or publication. Fresh recovery
+  and detailed evidence are preserved in the ignored local handoff. Rebuild remains
+  deferred until the native retest passes; other package acceptance gates remain pending.
+
 ## September 27 fresh private Windows package — ready for manual package checks
 
 - Release source checkpoint: **`7bd6db95f58897922c1984736e9fe8066a573912`**
