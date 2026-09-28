@@ -6,7 +6,10 @@ const { lua, lauxlib, lualib, to_luastring, to_jsstring } = require(process.env.
 const L = lauxlib.luaL_newstate();
 try {
     lualib.luaL_openlibs(L);
-    const source = fs.readFileSync(path.join(__dirname, "polling-lifecycle.lua"), "utf8");
+    const pluginRoot = process.env.LRBRIDGE_POLLING_PLUGIN_SOURCE;
+    const source = (pluginRoot ? "pluginRoot=" + JSON.stringify(path.resolve(pluginRoot).replace(/\\/g, "/")) + ";\n" : "") +
+        (process.env.LRBRIDGE_POLLING_TEST_FILTER ? "testFilter=" + JSON.stringify(process.env.LRBRIDGE_POLLING_TEST_FILTER) + ";\n" : "") +
+        fs.readFileSync(path.join(__dirname, "polling-lifecycle.lua"), "utf8");
     const status = lauxlib.luaL_dostring(L, to_luastring(source));
     assert.equal(status, lua.LUA_OK, status === lua.LUA_OK ? "" : to_jsstring(lua.lua_tostring(L, -1)));
     console.log(`Polling lifecycle: ${lua.lua_tonumber(L, -1)} cooperative mock-SDK scenarios passed (actual production Lua; no native failure injection).`);

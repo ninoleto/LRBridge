@@ -3,6 +3,7 @@ local LrFunctionContext = import "LrFunctionContext"
 
 local Lifecycle = {}
 local retryDelay = 1 -- Fixed, bounded backoff; normal polling intervals stay in the runners.
+local plugin = _PLUGIN
 
 local function log(message, failure)
     -- Logging must never defeat cleanup or recovery. Do not serialize commands/photos.
@@ -25,17 +26,19 @@ local function log(message, failure)
 end
 
 function Lifecycle.begin()
+    -- ForceInit and cached menu callbacks must not revive a disabled plug-in.
+    if plugin.enabled == false then return nil end
     local state = _G.LRBridgePollingLifecycle
     if not state and (_G.LRBridgePollingStarted or _G.LRBridgeFeedbackPollingStarted) then
         log("legacy polling detected; restart Lightroom once before supervised startup")
         return nil
     end
-    if state and state.stopping and next(state.workers) ~= nil then
-        log("startup ignored while polling is stopping")
-        return nil
-    end
     if not state or state.stopping then
-        state = { workers = {}, stopping = false }
+        -- Enable can arrive before the stopped workers finish their current SDK/
+        -- HTTP call. Reserve one successor now; it waits for the whole predecessor
+        -- chain rather than dropping Enable or overlapping an uncertain action.
+        state = { workers = {}, stopping = false, previous = state }
+        state.label = tostring(state)
         _G.LRBridgePollingLifecycle = state
     end
     return state
@@ -47,8 +50,12 @@ function Lifecycle.start(state, name, flag, runner)
     state.workers[name] = owner -- Reserve before scheduling, including startup/backoff.
     _G[flag] = false
     local function current()
-        return not state.stopping and _G.LRBridgePollingLifecycle == state
-            and state.workers[name] == owner
+        if state.stopping or _G.LRBridgePollingLifecycle ~= state or state.workers[name] ~= owner then return false end
+        -- The explicit Disable hook is primary. This also guards a forced load
+        -- or a disabled worker resuming after a host yield. Once stopped, an old
+        -- generation cannot become live again when the same plug-in is enabled.
+        if plugin.enabled == false then state.stopping = true; return false end
+        return true
     end
     local function release()
         if state.workers[name] == owner then
@@ -61,6 +68,8 @@ function Lifecycle.start(state, name, flag, runner)
             LrFunctionContext.callWithContext("LRBridge " .. name .. " supervisor", function(context)
                 context:addCleanupHandler(release)
                 LrTasks.sleep(1) -- Preserve the existing automatic startup delay.
+                while current() and not Lifecycle.isStopped(state.previous) do LrTasks.sleep(0.1) end
+                if current() then state.previous = nil end
                 while current() do
                     local attemptActive = true
                     local children = 0
@@ -81,7 +90,7 @@ function Lifecycle.start(state, name, flag, runner)
                         end
                     end
                     _G[flag] = true
-                    log(name .. " loop started")
+                    log(name .. " loop started; generation=" .. state.label)
                     -- Each attempt gets fresh locals. A dispatched edit is never saved/replayed.
                     local ok, failure = LrTasks.pcall(runner, running, startChildTask)
                     attemptActive = false
@@ -93,7 +102,7 @@ function Lifecycle.start(state, name, flag, runner)
                     while children > 0 do LrTasks.sleep(0.1) end
                     if current() then LrTasks.sleep(retryDelay) end
                 end
-                log(name .. " supervisor stopped")
+                log(name .. " supervisor stopped; generation=" .. state.label)
             end)
         end)
     end)
@@ -106,12 +115,17 @@ end
 function Lifecycle.stop()
     local state = _G.LRBridgePollingLifecycle
     if state then state.stopping = true end
-    log("shutdown requested")
+    log("shutdown requested" .. (state and ("; generation=" .. state.label) or ""))
     return state
 end
 
 function Lifecycle.isStopped(state)
-    return not state or next(state.workers) == nil
+    -- A cancelled successor may exit before its still-draining predecessor.
+    while state do
+        if next(state.workers) ~= nil then return false end
+        state = state.previous
+    end
+    return true
 end
 
 return Lifecycle

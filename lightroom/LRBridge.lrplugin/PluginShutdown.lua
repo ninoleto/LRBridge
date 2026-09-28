@@ -1,8 +1,8 @@
 local LrTasks = import "LrTasks"
 local Lifecycle = require "PollingLifecycle"
 
--- LrShutdownPlugin executes this script directly; it does not invoke the returned table.
--- Signal synchronously for unload/reload, and capture this generation for app shutdown.
+-- Disable and unload/reload execute this script directly, without the returned table.
+-- Signal synchronously for both hooks; capture this generation for app shutdown.
 local state = Lifecycle.stop()
 
 -- Only LrShutdownApp invokes the documented asynchronous completion callback.

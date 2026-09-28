@@ -1,14 +1,15 @@
 -- Execute the production startup, supervisors and both runners with cooperative SDK tasks.
 -- Virtual time and in-memory HTTP keep failure injection away from the user's catalog/server.
-package.path = "lightroom/LRBridge.lrplugin/?.lua;" .. package.path
+local pluginRoot = pluginRoot or "lightroom/LRBridge.lrplugin"
+package.path = pluginRoot .. "/?.lua;" .. package.path
 local originalDofile = dofile
 local originalTime, originalClock = os.time, os.clock
 local S
-local function loadPlugin(file) return dofile("lightroom/LRBridge.lrplugin/" .. file) end
+local function loadPlugin(file) return dofile(pluginRoot .. "/" .. file) end
 local function setup()
     S = { now = 1000, tasks = {}, requests = {}, edits = {}, queue = {}, logs = {},
         online = true, observers = 0, peakObservers = 0, module = "library", interval = 0.1 }
-    _PLUGIN = { path = "lightroom/LRBridge.lrplugin" }
+    _PLUGIN = { path = pluginRoot, enabled = true }
     _G.LRBridgePollingLifecycle, _G.LRBridgePollingStarted, _G.LRBridgeFeedbackPollingStarted = nil, nil, nil
     _G.LRBridgeCommandBusy = false
     package.loaded.PollingLifecycle = nil
@@ -126,6 +127,12 @@ local function started()
     start()
     untilTrue(function() return count("/next") > 0 and count("/feedback/next") > 0 end)
 end
+local function pluginEvent(kind)
+    if kind == "LrDisablePlugin" then _PLUGIN.enabled = false end
+    if kind == "LrEnablePlugin" then _PLUGIN.enabled = true end
+    local script = loadPlugin("Info.lua")[kind]
+    if script then return loadPlugin(script) end
+end
 local function shutdown()
     local done = false
     loadPlugin("PluginShutdown.lua").LrShutdownFunction(function() done = true end, function() end)
@@ -135,6 +142,7 @@ local commandA = '{"command":{"command":"photo.rotate","direction":"left"}}'
 local commandB = '{"command":{"command":"photo.rotate","direction":"right"}}'
 local tests = 0
 local function test(name, fn)
+    if testFilter and not string.find(name, testFilter, 1, true) then return end
     setup()
     local ok, failure = pcall(fn)
     assert(ok, name .. ": " .. tostring(failure))
@@ -143,10 +151,173 @@ local function test(name, fn)
     tests = tests + 1
 end
 
+-- Captured defect: Lightroom's preferences listed the packaged plug-in as disabled,
+-- but its independent log still received commands alongside the diagnostic worker.
+-- Dispatch the actual Info.lua event; do not substitute an unload for Disable.
+test("Plug-in Manager Disable stops both consumers and cleans observers", function()
+    S.module = "develop"; started()
+    local state = _G.LRBridgePollingLifecycle
+    pluginEvent("LrDisablePlugin")
+    local before = #S.requests
+    S.queue = { commandA }
+    -- A separate timer lets virtual time advance after both workers have exited.
+    import("LrTasks").startAsyncTask(function() import("LrTasks").sleep(2) end)
+    advance(1.5)
+    assert(#S.requests == before and #S.edits == 0 and #S.queue == 1,
+        "captured defect: a disabled plug-in must not keep dequeuing commands or feedback")
+    assert(next(state.workers) == nil and S.observers == 0, "Disable must drain workers and observer contexts")
+end)
+
+test("forced initialization of a disabled plug-in stays idle", function()
+    _PLUGIN.enabled = false
+    start(); loadPlugin("StartPolling.lua")
+    assert(#S.tasks == 0 and #S.requests == 0, "ForceInit must not start a disabled plug-in")
+end)
+
+test("Enable alone starts one pair after Disable, duplicate callbacks stay idempotent", function()
+    started()
+    local old = _G.LRBridgePollingLifecycle
+    pluginEvent("LrDisablePlugin")
+    pluginEvent("LrEnablePlugin"); pluginEvent("LrEnablePlugin"); start()
+    S.queue = { commandA }
+    untilTrue(function() return #S.edits == 1 end)
+    assert(next(old.workers) == nil and _G.LRBridgePollingLifecycle ~= old)
+    local live = 0
+    for _, task in ipairs(S.tasks) do if coroutine.status(task.co) ~= "dead" then live = live + 1 end end
+    assert(live == 2, "one command supervisor and one feedback supervisor after enabling")
+    advance(0.4); assert(#S.edits == 1)
+end)
+
+test("quick Disable and Enable drain an uncertain SDK action before replacement", function()
+    S.queue = { commandA, commandB }
+    local entered, completed, old
+    S.execute = function(command)
+        if command.direction == "left" then
+            entered = true; coroutine.yield(2.5); completed = true
+        else assert(completed, "replacement must wait for the in-flight action to finish") end
+    end
+    start(); untilTrue(function() return entered end)
+    old = _G.LRBridgePollingLifecycle
+    pluginEvent("LrDisablePlugin"); pluginEvent("LrEnablePlugin"); pluginEvent("LrEnablePlugin")
+    advance(1.2)
+    assert(#S.edits == 1 and not completed and _G.LRBridgeCommandBusy,
+        "Enable cannot overlap or retry an already dispatched SDK action")
+    untilTrue(function() return #S.edits == 2 end)
+    assert(completed and next(old.workers) == nil and not _G.LRBridgeCommandBusy)
+end)
+
+test("Disable cancels a pending Enable even during repeated draining generations", function()
+    S.queue = { commandA, commandB }
+    local entered
+    S.execute = function() entered = true; coroutine.yield(2); S.execute = nil end
+    start(); untilTrue(function() return entered end)
+    pluginEvent("LrDisablePlugin"); pluginEvent("LrEnablePlugin")
+    pluginEvent("LrDisablePlugin"); pluginEvent("LrEnablePlugin")
+    pluginEvent("LrDisablePlugin")
+    local lifecycle = require "PollingLifecycle"
+    untilTrue(function() return lifecycle.isStopped(_G.LRBridgePollingLifecycle) end)
+    assert(#S.edits == 1 and #S.queue == 1, "a cancelled Enable must not resume after draining")
+    pluginEvent("LrEnablePlugin")
+    untilTrue(function() return #S.edits == 2 end)
+end)
+
+for _, endpoint in ipairs({ "/next", "/feedback/next" }) do
+    test("Disable discards a late HTTP response " .. endpoint, function()
+        local disabled
+        S.http = function(route)
+            if route == endpoint and not disabled then
+                disabled = true; pluginEvent("LrDisablePlugin")
+                coroutine.yield(0.2)
+                return true, endpoint == "/next" and commandA or '{"treatment":true,"id":1}'
+            end
+        end
+        start(); untilTrue(function() return disabled end)
+        untilTrue(function() return require("PollingLifecycle").isStopped(_G.LRBridgePollingLifecycle) end)
+        assert(#S.edits == 0 and count("/treatment/result") == 0)
+    end)
+end
+
+test("disabled SDK state also stops a worker without a delivered callback", function()
+    started()
+    _PLUGIN.enabled = false
+    local before = #S.requests
+    S.queue = { commandA }
+    untilTrue(function() return require("PollingLifecycle").isStopped(_G.LRBridgePollingLifecycle) end)
+    assert(#S.requests == before and #S.edits == 0)
+    pluginEvent("LrEnablePlugin")
+    untilTrue(function() return #S.edits == 1 end)
+end)
+
+test("Disable during failure backoff cannot restart until Enable", function()
+    S.http = function() error("offline exception") end
+    start(); untilTrue(function() return logged("feedback loop failed") end)
+    pluginEvent("LrDisablePlugin")
+    local before = #S.requests
+    untilTrue(function() return require("PollingLifecycle").isStopped(_G.LRBridgePollingLifecycle) end)
+    assert(#S.requests == before)
+    S.http = nil; pluginEvent("LrEnablePlugin"); pluginEvent("LrEnablePlugin")
+    untilTrue(function() return #S.requests > before end)
+end)
+
+test("reload uses a fresh Lua environment and old late responses stay stopped", function()
+    S.module = "develop"
+    local waiting
+    S.http = function(route)
+        if route == "/next" and not waiting then
+            waiting = true; coroutine.yield(2.5); return true, commandA
+        end
+    end
+    start(); untilTrue(function() return waiting and S.observers == 2 end)
+    local old = _G.LRBridgePollingLifecycle
+    pluginEvent("LrShutdownPlugin")
+    local before = #S.requests
+    -- A reload creates a new global/module environment. The old tasks retain
+    -- their original environment; clearing fields in the same _G is insufficient.
+    local env = setmetatable({ LRBridgePollingLifecycle = false, LRBridgePollingStarted = false,
+        LRBridgeFeedbackPollingStarted = false, LRBridgeCommandBusy = false }, { __index = _G })
+    env._G = env
+    env._PLUGIN = { path = pluginRoot, enabled = true }
+    env.dofile = function(file)
+        return assert(loadfile(string.gsub(file, "\\", "/"), "t", env))()
+    end
+    local loaded = {}
+    env.require = function(name)
+        if name == "PollingLifecycle" or name == "PollingTrace" or name == "ToneCurve" or name == "DevelopPresets" then
+            if not loaded[name] then loaded[name] = env.dofile(pluginRoot .. "/" .. name .. ".lua") end
+            return loaded[name]
+        end
+        return require(name)
+    end
+    local originalHttp = import "LrHttp"
+    env.import = function(name)
+        if name ~= "LrHttp" then return import(name) end
+        return { get = function(...)
+            local index = #S.requests + 1
+            local body, headers = originalHttp.get(...)
+            S.requests[index].generation = "replacement"
+            return body, headers
+        end }
+    end
+    env.dofile(pluginRoot .. "/PluginInit.lua")
+    env.dofile(pluginRoot .. "/PluginInit.lua")
+    S.queue = { commandB }
+    advance(3)
+    assert(#S.edits == 1 and S.edits[1].direction == "right", "late old command cannot execute after reload")
+    assert(next(old.workers) == nil and env.LRBridgePollingStarted and env.LRBridgeFeedbackPollingStarted)
+    for index = before + 1, #S.requests do
+        assert(S.requests[index].generation == "replacement", "old generation cannot issue requests after reload")
+    end
+    assert(S.observers == 2 and S.peakObservers == 2, "old adjustment observers must be removed before replacement setup")
+    env.dofile(pluginRoot .. "/PluginShutdown.lua")
+    untilTrue(function() return env.require("PollingLifecycle").isStopped(env.LRBridgePollingLifecycle) end)
+    assert(S.observers == 0)
+end)
+
 test("automatic startup, menu and duplicate entry points", function()
     local info = loadPlugin("Info.lua")
     assert(info.LrLibraryMenuItems == nil and info.LrExportMenuItems == nil)
     assert(info.LrInitPlugin == "PluginInit.lua" and info.LrForceInitPlugin)
+    assert(info.LrEnablePlugin == "PluginInit.lua" and info.LrDisablePlugin == "PluginShutdown.lua")
     assert(info.LrShutdownPlugin == "PluginShutdown.lua" and info.LrShutdownApp == "PluginShutdown.lua")
     assert(#info.LrHelpMenuItems == 1 and info.LrHelpMenuItems[1].file == "Help.lua")
     start(); start(); loadPlugin("StartPolling.lua")
@@ -324,7 +495,10 @@ test("late dequeued command is discarded on shutdown", function()
         done = shutdown(); coroutine.yield(0.2); return true, commandA
     end end
     start(); untilTrue(function() return done ~= nil end)
-    start(); assert(#S.tasks == 3, "reload cannot overlap a draining generation")
+    local before = #S.requests
+    start(); start()
+    assert(#S.tasks == 5 and #S.requests == before,
+        "one reserved successor pair may wait for draining, without polling or dispatch")
     untilTrue(done); assert(#S.edits == 0)
 end)
 

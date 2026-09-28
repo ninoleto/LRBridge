@@ -9,6 +9,8 @@ return {
 
     LrInitPlugin = "PluginInit.lua",
     LrForceInitPlugin = true,
+    LrEnablePlugin = "PluginInit.lua",
+    LrDisablePlugin = "PluginShutdown.lua",
     LrShutdownPlugin = "PluginShutdown.lua",
     LrShutdownApp = "PluginShutdown.lua",
 

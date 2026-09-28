@@ -1,14 +1,57 @@
 > Current release status (September 28): the captured SDR Brightness rollback
 > has a demonstrated confirmation-error cause and an isolated correction with
 > fail-old/pass-new regressions. User observed no jumps in one corrected-source run;
-> The user accepts the current Reset responsiveness for the tested controls and
-> authorizes a scoped local checkpoint of the slider/Reset fixes and recorded results.
-> This remains bounded evidence, not final release approval. The separately documented
-> disabled/reloaded worker defect is the next task; remaining package gates stay open.
-> See [the evidence, measurements and slider inventory](SHARED_SLIDER_COORDINATION.md).
-> No rebuild or publication; preserve the current candidate.
+> The user accepts the current Reset responsiveness for the tested controls.
+> This remains bounded evidence, not final release approval. Repository evidence,
+> measurements and slider inventory: `docs/SHARED_SLIDER_COORDINATION.md`.
+> Slider/Reset checkpoint: `246d11b`. The separate worker lifecycle correction now
+> passes focused automated checks and the completed native Disable/Enable/Reload
+> sequence after the user's Lightroom restart, now explicitly accepted for that sequence.
+> A scoped lifecycle commit, integration and fresh private package are authorized.
+> Remaining package gates stay open; preserve the older candidate. No publication.
 
 # Windows v0.6 beta completion review
+
+## September 28 native lifecycle sequence passed
+
+The user restarted Lightroom before completing the requested sequence. Logs verify
+one command and one feedback supervisor at startup and after each reload/Enable;
+both old supervisors stop before replacements. Disable leaves a seven-second gap
+without polling records before Enable. No duplicate starts, same-type overlap or
+lifecycle failure appears in the window. Older source/package plug-in logs remain
+unchanged; final SDK feedback is fresh and the queue empty. The exact diagnostic
+modules and served assets match the tested implementation; evidence is preserved.
+
+This passes the exercised native startup, initial reload, Disable, Enable and final
+reload sequence. Native rapid toggles, in-flight actions, fault injection and shutdown
+cancellation were not tested; reuse existing automated coverage separately. No slider
+tests were repeated or code retuned. Slider/Reset checkpoint remains `246d11b`;
+the lifecycle result is now explicitly accepted for this sequence. A scoped lifecycle
+commit, integration and fresh private package are authorized. No push, publication or
+final release approval. Existing package gates and documented limitations remain intact.
+
+The preparation entries below are historical. Their pending lifecycle instructions
+are superseded by the accepted result above; do not repeat that native sequence.
+
+## September 28 polling lifecycle correction prepared
+
+The accepted slider/Reset scope is checkpointed locally as `246d11b` (21 files).
+Private settings, unrelated work, recordings, stash and old candidate are preserved.
+Completed slider checks were reused. A separate uncommitted lifecycle fix registers
+the missing Disable/Enable hooks and handles re-enabling while stopped workers drain.
+Disabled forced initialization, generation ownership and late responses are guarded;
+SDK operations already in flight are not killed or retried. Slider tuning is unchanged.
+
+Two old-code regressions demonstrate the missing Disable registration and lost quick
+Enable. Final production Lua passes 35 cooperative SDK scenarios, including a fresh
+reload environment, plus public polling compatibility and Adobe Lua syntax checks
+for all 40 prepared diagnostic modules. These checks do not establish native behavior.
+The same diagnostic plug-in is prepared for one load reload, Disable/Enable, then a
+reload of the corrected code. Current source app stays running. Details and acceptance
+criteria are in the repository's `docs/POLLING_LIFECYCLE.md`.
+
+Native lifecycle validation and existing package gates remain open. No rebuild,
+publication or additional feature acceptance is inferred.
 
 ## September 28 checkpoint acceptance
 

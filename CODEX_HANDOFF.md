@@ -1,5 +1,81 @@
 # LRBridge Codex Handoff
 
+## September 28 lifecycle acceptance and private package preparation
+
+- The user explicitly accepts the completed native Disable → Enable → Reload
+  result for the tested sequence, with Lightroom restarted before the sequence.
+  Include the verified lifecycle fix, its tests and documentation in a scoped local
+  commit, preserving slider/Reset checkpoint `246d11b` and all bounded results below.
+- Integrate both fixes into `feature/v0.6-more-sdk-and-web-controller`, verify runtime
+  equality with the tested implementations, and build a fresh private Windows package
+  using the existing sanitized workflow. Reuse completed feature/lifecycle checks;
+  only integration and packaging verification is needed. Preserve prior packages,
+  unrelated work, private settings, recordings and stash contents.
+- Package startup/restart/settings preservation, Companion/PowerShell commands,
+  phone/tablet LAN use and clean Dust setup remain manual gates for another session.
+  Do not launch the new desktop package, change the active Lightroom plug-in entry,
+  send photo edits, request recordings, push or publish tonight. Historical preparation
+  sections below retain their original evidence and are superseded by this acceptance.
+
+## September 28 native polling lifecycle sequence verified
+
+- User restarted Lightroom before completing the requested Reload → Disable → Enable
+  → Reload sequence. The source LRBridge app stayed running. Preserve this actual
+  sequence; do not describe the test as having occurred without a Lightroom restart.
+- Logs verify the corrected plug-in started one command and one feedback supervisor
+  at 04:01:55 local. Initial reload stopped both at 04:02:38 before their replacements
+  started at 04:02:39. Disable stopped both at 04:02:42, followed by seven logged
+  seconds without polling records until Enable started one pair at 04:02:49. Final
+  reload stopped both at 04:02:52 before one final pair started at 04:02:53.
+- **Native PASS for this sequence:** no duplicate starts, overlapping supervisors
+  of the same type or lifecycle failures in the recorded window. Independent old
+  source/package plug-in logs remain unchanged. Final SDK heartbeat is fresh and
+  queue empty. All 40 diagnostic modules and three served Controller assets match
+  the verified versions. Preserved 50 hash-verified evidence files plus analysis.
+- Reuse the completed 35 automated lifecycle scenarios and compatibility/compiler
+  checks. Native rapid-toggle, in-flight-operation, injected-failure and shutdown-
+  cancellation cases were not added by this run. Earlier limitations stay recorded.
+  No new slider/Reset testing or tuning; the accepted fixes remain checkpointed at
+  `246d11b`. Lifecycle changes remain uncommitted. No build, push or publication;
+  remaining package checks are still open. No further reload/test is requested for
+  this completed lifecycle sequence. Detailed evidence is in the ignored local handoff.
+
+## September 28 slider checkpoint complete; polling lifecycle fix awaits native validation
+
+- Scoped local checkpoint **`246d11b1381c07e77fa29aa60e9a721e99c6f8e2`**
+  (`Fix shared slider confirmation ownership and Reset readback timing`) contains
+  the reviewed 21-file slider/Reset scope, regressions and documentation. User accepts
+  Reset responsiveness for the tested controls. Completed checks were reused; the
+  bounded recordings/results below are unchanged. Main worktree, private settings,
+  stash and preserved candidate remain untouched. Nothing was pushed or built.
+- Separate lifecycle cause: `Info.lua` omitted the SDK's Disable/Enable callbacks.
+  Unload/app-shutdown callbacks do not substitute for Disable. Existing evidence
+  shows a disabled packaged copy still consuming commands alongside the diagnostic
+  worker. Also, startup discarded Enable while a stopped generation was draining.
+- Uncommitted lifecycle correction, separate from slider tuning: Disable synchronously
+  requests stop; Enable uses idempotent startup. Forced initialization cannot revive
+  a disabled plug-in. A quick re-enable reserves one replacement pair and waits for
+  preceding workers/children to drain; later Disable cancels that start. Stopped
+  generations cannot resume on re-enable. Generation-labelled start/stop logs support
+  the native check. In-flight SDK operations are not killed or automatically retried.
+- **Automated PASS:** 35 cooperative actual-production-Lua lifecycle scenarios,
+  public polling command compatibility, Adobe compiler checks for all 40 prepared
+  diagnostic modules. Regressions fail against old code for continued consumption
+  after Disable and lost quick Enable with hooks alone. Fresh-environment reload,
+  late responses, backoff, duplicate startup, observer/child cleanup and action drain
+  are covered. These are simulated SDK checks, not physical acceptance.
+- Updated `Info.lua`, `PollingLifecycle.lua` and `PluginShutdown.lua` are prepared in
+  the existing diagnostic plug-in; prior files and logs are preserved. Current source
+  app remains running; Controller/backend and slider/Reset code are unchanged. No app
+  restart or new recorder is needed. Exact preparation and evidence paths are local.
+- **Next native check:** in Lightroom Plug-in Manager, select the existing diagnostic
+  LRBridge entry. Reload once to load this fix; Disable, wait 5 seconds, Enable, wait
+  5 seconds; then Reload once more to test the corrected reload lifecycle, and wait
+  5 seconds. Keep other entries disabled and send no edits during this check. After
+  the user finishes, inspect generation start/stop events and independent worker logs
+  before accepting the result. Native lifecycle acceptance remains pending. No rebuild
+  or publication; all remaining package gates/limitations and Constrain Crop deferral stay.
+
 ## September 28 accepted slider and Reset checkpoint
 
 - The user explicitly accepts **current Reset responsiveness for the tested controls**
