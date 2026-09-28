@@ -1,5 +1,51 @@
 # LRBridge Codex Handoff
 
+## September 28 fresh private package — test this candidate next
+
+- **Next candidate: `20260928T025413Z`**, Windows x64 portable LRBridge 0.6.0,
+  Electron 43.1.1, unsigned/private. Built from integrated source checkpoint
+  **`92d22d41883f89ab5b407e33a6694f5c37abbbea`** on
+  `feature/v0.6-more-sdk-and-web-controller`. This includes the original slider/Reset
+  checkpoint **`246d11b1381c07e77fa29aa60e9a721e99c6f8e2`** and accepted lifecycle
+  fix **`95e35920451f4bc5be4f2c385803c1d74e571679`**. A documentation-only follow-up
+  records these build results; the package source remains `92d22d4`.
+- Exact paths:
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20260928T025413Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - Extracted EXE: `D:\Projects\LRBridge\dist\private-test-20260928T025413Z\LRBridge.exe`
+  - Matching bundled plug-in: `D:\Projects\LRBridge\dist\private-test-20260928T025413Z\lightroom\LRBridge.lrplugin`
+  - ZIP SHA-256: `c383a35c3f0b576feffd25ece416902f80f9a65b219b836709a7a7bfadf9f422`.
+  - `candidate.json`, checksum sidecar and `build-identification.json` beside the ZIP
+    record source identity, hashes and verification. The older `20260927T174904Z`
+    and `20260925T022735Z` packages remain preserved; use the new candidate next.
+- **Passed:** required release staging/route/reference/defaults and temporary Dust
+  installer checks; release cleanup, Lua syntax and isolated staged-runtime startup;
+  existing builder/ZIP manifest checks; extracted-file hashes; all 135 committed build
+  inputs, 69 runtime allowlist files, 40 Lua modules, native helpers, Dust presets and
+  installer. Bundled Controller/Point Color/Denoise assets match accepted source after
+  line-ending normalization; all 40 plug-in modules and the bridge match native-tested
+  production bytes. Generated HTTP metadata changed source-line references only.
+- Package settings are exactly `poll_interval_ms=100` and Develop presets are empty.
+  All 447 ASAR files and 140 external files were checked for credential content and
+  development artifacts. Diagnostic capture hooks, private settings, recordings,
+  research, tests and local handoffs are excluded. Existing feature/slider/Reset and
+  35-scenario lifecycle checks were reused. No broad suite or native sequence repeated.
+- **Remaining manual gates:** package desktop startup/restart and settings preservation;
+  Companion/PowerShell commands; phone/tablet LAN use; clean Dust setup. These are
+  pending, not passed. Keep all earlier bounded acceptances and limitations below;
+  no universal slider-stability claim or final release approval is inferred. Constrain
+  Crop feedback optimization remains deferred. No preparation blocker remains.
+- **Next-session startup:** fully quit the currently running LRBridge through its
+  tray **Quit** command and close Lightroom Classic. Launch only the extracted EXE
+  above, then reopen Lightroom. In Plug-in Manager, disable the diagnostic/other
+  LRBridge entries, add or select the exact bundled plug-in above, enable it, and
+  **Reload Plug-in once**. Keep only that LRBridge entry enabled. Do not run `npm start`
+  or an older EXE alongside it. Open `http://127.0.0.1:17892/` for this Controller.
+- Tonight the new EXE was not launched, active plug-in registration/files were not
+  changed, and no photo edits or recordings were sent. Unrelated work, private
+  settings, protected cheat sheets, stash, evidence and old packages are preserved.
+  No push, tag, public release or publication. Detailed verification/recovery evidence
+  is in the ignored local handoff. Stop here until the next manual package session.
+
 ## September 28 accepted fixes integrated; fresh private candidate next
 
 - `feature/v0.6-more-sdk-and-web-controller` now contains the original accepted
