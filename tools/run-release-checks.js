@@ -5,7 +5,7 @@ const root=path.resolve(__dirname,".."),pkg=require("../package.json");
 const extra=["clipboard","export","controller-history","controller-tab-actions","masking-create","masking-components",
     "masking-component-delete","masking-component-invert","masking-preset-application","remove-preferences",
     "dust-controls","dust-preset","red-eye","polling-lifecycle","release-preparation",
-    "polling-trace","release-cleanup","reset-feedback-queue","reset-feedback-delivery",
+    "polling-trace","release-cleanup","shared-reset-confirmation","reset-feedback-queue","reset-feedback-delivery",
     "remove-selection","remove-selection-refinement","remove-selection-polling",
     "release-feedback-fixes","release-sdk-fixes"];
 const core=pkg.scripts.test.split(" && ").map(s=>pkg.scripts[s.replace("npm run ","")]).flatMap(s=>s.split(" && "));

@@ -50,7 +50,7 @@
     "test:controller-proxy": "node tests/controller-proxy.js",
     "test:controller-feedback": "node tests/controller-feedback-snapshot-proxy.js",
     "test:controller-browser": "node tests/controller-browser-lifecycle.js",
-    "test:controller-reset-feedback": "node tests/reset-feedback-queue.js && node tests/reset-feedback-delivery.js && node tests/controller-browser-lifecycle.js --reset-feedback-only",
+    "test:controller-reset-feedback": "node tests/shared-reset-confirmation.js && node tests/reset-feedback-queue.js && node tests/reset-feedback-delivery.js && node tests/controller-browser-lifecycle.js --reset-feedback-only",
     "test:release-cleanup": "node tests/release-cleanup.js",
     "test:controller-input": "node tests/input-validation.js",
     "test:controller-color-grading": "node tests/controller-color-grading.js",

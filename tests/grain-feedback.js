@@ -12,6 +12,7 @@ function sourceBetween(start, end) {
     return html.slice(first, last);
 }
 const source = sourceBetween("function developSliderFeedbackBinding()", "async function requestLiveFeedbackSnapshot(") +
+    sourceBetween("function applyTargetedDevelopSliderFeedback(", "const pendingDevelopSliderResetFeedback") +
     sourceBetween("async function requestDevelopSliderStepFeedback(", "function handleDevelopSliderStepSubmission(");
 
 async function checkFeedback(slider, change, rejection) {
@@ -21,15 +22,24 @@ async function checkFeedback(slider, change, rejection) {
     const delayed = new Promise((resolve, reject) => { settle = rejection ? reject : resolve; });
     const applied = [];
     const errors = [];
+    let reads = 0;
     const context = {
         genericFeedbackGeneration: 4, lastControllerActiveModule: "develop",
         lastControllerSelectedPhotoUuid: "grain-photo-a", lastControllerContextCounter: 2,
         lastControllerContextChangedAt: 1000, lastControllerDevelopCounter: 7,
         fetch: async () => ({ ok: true, json: async () => ({ request: { id: 1 } }) }),
-        pollFeedbackSnapshot: () => { entered(); return delayed; },
+        pollFeedbackSnapshot: () => {
+            reads += 1;
+            if (reads === 1) { entered(); return delayed; }
+            // A revision change requires a new SDK read. Never return the old
+            // resolved promise as if it belonged to this new request.
+            return Promise.resolve({ snapshot: { results: { [slider]: { available: true, value: 65 } } } });
+        },
+        pollControllerContext: async () => true,
         applyDevelopSliderFeedbackIfChanged: (_control, result) => applied.push(result.value),
         cancelDevelopSliderStep: () => errors.push("cancel"),
         showDevelopSliderLocal: () => errors.push("restore"),
+        setDevelopSliderState: () => {},
         setStatus: message => errors.push(message),
         console: { error: message => errors.push(message) }
     };
@@ -71,11 +81,13 @@ async function checkFeedback(slider, change, rejection) {
         for (const [field, value] of Object.entries({
             genericFeedbackGeneration: 5, lastControllerActiveModule: "library",
             lastControllerSelectedPhotoUuid: "grain-photo-b", lastControllerContextCounter: 3,
-            lastControllerContextChangedAt: 2000, lastControllerDevelopCounter: 8
+            lastControllerContextChangedAt: 2000
         })) {
             assert.deepEqual(await checkFeedback(slider, context => { context[field] = value; }),
                 { applied: [], errors: [] }, slider + " must reject stale " + field);
         }
+        assert.deepEqual(await checkFeedback(slider, context => { context.lastControllerDevelopCounter = 8; }),
+            { applied: [65], errors: [] }, slider + " must discard the old revision's 64 and renew the SDK read");
         assert.deepEqual(await checkFeedback(slider, (_context, control) => { control.row.isConnected = false; }),
             { applied: [], errors: [] }, "detached hosts must ignore late feedback");
         assert.deepEqual(await checkFeedback(slider, context => { context.lastControllerContextCounter += 1; }, true),

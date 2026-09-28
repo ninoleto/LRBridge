@@ -243,7 +243,9 @@ async function verify({ evaluate, waitFor, selectTab, fixture }) {
     state.holdTargets = true;
     const requestsBeforeNavigation = state.requests.length;
     await evaluate("void requestDevelopSliderResetFeedback(developSliderControls.Exposure)");
-    await waitFor(() => state.heldTargets.length > 0, "delayed targeted old-photo feedback");
+    await waitFor(() => state.requests.slice(requestsBeforeNavigation).some(request =>
+        request.sliders.includes("Exposure") && state.heldTargets.some(held => held.id === request.id)),
+    "this delayed targeted old-photo feedback, not a previous Reset's remaining read");
     Object.assign(fixture.context, { selectedPhotoUuid: "reset-photo-b", selectedPhotoKey: "reset-photo-b",
         contextCounter: fixture.context.contextCounter + 1, contextChangedAt: Date.now() });
     fixture.values.Exposure = 0.75;
@@ -394,6 +396,10 @@ async function verify({ evaluate, waitFor, selectTab, fixture }) {
     await waitFor(() => state.heldTargets.length === 2, "second independently held read");
     state.holdTargets = false;
     state.targetDelay = 350;
+    // Model a real discarded snapshot: Lightroom advanced after these reads.
+    // A plain 404 with no ownership change is an error, not a retry signal.
+    fixture.context.developCounter += 1;
+    fixture.context.developChangedAt = Date.now();
     const heldRetries = state.heldTargets.splice(0), retryReadStart = state.requests.length, retryAt = Date.now();
     heldRetries[0].release(true);
     await new Promise(resolve => setTimeout(resolve, 50));

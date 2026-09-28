@@ -7298,6 +7298,8 @@
         function cancelDevelopSliderStep(control) {
             control.editGeneration = (control.editGeneration || 0) + 1;
             clearDevelopSliderStepTimers(control);
+            if (control.stepFeedbackAbort) control.stepFeedbackAbort.abort();
+            control.stepFeedbackAbort = null;
             control.desiredValue = null;
             control.confirmationPending = false;
             control.stepConfirmationExpired = false;
@@ -7324,6 +7326,50 @@
         function applyTargetedDevelopSliderFeedback(control, result, requestId, binding) {
             if (!developSliderFeedbackBindingMatches(binding)) return;
             applyDevelopSliderFeedbackIfChanged(control, Object.assign({}, result, { id: requestId }));
+        }
+
+        function developSliderConfirmationOwnerMatches(owner) {
+            const current = developSliderFeedbackBinding();
+            return Object.keys(owner).every(function (field) {
+                return field === "developCounter" || owner[field] === current[field];
+            });
+        }
+
+        async function readDevelopSliderConfirmation(sliders, binding, purpose, signal) {
+            // A demand can survive our own same-photo edits. Each SDK result still
+            // belongs to its immutable dispatch revision; never rebind stale values.
+            const owner = binding;
+            try {
+                const endpoint = sliders.length === 1 ? "/api/feedback/request?slider=" : "/api/feedback/request-many?sliders=";
+                const response = await fetch(endpoint + encodeURIComponent(sliders.join(",")) + "&purpose=" + purpose,
+                    { cache: "no-store", signal: signal });
+                const data = await response.json();
+                if (!response.ok || !data.request || data.request.id === undefined) throw new Error("Slider confirmation request failed");
+                const outcome = await pollFeedbackSnapshot(data.request.id, 1900, signal, true);
+                if (outcome.aborted || (signal && signal.aborted)) return { cancelled: true };
+                const readContext = outcome.snapshot && outcome.snapshot.context;
+                if (readContext) {
+                    const sameOwner = ["activeModule", "selectedPhotoUuid", "contextCounter", "contextChangedAt"]
+                        .every(function (field) { return readContext[field] === owner[field]; });
+                    if (!sameOwner || !Number.isSafeInteger(readContext.developCounter) ||
+                        readContext.developCounter < owner.developCounter) return { invalidated: true };
+                    binding = Object.assign({}, owner, { developCounter: readContext.developCounter });
+                    const fresh = await pollControllerContext(true);
+                    if (!fresh) throw new Error("Slider confirmation context unavailable");
+                    if (readContext.selectedPhotoKey !== lastControllerSelectedPhotoKey) return { invalidated: true };
+                }
+                return { outcome: outcome, binding: binding, requestId: data.request.id,
+                    invalidated: !developSliderFeedbackBindingMatches(binding) };
+            } catch (err) {
+                if ((signal && signal.aborted) || err.name === "AbortError") return { cancelled: true };
+                if (err.feedbackSnapshotMissing === true) {
+                    // The captured 404 arrived before the browser's next context
+                    // poll. Verify the revision now; a cached number is NOT a reply.
+                    const fresh = await pollControllerContext(true);
+                    if (fresh && !developSliderFeedbackBindingMatches(binding)) return { invalidated: true };
+                }
+                throw err;
+            }
         }
 
         const pendingDevelopSliderResetFeedback = new Map();
@@ -7405,32 +7451,16 @@
             try {
                 // At most two small reads may wait for results. A new Reset need
                 // not wait for another slider's result; pending bursts share a read.
-                const endpoint = sliders.length === 1 ? "/api/feedback/request?slider=" : "/api/feedback/request-many?sliders=";
-                const response = await fetch(endpoint + encodeURIComponent(sliders.join(",")) + "&purpose=reset", { cache: "no-store" });
-                const data = await response.json();
-                if (!response.ok || !data.request || data.request.id === undefined) throw new Error("Reset feedback request failed");
-                const outcome = await pollFeedbackSnapshot(data.request.id, 1900, undefined, true);
-                const readContext = outcome.snapshot && outcome.snapshot.context;
-                if (readContext) {
-                    // The server can retain undispatched Reset demand through
-                    // same-photo edits. Only the SDK-dispatch revision owns results.
-                    const sameOwner = ["activeModule", "selectedPhotoUuid", "contextCounter", "contextChangedAt"]
-                        .every(function (field) { return readContext[field] === binding[field]; });
-                    if (!sameOwner || !Number.isSafeInteger(readContext.developCounter) ||
-                        readContext.developCounter < binding.developCounter) invalidated = true;
-                    else {
-                        binding = Object.assign({}, binding, { developCounter: readContext.developCounter });
-                        const contextFresh = await pollControllerContext();
-                        invalidated = !contextFresh || readContext.selectedPhotoKey !== lastControllerSelectedPhotoKey;
-                    }
-                }
-                invalidated = invalidated || !developSliderFeedbackBindingMatches(binding);
+                const read = await readDevelopSliderConfirmation(sliders, binding, "reset");
+                invalidated = read.invalidated || read.cancelled;
+                const outcome = read.outcome;
+                binding = read.binding || binding;
                 if (!invalidated) batch.forEach(function (entry) {
                     const control = entry[0], demand = entry[1];
                     if (pendingDevelopSliderResetFeedback.get(control) !== demand || demand.editGeneration !== control.editGeneration) return;
                     const result = outcome.snapshot && outcome.snapshot.results && outcome.snapshot.results[control.definition.id];
                     if (control.row.isConnected && result) {
-                        applyTargetedDevelopSliderFeedback(control, result, data.request.id, binding);
+                        applyTargetedDevelopSliderFeedback(control, result, read.requestId, binding);
                         // SDK feedback can overtake an accepted Reset. An unchanged
                         // pre-edit value is authoritative, but does not settle its
                         // read demand. Renew within the existing attempt/time bounds;
@@ -7440,13 +7470,18 @@
                     }
                 });
             } catch (err) {
-                invalidated = !developSliderFeedbackBindingMatches(binding) ||
-                    Boolean(err.feedbackDiagnostic && err.feedbackDiagnostic.status === 404);
-                if (!invalidated) console.error("LRBridge Reset feedback failed", { sliders: sliders, reason: err.message });
+                invalidated = !developSliderFeedbackBindingMatches(binding);
+                if (!invalidated) {
+                    setStatus("ERROR: " + sliders.join(", ") + " Reset confirmation failed.");
+                    console.error("LRBridge Reset feedback failed", { sliders: sliders, reason: err.message });
+                }
             } finally {
                 batch.forEach(function (entry) {
                     if (pendingDevelopSliderResetFeedback.get(entry[0]) !== entry[1]) return;
-                    if (invalidated || unchanged.has(entry[0])) entry[1].readyAt = Date.now() + 100;
+                    if (invalidated) entry[1].readyAt = Date.now();
+                    // Keep the existing bounded spacing for a read that overtook
+                    // SDK execution; tight retries can exhaust before Reset runs.
+                    else if (unchanged.has(entry[0])) entry[1].readyAt = Date.now() + 100;
                     else pendingDevelopSliderResetFeedback.delete(entry[0]);
                 });
                 developSliderResetFeedbackReads.delete(batch);
@@ -7456,48 +7491,43 @@
 
         async function requestDevelopSliderStepFeedback(control, adoptResult) {
             const slider = control.definition.id;
-            const binding = developSliderFeedbackBinding();
+            const owner = developSliderFeedbackBinding();
             const editGeneration = control.editGeneration;
+            const abort = typeof AbortController === "function" ? new AbortController() : null;
+            if (control.stepFeedbackAbort) control.stepFeedbackAbort.abort();
+            control.stepFeedbackAbort = abort;
+            const deadline = Date.now() + 4000;
+            const ownsEdit = function () {
+                return control.row.isConnected && control.editGeneration === editGeneration &&
+                    developSliderConfirmationOwnerMatches(owner) && !(abort && abort.signal.aborted);
+            };
             try {
-                const response = await fetch(
-                    "/api/feedback/request?slider=" + encodeURIComponent(slider),
-                    { cache: "no-store" }
-                );
-                const data = await response.json();
-                const request = data && data.request;
-                if (!response.ok || !request || request.id === undefined) {
-                    throw new Error("Targeted feedback request failed");
-                }
-                const outcome = await pollFeedbackSnapshot(request.id, 1900);
-                if (!control.row.isConnected || control.editGeneration !== editGeneration || !developSliderFeedbackBindingMatches(binding)) return;
-                const result = outcome.snapshot &&
-                    outcome.snapshot.results &&
-                    outcome.snapshot.results[slider];
-                if (!result) {
-                    if (adoptResult) {
-                        cancelDevelopSliderStep(control);
-                        if (control.authoritativeValue !== null) {
-                            showDevelopSliderLocal(control, control.authoritativeValue);
-                        }
-                        setStatus("ERROR: " + slider + " confirmation timed out.");
-                    }
+                // Renew invalidated reads immediately, with bounded ownership and
+                // lifetime. No edit is retried and no historical cache is presented
+                // as a new Lightroom confirmation on timeout or transport failure.
+                for (let attempt = 0; attempt < 6 && Date.now() < deadline && ownsEdit(); attempt += 1) {
+                    const read = await readDevelopSliderConfirmation([slider], developSliderFeedbackBinding(), "edit", abort && abort.signal);
+                    if (!ownsEdit() || read.cancelled) return;
+                    if (read.invalidated) continue;
+                    const result = read.outcome.snapshot && read.outcome.snapshot.results && read.outcome.snapshot.results[slider];
+                    if (!result) throw new Error("Slider confirmation timed out");
+                    if (result.available === false) cancelDevelopSliderStep(control);
+                    else if (adoptResult) control.stepConfirmationExpired = true;
+                    applyTargetedDevelopSliderFeedback(control, result, read.requestId, read.binding);
                     return;
                 }
-                if (adoptResult) control.stepConfirmationExpired = true;
-                applyTargetedDevelopSliderFeedback(control, result, request.id, binding);
+                if (ownsEdit()) throw new Error("Slider confirmation expired while Lightroom was changing");
             } catch (err) {
-                if (!control.row.isConnected || control.editGeneration !== editGeneration || !developSliderFeedbackBindingMatches(binding)) return;
-                if (adoptResult) {
-                    cancelDevelopSliderStep(control);
-                    if (control.authoritativeValue !== null) {
-                        showDevelopSliderLocal(control, control.authoritativeValue);
-                    }
-                    setStatus("ERROR: " + slider + " confirmation failed.");
-                }
+                if (!ownsEdit()) return;
+                cancelDevelopSliderStep(control);
+                setDevelopSliderState(control, "error", "Confirmation unavailable");
+                setStatus("ERROR: " + slider + " confirmation failed.");
                 console.error("LRBridge targeted slider feedback failed", {
                     slider: slider,
                     reason: err.message
                 });
+            } finally {
+                if (control.stepFeedbackAbort === abort) control.stepFeedbackAbort = null;
             }
         }
 

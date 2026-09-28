@@ -152,8 +152,12 @@ assert.match(controller, /pendingKind === "step"/);
 const stepConfirmationBlock = controller.match(
     /async function requestDevelopSliderStepFeedback[\s\S]*?function scheduleDevelopSliderStepSubmission/
 )[0];
-assert.match(stepConfirmationBlock, /"\/api\/feedback\/request\?slider="/);
-assert.match(stepConfirmationBlock, /pollFeedbackSnapshot\(request\.id, 1900\)/);
+assert.match(stepConfirmationBlock, /readDevelopSliderConfirmation\(\[slider\]/);
+const sharedConfirmationBlock = controller.match(
+    /async function readDevelopSliderConfirmation[\s\S]*?const pendingDevelopSliderResetFeedback/
+)[0];
+assert.match(sharedConfirmationBlock, /"\/api\/feedback\/request\?slider="/);
+assert.match(sharedConfirmationBlock, /pollFeedbackSnapshot\(data\.request\.id, 1900, signal, true\)/);
 assert.doesNotMatch(stepConfirmationBlock, /requestLiveFeedbackSnapshot/);
 assert.doesNotMatch(stepConfirmationBlock, /request-many/);
 assert.match(controller, /function applyDevelopSliderFeedbackIfChanged\(control, result\)/);

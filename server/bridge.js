@@ -187,6 +187,7 @@ const feedbackSnapshotContexts = {};
 const colorGradingSnapshots = {};
 const treatmentSnapshots = {};
 const feedbackRequestMetadata = new Map();
+let confirmationReadBurst = 0;
 const feedbackSnapshotWaiters = new Map();
 let feedbackSnapshotWaiterCount = 0;
 const FEEDBACK_READ_TTL_MS = 5000;
@@ -278,7 +279,7 @@ function waitForFeedbackSnapshot(res, id) {
 
 function pruneFeedbackReads() {
     const now = Date.now();
-    // Reset demand for the same photo may wait through edits BEFORE SDK dispatch.
+    // Edit/Reset demand for the same photo may wait through edits BEFORE SDK dispatch.
     // Dispatched snapshots always retain their exact revision; never rebind results.
     for (const [id, metadata] of feedbackRequestMetadata) {
         if (!feedbackReadContextMatches(metadata.context) && !pendingResetReadCanFollowRevision(id, metadata)) discardFeedbackRead(id);
@@ -3286,7 +3287,7 @@ app.get("/feedback/request", function (req, res) {
         return;
     }
 
-    const request = queueFeedbackRequest(slider, req.query.purpose === "reset");
+    const request = queueFeedbackRequest(slider, req.query.purpose === "reset" || req.query.purpose === "edit");
 
     res.json({
         ok: true,
@@ -3337,7 +3338,7 @@ app.get("/feedback/request-many", function (req, res) {
     }
 
     const request = queueFeedbackRead({ slider: "__many__:" + validSliders.join(",") },
-        "__many__:" + validSliders.slice().sort().join(","), req.query.purpose === "reset");
+        "__many__:" + validSliders.slice().sort().join(","), req.query.purpose === "reset" || req.query.purpose === "edit");
     if (!feedbackSnapshots[request.id]) createFeedbackSnapshot(request.id, validSliders);
 
     res.json({
@@ -3350,11 +3351,26 @@ app.get("/feedback/request-many", function (req, res) {
 
 app.get("/feedback/next", function (req, res) {
     pruneFeedbackReads();
-    const request = feedbackRequests.shift() || null;
+    // Give an accepted edit's small confirmation read the next SDK opportunity.
+    // Keep FIFO within each class and admit background work after four consecutive
+    // confirmations, so external Lightroom changes and availability cannot starve.
+    const confirmationIndex = feedbackRequests.findIndex(function (request) {
+        return feedbackRequestMetadata.get(request.id).followDevelopRevision;
+    });
+    const backgroundIndex = feedbackRequests.findIndex(function (request) {
+        return !feedbackRequestMetadata.get(request.id).followDevelopRevision;
+    });
+    const index = confirmationIndex !== -1 && (confirmationReadBurst < 4 || backgroundIndex === -1)
+        ? confirmationIndex : backgroundIndex;
+    const request = index === -1 ? null : feedbackRequests.splice(index, 1)[0];
     if (request) {
         const metadata = feedbackRequestMetadata.get(request.id);
+        confirmationReadBurst = metadata.followDevelopRevision ? confirmationReadBurst + 1 : 0;
         metadata.dispatched = true;
         if (metadata.followDevelopRevision) {
+            // Optional SDK scheduling hint; old plug-ins safely ignore it. The
+            // public edit routes and immutable result ownership are unchanged.
+            request.confirmation = true;
             metadata.context = context.getContextFields();
             const binding = {};
             ["activeModule", "selectedPhotoKey", "selectedPhotoUuid", "contextCounter", "contextChangedAt", "developCounter"]
@@ -3362,7 +3378,7 @@ app.get("/feedback/next", function (req, res) {
             feedbackSnapshots[request.id].context = binding;
             feedbackSnapshotContexts[request.id] = binding;
         }
-    }
+    } else confirmationReadBurst = 0;
     pollingTrace.record("feedback_dequeue", { request, pendingReads: feedbackRequests.length });
 
     res.json({

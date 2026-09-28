@@ -1,0 +1,51 @@
+{
+  "source": "Physical corrected-source touchscreen retest, 2026-09-28; sanitized milliseconds from Start trace",
+  "reportedResult": "No jumps observed in this run. Reset worked but still felt delayed. Not final release approval.",
+  "busyRead": {
+    "slider": "SDRWhites",
+    "touchReleaseAt": 59942,
+    "requestAt": 59942,
+    "cachedAuthority": -38,
+    "latestInput": -74,
+    "readId": 1329,
+    "readDequeuedAt": 59964.995,
+    "commandBeginAt": 60010.389,
+    "preResetReadAt": 60073.629,
+    "preResetReadReturnedAt": 60074.629,
+    "preResetValue": -74,
+    "preResetAppliedAt": 60080,
+    "sdkResetBeginAt": 60105.739,
+    "sdkResetEndAt": 60108.25,
+    "resetValue": 0,
+    "repeatResetRequestAt": 62292,
+    "postResetReadAt": 62442.373,
+    "confirmedDisplayAt": 62456,
+    "repeatResetSDKBeginAt": 62457.917
+  },
+  "backlog": {
+    "firstReadId": 1179,
+    "firstSlider": "SDRContrast",
+    "firstReadDequeuedAt": 25451.048,
+    "firstReadResponseAt": 25642,
+    "waitingReadId": 1180,
+    "waitingSlider": "SDRClarity",
+    "waitingReadRequestedAt": 25182,
+    "waitingResetSDKEndAt": 25328.857,
+    "waitingReadDequeuedAt": 25967.467,
+    "waitingReadValueAt": 26154.891,
+    "waitingConfirmedDisplayAt": 26283
+  },
+  "midSnapshotRead": {
+    "slider": "SDRShadows",
+    "readId": 1317,
+    "requestAt": 57992,
+    "commandBeginAt": 58080.165,
+    "readAt": 58092.202,
+    "readValue": -71,
+    "sdkResetBeginAt": 58141.014,
+    "sdkResetEndAt": 58143.018,
+    "resetValue": 0,
+    "note": "This pre-Reset read was part of a broad many-slider snapshot, which yields when posting each earlier result."
+  },
+  "limits": "Instrumented native timing, not a controlled A/B. Repeat Reset occurred before the first Whites confirmation. Its display predates the repeat SDK call and must not be counted as confirmation of that second execution. Lua replay uses a cooperative SDK double, not Lightroom."
+}

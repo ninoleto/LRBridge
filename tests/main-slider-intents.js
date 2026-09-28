@@ -45,6 +45,7 @@ function fixture() {
         "profileAmountSubmissionBlocked",
         "applyDevelopSliderFeedback", "applyDevelopSliderFeedbackIfChanged", "applyTargetedDevelopSliderFeedback",
         "submitDevelopSliderValue", "drainDevelopSliderSubmissions", "scheduleDevelopSliderValue", "flushDevelopSliderValue",
+        "developSliderConfirmationOwnerMatches", "readDevelopSliderConfirmation",
         "handleDevelopSliderStepSubmission", "requestDevelopSliderStepFeedback", "beginDevelopSliderReset", "resetDevelopSlider"
     ].map(fn).join("\n"), ctx);
     function control(id) {

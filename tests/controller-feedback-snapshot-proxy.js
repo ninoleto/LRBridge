@@ -243,6 +243,16 @@ async function main() {
         assert.equal(JSON.parse(delivered.body).snapshot.results.Texture.value, -100);
         assert.equal(JSON.parse(delivered.body).snapshot.complete, true);
 
+        response = await request(controllerPort, "/api/feedback/request?slider=Contrast&purpose=edit");
+        assert.equal(response.statusCode, 200, "Controller proxy forwards the edit confirmation purpose");
+        const editRead = JSON.parse(response.body).request;
+        do { next = JSON.parse((await request(backendPort, "/feedback/next")).body).request; }
+        while (next && next.id !== editRead.id);
+        assert.equal(next.id, editRead.id);
+        await supplyResult(backendPort, editRead.id, "Contrast", { min: -100, max: 100 }, false);
+        response = await request(controllerPort, "/api/feedback/snapshot?id=" + editRead.id + "&wait=1");
+        assert.equal(JSON.parse(response.body).snapshot.results.Contrast.value, -100);
+
         console.log("Controller feedback snapshot proxy test passed.");
         console.log(
             "Direct backend: http://127.0.0.1:" + backendPort + "/feedback/snapshot?id=" + requestId +

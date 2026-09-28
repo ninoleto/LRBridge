@@ -281,7 +281,8 @@ function createMockControllerServer(options) {
 
         const staticName = staticFiles.get(parsed.pathname);
         if (staticName) {
-            const body = fs.readFileSync(path.join(appRoot, staticName));
+            const body = fs.readFileSync(staticName === "controller.html" && options && options.controllerSource
+                ? options.controllerSource : path.join(appRoot, staticName));
             const contentType = path.extname(staticName) === ".html"
                 ? "text/html; charset=utf-8"
                 : "text/javascript; charset=utf-8";

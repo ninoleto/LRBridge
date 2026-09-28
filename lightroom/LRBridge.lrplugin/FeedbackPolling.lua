@@ -531,16 +531,23 @@ local function parseSlider(json)
 
 end
 
-local function waitForNormalCommandToFinish()
+local function waitForNormalCommandToFinish(settle)
 
     local safety = 0
-
-    while _G.LRBridgeCommandBusy == true and safety < 100 do
-        Trace.call("commandBusy.sleep", LrTasks.sleep, 0.02)
-        safety = safety + 1
+    local function waitUntilIdle()
+        while running() and _G.LRBridgeCommandBusy == true and safety < 100 do
+            Trace.call("commandBusy.sleep", LrTasks.sleep, 0.02)
+            safety = safety + 1
+        end
+        return running() and _G.LRBridgeCommandBusy ~= true
     end
 
-    Trace.call("afterCommand.sleep", LrTasks.sleep, 0.08)
+    if not waitUntilIdle() then return false end
+    if settle ~= false then Trace.call("afterCommand.sleep", LrTasks.sleep, 0.08) end
+    -- A Reset can start during this yield (including its Develop preparation).
+    -- Recheck before reading; the pre-Reset value is not its confirmation. Share
+    -- the existing wait bound and leave timed-out reads pending, not unavailable.
+    return waitUntilIdle()
 
 end
 
@@ -623,7 +630,7 @@ end
 
 local function sendRequestedValue(id, slider)
 
-    waitForNormalCommandToFinish()
+    if not waitForNormalCommandToFinish() then return false end
 
     local value, minValue, maxValue, identity = readFeedbackValue(slider)
 
@@ -636,6 +643,7 @@ local function sendRequestedValue(id, slider)
     sendValue(id, slider, value, minValue, maxValue, identity)
 
     log("feedback result sent: " .. tostring(slider) .. "=" .. tostring(value))
+    return true
 
 end
 
@@ -660,7 +668,7 @@ end
 
 local function sendManyRequestedValues(id, requestedSliders)
 
-    waitForNormalCommandToFinish()
+    if not waitForNormalCommandToFinish() then return false end
 
     local readCount = 0
     local sentCount = 0
@@ -668,6 +676,9 @@ local function sendManyRequestedValues(id, requestedSliders)
 
     for i, slider in ipairs(requestedSliders) do
 
+        -- Posting the previous result yielded; a command can now be preparing.
+        -- Recheck without repeating the settling interval for every slider.
+        if i > 1 and not waitForNormalCommandToFinish(false) then return false end
         local value, minValue, maxValue, identity = readFeedbackValue(slider)
 
         if minValue == nil or maxValue == nil then
@@ -689,12 +700,13 @@ local function sendManyRequestedValues(id, requestedSliders)
     end
 
     log("feedback many snapshot read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " results, " .. tostring(firstSent))
+    return true
 
 end
 
 local function sendAllRequestedValues(id)
 
-    waitForNormalCommandToFinish()
+    if not waitForNormalCommandToFinish() then return false end
 
     local readCount = 0
     local sentCount = 0
@@ -702,6 +714,7 @@ local function sendAllRequestedValues(id)
 
     for i, slider in ipairs(watchedSliders) do
 
+        if i > 1 and not waitForNormalCommandToFinish(false) then return false end
         local value, minValue, maxValue, identity = readFeedbackValue(slider)
 
         if minValue == nil or maxValue == nil then
@@ -723,6 +736,7 @@ local function sendAllRequestedValues(id)
     end
 
     log("feedback all snapshot read " .. tostring(readCount) .. " values, sent " .. tostring(sentCount) .. " results, " .. tostring(firstSent))
+    return true
 
 end
 
@@ -745,7 +759,7 @@ local function sendColorGradingParameter(id, parameter)
 end
 
 local function sendColorGradingSnapshot(id)
-    waitForNormalCommandToFinish()
+    if not waitForNormalCommandToFinish() then return false end
     local regions, controls = ColorGrading.getParameters()
     local parameters = {}
     for _, mapping in pairs(regions) do parameters[mapping.hue] = true; parameters[mapping.saturation] = true; parameters[mapping.luminance] = true end
@@ -784,7 +798,7 @@ local function startTreatmentWorker(id)
             while running() and #pendingTreatmentRequestIds > 0 do
                 local requestId = table.remove(pendingTreatmentRequestIds, 1)
                 local treatmentOk = LrTasks.pcall(function()
-                    waitForNormalCommandToFinish()
+                    if not waitForNormalCommandToFinish() then return end
                     if not running() then return end
                     local url = "http://127.0.0.1:17891/treatment/result?id=" .. tostring(requestId)
                     local unavailableReason = nil
@@ -840,6 +854,49 @@ local function startTreatmentWorker(id)
     end
 end
 
+local function dispatchFeedbackRequest(result)
+    local slider = parseSlider(result)
+
+    if string.find(result or "", [["colorGrading":true]], 1, true) then
+        local id = parseRequestId(result)
+        return Trace.call("sdk.colorGradingSnapshot", sendColorGradingSnapshot, id) ~= false
+    end
+
+    if string.find(result or "", [["treatment":true]], 1, true) then
+        local id = parseRequestId(result)
+        log("treatment request received: id=" .. tostring(id))
+        Trace.call("startTreatmentWorker", startTreatmentWorker, id)
+        return true
+    end
+
+    if slider == nil then return false end
+    local id = parseRequestId(result)
+
+    if slider == "__all__" then
+        log("feedback all request received")
+        return Trace.call("sdk.allValues", sendAllRequestedValues, id)
+    elseif string.sub(slider, 1, 9) == "__many__:" then
+        local requestedSliders = splitManySliderRequest(slider)
+        log("feedback many request received: " .. tostring(#requestedSliders) .. " sliders")
+        return Trace.call("sdk.manyValues", sendManyRequestedValues, id, requestedSliders)
+    else
+        log("feedback request received: " .. tostring(slider))
+        return Trace.call("sdk.value", sendRequestedValue, id, slider)
+    end
+end
+
+local function pollFeedbackRequests()
+    -- Drain ready edit/Reset confirmations before unrelated polling, within the
+    -- same four-read fairness bound as the bridge. Honor its background turn;
+    -- an empty queue, old server or busy timeout ends this batch immediately.
+    for attempt = 1, 4 do
+        if not running() then return end
+        local result = LrHttp.get("http://127.0.0.1:17891/feedback/next")
+        if not dispatchFeedbackRequest(result) or
+            not string.find(result or "", [["confirmation":true]], 1, true) then return end
+    end
+end
+
 return function(shouldRun, spawnChildTask)
     running, startChildTask = shouldRun, spawnChildTask
 
@@ -853,39 +910,7 @@ return function(shouldRun, spawnChildTask)
     while running() do
 
         Trace.mark("enter", "cycle")
-        local result = LrHttp.get("http://127.0.0.1:17891/feedback/next")
-        local slider = parseSlider(result)
-
-        if string.find(result or "", [["colorGrading":true]], 1, true) then
-            local id = parseRequestId(result)
-            Trace.call("sdk.colorGradingSnapshot", sendColorGradingSnapshot, id)
-            slider = nil
-        end
-
-        if string.find(result or "", [["treatment":true]], 1, true) then
-            local id = parseRequestId(result)
-            log("treatment request received: id=" .. tostring(id))
-            Trace.call("startTreatmentWorker", startTreatmentWorker, id)
-            slider = nil
-        end
-
-        if slider ~= nil then
-
-            local id = parseRequestId(result)
-
-            if slider == "__all__" then
-                log("feedback all request received")
-                Trace.call("sdk.allValues", sendAllRequestedValues, id)
-            elseif string.sub(slider, 1, 9) == "__many__:" then
-                local requestedSliders = splitManySliderRequest(slider)
-                log("feedback many request received: " .. tostring(#requestedSliders) .. " sliders")
-                Trace.call("sdk.manyValues", sendManyRequestedValues, id, requestedSliders)
-            else
-                log("feedback request received: " .. tostring(slider))
-                Trace.call("sdk.value", sendRequestedValue, id, slider)
-            end
-
-        end
+        pollFeedbackRequests()
 
         Trace.mark("enter", "sdk.observerSetup")
         if toneCurveObserverInstalled ~= true and getActiveModule() == "develop" then

@@ -1,5 +1,139 @@
 # LRBridge Codex Handoff
 
+## September 28 accepted slider and Reset checkpoint
+
+- The user explicitly accepts **current Reset responsiveness for the tested controls**
+  and authorizes a scoped local checkpoint of the slider/Reset corrections, tests and
+  documentation. Preserve the recordings and their limits: the first corrected-source
+  run had **no jumps observed in that run**; the latest four-Reset run was noticeably
+  more responsive. No additional no-jump observation or final release approval is inferred.
+- The checkpoint on `fix/shared-slider-coordination-20260927` preserves the shared
+  confirmation ownership/error correction, prioritized bounded confirmation reads and
+  Lua command-busy rechecks. The four latest native Reset confirmations remain Whites
+  273 ms, Clarity 492 ms, Highlights 233 ms and Shadows 343 ms, backed by SDK readback.
+- Reuse the completed focused regression, HTTP/queue/context, actual-Lua and browser
+  checks documented below. Private settings, unrelated root work, raw recordings,
+  diagnostic instrumentation and the stash remain outside this checkpoint.
+- **Next, separately:** fix the polling lifecycle defect where disabling/reloading
+  can leave old workers consuming commands. Use existing evidence, complete focused
+  automated checks, then obtain native lifecycle validation. Do not retune sliders.
+  No rebuild or publication; remaining package gates and documented limitations stay.
+
+## September 28 Reset follow-up retest — noticeably more responsive, bounded result
+
+- User finished the fresh capture and reports **"This feels noticeably more responsive."**
+  Preserve that observation as stated. A separate question about backward jumps in
+  this latest run is pending; do not infer a new no-jump report or final release approval.
+- Preserved and hash-verified 70 evidence files for the 16.546-second native capture,
+  including browser/HTTP/SDK streams, exact tested source and all 40 diagnostic modules.
+  One diagnostic worker remained active; old source/package logs stayed unchanged.
+- Four recorded Resets: **SDR Whites 273 ms, Clarity 492 ms, Highlights 233 ms,
+  Shadows 343 ms** from touch release to confirmed display. Median total improved
+  from 477 to **308 ms**; median SDK-return→display from 348 to **158 ms**. Each
+  request began 1 ms after touch release. Samples differ in size and pace.
+- The comparable rapid Clarity/Highlights/Shadows sequence improved from
+  1110/1356/1481 ms to 492/233/343 ms, with similar tap spacing. All four displayed
+  zeros followed actual post-Reset SDK reads. No older write followed Reset before
+  new input, and recorded SDK state stayed zero through the remaining capture.
+  No command failures or target reads begun during Reset preparation were recorded.
+- Shadows correctly renewed one read taken just before its command began; the old
+  number was not treated as completed Reset. Clarity's remaining delay included an
+  ordinary snapshot already in progress. Existing context invalidation and bounded
+  feedback renewal stayed active. No additional implementation change is indicated.
+- Source and plug-in remain running at the verified Reset correction; the recorder
+  is finished/disarmed. Evidence pointers and detailed timing are in the ignored
+  local handoff and `docs/SHARED_SLIDER_COORDINATION.md`. Reuse completed focused
+  checks; no HTTP Contrast repeat, new recording, checkpoint, build or publication.
+  Release remains blocked pending remaining acceptance; all package gates and the
+  separate disabled-plug-in worker issue retain their previous status.
+
+## September 28 corrected-source retest — no jumps observed; Reset follow-up pending
+
+- User report: **no jumps observed in this run**. Reset worked but still felt
+  "acceptable-ish," noticeably slower than normal Point Color Reset. This is not
+  final release approval. Release remains blocked; no checkpoint, build or publication.
+- Preserved the complete 121.416-second browser/HTTP/SDK capture. It contains 51
+  Resets; 48 have usable post-execution display transitions (two already zero and
+  one repeat whose display preceded its own execution are excluded). Median
+  release→request / request→SDK / SDK-return→display / total changed from
+  **1 / 153 / 796 / 969 ms** to **1 / 145 / 348 / 477 ms**. Instrumented samples differ
+  in pace and size. The worst current transition remained 2514 ms, chiefly readback.
+- Demonstrated Whites delay: the feedback worker checked command-busy, yielded,
+  then read -74 during Reset preparation. This differed from cached -38 and retired
+  Reset demand prematurely. SDK Reset completed at 0, but the display waited for a
+  later valid read. Rapid Resets also waited one complete background cycle per read.
+- In the existing isolated worktree, the shared Lua guard now rechecks after its
+  yield and between snapshot values after their HTTP posts; idle values gain no
+  extra delay. Busy timeout/shutdown suppress reads. Ready confirmation reads drain
+  in groups of at most four, respecting background fairness. The bridge provides an
+  optional dequeue scheduling hint. No optimistic Reset value, Controller change,
+  command retry, driver/range change or public Set/Adjust/Reset change. Drag correction,
+  photo/context checks and accepted behavior remain. Constrain Crop optimization stays deferred.
+- Two captured regressions fail on preserved old Lua and pass on new production Lua;
+  fourteen cooperative scenarios plus focused queue/delivery/context, browser Reset,
+  polling lifecycle and HTTP compatibility checks pass. Physical timing after this
+  follow-up remains untested. Completed native Contrast observations are preserved,
+  not repeated. Normal Point Color shows its known target immediately and publishes
+  SDK state from its write handler; shared Reset discovers Lightroom's default via
+  separate feedback. No native Point Color timing was captured.
+- Diagnostic `baseline/lightroom/LRBridge.lrplugin/FeedbackPolling.lua` is prepared
+  on disk; all 40 diagnostic modules match this source after removing trace hooks.
+  **The user completed the reload; the updated source app is now running.** Process,
+  assets/backend, fresh diagnostic load markers and diagnostic-only feedback are
+  verified. That fresh recording is now finished; its bounded result is recorded
+  above. Exact preparation/evidence paths remain in the ignored local handoff.
+- Short next test: adjust Whites → immediate Reset, then quickly adjust/Reset
+  Clarity, Highlights and Shadows, watching Lightroom and Controller together.
+  Preserve the old candidate, root/private/unrelated work and stash. Disabled-plug-in
+  worker defect remains separately tracked. See `docs/SHARED_SLIDER_COORDINATION.md`.
+
+## September 28 captured SDR Brightness rollback — correction prepared, release blocked
+
+- Work remains isolated on `fix/shared-slider-coordination-20260927`, based on
+  `8f9ce61`, in `D:\Projects\LRBridge\local-checkpoints\shared-slider-redesign\worktree`.
+  The root worktree, private settings, stash, research and candidate `20260927T174904Z`
+  are preserved. Index remains empty; no new checkpoint, build or publication.
+- The fresh 35.109-second touchscreen capture has complete browser/proxy/SDK streams
+  and one verified diagnostic command consumer. The preserved candidate is now quit;
+  the tested corrected source is running from this isolated worktree. Fresh capture
+  preparation and its exact current link are recorded in the ignored local handoff;
+  diagnostic plug-in: `local-checkpoints/shared-slider-redesign/baseline/lightroom/LRBridge.lrplugin`.
+  Prior recordings and their corrections remain preserved in the ignored local handoff.
+- **Demonstrated failure:** latest `SDRBrightness` input -49 was submitted and written
+  by the SDK. A confirmation snapshot expired after a Develop revision; HTTP 404
+  arrived before the browser refreshed that revision. The old error branch displayed
+  cached authority 0 at 27.697 s, then fresh -49 at 28.397 s. Recorded SDK values stayed
+  -49 throughout that rollback, until a later explicit Reset. No late older write or
+  value conversion error caused this captured jump.
+- Twelve recorded Resets: touch release to request 0–1 ms; request to SDK execution
+  81–290 ms; SDK return to visible result 145–1186 ms. Most delay was confirmation
+  scheduling, including an obsolete Set read ahead of Reset. These are instrumented
+  baseline measurements, not corrected native timing. See `docs/SHARED_SLIDER_COORDINATION.md`.
+- Replaced the shared Set/Reset confirmation transport/ownership logic: verify an
+  expired snapshot against fresh context, renew only owned reads, cancel superseded
+  reads, never render cached authority as a failed confirmation, and retain real errors.
+  Server prioritizes compatible edit/Reset reads, coalesces undispatched compatible
+  work and admits background work after four confirmations. Existing write ordering,
+  SDK requirements, public Set/Adjust/Reset routes and accepted touch Reset remain.
+  Same-value pre-execution Reset reads retain their existing bounded retry spacing.
+- Regression replay and real Controller DOM reproduction **fail on old source and
+  pass on the correction**. Focused rapid/alternating sliders, immediate/delayed Reset,
+  context/photo changes, errors/unavailability, external feedback, queue fairness,
+  proxy and public HTTP compatibility checks pass in isolation. Physical acceptance
+  remains pending. The inventory covers every slider family and 111 generic IDs.
+- Preserve accepted native HTTP observations without repeating: main Contrast Set20
+  stayed stable; Adjust3 reached35; Set65 then Reset ended0 (65 was not visually seen).
+  SDK trace shows both latter writes in order. Earlier finished-tab0 was not a native
+  Lightroom observation. Highlight Saturation worked in this touchscreen run only;
+  this is not a universal resolution of the original report.
+- **Next:** the corrected source assets/backend and single diagnostic worker are
+  verified; the fresh recorder is idle until the user presses Start trace. No plug-in
+  reload is needed because no Lua changed. Retest rapid Brightness, alternating SDR
+  controls and immediate Reset, observing both Controller and Lightroom. Preserve
+  and assess the recording before changing acceptance; keep release blocked.
+- The disabled-plug-in worker lifecycle defect remains separate and unresolved.
+  A fresh credential-free recovery backup was uploaded and read back successfully
+  before implementation; private evidence, manifests and timings remain local.
 ## September 27 fresh private Windows package — ready for manual package checks
 
 - Release source checkpoint: **`7bd6db95f58897922c1984736e9fe8066a573912`**

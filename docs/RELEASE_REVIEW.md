@@ -1,4 +1,106 @@
+> Current release status (September 28): the captured SDR Brightness rollback
+> has a demonstrated confirmation-error cause and an isolated correction with
+> fail-old/pass-new regressions. User observed no jumps in one corrected-source run;
+> The user accepts the current Reset responsiveness for the tested controls and
+> authorizes a scoped local checkpoint of the slider/Reset fixes and recorded results.
+> This remains bounded evidence, not final release approval. The separately documented
+> disabled/reloaded worker defect is the next task; remaining package gates stay open.
+> See [the evidence, measurements and slider inventory](SHARED_SLIDER_COORDINATION.md).
+> No rebuild or publication; preserve the current candidate.
+
 # Windows v0.6 beta completion review
+
+## September 28 checkpoint acceptance
+
+The user accepts current Reset responsiveness for the tested controls. Preserve the
+shared slider and Reset fixes, focused tests and native recordings in a scoped local
+checkpoint. Reuse completed checks. Private settings, unrelated edits, diagnostic
+recordings and stash contents remain local and intact. Investigate the old polling
+worker lifecycle separately, without retuning accepted sliders. No rebuild or publish.
+
+## September 28 focused Reset follow-up result
+
+Preserved the 16.546-second capture and the user's report **"This feels noticeably
+more responsive."** Four Reset results were verified against SDK execution/readback
+and Controller display: Whites 273 ms, Clarity 492 ms, Highlights 233 ms, Shadows
+343 ms from release to confirmed display. Median total improved from 477 to 308 ms;
+median post-SDK confirmation from 348 to 158 ms. The rapid three-control Reset group
+improved from 1.11–1.48 seconds to 233–492 ms at similar tap spacing. Sample sizes
+and pacing differ; no universal timing guarantee is claimed.
+
+All four displayed zeros came from actual post-Reset SDK feedback; recorded SDK
+state stayed zero afterward and no older writes followed Reset before newer input.
+No command failure or target read begun inside Reset preparation was recorded.
+The expected pre-command unchanged-value retry occurred once and settled correctly.
+No implementation change, suite rerun or repeated native Contrast test was needed.
+
+A separate question about backward jumps in this latest run is pending. Do not
+infer that observation from the responsiveness report. No final release approval,
+checkpoint, build or publication; remaining package gates, accepted limitations and
+the separate disabled-plug-in worker defect keep their existing status.
+
+## September 28 corrected-source retest and Reset follow-up
+
+Record **no jumps observed in this run**, without extending acceptance beyond it.
+Reset executed but remained noticeably slower than normal Point Color Reset.
+The preserved capture has 51 Resets, 48 usable visual transitions. Median total
+release-to-display improved from 969 to 477 ms; request dispatch stayed about 1 ms,
+and request-to-SDK about 145 ms. SDK-return-to-display improved from 796 to 348 ms,
+but the worst current case still took 2514 ms overall. These are instrumented,
+differently paced samples, not a controlled benchmark.
+
+The remaining demonstrated delays were a feedback read during Reset preparation
+after a missing command-busy recheck, and one ready confirmation per full background
+poll cycle. The shared Lua guard now rechecks after yielding; bounded confirmation
+draining uses an optional bridge hint and preserves background fairness. No assumed
+Reset value is displayed. Dragging, commands, public HTTP compatibility and context
+validation remain unchanged. Point Color's immediate known-target display and direct
+SDK state publication explain its different path; its code is untouched.
+
+Both captured Lua cases fail on old source and pass on the correction, with focused
+browser/queue/context/lifecycle checks passing. Restart the isolated source app and
+reload the same diagnostic plug-in once before the next focused physical Reset check.
+No new native timing result, checkpoint, package or release approval is claimed.
+Completed native Contrast results, previous acceptances, remaining package gates,
+Constrain Crop deferral and the separate disabled-worker defect remain intact.
+
+The initial correction record below precedes this Reset follow-up.
+
+## September 28 SDR touchscreen failure and isolated correction
+
+The fresh capture has one diagnostic worker and complete browser/proxy/SDK evidence.
+Latest Brightness input -49 reached Lightroom and remained -49 in SDK reads. A
+confirmation snapshot expired on a Develop revision before the browser refreshed its
+context; the old catch handler displayed cached 0 for about 700 ms. This captured jump
+was a Controller rollback. It was not caused by an older SDK write overtaking -49.
+
+Across 12 Resets, release-to-request was 0–1 ms, request-to-SDK 81–290 ms and
+SDK-return-to-visible 145–1186 ms. Feedback scheduling dominated the delay; an obsolete
+Set confirmation delayed Reset by an SDK read opportunity. These instrumented baseline
+times do not establish the corrected source's physical responsiveness.
+
+Shared Set/Reset confirmation now uses owned, cancellable, dispatch-context-checked
+reads. Verified revision invalidation renews feedback; genuine failures remain visible
+without restoring cached values or resending edits. The server prioritizes compatible
+confirmation reads, shares undispatched work, and preserves background fairness.
+Existing public HTTP routes, write ordering, SDK code/ranges, touch Reset and all
+previously accepted presentation/feature behavior remain unchanged.
+
+Captured VM and actual Controller DOM regressions fail on old source and pass on the
+correction. Focused rapid/alternating sliders, immediate/delayed Reset, context guards,
+errors/unavailability, external edits, proxy, queue and Companion HTTP compatibility
+checks pass in isolation. Native acceptance remains pending; no simulated timing is
+reported as Lightroom performance.
+
+The preserved main Contrast HTTP observations remain Set20 stable, Adjust3→35 stable,
+Set65→Reset final0 (65 not visually seen). Do not repeat them. Highlight Saturation
+working in this one touchscreen run does not universally resolve the original report.
+The disabled-plug-in worker lifecycle defect is separate and remains tracked.
+
+Next: quit the old candidate before starting the isolated source app, verify app/assets
+and the single diagnostic worker, then record rapid Brightness/alternating SDR drags and
+immediate Reset. No Lua changed; no reload is required. Keep release blocked until the
+focused native result is assessed. Broader package checks below remain outstanding.
 
 ## September 27 scoped checkpoint and fresh private candidate
 
