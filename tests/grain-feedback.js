@@ -59,7 +59,7 @@ async function checkFeedback(slider, change, rejection) {
     // shared global Grain write advances the Develop revision.
     const masking = require("../app/controller-masking");
     const maskSource = fs.readFileSync(path.join(__dirname, "../app/controller-masking.js"), "utf8");
-    const first = maskSource.indexOf("function commandQuery()");
+    const first = maskSource.indexOf("function commandQuery(");
     const last = maskSource.indexOf("function admissionError(", first);
     const state = { ok: true, selectedPhotoUuid: "grain-photo-a", contextCounter: 2, contextChangedAt: 1000,
         developCounter: 7, serverEpoch: "grain-test", revision: 10 };

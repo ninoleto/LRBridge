@@ -338,6 +338,46 @@ function assertRequestShape(path, pathname, operationFields) {
         rapidController.applyAuthoritative(state(0.2), rapidBinding);
         assert.equal(rapidNumber.value, "20", scope + " final displayed value must equal the complete click intention");
         assert.equal(rapidController.isBusy(), false, scope + " final settlement must release the Point Color pipeline");
+        rapidRow.children[1].value = "65";
+        rapidRow.children[1].dispatch("input");
+        rapidController.applyAuthoritative(state(0.2), rapidBinding);
+        assert.equal(rapidNumber.value, "65", scope + " owns the live input before debounce admission");
+        rapidRow.children[1].dispatch("change");
+        rapidPending[2].resolve(scope === "mask" ? { ok: true, editSequence: 3 } : { ok: true });
+        await tick(); await tick();
+        rapidBinding = scope === "mask" ? binding("mask-a", 23, {
+            sequence: 3, maskGroupId: "mask-a", kind: "masking.point_color.value.set", outcome: "confirmed"
+        }) : rapidBinding;
+        rapidController.applyContext(rapidBinding);
+        rapidController.applyAuthoritative(state(0.65), rapidBinding);
+        assert.equal(rapidNumber.value, "65");
+        assert.equal(rapidController.isBusy(), false, scope + " input release clears its timer after confirmation");
+
+        // The custom range handles use pointer ownership, separate from scalar
+        // input/change. Check all three without changing that working path.
+        for (const [rangeName, label] of [["HueRange", "Hue Range"], ["SatRange", "Saturation Range"],
+            ["LumRange", "Luminance Range"]]) {
+            const handle = find(rapidHost, element => element.attributes["aria-label"] === label + " Lower None");
+            handle.dispatch("pointerdown");
+            handle.dispatch("pointermove", { clientX: 23 });
+            rapidController.applyAuthoritative(state(0.65), rapidBinding);
+            assert.equal(handle.attributes["aria-valuenow"], "23", scope + " " + rangeName + " keeps active pointer input");
+            handle.dispatch("pointermove", { clientX: 16 });
+            handle.dispatch("pointerup");
+            const index = rapidPending.length - 1;
+            rapidPending[index].resolve(scope === "mask" ? { ok: true, editSequence: index + 1 } : { ok: true });
+            await tick(); await tick();
+            rapidController.applyAuthoritative(state(0.65), rapidBinding);
+            assert.equal(handle.attributes["aria-valuenow"], "16", "delayed range feedback cannot replace the pending release");
+            const next = state(0.65); next[rangeName].LowerNone = 0.16;
+            rapidBinding = scope === "mask" ? binding("mask-a", 24 + index, {
+                sequence: index + 1, maskGroupId: "mask-a", kind: "masking.point_color.range.set", outcome: "confirmed"
+            }) : rapidBinding;
+            rapidController.applyContext(rapidBinding);
+            rapidController.applyAuthoritative(next, rapidBinding);
+            assert.equal(handle.attributes["aria-valuenow"], "16");
+            assert.equal(rapidController.isBusy(), false);
+        }
         rapidController.unmount();
     }
 
@@ -370,10 +410,14 @@ function assertRequestShape(path, pathname, operationFields) {
 
     const wrapperHost = new FakeElement("div");
     const wrapperPending = [];
+    const wrapperVisualize = [];
     let wrapperRevision = 1;
     let wrapperEditSequence = 0;
     let wrapperPointColor = state(0);
     let wrapperLastEditResult = null;
+    let wrapperCorrectionResult = null;
+    let wrapperTextureValue = 0;
+    const wrapperCorrections = [];
     const wrapperContext = {
         activeModule: "develop", selectedPhotoUuid: "photo-a", contextCounter: 4,
         developCounter: 7, contextChangedAt: 10
@@ -383,13 +427,14 @@ function assertRequestShape(path, pathname, operationFields) {
             ok: true, serverEpoch: "epoch-a", revision: wrapperRevision, capturedAt: Date.now(),
             selectedPhotoUuid: "photo-a", contextCounter: 4, developCounter: 7, contextChangedAt: 10,
             pendingOperation: null, lastResult: null, correctionFeedbackSequence: 0,
-            lastCorrectionResult: null, editFeedbackSequence: wrapperEditSequence,
+            lastCorrectionResult: wrapperCorrectionResult, editFeedbackSequence: wrapperEditSequence,
             lastEditResult: wrapperLastEditResult, available: true, unavailableReason: null, active: true,
             maskGroupCount: 1, hasSelectedMaskGroup: true, selectedMaskGroupIndex: 1,
             selectedMaskGroupId: "mask-a", selectedMaskHidden: false, previousAvailable: false,
             nextAvailable: false, selectedMaskToolAvailable: true, selectedMaskToolId: "component-a",
             selectedMaskToolHidden: false, selectedMaskToolCount: 1, selectedMaskToolIndex: 1,
-            previousMaskToolAvailable: false, nextMaskToolAvailable: false, corrections: [],
+            previousMaskToolAvailable: false, nextMaskToolAvailable: false,
+            corrections: [{ parameter: "local_Texture", value: wrapperTextureValue, min: -100, max: 100 }],
             pointColor: wrapperPointColor, curves: { available: false }
         };
     }
@@ -401,6 +446,9 @@ function assertRequestShape(path, pathname, operationFields) {
         clearInterval: function () {},
         fetch: function (requestPath) {
             const pathname = new URL(requestPath, "http://controller.test").pathname;
+            if (pathname.startsWith("/api/masking/correction/")) {
+                const next = deferred(); wrapperCorrections.push({ path: requestPath, ...next }); return next.promise;
+            }
             if (pathname === "/api/masking/state") return Promise.resolve(jsonResponse(wrapperState()));
             if (pathname === "/api/masking/presets") {
                 return Promise.resolve(jsonResponse({ ok: true, presets: [
@@ -412,6 +460,9 @@ function assertRequestShape(path, pathname, operationFields) {
             }
             if (pathname === "/api/masking/point-color/value") {
                 const next = deferred(); wrapperPending.push(next); return next.promise;
+            }
+            if (pathname === "/api/masking/point-color/range-visualization/toggle") {
+                const next = deferred(); wrapperVisualize.push({ path: requestPath, ...next }); return next.promise;
             }
             return Promise.resolve(jsonResponse({ ok: false, error: "unexpected " + pathname }, 404));
         }
@@ -460,6 +511,40 @@ function assertRequestShape(path, pathname, operationFields) {
     await sleep(40);
     assert.equal(applyPreset.disabled, false, "a Point Color feedback timeout must restore preset availability");
     assert.equal(wrapper.getInteractionState().correctionBusy, false);
+    const wrapperToggle = find(wrapperHost, element => element.textContent === "Toggle Visualize Range");
+    assert.equal(wrapperToggle.disabled, false);
+    wrapperToggle.dispatch("click"); wrapperToggle.dispatch("click");
+    await tick();
+    assert.equal(wrapperVisualize.length, 1,
+        "the child's own Visualize busy marker must not make its parent reject the request as a competing edit");
+    assertRequestShape(wrapperVisualize[0].path, "/api/masking/point-color/range-visualization/toggle", []);
+    assert.equal(wrapper.getInteractionState().activeOperation.kind, "pointColorVisualize");
+    wrapperVisualize[0].resolve(jsonResponse({ ok: false, error: "fixture visualization rejection" }, 409));
+    await tick(); await tick();
+    assert.equal(wrapper.getInteractionState().activeOperation, null);
+    assert.equal(wrapperToggle.attributes["aria-pressed"], undefined, "no invented native toggle state");
+    const texture = find(wrapperHost, element => element.dataset.maskingCorrection === "local_Texture");
+    const textureNumber = texture.children[2];
+    function enterTexture(value) { textureNumber.dispatch("focus"); textureNumber.value = String(value); textureNumber.dispatch("keydown", { key: "Enter" }); }
+    enterTexture(10);
+    wrapperCorrections.shift().resolve(jsonResponse({ ok: true, correctionSequence: 1 }));
+    await tick(); await tick();
+    wrapperCorrections.shift().resolve(jsonResponse({ ok: true, correctionSequence: 2 }));
+    await tick(); await tick();
+    enterTexture(45); // Keep the next admission pending while older SDK feedback arrives.
+    wrapperTextureValue = 10; // Valid confirmed readback of the earlier submitted value.
+    wrapperCorrectionResult = { sequence: 2, parameter: "local_Texture", maskGroupId: "mask-a", outcome: "confirmed" };
+    wrapperRevision++;
+    await wrapper.refresh();
+    assert.equal(textureNumber.value, "45", "Earlier correction feedback must not settle a newer local edit before its HTTP admission returns");
+    wrapperCorrections.shift().resolve(jsonResponse({ ok: true, correctionSequence: 3 }));
+    await tick(); await tick();
+    wrapperCorrections.shift().resolve(jsonResponse({ ok: true, correctionSequence: 4 }));
+    await tick(); await tick();
+    wrapperCorrectionResult = { ...wrapperCorrectionResult, sequence: 4, outcome: "failed", detail: "SDK rejected latest edit" };
+    wrapperRevision++; await wrapper.refresh();
+    assert.equal(textureNumber.value, "10", "A genuine failure of the newest edit restores authoritative feedback");
+    assert.match(texture.children.at(-1).textContent, /SDK rejected latest edit/);
     wrapper.deactivate();
 
     console.log("Shared global/mask Point Color controller behavior passed.");

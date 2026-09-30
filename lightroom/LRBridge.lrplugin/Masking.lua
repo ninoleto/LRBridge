@@ -658,10 +658,16 @@ local function correctionBindingMatches(command, trace)
         return false
     end
     local currentRevision = jsonInteger(stateJson, "revision")
+    local currentDevelop = jsonInteger(contextJson, "developCounter")
+    local grainFloor = jsonInteger(contextJson, "maskingCorrectionDevelopFloor")
+    local compatibleGrain = string.match(command.command or "", "^masking%.correction%.") ~= nil and
+        currentDevelop ~= nil and grainFloor ~= nil and command.expectedDevelopCounter >= grainFloor and
+        command.expectedDevelopCounter < currentDevelop and
+        jsonString(contextJson, "maskingGrainMaskId") == command.expectedSelectedMaskId
     if jsonString(contextJson, "activeModule") ~= "develop" or
         jsonString(contextJson, "selectedPhotoUuid") ~= command.expectedSelectedPhotoUuid or
         jsonInteger(contextJson, "contextCounter") ~= command.expectedContextCounter or
-        jsonInteger(contextJson, "developCounter") ~= command.expectedDevelopCounter or
+        (currentDevelop ~= command.expectedDevelopCounter and not compatibleGrain) or
         jsonInteger(contextJson, "contextChangedAt") ~= command.expectedContextChangedAt or
         jsonString(stateJson, "serverEpoch") ~= command.expectedServerEpoch or currentRevision == nil or
         currentRevision < command.expectedMaskingRevision or

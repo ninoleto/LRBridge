@@ -3,6 +3,7 @@ local LrApplication = import "LrApplication"
 local LrDevelopController = import "LrDevelopController"
 local LrTasks = import "LrTasks"
 local DevelopCategorical = require "DevelopCategorical"
+local MaskingGrain = require "MaskingGrain"
 
 local Driver = {}
 
@@ -219,7 +220,7 @@ function Driver.setSlider(slider, value, command)
     if slider ~= "HDREditMode" then
         LrDevelopController.startTracking(developSlider)
     end
-    LrDevelopController.setValue(developSlider, value)
+    MaskingGrain.write(developSlider, command, function() LrDevelopController.setValue(developSlider, value) end)
 
     return true
 
@@ -243,7 +244,7 @@ function Driver.resetSlider(slider, command)
 
     if not prepareDevelopSlider(developSlider, command) then return false end
 
-    LrDevelopController.resetToDefault(developSlider)
+    MaskingGrain.write(developSlider, command, function() LrDevelopController.resetToDefault(developSlider) end)
 
     return true
 

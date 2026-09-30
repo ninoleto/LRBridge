@@ -8,7 +8,9 @@ const state = {
   developCounter: 0,
   developChangedAt: null,
   lastHeartbeatAt: null,
-  developFingerprint: null
+  developFingerprint: null,
+  maskingGrainMaskId: null,
+  maskingCorrectionDevelopFloor: 0
 };
 
 function normalizeNullable(value) {
@@ -31,6 +33,16 @@ function updateContext(input) {
   const nextSelectedPhotoPath = suppliedPhotoPath || (nextSelectedPhotoUuid === null ? legacyPhotoKey : null);
   const nextSelectedPhotoKey = nextSelectedPhotoUuid || legacyPhotoKey || nextSelectedPhotoPath;
   const nextDevelopFingerprint = normalizeNullable(input.developFingerprint);
+  const identityChanged = state.activeModule !== nextActiveModule || state.selectedPhotoKey !== nextSelectedPhotoKey ||
+    state.selectedPhotoUuid !== nextSelectedPhotoUuid;
+  const mask = normalizeNullable(input.maskingGrainMaskId);
+  const nextMask = mask && mask.length <= 256 && !/[\u0000-\u001f\u007f]/.test(mask) ? mask : null;
+  // Only the SDK's receipt chain can account for a fingerprint transition.
+  // Missing proof (including older plug-ins) keeps the original strict barrier.
+  const compatibleGrain = nextActiveModule === "develop" && state.activeModule === "develop" &&
+    state.selectedPhotoUuid === nextSelectedPhotoUuid && state.selectedPhotoKey === nextSelectedPhotoKey &&
+    nextMask !== null && nextMask === state.maskingGrainMaskId && state.developFingerprint !== null &&
+    input.maskingGrainFromFingerprint === state.developFingerprint;
 
   if (state.activeModule !== nextActiveModule || state.selectedPhotoKey !== nextSelectedPhotoKey) {
     state.activeModule = nextActiveModule;
@@ -46,11 +58,15 @@ function updateContext(input) {
 
   if (nextActiveModule !== "develop") {
     state.developFingerprint = null;
+    state.maskingCorrectionDevelopFloor = state.developCounter;
   } else if (nextDevelopFingerprint !== null && state.developFingerprint !== nextDevelopFingerprint) {
     state.developFingerprint = nextDevelopFingerprint;
     state.developCounter += 1;
     state.developChangedAt = now;
+    if (!compatibleGrain) state.maskingCorrectionDevelopFloor = state.developCounter;
   }
+  if (identityChanged || nextMask !== state.maskingGrainMaskId) state.maskingCorrectionDevelopFloor = state.developCounter;
+  state.maskingGrainMaskId = nextActiveModule === "develop" ? nextMask : null;
 
   state.lastHeartbeatAt = now;
   return getContextFields();
@@ -66,6 +82,8 @@ function getContextFields() {
     contextChangedAt: state.contextChangedAt,
     developCounter: state.developCounter,
     developChangedAt: state.developChangedAt,
+    maskingCorrectionDevelopFloor: state.maskingCorrectionDevelopFloor,
+    maskingGrainMaskId: state.maskingGrainMaskId,
     lastHeartbeatAt: state.lastHeartbeatAt
   };
 }

@@ -29,6 +29,7 @@ local DevelopCategorical = require "DevelopCategorical"
 local ToneCurve = require "ToneCurve"
 local DevelopPresets = require "DevelopPresets"
 local Masking = require "Masking"
+local MaskingGrain = require "MaskingGrain"
 local Remove = require "Remove"
 local Reflections = require "Reflections"
 local People = require "People"
@@ -383,7 +384,7 @@ local function getDevelopFingerprint(activeModule, profileFingerprint, toneCurve
         return ""
     end
 
-    local parts = {}
+    local parts, otherParts, grain = {}, {}, {}
 
     for i, slider in ipairs(watchedSliders) do
 
@@ -391,23 +392,27 @@ local function getDevelopFingerprint(activeModule, profileFingerprint, toneCurve
 
         if value ~= nil then
             table.insert(parts, tostring(slider) .. "=" .. tostring(value))
+            if slider == "GrainSize" or slider == "GrainFrequency" then grain[slider] = value
+            else table.insert(otherParts, tostring(slider) .. "=" .. tostring(value)) end
         end
 
     end
 
     if profileFingerprint ~= nil and profileFingerprint ~= "" then
         table.insert(parts, "ProfileState=" .. tostring(profileFingerprint))
+        table.insert(otherParts, "ProfileState=" .. tostring(profileFingerprint))
     end
 
     if toneCurveFingerprint ~= nil and toneCurveFingerprint ~= "" then
         table.insert(parts, tostring(toneCurveFingerprint))
+        table.insert(otherParts, tostring(toneCurveFingerprint))
     end
 
     if #parts == 0 then
         return ""
     end
 
-    return hashString(table.concat(parts, "|"))
+    return hashString(table.concat(parts, "|")), hashString(table.concat(otherParts, "|")), grain
 
 end
 
@@ -425,6 +430,8 @@ local function sendContextHeartbeat()
     end
 
     local activeModule = getActiveModule()
+    local grainVersion = MaskingGrain.beginObservation()
+    local grainMaskId = MaskingGrain.selectedMask()
     local identity = getSelectedPhotoIdentity()
     local profile = activeModule == "develop" and readProfileFeedback(identity) or
         { available = false, label = "", source = "", fingerprint = "", supportsAmount = nil }
@@ -437,7 +444,7 @@ local function sendContextHeartbeat()
             toneCurve = nil
         end
     end
-    local developFingerprint = getDevelopFingerprint(
+    local developFingerprint, otherFingerprint, grainValues = getDevelopFingerprint(
         activeModule,
         profile.fingerprint,
         toneCurve and toneCurve.fingerprint or nil
@@ -445,6 +452,13 @@ local function sendContextHeartbeat()
     if activeModule == "develop" and identity.photo ~= nil and identity.uuid ~= "" and toneCurve == nil then
         developFingerprint = ""
     end
+    local afterIdentity = getSelectedPhotoIdentity()
+    if not MaskingGrain.stable(grainVersion) or identity.uuid ~= afterIdentity.uuid or identity.photo ~= afterIdentity.photo or
+        grainMaskId ~= MaskingGrain.selectedMask() then return end
+    local grainObservation = MaskingGrain.prepare(grainVersion, {
+        photo = identity.uuid, mask = grainMaskId, fingerprint = developFingerprint, other = otherFingerprint,
+        GrainSize = grainValues and grainValues.GrainSize, GrainFrequency = grainValues and grainValues.GrainFrequency
+    })
 
     local url =
         "http://127.0.0.1:17891/context/update" ..
@@ -452,11 +466,14 @@ local function sendContextHeartbeat()
         "&selectedPhotoKey=" .. urlEncode(identity.key) ..
         "&selectedPhotoUuid=" .. urlEncode(identity.uuid) ..
         "&selectedPhotoPath=" .. urlEncode(identity.path) ..
-        "&developFingerprint=" .. urlEncode(developFingerprint)
+        "&developFingerprint=" .. urlEncode(developFingerprint) ..
+        "&maskingGrainMaskId=" .. urlEncode(grainMaskId or "") ..
+        "&maskingGrainFromFingerprint=" .. urlEncode(grainObservation and grainObservation.from or "")
 
     local result = LrHttp.get(url)
     local contextCounter = parseJsonInteger(result, "contextCounter")
     local developCounter = parseJsonInteger(result, "developCounter")
+    if contextCounter ~= nil and developCounter ~= nil and developFingerprint ~= "" then MaskingGrain.commit(grainObservation) end
     if profile.available and contextCounter ~= nil and developCounter ~= nil then
         local feedbackUrl = "http://127.0.0.1:17891/develop-categorical/profile-feedback" ..
             "?contextCounter=" .. tostring(contextCounter) ..

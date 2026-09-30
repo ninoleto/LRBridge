@@ -343,6 +343,7 @@
         let rootElement = null;
         let controls = null;
         let state = null;
+        let rejectedCorrectionBinding = null;
         let context = null;
         let activeOperation = null;
         let desiredMaskGroupIndex = null;
@@ -410,15 +411,30 @@
         let toneCurveStatus = null;
         let sharedGrainControlCount = 0;
 
+        let correctionGeneration = 0;
+        function sameCorrectionContext(value, current) {
+            if (sameContext(value, current)) return true;
+            return Boolean(value && current && current.activeModule === "develop" &&
+                value.selectedPhotoUuid === current.selectedPhotoUuid && value.contextCounter === current.contextCounter &&
+                value.contextChangedAt === current.contextChangedAt && value.selectedMaskGroupId === current.maskingGrainMaskId &&
+                Number.isSafeInteger(current.maskingCorrectionDevelopFloor) &&
+                value.developCounter >= current.maskingCorrectionDevelopFloor && value.developCounter < current.developCounter);
+        }
         function correctionBindingKey(value) {
-            const base = navigationBindingKey(value);
+            const compatible = value && value.maskingGrainMaskId === value.selectedMaskGroupId &&
+                Number.isSafeInteger(value.maskingCorrectionDevelopFloor) && value.maskingCorrectionDevelopFloor <= value.developCounter;
+            const base = navigationBindingKey(compatible ? Object.assign({}, value,
+                { developCounter: value.maskingCorrectionDevelopFloor }) : value);
             return base !== null && value && value.available === true && value.active === true &&
                 value.hasSelectedMaskGroup === true && typeof value.selectedMaskGroupId === "string"
                 ? base + "\u001f" + value.selectedMaskGroupId : null;
         }
 
-        function correctionBusy() {
-            const sharedPointColorBusy = sharedPointColorController && sharedPointColorController.isBusy();
+        function correctionBusy(admittingPointColorVisualization) {
+            // The child reserves its Visualize button before calling this parent.
+            // That reservation owns this operation; actual edits must still block it.
+            const sharedPointColorBusy = sharedPointColorController && (admittingPointColorVisualization === true
+                ? sharedPointColorController.hasPendingEdits() : sharedPointColorController.isBusy());
             const pointColorBusy = sharedPointColorBusy;
             const toneState = toneCurveController && typeof toneCurveController.getState === "function"
                 ? toneCurveController.getState() : null;
@@ -1083,9 +1099,9 @@
             }
         }
 
-        function commandQuery() {
+        function commandQuery(regularCorrection) {
             const confirmed = state;
-            if (!confirmed || !sameContext(confirmed, currentContext())) return null;
+            if (!confirmed || !(regularCorrection === true ? sameCorrectionContext : sameContext)(confirmed, currentContext())) return null;
             return "selectedPhotoUuid=" + encodeURIComponent(confirmed.selectedPhotoUuid) +
                 "&contextCounter=" + encodeURIComponent(confirmed.contextCounter) +
                 "&developCounter=" + encodeURIComponent(confirmed.developCounter) +
@@ -1162,7 +1178,7 @@
             const preset = kind === "preset" ? presets.find(function (entry) { return entry.id === value; }) : null;
             if (kind === "preset" && (!preset || !presetFeedbackKey(state))) return false;
             if (activeOperation || !state || state.available !== true || !sameContext(state, currentContext()) ||
-                state.pendingOperation || correctionBusy()) return false;
+                state.pendingOperation || correctionBusy(kind === "pointColorVisualize")) return false;
             if (kind === "deleteSelected" && (state.active !== true || state.hasSelectedMaskGroup !== true ||
                 value !== state.selectedMaskGroupId)) return false;
             if (kind === "deleteAll" && state.maskGroupCount < 1) return false;
@@ -1556,18 +1572,22 @@
 
         function cancelCorrectionControl(control, restore) {
             clearCorrectionTimers(control);
+            control.editRevision += 1;
             control.queuedSubmission = null;
+            control.interruptedPointer = Boolean(control.interruptedPointer || control.pointerActive);
             control.pointerActive = false;
             control.gestureId = null;
             control.desiredValue = null;
             control.resetInFlight = false;
+            control.confirmationTimedOut = false;
             control.numberEditing = false;
             control.numberOriginalText = null;
             if (restore && Number.isFinite(control.authoritativeValue)) showCorrectionValue(control, control.authoritativeValue);
         }
 
         function correctionCommandQuery(control) {
-            const query = commandQuery();
+            if (correctionBindingRejected()) return null;
+            const query = commandQuery(true);
             const groupId = state && state.selectedMaskGroupId;
             if (!query || typeof groupId !== "string") return null;
             return "parameter=" + encodeURIComponent(control.definition.parameter) +
@@ -1600,8 +1620,33 @@
             if (Number.isFinite(control.authoritativeValue)) showCorrectionValue(control, control.authoritativeValue);
         }
 
+        function correctionBindingRejected() {
+            return Boolean(rejectedCorrectionBinding && state &&
+                rejectedCorrectionBinding.key === correctionBindingKey(state) &&
+                state.revision <= rejectedCorrectionBinding.revision);
+        }
+
+        function retainInterruptedCorrection(control) {
+            if (!state || !control.lastSubmittedSequence ||
+                (control.desiredValue === null && !control.resetInFlight && !control.confirmationTimedOut)) return;
+            control.interrupted = { sequence: control.lastSubmittedSequence, serverEpoch: state.serverEpoch,
+                selectedPhotoUuid: state.selectedPhotoUuid, maskGroupId: state.selectedMaskGroupId };
+        }
+
+        function ownCorrectionEdit(control) {
+            control.editRevision += 1;
+            control.interrupted = null;
+            control.confirmationTimedOut = false;
+            if (control.confirmationTimer !== null) clearTimeout(control.confirmationTimer);
+            control.confirmationTimer = null;
+            control.resetInFlight = false;
+        }
+
         function queueCorrectionSubmission(control, submission) {
             if (!rootElement || control.bindingKey !== correctionBindingKey(state)) return false;
+            if (submission.editRevision === undefined) {
+                submission = Object.assign({ editRevision: control.editRevision }, submission);
+            }
             if (control.requestInFlight) {
                 if (!control.queuedSubmission || submission.kind !== "update" ||
                     control.queuedSubmission.kind === "update") control.queuedSubmission = submission;
@@ -1610,8 +1655,9 @@
             }
             const endpoint = correctionEndpoint(control, submission);
             if (!endpoint) return false;
-            const requestGeneration = generation;
+            const requestGeneration = correctionGeneration;
             const requestBinding = control.bindingKey;
+            const requestRevision = state.revision;
             control.requestInFlight = true;
             correctionRequestCount += 1;
             render();
@@ -1619,24 +1665,48 @@
             Promise.resolve(fetchImpl(endpoint, { cache: "no-store" })).then(function (response) {
                 return response.json().then(function (body) { return { response: response, body: body }; });
             }).then(function (result) {
-                if (!rootElement || requestGeneration !== generation || requestBinding !== correctionBindingKey(state)) return;
+                if (!rootElement || requestGeneration !== correctionGeneration || requestBinding !== correctionBindingKey(state)) return;
                 if (!result.response.ok || !result.body || result.body.ok !== true ||
                     !Number.isSafeInteger(result.body.correctionSequence)) {
-                    correctionFailure(control, result.response.status === 409
-                        ? "That correction is no longer available for the selected mask."
-                        : "Lightroom could not receive that Masking correction.");
-                    control.queuedSubmission = null;
+                    const code = result.body && result.body.code;
+                    if (submission.editRevision === control.editRevision && result.response.status === 409 &&
+                        (code === "stale_context" || code === "stale_selection" && requestRevision >= state.revision)) {
+                        rejectedCorrectionBinding = { key: requestBinding, revision: state.revision };
+                        Object.keys(correctionControls).forEach(function (parameter) {
+                            const other = correctionControls[parameter];
+                            if (other.bindingKey === requestBinding) {
+                                other.interruptedPointer = other.pointerActive;
+                                retainInterruptedCorrection(other);
+                                cancelCorrectionControl(other, false);
+                            }
+                        });
+                        correctionFailure(control, result.body.error);
+                        control.ignoreNextRangeChange = true;
+                        render();
+                    } else if (submission.editRevision === control.editRevision) {
+                        correctionFailure(control, result.response.status === 409
+                            ? result.body && result.body.error || "Lightroom rejected that Masking correction. Refresh Masking and check the selected mask."
+                            : "Lightroom could not receive that Masking correction.");
+                        control.queuedSubmission = null;
+                    }
                     refresh();
                     return;
                 }
                 control.lastSubmittedSequence = Math.max(control.lastSubmittedSequence, result.body.correctionSequence);
+                if (submission.editRevision !== control.editRevision) return;
                 if (submission.kind === "reset") control.resetInFlight = true;
                 if (submission.kind === "end" || submission.kind === "reset") {
+                    const confirmationSequence = result.body.correctionSequence;
                     if (control.confirmationTimer !== null) clearTimeout(control.confirmationTimer);
                     control.confirmationTimer = setTimeout(function () {
+                        // A prior end response/deadline cannot take ownership from
+                        // newer input, even before its next request is admitted.
+                        if (submission.editRevision !== control.editRevision ||
+                            confirmationSequence !== control.lastSubmittedSequence) return;
                         control.confirmationTimer = null;
                         if (control.bindingKey === correctionBindingKey(state) &&
                             (control.desiredValue !== null || control.resetInFlight)) {
+                            control.confirmationTimedOut = true;
                             correctionFailure(control, "Lightroom did not confirm that Masking correction in time.");
                             render();
                             refresh();
@@ -1644,14 +1714,15 @@
                     }, 3000);
                 }
             }).catch(function () {
-                if (rootElement && requestGeneration === generation && requestBinding === correctionBindingKey(state)) {
+                if (rootElement && requestGeneration === correctionGeneration && requestBinding === correctionBindingKey(state) &&
+                    submission.editRevision === control.editRevision) {
                     correctionFailure(control, "Could not send that Masking correction.");
                     control.queuedSubmission = null;
                 }
             }).finally(function () {
                 control.requestInFlight = false;
                 correctionRequestCount = Math.max(0, correctionRequestCount - 1);
-                if (!rootElement || requestGeneration !== generation || requestBinding !== correctionBindingKey(state)) {
+                if (!rootElement || requestGeneration !== correctionGeneration || requestBinding !== correctionBindingKey(state)) {
                     control.queuedSubmission = null;
                     render();
                     return;
@@ -1666,6 +1737,7 @@
         }
 
         function newCorrectionGesture(control) {
+            ownCorrectionEdit(control);
             correctionGestureCounter += 1;
             control.gestureId = "mg-" + correctionGestureCounter + "-" + Date.now().toString(36);
             control.error = "";
@@ -1678,6 +1750,7 @@
         }
 
         function stageCorrectionValue(control, value) {
+            if (control.range.disabled || control.interruptedPointer) return false;
             if (!Number.isFinite(value)) return false;
             const normalized = Math.min(control.maximum, Math.max(control.minimum, value));
             control.desiredValue = Number(normalized.toFixed(control.precision));
@@ -1698,6 +1771,7 @@
         }
 
         function finishCorrectionGesture(control, value) {
+            if (control.range.disabled || control.interruptedPointer) return false;
             if (control.throttleTimer !== null) clearTimeout(control.throttleTimer);
             control.throttleTimer = null;
             const gestureId = beginCorrectionGesture(control);
@@ -1710,6 +1784,7 @@
         }
 
         function cancelCorrectionGesture(control) {
+            ownCorrectionEdit(control);
             const gestureId = control.gestureId;
             if (control.throttleTimer !== null) clearTimeout(control.throttleTimer);
             control.throttleTimer = null;
@@ -1721,6 +1796,7 @@
         }
 
         function commitCorrectionNumber(control) {
+            if (control.number.disabled) { control.numberEditing = false; return false; }
             const text = String(control.number.value || "").trim();
             const numeric = text === "" ? NaN : Number(text);
             const unchanged = control.numberOriginalText !== null && text === control.numberOriginalText;
@@ -1748,8 +1824,10 @@
         }
 
         function stepCorrection(control, direction) {
+            if (control.range.disabled) return;
             const base = control.desiredValue !== null ? control.desiredValue : control.authoritativeValue;
             if (!Number.isFinite(base)) return;
+            ownCorrectionEdit(control);
             control.error = "";
             control.desiredValue = Math.min(control.maximum, Math.max(control.minimum,
                 Number((base + direction * control.step).toFixed(control.precision))));
@@ -1768,12 +1846,18 @@
         }
 
         function resetCorrection(control) {
+            if (control.reset.disabled) return;
+            const displayedValue = Number(control.range.value);
             clearCorrectionTimers(control);
+            ownCorrectionEdit(control);
             if (control.gestureId) {
                 queueCorrectionSubmission(control, { kind: "cancel", gestureId: control.gestureId });
             }
             control.gestureId = null;
-            control.desiredValue = null;
+            // Hold the current display until this Reset's SDK result supplies
+            // its value. Retire the preceding completion even if admission fails.
+            control.desiredValue = displayedValue;
+            control.lastHandledFeedbackSequence = Math.max(control.lastHandledFeedbackSequence, control.lastSubmittedSequence);
             control.error = "";
             queueCorrectionSubmission(control, { kind: "reset" });
         }
@@ -1808,11 +1892,13 @@
                 increment: increment, reset: reset, status: status, available: false, authoritativeValue: null,
                 desiredValue: null, minimum: null, maximum: null, precision: 0, step: 1, pointerActive: false,
                 numberEditing: false, numberOriginalText: null, gestureId: null, requestInFlight: false, queuedSubmission: null,
-                resetInFlight: false, throttleTimer: null, stepTimer: null, confirmationTimer: null,
+                resetInFlight: false, throttleTimer: null, stepTimer: null, confirmationTimer: null, editRevision: 0,
                 bindingKey: null, error: "", lastSubmittedSequence: 0, lastHandledFeedbackSequence: 0,
-                ignoreNextRangeChange: false
+                ignoreNextRangeChange: false, interrupted: null, interruptedPointer: false, confirmationTimedOut: false
             };
             range.addEventListener("pointerdown", function () {
+                if (range.disabled) return;
+                control.interruptedPointer = false;
                 control.pointerActive = true;
                 beginCorrectionGesture(control);
             });
@@ -1820,6 +1906,7 @@
             range.addEventListener("pointerup", function () {
                 control.pointerActive = false;
                 control.ignoreNextRangeChange = true;
+                if (control.interruptedPointer) { control.interruptedPointer = false; return; }
                 finishCorrectionGesture(control, Number(range.value));
             });
             range.addEventListener("pointercancel", function () {
@@ -1882,9 +1969,11 @@
             values.forEach(function (entry) { availableByParameter[entry.parameter] = entry; });
             const groupCounts = Object.create(null);
             maskingCorrections.groups.forEach(function (group) { groupCounts[group] = 0; });
-            const result = state && state.lastCorrectionResult;
+            const results = state && Array.isArray(state.correctionResults) ? state.correctionResults
+                : state && state.lastCorrectionResult ? [state.lastCorrectionResult] : [];
             Object.keys(correctionControls).forEach(function (parameter) {
                 const control = correctionControls[parameter];
+                const result = results.find(function (entry) { return entry.parameter === parameter; });
                 const entry = bindingKey ? availableByParameter[parameter] : null;
                 if (control.bindingKey !== bindingKey) {
                     cancelCorrectionControl(control, false);
@@ -1893,11 +1982,32 @@
                     control.lastSubmittedSequence = 0;
                     control.lastHandledFeedbackSequence = 0;
                 }
-                if (result && result.parameter === parameter && result.maskGroupId === state.selectedMaskGroupId &&
+                if (control.interrupted) {
+                    const interrupted = control.interrupted;
+                    if (!state || interrupted.serverEpoch !== state.serverEpoch ||
+                        interrupted.selectedPhotoUuid !== state.selectedPhotoUuid ||
+                        interrupted.maskGroupId !== state.selectedMaskGroupId) control.interrupted = null;
+                    else {
+                        const cancellation = (state.correctionCancellations || []).find(function (entry) {
+                            return entry.sequence === interrupted.sequence && entry.parameter === parameter &&
+                                entry.serverEpoch === interrupted.serverEpoch && entry.selectedPhotoUuid === interrupted.selectedPhotoUuid &&
+                                entry.maskGroupId === interrupted.maskGroupId && entry.dispatched === false;
+                        });
+                        control.error = cancellation
+                            ? "This adjustment was cancelled before reaching Lightroom because its context changed. Adjust again when ready."
+                            : "Lightroom's context changed before this adjustment was confirmed. Check the value in Lightroom.";
+                    }
+                }
+                if (!control.interrupted && result && result.parameter === parameter && result.maskGroupId === state.selectedMaskGroupId &&
                     Number.isSafeInteger(result.sequence) &&
+                    // Admission can trail the next local edit. Keep that edit's ownership
+                    // until its sequence is known; an earlier completion cannot settle it.
+                    !control.requestInFlight && !control.queuedSubmission && !control.pointerActive &&
+                    !control.gestureId && control.throttleTimer === null && control.stepTimer === null &&
                     result.sequence > control.lastHandledFeedbackSequence) {
                     control.lastHandledFeedbackSequence = result.sequence;
                     if (result.sequence >= control.lastSubmittedSequence) {
+                        control.confirmationTimedOut = false;
                         if (result.outcome !== "confirmed") {
                             correctionFailure(control, result.detail || "Lightroom rejected that Masking correction.");
                         } else {
@@ -1934,7 +2044,7 @@
                 control.range.min = String(entry.min);
                 control.range.max = String(entry.max);
                 control.range.step = String(control.step);
-                const blocked = Boolean(!sameContext(state, currentContext()) || activeOperation || state.pendingOperation || navigationIntentActive || toolNavigationIntentActive);
+                const blocked = Boolean(correctionBindingRejected() || !sameCorrectionContext(state, currentContext()) || activeOperation || state.pendingOperation || navigationIntentActive || toolNavigationIntentActive);
                 control.range.disabled = blocked;
                 control.number.disabled = blocked;
                 control.decrement.disabled = blocked || (control.desiredValue !== null
@@ -2392,6 +2502,7 @@
             host.appendChild(rootElement);
             if (typeof decorate === "function") decorate(rootElement, controls.title);
             generation += 1;
+            correctionGeneration += 1;
             abortController = typeof AbortController === "function" ? new AbortController() : null;
             context = currentContext();
             setDesiredToConfirmed(state);
@@ -2404,12 +2515,14 @@
         }
 
         function deactivate() {
+            rejectedCorrectionBinding = null;
             if (creationMenuClose) { creationMenuClose(false); creationMenuClose.dispose(); }
             creationMenuClose = null;
             creationFeedback = "";
             componentFeedbackBinding = null;
             creationAwaitingInventory = null;
             generation += 1;
+            correctionGeneration += 1;
             if (sharedPointColorController) sharedPointColorController.unmount();
             if (toneCurveController) toneCurveController.deactivate();
             if (interval !== null) clearIntervalImpl(interval);
@@ -2459,6 +2572,7 @@
                 const presetContextChanged = !before || before.activeModule !== context.activeModule ||
                     before.selectedPhotoUuid !== context.selectedPhotoUuid || before.contextCounter !== context.contextCounter ||
                     before.contextChangedAt !== context.contextChangedAt;
+                const compatibleGrain = !presetContextChanged && sameCorrectionContext(state, context);
                 if (presetContextChanged) closePresetPicker(false);
                 if (presetContextChanged) {
                     creationFeedback = "";
@@ -2486,11 +2600,14 @@
                     if (state && state.pointColor) sharedPointColorController.applyAuthoritative(state.pointColor, null);
                 }
                 if (toneCurveController) toneCurveController.applyContext(null, !presetContextChanged);
-                Object.keys(correctionControls).forEach(function (parameter) {
+                if (!compatibleGrain) Object.keys(correctionControls).forEach(function (parameter) {
+                    if (!presetContextChanged) retainInterruptedCorrection(correctionControls[parameter]);
+                    else correctionControls[parameter].interrupted = null;
                     cancelCorrectionControl(correctionControls[parameter], false);
                     correctionControls[parameter].bindingKey = null;
                 });
                 generation += 1;
+                if (!compatibleGrain) correctionGeneration += 1;
                 render();
                 refresh();
             }

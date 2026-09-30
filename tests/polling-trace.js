@@ -36,8 +36,9 @@ try {
     assert.equal(forwarded, 1);
     const log = path.join(directory, "test-capture-server.jsonl");
     const rows = fs.readFileSync(log, "utf8").trim().split("\n").map(JSON.parse);
-    assert.deepEqual(rows.map(r => r.event), ["http_enter", "command_dequeue", "http_finish"]);
-    assert.equal(rows[0].startedAt, rows[2].startedAt);
+    assert.deepEqual(rows.map(r => r.event), ["command_worker_poll", "http_enter", "command_dequeue", "http_finish"]);
+    assert.equal(rows[1].startedAt, rows[3].startedAt);
+    assert.deepEqual(trace.commandWorkers(), [{ worker: "unmarked", lastSeenAt: now }]);
     assert.ok(!fs.readFileSync(log, "utf8").includes("private"));
     const sliderResponse = new EventEmitter(); sliderResponse.statusCode = 400;
     trace.middleware({ path: "/set", query: { slider: "Exposure", value: "1.25", selectedPhotoPath: "private-photo" } }, sliderResponse, () => forwarded++);
@@ -52,6 +53,7 @@ try {
     const resultRow = fs.readFileSync(log, "utf8").trim().split("\n").map(JSON.parse).at(-1);
     assert.equal(resultRow.id, 77); assert.equal(resultRow.available, true); assert.equal(resultRow.value, 1.25);
     const size = fs.statSync(log).size; now = 1011000; trace.record("expired"); assert.equal(fs.statSync(log).size, size);
+    assert.deepEqual(trace.commandWorkers(), [], "old workers must age out without retaining a false active claim");
     assert.equal(trace.readSharedReadPause().paused, false);
     fs.writeFileSync(arm, "1020 ../../escape"); now += 501; trace.record("invalid"); assert.equal(fs.statSync(log).size, size);
     const missing = createPollingTrace(path.join(directory, "missing"), () => now, true);

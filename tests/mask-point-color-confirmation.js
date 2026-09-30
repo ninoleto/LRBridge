@@ -95,7 +95,7 @@ function decodedPointColor(query) {
     for (const field of ["HueRangeMarker", "SatRangeMarker", "LumRangeMarker"]) result[field] = +values[offset++];
     return result;
 }
-async function harness() {
+async function harness(options = {}) {
     let context = {activeModule: "develop", selectedPhotoUuid: "photo-a", contextCounter: 4,
         developCounter: 7, contextChangedAt: 10};
     const model = maskingModel.createMaskingState({serverEpoch: "epoch-a"});
@@ -109,6 +109,8 @@ async function harness() {
     publish(snapshot());
     const document = {createElement: tag => new Element(tag), createElementNS: (_ns, tag) => new Element(tag)};
     const controller = maskingUi.createController({document, getContext: () => context,
+        pointColorCommandTimeoutMs: options.commandTimeoutMs,
+        pointColorFeedbackTimeoutMs: options.feedbackTimeoutMs,
         setInterval: () => 1, clearInterval: () => {}, fetch: async request => {
             const url = new URL(request, "http://controller.test");
             let body;
@@ -123,12 +125,15 @@ async function harness() {
                     selectedMaskGroupId: url.searchParams.get("selectedMaskGroupId")}, model.getPublicState(), context);
                 assert.ok(command, "production server admission");
                 commands.push(command); body = {ok: true, editSequence: command.editSequence};
+                if (options.admission) await options.admission(command);
             }
             return {ok: true, json: async () => body};
         }});
     controller.activate(host); await flush();
     const row = field => find(host, element => element.dataset.pointColorField === field);
-    return {model, controller, commands, publish,
+    return {model, controller, commands, publish, row,
+        input(field, ui) { const slider = row(field).children[1]; slider.value = String(ui); slider.dispatch("input"); },
+        async release(field) { row(field).children[1].dispatch("change"); await flush(); },
         async edit(field, ui) { const slider = row(field).children[1]; slider.value = String(ui); slider.dispatch("change"); await flush(); },
         value: field => row(field).children[1].value,
         intent: field => controller.getInteractionState().pointColor.scalarIntents[field],
@@ -279,4 +284,5 @@ async function run() {
     }
     console.log("Newer edits, coalescing, stale parent responses and photo/Develop/mask/swatch invalidation passed. Automated SDK/DOM doubles only; no native acceptance implied.");
 }
-run().catch(error => { console.error(error); process.exitCode = 1; });
+module.exports = { harness, runSdk, snapshot, pointState, flush };
+if (require.main === module) run().catch(error => { console.error(error); process.exitCode = 1; });

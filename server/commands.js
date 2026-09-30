@@ -45,6 +45,12 @@ const ADMISSION_COALESCED = "coalesced";
 const ADMISSION_INVALID = "invalid";
 const ADMISSION_QUEUE_FULL = "queue_full";
 
+function traceMaskingQueue(event, command, data) {
+    if (!maskingAdmissionProvider || typeof maskingAdmissionProvider.onQueueEvent !== "function" ||
+        !command.command.startsWith("masking.correction.")) return;
+    try { maskingAdmissionProvider.onQueueEvent(event, command, data); } catch (_) { /* Diagnostics never alter edits. */ }
+}
+
 const allowedActions = [
     "resetAllDevelopAdjustments",
     "resetCrop",
@@ -953,27 +959,51 @@ function tryEnqueueCommand(command) {
                 pending.parameter === command.parameter && pending.expectedSelectedMaskId === command.expectedSelectedMaskId &&
                 pending.expectedSelectedPhotoUuid === command.expectedSelectedPhotoUuid &&
                 pending.expectedContextCounter === command.expectedContextCounter &&
+                pending.expectedDevelopCounter === command.expectedDevelopCounter &&
+                pending.expectedContextChangedAt === command.expectedContextChangedAt &&
                 pending.expectedServerEpoch === command.expectedServerEpoch;
         };
         if (command.command === "masking.correction.reset") {
-            removePending(sameCorrection);
+            removePending(function (pending) {
+                if (!sameCorrection(pending)) return false;
+                traceMaskingQueue("superseded", pending, { bySequence: command.correctionSequence });
+                return true;
+            });
         } else if (command.command === "masking.correction.gesture.update" ||
             command.command === "masking.correction.gesture.end" ||
             command.command === "masking.correction.gesture.cancel") {
             const matchingIndexes = [];
             for (let index = commandQueue.length - 1, floor = exportCoalescingFloor(); index >= floor; index -= 1) {
                 const pending = commandQueue[index];
-                const replaceable = pending.command === "masking.correction.gesture.update" ||
+                // Absolute regular-correction values supersede undispatched
+                // gestures for the same target. Do not cross Reset, another
+                // context, or an operation/global edit that can change it.
+                if (pending.command !== "clipboard.query" &&
+                    (!pending.command.startsWith("masking.correction.gesture.") ||
+                    pending.command === "masking.correction.gesture.cancel" ||
+                    pending.expectedServerEpoch !== command.expectedServerEpoch ||
+                    pending.expectedSelectedPhotoUuid !== command.expectedSelectedPhotoUuid ||
+                    pending.expectedSelectedMaskId !== command.expectedSelectedMaskId ||
+                    pending.expectedContextCounter !== command.expectedContextCounter ||
+                    pending.expectedDevelopCounter !== command.expectedDevelopCounter ||
+                    pending.expectedContextChangedAt !== command.expectedContextChangedAt)) break;
+                const carriesValue = command.command === "masking.correction.gesture.update" ||
+                    command.command === "masking.correction.gesture.end";
+                const replaceable = carriesValue && ["masking.correction.gesture.begin",
+                    "masking.correction.gesture.update", "masking.correction.gesture.end"].includes(pending.command) ||
                     (command.command === "masking.correction.gesture.cancel" &&
                         (pending.command === "masking.correction.gesture.begin" ||
                             pending.command === "masking.correction.gesture.end" ||
+                            pending.command === "masking.correction.gesture.update" ||
                             pending.command === "masking.correction.gesture.cancel"));
-                if (sameCorrection(pending) && pending.gestureId === command.gestureId && replaceable) {
+                if (sameCorrection(pending) && replaceable &&
+                    (carriesValue || pending.gestureId === command.gestureId)) {
                     matchingIndexes.push(index);
                 }
             }
             if (matchingIndexes.length > 0) {
                 for (const index of matchingIndexes) {
+                    traceMaskingQueue("superseded", commandQueue[index], { bySequence: command.correctionSequence });
                     commandQueue.splice(index, 1);
                     queueEntryMetadata.splice(index, 1);
                 }
@@ -1373,9 +1403,11 @@ function admissionResult(status) {
 function getNextCommand() {
     while (commandQueue.length > 0) {
         const command = commandQueue.shift();
-        queueEntryMetadata.shift();
+        const metadata = queueEntryMetadata.shift();
         dequeuedEntries += 1;
         lastDequeuedAt = Date.now();
+        traceMaskingQueue("dequeue_check", command, { queuedMs: metadata ? lastDequeuedAt - metadata.enqueuedAt : null,
+            current: context.getContextFields() });
         if ((command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate" ||
             command.command === "develop_categorical.profile.set") && command.expectedContextCounter !== context.getContextFields().contextCounter) continue;
         if (!contextBoundDevelopCommandMatches(command)) continue;
@@ -1403,6 +1435,7 @@ function getNextCommand() {
             command.command.startsWith("masking.correction.")) &&
             (!maskingAdmissionProvider || !maskingAdmissionProvider.matches(command, context.getContextFields()))) {
             if (maskingAdmissionProvider && typeof maskingAdmissionProvider.onRejected === "function") {
+                traceMaskingQueue("cancelled_before_dispatch", command, { reason: "Masking context changed before dequeue." });
                 maskingAdmissionProvider.onRejected(command, "Masking context changed before dequeue.");
             }
             continue;
@@ -1433,6 +1466,7 @@ function getNextCommand() {
             if (removeAdmissionProvider) removeAdmissionProvider.reject(command, "Remove brush context changed before dequeue.");
             continue;
         }
+        traceMaskingQueue("dispatched", command);
         return command;
     }
     return null;

@@ -63,7 +63,9 @@ const { createBridge } = require("../server/bridge");
     wire.forEach((value, index) => { lua.lua_pushstring(runtime, to_luastring(value)); lua.lua_rawseti(runtime, -2, index + 1); });
     lua.lua_setglobal(runtime, to_luastring("wireCommands"));
     const source = fs.readFileSync(path.join(__dirname, "grain-navigation.lua"), "utf8");
-    if (lauxlib.luaL_dostring(runtime, to_luastring(source)) !== lua.LUA_OK) throw Error(to_jsstring(lua.lua_tostring(runtime, -1)));
+    const override = process.env.LRBRIDGE_GRAIN_TEST_SOURCE ? "package.preload.Driver=function()\n" +
+        fs.readFileSync(process.env.LRBRIDGE_GRAIN_TEST_SOURCE, "utf8") + "\nend\n" : "";
+    if (lauxlib.luaL_dostring(runtime, to_luastring(override + source)) !== lua.LUA_OK) throw Error(to_jsstring(lua.lua_tostring(runtime, -1)));
     lua.lua_close(runtime);
     console.log("Grain HTTP/queue/Parser/Commands/Driver navigation scope, SDK calls, coalescing and stale-photo guards passed (mock SDK).");
 })().catch(error => { console.error(error); process.exitCode = 1; });

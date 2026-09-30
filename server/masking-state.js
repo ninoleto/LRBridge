@@ -239,7 +239,10 @@ function contextBinding(fields) {
         selectedPhotoUuid: fields.selectedPhotoUuid,
         contextCounter: fields.contextCounter,
         developCounter: fields.developCounter,
-        contextChangedAt: fields.contextChangedAt
+        contextChangedAt: fields.contextChangedAt,
+        maskingCorrectionDevelopFloor: Number.isSafeInteger(fields.maskingCorrectionDevelopFloor)
+            ? fields.maskingCorrectionDevelopFloor : fields.developCounter,
+        maskingGrainMaskId: fields.maskingGrainMaskId || null
     };
 }
 
@@ -338,7 +341,15 @@ function createMaskingState(options) {
     let correctionFeedbackSequence = 0;
     let correctionSelectionRevision = 0;
     let lastCorrectionResult = null;
+    // One completion per supported parameter, scoped to the current photo/mask.
+    // A single last result loses confirmations when multiple sliders finish
+    // between browser polls. Keep the legacy field for existing HTTP clients.
+    const correctionResults = new Map();
     const correctionAdmissions = new Map();
+    // Queue cancellation is an execution receipt, not a snapshot. Retain its
+    // original identity across invalidation so an admitted final edit cannot
+    // disappear without explaining that it never reached the SDK.
+    const correctionCancellations = new Map();
     let editSequence = 0;
     let editFeedbackSequence = 0;
     let lastEditResult = null;
@@ -355,6 +366,8 @@ function createMaskingState(options) {
             contextCounter: binding ? binding.contextCounter : null,
             developCounter: binding ? binding.developCounter : null,
             contextChangedAt: binding ? binding.contextChangedAt : null,
+            maskingCorrectionDevelopFloor: binding ? binding.maskingCorrectionDevelopFloor : null,
+            maskingGrainMaskId: binding ? binding.maskingGrainMaskId : null,
             pendingOperation: pendingOperation ? Object.assign({
                 operationId: pendingOperation.operationId,
                 kind: pendingOperation.kind,
@@ -368,6 +381,8 @@ function createMaskingState(options) {
             lastResult: lastResult ? Object.assign({}, lastResult) : null,
             correctionFeedbackSequence: correctionFeedbackSequence,
             lastCorrectionResult: lastCorrectionResult ? Object.assign({}, lastCorrectionResult) : null,
+            correctionResults: Array.from(correctionResults.values(), result => Object.assign({}, result)),
+            correctionCancellations: Array.from(correctionCancellations.values(), result => Object.assign({}, result)),
             editFeedbackSequence: editFeedbackSequence,
             lastEditResult: lastEditResult ? Object.assign({}, lastEditResult) : null,
             currentPreset: null,
@@ -379,8 +394,28 @@ function createMaskingState(options) {
     function syncContext(fields) {
         const nextBinding = contextBinding(fields || {});
         const changed = !sameBinding(binding, nextBinding);
-        if (!changed) return false;
+        if (!changed) { binding = nextBinding; return false; }
+        const compatibleGrain = binding && !pendingOperation && snapshot.available === true &&
+            snapshot.active === true && snapshot.hasSelectedMaskGroup === true &&
+            binding.activeModule === "develop" && nextBinding.activeModule === "develop" &&
+            binding.selectedPhotoUuid === nextBinding.selectedPhotoUuid &&
+            binding.contextCounter === nextBinding.contextCounter &&
+            binding.contextChangedAt === nextBinding.contextChangedAt &&
+            nextBinding.maskingGrainMaskId === snapshot.selectedMaskGroupId &&
+            nextBinding.maskingCorrectionDevelopFloor <= binding.developCounter &&
+            nextBinding.developCounter > binding.developCounter;
         binding = nextBinding;
+        if (compatibleGrain) {
+            // Grain changes no local correction. Keep its admission/result ownership
+            // and original freshness, while other Masking operations stay revision-bound.
+            queuedQuery = null;
+            outstandingQuery = null;
+            editFeedbackSequence = 0;
+            lastEditResult = null;
+            editAdmissions.clear();
+            revision += 1;
+            return true;
+        }
         snapshot = unavailableSnapshot(contextUnavailableReason(fields) || "context_changed");
         capturedAt = null;
         queuedQuery = null;
@@ -409,6 +444,7 @@ function createMaskingState(options) {
         pendingOperation = null;
         correctionFeedbackSequence = 0;
         lastCorrectionResult = null;
+        correctionResults.clear();
         correctionAdmissions.clear();
         editFeedbackSequence = 0;
         lastEditResult = null;
@@ -496,7 +532,10 @@ function createMaskingState(options) {
         capturedAt = nowProvider();
         outstandingQuery = null;
         if (changed) revision += 1;
-        if (correctionSelectionChanged) correctionSelectionRevision = revision;
+        if (correctionSelectionChanged) {
+            correctionSelectionRevision = revision;
+            correctionResults.clear();
+        }
         return true;
     }
 
@@ -608,7 +647,10 @@ function createMaskingState(options) {
 
         operationCounter += 1;
         revision += 1;
-        if (kind === "panel" || kind === "navigate" || kind === "deleteAll" || kind === "deleteSelected") correctionSelectionRevision = revision;
+        if (kind === "panel" || kind === "navigate" || kind === "deleteAll" || kind === "deleteSelected") {
+            correctionSelectionRevision = revision;
+            correctionResults.clear();
+        }
         queuedQuery = null;
         outstandingQuery = null;
         pendingOperation = Object.assign({
@@ -725,28 +767,51 @@ function createMaskingState(options) {
         }, operationFields);
     }
 
-    function beginCorrection(specification, suppliedBinding, fields) {
+    function correctionDevelopMatches(developCounter, maskId) {
+        return binding && (developCounter === binding.developCounter ||
+            Number.isSafeInteger(developCounter) && Number.isSafeInteger(binding.maskingCorrectionDevelopFloor) &&
+            maskId === binding.maskingGrainMaskId && maskId === snapshot.selectedMaskGroupId &&
+            developCounter >= binding.maskingCorrectionDevelopFloor && developCounter < binding.developCounter);
+    }
+
+    function correctionAdmissionError(specification, suppliedBinding, fields) {
         syncContext(fields);
         const now = nowProvider();
-        if (!specification || pendingOperation || !bindingMatches(binding, contextBinding(fields || {})) ||
-            !bindingMatches(binding, Object.assign({ activeModule: "develop" }, suppliedBinding || {})) ||
-            suppliedBinding.serverEpoch !== serverEpoch || !Number.isSafeInteger(suppliedBinding.revision) ||
-            suppliedBinding.revision < correctionSelectionRevision || suppliedBinding.revision > revision ||
-            capturedAt === null || now - capturedAt > SNAPSHOT_FRESH_MS || snapshot.available !== true ||
-            snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
-            specification.selectedMaskGroupId !== snapshot.selectedMaskGroupId) return null;
+        if (!specification || !suppliedBinding) return { code: "invalid_correction", error: "Invalid Masking correction command." };
+        if (!bindingMatches(binding, contextBinding(fields || {})) ||
+            !bindingMatches(binding, Object.assign({ activeModule: "develop" }, suppliedBinding,
+                { developCounter: binding.developCounter })) ||
+            !correctionDevelopMatches(suppliedBinding.developCounter, specification.selectedMaskGroupId) ||
+            suppliedBinding.serverEpoch !== serverEpoch) return { code: "stale_context",
+                error: "Lightroom's photo or Develop context changed. Refresh Masking before adjusting again." };
+        if (!Number.isSafeInteger(suppliedBinding.revision) || suppliedBinding.revision < correctionSelectionRevision ||
+            suppliedBinding.revision > revision || snapshot.available === true &&
+            specification.selectedMaskGroupId !== snapshot.selectedMaskGroupId) return { code: "stale_selection",
+                error: "The selected mask changed. Refresh Masking before adjusting again." };
+        if (pendingOperation) return { code: "operation_pending", error: "Another Masking action is still pending." };
+        if (capturedAt === null || now - capturedAt > SNAPSHOT_FRESH_MS || snapshot.available !== true ||
+            snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true) return { code: "feedback_unavailable",
+                error: "Lightroom's current Masking state is not available. Refresh Masking before adjusting again." };
 
         const correction = maskingCorrections.correctionFor(snapshot.corrections, specification.parameter);
-        if (!correction) return null;
+        if (!correction) return { code: "correction_unavailable", error: "That correction is not available for the selected mask." };
         const kind = specification.kind;
         const gesture = kind === "gestureBegin" || kind === "gestureUpdate" ||
             kind === "gestureEnd" || kind === "gestureCancel";
-        if (!gesture && kind !== "reset") return null;
+        if (!gesture && kind !== "reset") return { code: "invalid_correction", error: "Invalid Masking correction command." };
         if (gesture && (typeof specification.gestureId !== "string" ||
-            !/^mg-[A-Za-z0-9_-]{1,60}$/.test(specification.gestureId))) return null;
+            !/^mg-[A-Za-z0-9_-]{1,60}$/.test(specification.gestureId))) return { code: "invalid_correction", error: "Invalid Masking correction gesture." };
         const carriesValue = kind === "gestureUpdate" || kind === "gestureEnd";
         if (carriesValue && (!Number.isFinite(specification.value) || specification.value < correction.min ||
-            specification.value > correction.max)) return null;
+            specification.value > correction.max)) return { code: "invalid_value", error: "The requested value is outside Lightroom's current range." };
+        return null;
+    }
+
+    function beginCorrection(specification, suppliedBinding, fields) {
+        if (correctionAdmissionError(specification, suppliedBinding, fields)) return null;
+        const kind = specification.kind;
+        const gesture = kind !== "reset";
+        const carriesValue = kind === "gestureUpdate" || kind === "gestureEnd";
 
         correctionSequence += 1;
         const commandNames = {
@@ -759,7 +824,7 @@ function createMaskingState(options) {
         const command = {
             command: commandNames[kind],
             correctionSequence: correctionSequence,
-            parameter: correction.parameter,
+            parameter: specification.parameter,
             expectedSelectedMaskId: snapshot.selectedMaskGroupId,
             expectedActiveModule: "develop",
             expectedSelectedPhotoUuid: binding.selectedPhotoUuid,
@@ -889,7 +954,9 @@ function createMaskingState(options) {
             admitted.expectedMaskingRevision !== command.expectedMaskingRevision ||
             command.expectedServerEpoch !== serverEpoch || command.expectedActiveModule !== "develop" ||
             command.expectedSelectedPhotoUuid !== binding.selectedPhotoUuid ||
-            command.expectedContextCounter !== binding.contextCounter || command.expectedDevelopCounter !== binding.developCounter ||
+            command.expectedContextCounter !== binding.contextCounter ||
+            command.expectedDevelopCounter !== admitted.expectedDevelopCounter ||
+            !correctionDevelopMatches(command.expectedDevelopCounter, command.expectedSelectedMaskId) ||
             command.expectedContextChangedAt !== binding.contextChangedAt ||
             !Number.isSafeInteger(command.expectedMaskingRevision) || command.expectedMaskingRevision > revision ||
             !Number.isSafeInteger(command.correctionSequence) || command.correctionSequence < 1 ||
@@ -1040,6 +1107,18 @@ function createMaskingState(options) {
             return true;
         }
         if (command && typeof command.command === "string" && command.command.startsWith("masking.correction.")) {
+            if (command.expectedServerEpoch === serverEpoch) {
+                correctionCancellations.set(command.correctionSequence, {
+                    sequence: command.correctionSequence, parameter: command.parameter, kind: command.command,
+                    value: Number.isFinite(command.value) ? command.value : null,
+                    maskGroupId: command.expectedSelectedMaskId, selectedPhotoUuid: command.expectedSelectedPhotoUuid,
+                    contextCounter: command.expectedContextCounter, developCounter: command.expectedDevelopCounter,
+                    contextChangedAt: command.expectedContextChangedAt, serverEpoch,
+                    outcome: "cancelled", dispatched: false, detail: detail || "Masking context changed before dispatch.",
+                    completedAt: nowProvider()
+                });
+                while (correctionCancellations.size > 64) correctionCancellations.delete(correctionCancellations.keys().next().value);
+            }
             const admitted = correctionAdmissions.get(command.correctionSequence);
             if (!admitted || admitted.command !== command.command || admitted.parameter !== command.parameter ||
                 admitted.expectedSelectedMaskId !== command.expectedSelectedMaskId ||
@@ -1060,6 +1139,7 @@ function createMaskingState(options) {
                 detail: detail || "Masking correction command became stale.",
                 completedAt: nowProvider()
             };
+            correctionResults.set(lastCorrectionResult.parameter, lastCorrectionResult);
             return true;
         }
         if (!pendingOperation || !command || command.operationId !== pendingOperation.operationId) return false;
@@ -1098,7 +1178,9 @@ function createMaskingState(options) {
             result.expectedValue !== (Number.isFinite(admitted.value) ? admitted.value : null) ||
             result.expectedServerEpoch !== serverEpoch || result.expectedActiveModule !== "develop" ||
             result.expectedSelectedPhotoUuid !== binding.selectedPhotoUuid ||
-            result.expectedContextCounter !== binding.contextCounter || result.expectedDevelopCounter !== binding.developCounter ||
+            result.expectedContextCounter !== binding.contextCounter ||
+            result.expectedDevelopCounter !== admitted.expectedDevelopCounter ||
+            !correctionDevelopMatches(result.expectedDevelopCounter, result.expectedSelectedMaskId) ||
             result.expectedContextChangedAt !== binding.contextChangedAt || !bindingMatches(binding, contextBinding(fields || {})) ||
             snapshot.available !== true || snapshot.active !== true || snapshot.hasSelectedMaskGroup !== true ||
             result.expectedSelectedMaskId !== snapshot.selectedMaskGroupId ||
@@ -1126,7 +1208,10 @@ function createMaskingState(options) {
             queuedQuery = null;
             outstandingQuery = null;
             if (changed) revision += 1;
-            if (correctionSelectionChanged) correctionSelectionRevision = revision;
+            if (correctionSelectionChanged) {
+                correctionSelectionRevision = revision;
+                correctionResults.clear();
+            }
         }
         correctionFeedbackSequence = result.correctionSequence;
         for (const sequence of correctionAdmissions.keys()) {
@@ -1142,6 +1227,7 @@ function createMaskingState(options) {
             detail: detail,
             completedAt: nowProvider()
         };
+        correctionResults.set(lastCorrectionResult.parameter, lastCorrectionResult);
         return true;
     }
 
@@ -1416,7 +1502,10 @@ function createMaskingState(options) {
             const correctionSelectionChanged = correctionSelectionKey(snapshot) !== correctionSelectionKey(next);
             snapshot = next;
             capturedAt = nowProvider();
-            if (correctionSelectionChanged) correctionSelectionRevision = revision + 1;
+            if (correctionSelectionChanged) {
+                correctionSelectionRevision = revision + 1;
+                correctionResults.clear();
+            }
         }
         lastResult = {
             ...componentResultTargets(pendingOperation),
@@ -1475,6 +1564,7 @@ function createMaskingState(options) {
         outstandingQuery = null;
         revision += 1;
         correctionSelectionRevision = revision;
+        correctionResults.clear();
         return true;
     }
 
@@ -1493,6 +1583,7 @@ function createMaskingState(options) {
         acceptQueryResult: acceptQueryResult,
         beginOperation: beginOperation,
         beginCorrection: beginCorrection,
+        correctionAdmissionError: correctionAdmissionError,
         beginEdit: beginEdit,
         commandMatches: commandMatches,
         rejectCommand: rejectCommand,

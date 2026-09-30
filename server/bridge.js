@@ -102,6 +102,7 @@ function syncHealingObserverComparison() {
 app.get("/diagnostics/polling", (req, res) => {
     const comparison = syncHealingObserverComparison();
     res.set("Cache-Control", "no-store").json({ ok: true, version: 3, developerDiagnostics: pollingTrace.enabled, comparison,
+        commandWorkers: pollingTrace.commandWorkers(),
         native: windowsNativeBackend.getTransportDiagnostics?.() || null });
 });
 const parseDevelopPresetConfiguration = express.json({ limit: "64kb", strict: true });
@@ -177,6 +178,9 @@ commands.setMaskingAdmissionProvider({
     },
     onRejected: function (command, detail) {
         masking.rejectCommand(command, detail);
+    },
+    onQueueEvent: function (event, command, data) {
+        pollingTrace.record("masking_correction_" + event, { command, ...data });
     }
 });
 
@@ -941,8 +945,12 @@ app.get("/context/update", function (req, res) {
         selectedPhotoKey: req.query.selectedPhotoKey,
         selectedPhotoUuid: req.query.selectedPhotoUuid,
         selectedPhotoPath: req.query.selectedPhotoPath,
-        developFingerprint: req.query.developFingerprint
+        developFingerprint: req.query.developFingerprint,
+        maskingGrainFromFingerprint: req.query.maskingGrainFromFingerprint,
+        maskingGrainMaskId: req.query.maskingGrainMaskId
     });
+    pollingTrace.record("context_observed", { previous: { ...previousContext, selectedPhotoPath: undefined },
+        current: { ...updated, selectedPhotoPath: undefined }, fingerprint: req.query.developFingerprint });
     pruneFeedbackReads();
     developPresets.rejectMismatchedApplications(updated);
     const pointCurveNavigationChanged = previousContext.selectedPhotoUuid !== updated.selectedPhotoUuid ||
@@ -2227,12 +2235,16 @@ function queueMaskingCorrection(req, res, specification, expectedFields) {
     if (!suppliedBinding) return res.status(400).json({ ok: false, error: "Invalid Masking correction command" });
     const command = masking.beginCorrection(specification, suppliedBinding, context.getContextFields());
     if (!command) {
+        pollingTrace.record("masking_correction_rejected", { specification, suppliedBinding,
+            current: { ...context.getContextFields(), selectedPhotoPath: undefined },
+            reason: masking.correctionAdmissionError(specification, suppliedBinding, context.getContextFields()) });
         return res.status(409).set("Cache-Control", "no-store").json({
             ok: false,
-            error: "Masking correction state changed or the requested parameter is unavailable"
+            ...masking.correctionAdmissionError(specification, suppliedBinding, context.getContextFields())
         });
     }
     const admission = queueCommand(command);
+    pollingTrace.record("masking_correction_admission", { command, admission });
     if (!admission.accepted) {
         masking.rejectCommand(command, admission.status === commands.ADMISSION_QUEUE_FULL
             ? "The command queue is full." : "The Masking correction command was rejected.");
@@ -2334,7 +2346,9 @@ app.get("/masking/correction-result", function (req, res) {
         result.expectedDevelopCounter === null || result.expectedContextChangedAt === null) {
         return res.status(400).json({ ok: false, error: "Invalid Masking correction result" });
     }
-    if (!masking.acceptCorrectionResult(result, context.getContextFields())) {
+    const accepted = masking.acceptCorrectionResult(result, context.getContextFields());
+    pollingTrace.record("masking_correction_result", { result, accepted });
+    if (!accepted) {
         return res.status(409).json({ ok: false, error: "Stale or unreconciled Masking correction result" });
     }
     masking.requestRefresh(context.getContextFields(), true);

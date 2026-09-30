@@ -3272,14 +3272,12 @@ async function testCorrectionHttpQueueAndFeedback() {
         assert.equal(response.status, 200);
         assert.equal(response.body.coalesced, true);
         let diagnostics = commands.getQueueDiagnostics();
-        assert.equal(diagnostics.queue.pending.byCommand["masking.correction.gesture.begin"], 1);
+        assert.equal(diagnostics.queue.pending.byCommand["masking.correction.gesture.begin"], 0);
         assert.equal(diagnostics.queue.pending.byCommand["masking.correction.gesture.update"], 0);
         assert.equal(diagnostics.queue.pending.byCommand["masking.correction.gesture.end"], 1);
         assert.ok(diagnostics.counters.coalescedCommands >= 2,
             "rapid correction values must coalesce to the final pending write");
-        const begin = commands.getNextCommand();
         const end = commands.getNextCommand();
-        assert.equal(begin.command, "masking.correction.gesture.begin");
         assert.equal(end.command, "masking.correction.gesture.end");
         assert.equal(end.value, 1.25);
         assert.equal(end.expectedSelectedMaskId, "mask-b");
@@ -4184,7 +4182,17 @@ function testPhotographerPresentationAndSourceContract() {
     }
 }
 
-(async function run() {
+module.exports = { FakeDocument, findElement, context, snapshot, suppliedBinding, correctionResult, flushAsync,
+    get, queryString, submitQueryResult, correctionRequestPath, submitCorrectionResult };
+
+if (require.main === module) (async function run() {
+    if (process.argv.includes("--corrections-only")) {
+        testCorrectionMetadataAndStateMachine();
+        await testRenderedCorrectionControls();
+        await testCorrectionHttpQueueAndFeedback();
+        console.log("Masking correction metadata, Controller, HTTP/queue and feedback checks passed.");
+        return;
+    }
     if (process.argv.includes("--operations-only")) {
         testStateMachine();
         testVisibilityStateMachine();

@@ -23,10 +23,16 @@ function createPollingTrace(directory = root, now = Date.now, enabled = process.
         enabled: false,
         record() {},
         middleware(req, res, next) { next(); },
+        commandWorkers() { return []; },
         readObserverPause() { return { paused: false }; },
         readSharedReadPause() { return { paused: false }; }
     };
     let checkedAt = -Infinity, capture = null, expires = 0, sequence = 0;
+    const workers = new Map();
+    function commandWorkers() {
+        return Array.from(workers, ([worker, lastSeenAt]) => ({ worker, lastSeenAt }))
+            .filter(entry => now() - entry.lastSeenAt < 5000);
+    }
     function createPauseReader(filename) {
       let observerCheckedAt = -Infinity, observerPause = { paused: false };
       return function readPause() {
@@ -63,6 +69,13 @@ function createPollingTrace(directory = root, now = Date.now, enabled = process.
         } catch (_) { /* Diagnostic I/O cannot change the request outcome. */ }
     }
     function middleware(req, res, next) {
+        if (req.path === "/next") {
+            const supplied = req.query?.maskingTraceWorker;
+            const worker = typeof supplied === "string" && /^[\w-]{1,64}$/.test(supplied) ? supplied : "unmarked";
+            workers.set(worker, now());
+            while (workers.size > 8) workers.delete(workers.keys().next().value);
+            record("command_worker_poll", { worker });
+        }
         const sliderRoute = sliderRoutes.has(req.path) || req.path === "/feedback/result" && ["Exposure", "Contrast"].includes(req.query?.slider);
         if (routes.has(req.path) || sliderRoute) {
             const startedAt = now();
@@ -73,6 +86,6 @@ function createPollingTrace(directory = root, now = Date.now, enabled = process.
         }
         next();
     }
-    return { enabled: true, record, middleware, readObserverPause, readSharedReadPause };
+    return { enabled: true, record, middleware, readObserverPause, readSharedReadPause, commandWorkers };
 }
 module.exports = { createPollingTrace };

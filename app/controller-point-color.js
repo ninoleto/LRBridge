@@ -168,6 +168,10 @@
         }
 
         function hasNewerCoalescedEdit(edit) {
+            // A scalar input owns its displayed value before its debounce submits it.
+            // The prior request must not release that newer, still-local intent.
+            if (edit.type === "scalar" && controls[edit.field] &&
+                controls[edit.field].intentRevision > edit.intentRevision) return true;
             return pendingWrites.some(function (candidate) {
                 return coalesces(candidate, edit) && candidate.intentRevision > edit.intentRevision;
             }) || Boolean(writeInFlight && writeInFlight !== edit && coalesces(writeInFlight, edit) &&
@@ -199,6 +203,7 @@
         function rebasePresentations() {
             Object.keys(controls).forEach(function (field) {
                 const control = controls[field];
+                if (control.timer !== null) { clearTimeout(control.timer); control.timer = null; }
                 control.dirty = false;
                 control.intended = null;
                 const authoritative = state && state[field];
@@ -412,8 +417,7 @@
             edit.generation = generation;
             edit.identityKey = identityKey;
             edit.binding = binding && Object.assign({}, binding);
-            intentRevision += 1;
-            edit.intentRevision = intentRevision;
+            if (!Number.isSafeInteger(edit.intentRevision)) edit.intentRevision = ++intentRevision;
             edit.commandTimer = null;
             edit.feedbackTimer = null;
             edit.editSequence = null;
@@ -746,11 +750,18 @@
                     if (!Number.isFinite(value) || value < definition.min || value > definition.max) { show(current); return; }
                     if (value === current && control.timer === null) return;
                     show(value);
-                    if (control.timer !== null) clearTimeout(control.timer);
+                    if (control.timer !== null) { clearTimeout(control.timer); control.timer = null; }
+                    // Own input immediately, including while a prior write awaits
+                    // confirmation. Feedback can update authority, not this intent.
+                    control.intended = value;
+                    control.dirty = true;
+                    control.intentRevision = ++intentRevision;
+                    const edit = { type: "scalar", field: definition.field, uiValue: value,
+                        intentRevision: control.intentRevision };
                     if (debounce) control.timer = setTimeout(function () {
-                        control.timer = null; enqueue({ type: "scalar", field: definition.field, uiValue: value });
+                        control.timer = null; enqueue(edit);
                     }, 225);
-                    else enqueue({ type: "scalar", field: definition.field, uiValue: value });
+                    else enqueue(edit);
                     notifyBusy();
                 }
                 range.addEventListener("input", function () { submit(range.value, true); });
@@ -810,8 +821,8 @@
             }
         }
 
-        function isBusy() {
-            return !!visualizeRequest || !!writeInFlight || pendingWrites.length > 0 || awaitingWrites.size > 0 ||
+        function hasPendingEdits() {
+            return !!writeInFlight || pendingWrites.length > 0 || awaitingWrites.size > 0 ||
                 Object.keys(controls).some(function (field) {
                     const control = controls[field];
                     return control.timer !== null || control.editing || control.dirty;
@@ -820,6 +831,8 @@
                     return RANGE_BOUNDARIES.some(function (boundary) { return control.dirtyBoundaries[boundary]; });
                 });
         }
+
+        function isBusy() { return !!visualizeRequest || hasPendingEdits(); }
 
         return Object.freeze({
             mount: function (nextHost) { host = nextHost; render(); return host; },
@@ -838,6 +851,7 @@
             cancelLocalGestures: cancelLocalGestures,
             invalidate: function () { resetContext(binding || {}); },
             isBusy: isBusy,
+            hasPendingEdits: hasPendingEdits,
             getState: function () {
                 const scalarIntents = {};
                 Object.keys(controls).forEach(function (field) {

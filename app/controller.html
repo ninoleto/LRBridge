@@ -5526,6 +5526,8 @@
         let lastControllerContextCounter = null;
         let lastControllerContextChangedAt = null;
         let lastControllerDevelopCounter = null;
+        let lastControllerMaskingCorrectionDevelopFloor = null;
+        let lastControllerMaskingGrainMaskId = null;
         let lastControllerActiveModule = null;
         let lastControllerSelectedPhotoKey = null;
         let lastControllerSelectedPhotoUuid = null;
@@ -5640,6 +5642,8 @@
                     selectedPhotoUuid: lastControllerSelectedPhotoUuid,
                     contextCounter: lastControllerContextCounter,
                     developCounter: lastControllerDevelopCounter,
+                    maskingCorrectionDevelopFloor: lastControllerMaskingCorrectionDevelopFloor,
+                    maskingGrainMaskId: lastControllerMaskingGrainMaskId,
                     contextChangedAt: lastControllerContextChangedAt
                 };
             }
@@ -6033,6 +6037,8 @@
                 lastControllerContextCounter = data.contextCounter;
                 lastControllerContextChangedAt = data.contextChangedAt;
                 lastControllerDevelopCounter = data.developCounter;
+                lastControllerMaskingCorrectionDevelopFloor = data.maskingCorrectionDevelopFloor;
+                lastControllerMaskingGrainMaskId = data.maskingGrainMaskId;
                 lastControllerActiveModule = data.activeModule;
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
                 lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;

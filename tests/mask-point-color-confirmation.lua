@@ -78,6 +78,7 @@ local modules = {
     end},
     LrHttp = {get = function(url)
         if url:find("/context", 1, true) then
+            if scenario.contextJson then return scenario.contextJson end
             return '{"activeModule":"develop","selectedPhotoUuid":"photo-a","contextCounter":4,"developCounter":7,"contextChangedAt":10}'
         end
         if url:find("/masking/state", 1, true) then

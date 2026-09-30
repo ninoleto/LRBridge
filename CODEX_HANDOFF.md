@@ -1,5 +1,38 @@
 # LRBridge Codex Handoff
 
+## September 30 accepted Masking checkpoint
+
+- The user manually accepts the latest regular Masking sliders and Reset within
+  the tested scope: no observed jumps or errors, responsive adjustments and
+  acceptable Reset delay. Preserve the separately accepted rapid Grain run and
+  masked Point Color/Visualize Range results. No timing retuning or repeat capture.
+- This checkpoint contains regular Masking edit/confirmation ownership, accurate
+  stale-context and cancellation reporting, final-value coalescing/Reset ordering,
+  proven compatibility for LRBridge's global Grain Size/Roughness writes, and the
+  Reset display handoff. It also preserves the accepted Point Color immediate
+  input ownership/timer cleanup and working Visualize Range admission guard.
+  Actual SDK feedback remains authoritative; true photo/mask/external changes,
+  failures and unavailable controls retain their safeguards.
+- Focused regressions, before/after evidence and native observations are described
+  in [Regular Masking confirmation](docs/MASKING_CORRECTION_CONFIRMATION.md) and
+  [Masked Point Color input ownership](docs/MASK_POINT_COLOR_INPUT_OWNERSHIP.md).
+  Completed tests are reused. Any check of the selectively staged integration
+  remains automated evidence, not additional native acceptance.
+- Only accepted Masking/Point Color code, relevant tests, guarded diagnostic
+  support and documentation are checkpointed. Unrelated Dust/Lens Blur/presentation
+  changes, private settings, research, recordings, stash and packages are preserved.
+  Mixed Controller and server files are staged by scope; no whole-worktree staging.
+- Next UI review is separate: compact teal/red Dust On/Off buttons, Masking-open
+  recovery help, and an explanation for a Visualize Range click blocked by pending
+  adjustments. These do not authorize changing slider timing or queuing a toggle.
+- Remaining manual/release work: VM Dust prerequisite diagnosis and On/Off/main
+  Reset/manual-Healing/preset-install checks; Lens Blur Visualize Depth timing;
+  Color Grading and other pending UI review; then package startup/restart/settings,
+  Companion/PowerShell, phone/tablet LAN and clean Dust setup. Completed checks
+  stay accepted. Parametric Curve preview parity is a known approximation needing
+  a release decision, not a claimed fixed rendering model. Constrain Crop feedback
+  optimization remains deferred. No build, push or publication is authorized here.
+
 ## September 28 fresh private package — test this candidate next
 
 - **Next candidate: `20260928T025413Z`**, Windows x64 portable LRBridge 0.6.0,
