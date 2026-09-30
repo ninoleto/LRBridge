@@ -1,5 +1,32 @@
 # Automatic sensor Dust removal
 
+## September 30 scoped acceptance and panel navigation
+
+The user accepts the current Dust implementation and compact On/Off buttons within
+the tested scope. This does not establish previously unreported fresh-VM diagnosis,
+clean installation, migration or preservation scenarios. Earlier dated evidence and
+limitations remain as recorded below.
+
+Rechecked the installed SDK 15.3 `LrDevelopController` reference and existing
+[capability research](LRBridge-Distraction-Removal-Research.md). `goToRemove` opens
+the overall Remove tool; its documented features are `manualRemove`,
+`reflectionRemoval` and `distractingPeopleRemoval`. The legacy `selectTool("dust")`
+identifier also means the overall Remove/Healing tool, not the automatic Dust
+subpanel. No supported direct Dust-subpanel selector was found in that reference.
+Navigation stays unchanged; no keyboard injection or new Windows automation.
+
+## September 29 source changes; fresh-VM diagnosis pending
+
+The current source uses explicit **On / Off** buttons and separately verifies preset
+command capability and readable Dust status. **Reset** remains Dust-only. The new
+group is **LRBridge Dust Helpers**; the same preset names and identities remain,
+and exact legacy **LRBridge TEST** files are still recognized. The installer migrates
+only those known legacy bytes with backups. No installed preset was changed during
+development. See [the current findings](SEPTEMBER_29_MANUAL_FINDINGS.md) for the
+automated evidence, unknown-state rules and minimum native checks. The reported VM
+failure is not diagnosed without its version and exact Dust reason. Historical
+captures, acceptances, failures and limitations below remain bounded to their dates.
+
 ## Dust completion correction (2026-09-20; manual acceptance FAILED)
 
 **The first correction failed native acceptance on a dust-present photo. The revised correction below is unaccepted until both native cases and ordinary sliders pass.** Preserved lifecycle evidence shows On `rb-258` returned normally at 01:47:27, then reported `applied=true`, `needsAIUpdate=true`, `editable=true`. It waited until 01:48:03 and posted an accepted `unknown` result. `rb-124` shows the same pattern. The SDK call returned; the logged editing-ready signal was true while LRBridge's command worker still held the operation. The blocker was the photo-wide AI-update requirement, which both the pre-patch and first-correction success predicates incorrectly treated as ongoing processing. Subsequent Reset/Close requests were rejected by that same blanket AI check. The first inspection found no pending server operation; the exact earlier browser state was not captured.

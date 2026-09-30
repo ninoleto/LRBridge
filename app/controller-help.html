@@ -431,8 +431,8 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
         <p><strong>Experimental:</strong> Add/Subtract use Windows interface automation, may stop responding and do not report the active mode. If they fail, use Add/Subtract directly in Lightroom.</p>
 
         <p><strong>Healing → Dust</strong></p>
-        <p>LRBridge controls Dust Apply on/off and Reset by applying two included presets in Lightroom Classic. If those presets are not installed, these buttons are unavailable. Dust Size, Visualize Spots and Threshold do not require the presets.</p>
-        <p>This setup is only necessary if you want to use Dust Apply or Reset through LRBridge. See <a href="#install-plugin"><strong>Set up the Lightroom plug-in</strong></a> for instructions.</p>
+        <p>Dust <strong>On</strong> and <strong>Off</strong> apply the corresponding included presets in Lightroom Classic. <strong>Reset</strong> clears only Dust and preserves manual Healing repairs. These commands require validated presets; unavailable On/Off feedback alone does not disable them. Check Lightroom’s Apply checkbox when Dust status is unavailable. Dust Size, Visualize Spots and Threshold do not require the presets.</p>
+        <p>This setup is only necessary if you want to use Dust <strong>On</strong>, <strong>Off</strong> or <strong>Reset</strong> through LRBridge. See <a href="#install-plugin"><strong>Set up the Lightroom plug-in</strong></a> for instructions.</p>
         <p>LRBridge’s current Dust implementation is restricted to Lightroom Classic <strong>15.4.1</strong>. Support for other versions has not been established.</p>
 
         <p><strong>Point Color → Visualize Range</strong></p>
@@ -472,7 +472,7 @@ table { display:block; max-width:100%; overflow-x:auto !important; } td, th, cod
         <p>Keep <strong>LRBridge running</strong> while using the Web Controller.</p>
         <p><strong>Using a newer LRBridge folder?</strong> Make sure Lightroom loads the plug-in from that same folder. Remove the older LRBridge entry from Plug-in Manager and add the current one.</p>
         <hr class="help-content-divider">
-        <p id="dust-setup"><strong>Healing → Dust:</strong> To use Apply on/off and Reset through LRBridge, you need to add two Dust presets to Lightroom. Close Lightroom Classic and run <strong>Install Dust Presets.cmd</strong> from your LRBridge folder. This adds both presets automatically. Reopen Lightroom when it finishes. If Apply and Reset already work, you can skip this step.</p>
+        <p id="dust-setup"><strong>Healing → Dust:</strong> To use <strong>On</strong>, <strong>Off</strong> and <strong>Reset</strong> through LRBridge, close Lightroom Classic and run <strong>Install Dust Presets.cmd</strong> from your LRBridge folder. Reopen Lightroom and look under <strong>LRBridge Dust Helpers</strong> for <strong>LRBridge Dust On</strong> and <strong>LRBridge Dust Off</strong>. The installer can rename the group of the exact earlier bundled presets, preserving a backup and their identities. Existing copies in <strong>LRBridge TEST</strong> remain recognized; do not import duplicate presets. Modified or conflicting files are reported for you to resolve.</p>
     </section>
 
     <h2 id="support-development">Support development</h2>

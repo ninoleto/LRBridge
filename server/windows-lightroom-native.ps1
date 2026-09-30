@@ -216,7 +216,7 @@ function Throw-Unavailable([string]$Message) {
     throw [System.InvalidOperationException]::new("UNAVAILABLE: " + $Message)
 }
 
-function Get-WindowSnapshot([IntPtr]$Handle, [int]$ProcessId) {
+function Get-WindowSnapshot([IntPtr]$Handle, [int]$ProcessId, [switch]$SkipTrackValues) {
     if (-not [LRBridgeNative]::IsWindow($Handle)) { return $null }
     if ([LRBridgeNative]::ProcessId($Handle) -ne $ProcessId) { return $null }
     $rectangle = New-Object LRBridgeNative+RECT
@@ -239,7 +239,7 @@ function Get-WindowSnapshot([IntPtr]$Handle, [int]$ProcessId) {
         CenterX = ($rectangle.Left + $rectangle.Right) / 2.0
         CenterY = ($rectangle.Top + $rectangle.Bottom) / 2.0
     }
-    if ($className -eq "msctls_trackbar32") {
+    if ($className -eq "msctls_trackbar32" -and -not $SkipTrackValues) {
         $trackParent = [LRBridgeNative]::GetParent($Handle)
         if ([LRBridgeNative]::GetDlgCtrlID($Handle) -ne 100 -or $trackParent -eq [IntPtr]::Zero -or
             -not [LRBridgeNative]::IsWindow($trackParent) -or [LRBridgeNative]::ProcessId($trackParent) -ne $ProcessId -or
@@ -251,13 +251,13 @@ function Get-WindowSnapshot([IntPtr]$Handle, [int]$ProcessId) {
     return [PSCustomObject]$snapshot
 }
 
-function Get-LightroomWindows {
+function Get-LightroomWindows([switch]$SkipTrackValues) {
     $processes = @([System.Diagnostics.Process]::GetProcessesByName("Lightroom"))
     if ($processes.Count -eq 0) { Throw-Unavailable "Lightroom is not running" }
     $windows = New-Object System.Collections.Generic.List[object]
     foreach ($process in $processes) {
         foreach ($handle in [LRBridgeNative]::GetProcessWindows($process.Id)) {
-            $snapshot = Get-WindowSnapshot $handle $process.Id
+            $snapshot = Get-WindowSnapshot $handle $process.Id -SkipTrackValues:$SkipTrackValues
             if ($null -ne $snapshot) { $windows.Add($snapshot) }
         }
     }
@@ -708,6 +708,15 @@ function Get-NativeStateFromDiscovery([object]$Discovery) {
 
 function Get-NativeState {
     return Get-NativeStateFromDiscovery (Discover-NativeControls)
+}
+
+function Get-DepthVisualizationState {
+    # Fresh discovery and the same native/accessibility agreement as the full
+    # read. Window identity/geometry is needed; unrelated slider values are not.
+    $windows = Get-LightroomWindows -SkipTrackValues
+    $root = Find-LensBlurRoot $windows
+    $button = Add-AnchorIdentity (Find-UniqueButtonInRoot $windows $root "Visualize Depth") $root
+    return Public-CheckboxState (Try-ReadCheckbox $button)
 }
 
 function Get-PrivateTrack([object]$Discovery, [string]$Control) {
@@ -1739,6 +1748,7 @@ function Invoke-RemoveSelection([object]$Request) {
 function Invoke-Request([object]$Request) {
     if ($null -eq $Request -or $Request.id -isnot [int64] -and $Request.id -isnot [int32]) { throw "Invalid request id" }
     if ($Request.operation -eq "readState") { return Get-NativeState }
+    if ($Request.operation -eq "readDepthVisualization") { return Get-DepthVisualizationState }
     if ($Request.operation -eq 'readRemoveSelection') { return Get-RemoveSelectionState (Get-RemoveSelectionDiscovery) }
     if ($Request.operation -eq 'actRemoveSelection') { return Invoke-RemoveSelection $Request }
     if ($Request.operation -eq 'actRemoveSelectionRefinement') { return Invoke-RemoveSelectionRefinement $Request }

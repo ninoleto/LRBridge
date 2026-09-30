@@ -1,7 +1,182 @@
 # LRBridge Codex Handoff
 
+## October 1 private package preparation — authorized scope and latest report
+
+- User authorizes a scoped local checkpoint and fresh private Windows package of
+  the reviewed release changes. Preserve unrelated work, private settings, stash,
+  original recordings/references, existing packages and VM baseline; no push or
+  publication. Parametric Curve and all previously accepted slider/Masking/Reset,
+  Point Color, lifecycle, Denoise and Dust results stay accepted within scope.
+- The Masking helper now uses the exact approved wording explaining **Close
+  Masking** in this Web Controller and then the same button showing **Open
+  Masking**. Both names are bold; the existing amber appearance and placement
+  directly below the button are unchanged. Text-only runtime change in this step.
+  Focused actual Controller rendering passed at 1280/390/320 px; images inspected.
+- Latest manual report: **Visualize Depth still feels slow**. The observation
+  does not distinguish command delay from feedback delay. Carry this as a known
+  issue in the private build; performance is not passed, and no further tuning
+  or optimization is part of this step.
+- Dust clean-install and legacy-preset migration checks will be performed using
+  the fresh package. Existing accepted Dust behavior remains accepted. Do not
+  infer that unreported VM/install checks or the original VM diagnosis passed.
+- Reuse completed verification; required remaining work is scoped checkpoint,
+  committed/sanitized build, runtime and bundled production plug-in/preset/defaults
+  verification. Package desktop startup/restart/settings, Companion/PowerShell,
+  phone/tablet LAN and Dust installation/migration remain manual gates afterward.
+- Verified recovery backup/upload/readback and preparation evidence:
+  `local-checkpoints/private-release-current.txt`. Source app and active Lightroom
+  plug-in are preserved; do not launch the new desktop package against Lightroom
+  or change registration automatically. Final checkpoint/package paths follow
+  after verification. Constrain Crop feedback optimization stays deferred.
+
+## October 1 Parametric Curve correction — manually accepted for this release
+
+- The user manually accepts the corrected Parametric preview for this release:
+  their latest Lightroom comparison looks closely matched, including changed split
+  positions. This acceptance accompanies the six completed native comparisons
+  below. Preserve the implementation, original reference images, measured fixtures
+  and regression tests. Retain the documented approximation limits; no further
+  curve tuning or repeat capture unless a new problem appears.
+
+- Runtime changes are confined to `app/controller-tone-curve.js` preview math.
+  The old fixed-offset anchors and split-warped residual tables could reverse
+  narrow tonal regions before PCHIP ran. They are replaced with a slope-controlled
+  cubic cascade whose invertible coordinate warps account for the actual split
+  widths. The old regularized display fit is removed. New native graphs also prove
+  Lightroom's Parametric tab displays its response independently of RGB; the
+  incorrect additive RGB contribution is removed. The separate Point Curve keeps
+  its original spline, endpoints and deliberate turns. No slider/Reset timing, input ownership, SDK write,
+  photo/context or HTTP behavior changes. Accepted Masking, Grain, Point Color,
+  lifecycle, Denoise and all earlier manual results remain accepted.
+- This is **manually accepted and still uncommitted**, not a claim of pixel-exact
+  equivalence for every setting. The six new native cases are complete.
+  Six existing isolated-control screenshot references selected two shared slope
+  constants. Three mixed-control references were excluded from fitting. All nine
+  retain their original ±2.5 output-unit tolerance; maximum new error is 2.444.
+  Some individual errors increase; no claim that every reference improves. The
+  narrow-split reversal regression fails before/passes after. Focused original
+  split tests and actual Controller renders at 1280/390 px pass with simulated
+  feedback and zero edit requests. New native-reference regression fails against
+  the initial RGB-additive candidate and passes with the corrected display.
+- All six user-supplied graphs have matching requested/confirmed amounts, splits,
+  RGB values and image hashes; photo/context and Develop revision remain unchanged
+  from each confirmation to its image save. No failed/cancelled command or case.
+  New native cases cover default/narrow/asymmetric splits, both adjustment signs,
+  non-linear RGB, and deliberately turning RGB with lifted endpoints. No slope
+  coefficient was fitted to them. Across 205 measured columns per graph, maximum
+  corrected error is **1.55/100**; default **1.12**, narrow **0.89**. Original preview
+  errors were **9.62** at default, **8.18** at narrow, and up to **29.02** with RGB.
+  Original nine references remain within ±2.5 (maximum 2.444). Small approximation/
+  raster-measurement differences remain; do not claim exact equivalence. The
+  separate RGB graph still retains its intentional shapes. Model/provenance:
+  [Parametric preview correction](docs/PARAMETRIC_PREVIEW_MODEL.md).
+- Source LRBridge was started with
+  `D:\Projects\LRBridge\node_modules\electron\dist\electron.exe`
+  and entry `D:\Projects\LRBridge\app\main.js`; Lightroom was opened normally.
+  Keep the registered matching source diagnostic plug-in:
+  `D:\Projects\LRBridge\local-checkpoints\masking-grain-coordination-20260929T233804Z\diagnostic\lightroom\LRBridge.lrplugin`.
+  Feedback was verified during collection. No registration change/reload or
+  automated Lightroom UI capture. Test edits were explicitly requested through the
+  comparison page; no additional live edits were sent during this analysis.
+- Parametric visual review is complete. No app restart, plug-in reload or repeat
+  six-case collection is needed for it. Completed reference receiver has six saved cases,
+  no pending case and no next action; preserve it as evidence, not a new capture.
+- Original native PNGs, SDK/event records and earlier pre-change source are indexed
+  by `local-checkpoints/parametric-preview-current.txt`. Latest analysis, second
+  verified recovery ZIP/FTP readback, full measurements, regression output and
+  before/after SVG/PNG are indexed by
+  `local-checkpoints/parametric-native-analysis-current.txt`. Useful public fixtures,
+  focused tests and comparison scripts are retained. Previous recordings/packages/private settings,
+  stash and unrelated dirty work are preserved. HEAD remains `75876ea`, 17 ahead/
+  0 behind its configured upstream; nothing staged or committed.
+- Remaining before the next private build:
+  1. Lens Blur Visualize Depth: native check separating Lightroom's action delay
+     from Controller confirmation after the focused-read change. The source app
+     was already restarted for October 1 collection; verify the current helper
+     before testing rather than automatically requesting another restart/reload.
+  2. Visual review of the amber Masking notice, orange Color Grading Reset colours,
+     and other unreported presentation changes (persistent Lens Corrections rows,
+     disabled Favorite Presets Amount, helper text). Accepted control behavior
+     needs no repeat testing.
+  3. Only outstanding Dust VM/install evidence: original unavailable-state cause,
+     clean installation and legacy-preset migration. Current Dust controls are
+     accepted within their reported scope; do not infer these additional checks.
+  4. An explicitly authorized scoped checkpoint, followed by required focused
+     integration/package-content checks; reuse completed verification and exclude
+     private configuration/diagnostic evidence from the distributable.
+- After a fresh package exists, the remaining package checks are startup/restart
+  and settings preservation, Companion/PowerShell, phone/tablet LAN and clean Dust
+  setup. Preserve comparison package `20260928T025413Z` and the VM baseline.
+  Parametric is no longer an unresolved release decision. Constrain Crop feedback
+  optimization stays deferred. This acceptance update changes documentation only;
+  no tests, application changes, staging, commit, build, push or publication.
+
+## September 30 narrow release follow-up — current state
+
+- New manual acceptances, limited to the user's tested scope: current Dust
+  implementation and compact On/Off buttons; wording/location of the Masking-open
+  helper; Color Grading controls; and masked Point Color's guarded Visualize Range
+  behavior (an immediate click after rapid adjustments may show the waiting
+  explanation; a later explicit click works). Keep the guard and explanation;
+  no retry, queued toggle, timing change or repeat slider capture. Earlier accepted
+  slider/Reset, rapid Grain, Point Color, lifecycle and Denoise results remain intact.
+  This does not establish any previously unreported VM or installation result.
+- The installed SDK 15.3 reference and existing Dust research provide routes to
+  the overall Remove tool, but no documented selector for the automatic Dust
+  subpanel. `selectTool("dust")` is the overall tool identifier; `goToRemove` lists
+  manual Remove, Reflections and People only. Navigation is unchanged; no new
+  Windows automation or keyboard injection.
+- New CSS only: the Masking-open notice shares the Lens Blur Focus Range notice's
+  amber rule, retaining its exact wording/location. Enabled Color Grading Reset
+  buttons, including Blending, Balance and Region confirmation, share the existing
+  orange Reset palette. Previous disabled palettes/opacity and all handlers remain.
+  Actual Controller renders at 1280, 390 and 320 px pass style/placement and
+  no-overflow checks; screenshots inspected. These new colours await user review.
+- Lens Blur Visualize Depth is **still reported slow**, not accepted as resolved.
+  A localized unnecessary read was demonstrated: its focused checkbox discovery
+  also queried every unrelated slider's range/position. Only the depth read now
+  skips those queries; fresh identity, checkbox/accessibility agreement and context
+  safeguards remain. The production-function regression fails before/passes after
+  (60 unrelated reads to zero in a 20-slider fixture); ordinary full discovery is
+  unchanged. Existing focused route/current-photo tests pass with simulated reads.
+  No native latency measurement or Lightroom action was performed this turn.
+- Parametric split flow passes focused HTTP-to-renderer cases: correct absolute
+  percentages, Shadow/Midtone/Highlight order, one SVG conversion and rejection of
+  older feedback. With fixed tone values, narrowing the split regions can make the
+  existing approximate model's anchors reverse and its final displayed curve dip.
+  This supports a split-sensitive model limitation, not a demonstrated mapping or
+  freshness defect. No formula or photographic adjustment changed. Exact parity
+  and the release decision about the approximate preview remain unresolved.
+- Verification and reproduction details: [source findings](docs/SEPTEMBER_29_MANUAL_FINDINGS.md).
+  Private before/after evidence, rendered fixtures and verified recovery backup/
+  FTP readback are indexed by `local-checkpoints/release-followup-current.txt`.
+  HEAD stays `75876ea`, 17 ahead/0 behind its configured upstream; index stays
+  empty. This follow-up remains uncommitted. Private settings, unrelated edits,
+  recordings, stash and comparison package `20260928T025413Z` are preserved.
+- **Next smallest check:** refresh the browser for the new colours. Before testing
+  the new Lens Blur helper, restart source LRBridge to load the PowerShell change;
+  keep the current matching source diagnostic plug-in, with **no plug-in reload**.
+  On one idle photo with Lens Blur open, switch Visualize Depth once each way and
+  distinguish when Lightroom changes from when the Controller confirms. Residual
+  queue/discovery/SDK/confirmation latency needs a focused timed sequence only if
+  that distinction is still unclear. No repeat accepted slider or Color Grading test.
+- Source test pair remains `D:\Projects\LRBridge\node_modules\electron\dist\electron.exe`
+  with entry `D:\Projects\LRBridge\app\main.js`, and the existing diagnostic plug-in
+  `D:\Projects\LRBridge\local-checkpoints\masking-grain-coordination-20260929T233804Z\diagnostic\lightroom\LRBridge.lrplugin`.
+  Do not switch registration or start the comparison package alongside source.
+- Remaining: Lens Blur native timing; new colour review and other unreported UI
+  acceptance; Parametric preview release decision; the original VM Dust reason and
+  unreported clean-install/legacy-preset-migration checks; then a later scoped
+  checkpoint/package and startup/restart/settings, Companion/PowerShell, phone/
+  tablet LAN and clean Dust package checks. Constrain Crop feedback optimization
+  remains deferred. No build, push, publication or package replacement this turn.
+
 ## September 30 accepted Masking checkpoint
 
+- Local commit **`75876ea3fb0b19f60e104ebf9bc1e95653d6af37`** on
+  `feature/v0.6-more-sdk-and-web-controller`. Its reviewed 31-file allowlist and
+  selected Controller/server hunks contain only the accepted scope. Index is
+  clear after the commit; other pre-existing edits remain in the worktree.
 - The user manually accepts the latest regular Masking sliders and Reset within
   the tested scope: no observed jumps or errors, responsive adjustments and
   acceptable Reset delay. Preserve the separately accepted rapid Grain run and
@@ -16,15 +191,36 @@
 - Focused regressions, before/after evidence and native observations are described
   in [Regular Masking confirmation](docs/MASKING_CORRECTION_CONFIRMATION.md) and
   [Masked Point Color input ownership](docs/MASK_POINT_COLOR_INPUT_OWNERSHIP.md).
-  Completed tests are reused. Any check of the selectively staged integration
-  remains automated evidence, not additional native acceptance.
+  Completed tests are reused. The exact selectively staged snapshot additionally
+  passed seven Grain coordination and ten Reset display cases. This is automated
+  integration evidence, not additional native acceptance.
 - Only accepted Masking/Point Color code, relevant tests, guarded diagnostic
   support and documentation are checkpointed. Unrelated Dust/Lens Blur/presentation
   changes, private settings, research, recordings, stash and packages are preserved.
   Mixed Controller and server files are staged by scope; no whole-worktree staging.
-- Next UI review is separate: compact teal/red Dust On/Off buttons, Masking-open
-  recovery help, and an explanation for a Visualize Range click blocked by pending
-  adjustments. These do not authorize changing slider timing or queuing a toggle.
+- **Separate, uncommitted UI review:** Dust On/Off are side by side, each 116 × 44 px
+  at the checked widths, teal/red when enabled and grey when disabled. The exact
+  requested Masking-open recovery helper is immediately below Open/Close Masking.
+  A Visualize Range click blocked by pending adjustments now says “Wait for the
+  current adjustment to finish, then try again.” beside the toggle's existing help.
+  The explanation clears with subsequent adjustment feedback. Existing error/status
+  text and the admission guard remain; no automatic toggle queue/retry or invented
+  On/Off confirmation. No slider, Reset, server or Lua timing changes.
+- `tests/masking-ui-feedback-browser.js` fails against the checkpointed silent-click
+  implementation and passes against the new UI: pending debounce and admitted
+  adjustment both send zero toggle requests; completion sends no automatic toggle;
+  a later explicit click is admitted and confirmed by the fixture; real HTTP
+  rejection still displays an error. Actual Controller/CSS rendered at 1280, 390
+  and 320 px with touch emulation on narrow widths: no horizontal overflow, readable
+  helper/message, enabled/disabled Dust colours. Screenshots inspected. These are
+  isolated synthetic checks, not a new native capture or acceptance of the new UI.
+- **Browser refresh is sufficient** for these UI changes. Keep the running source
+  app and current matching diagnostic plug-in; no source restart or Lightroom
+  reload is required. The source server returned all three changed Controller
+  assets byte-for-byte with HTTP 200 and `Cache-Control: no-store`.
+  Private evidence, index export and recovery/upload verification
+  are indexed by `local-checkpoints/masking-checkpoint-ui-current.txt`. Source
+  Point Color, SDK files, private settings, stash and earlier recordings are preserved.
 - Remaining manual/release work: VM Dust prerequisite diagnosis and On/Off/main
   Reset/manual-Healing/preset-install checks; Lens Blur Visualize Depth timing;
   Color Grading and other pending UI review; then package startup/restart/settings,
@@ -32,6 +228,472 @@
   stay accepted. Parametric Curve preview parity is a known approximation needing
   a release decision, not a claimed fixed rendering model. Constrain Crop feedback
   optimization remains deferred. No build, push or publication is authorized here.
+
+## September 30 regular Masking Reset display correction
+
+- Corrected the recorded -14 → older -28 Controller handoff in `resetCorrection`
+  only. Reset retains the currently displayed value through admission and pending
+  confirmation; its SDK-confirmed result supplies the replacement, including a
+  nonzero value. The prior admitted completion is retired so it cannot clear a
+  newer Reset admission failure. No optimistic default or authoritative-state edit.
+- Existing edit ownership releases the held display for a newer adjustment,
+  failure, timeout, unavailable control or genuine photo/mask/context change.
+  Command dispatch/order, timing, server, SDK and Point Color logic are unchanged.
+- The captured handoff failed before the fix in both the production Controller/
+  state-machine replay and isolated Chromium. All ten focused Reset cases and
+  eleven existing regular-confirmation cases now pass. Real Controller/CSS checks
+  sampled 187 delayed-feedback frames with no stale assignments, then displayed
+  the confirmed nonzero value and respected newer input. Desktop/narrow renders
+  inspected. All of this is simulated SDK evidence, not another native test.
+- The running source app serves the exact changed asset with `no-store` caching.
+  **Refresh the normal source Controller tab; no app restart or plug-in reload.**
+  Do not reuse the finished trace page as a new recording. The accepted rapid Grain
+  result and Point Color implementation/result remain intact; no repeat capture
+  is needed. The user's later manual acceptance and local checkpoint are recorded
+  above; the implementation and original before/after evidence remain preserved.
+- Remaining: VM Dust diagnosis and On/Off/Reset/preset-install validation; native
+  Lens Blur Visualize Depth timing; Color Grading and other requested UI review;
+  review of the separate pending-adjustment Visualize Range explanation;
+  Parametric Curve approximation decision; package preparation and the
+  startup/settings, Companion/PowerShell, phone/tablet LAN and clean Dust gates.
+  Constrain Crop feedback optimization stays deferred. No broad audit or retuning.
+- Recovery backup/upload/readback completed before editing. Runtime change is
+  confined to the regular Controller Reset function; tests/docs are additive.
+  Evidence pointer: `local-checkpoints/masking-reset-display-current.txt`.
+  No commit, build or publication. [Reset verification](docs/MASKING_CORRECTION_CONFIRMATION.md).
+
+## September 30 rapid Grain native result — accepted within recorded scope
+
+- User observed **no errors or slider jumps** during very fast, repeated Grain
+  movements. Finished trace preserved and correlated across browser input, HTTP,
+  queue, actual SDK writes/readback and returned confirmations. The intended
+  diagnostic worker was the only command consumer; all 69 source/diagnostic
+  fingerprints match. No application changes or test reruns during this analysis.
+- All 29 recorded drag endpoints reached the SDK: nine local Grain Amount,
+  twelve global Size and eight global Roughness. All 35 local write/reset results
+  were confirmed and accepted. No context cancellations, HTTP rejections, lost
+  completion records or error states recurred through 12 compatible Develop
+  transitions. Intermediate commands were coalesced; final values were delivered.
+- Actual sequence includes two local Amount Resets and six global Resets, then
+  numeric Amount **13**. Final SDK/readback/Controller values agree: Amount **13**,
+  Size **25**, Roughness **50**. The later Amount Reset followed a -14 drag by
+  518 ms and confirmed 0; no older write followed Reset. These are recorded actions,
+  not assumptions that the originally planned order was followed.
+- **Separate trace-only follow-up:** that Reset briefly assigned the Controller's
+  old parent value -28 over -14 for 9 ms, before the already-completed -14 feedback
+  arrived. Lightroom did not roll back; the user saw no jump. This is a regular
+  Masking Reset display-ownership edge, not recurrence of Grain context cancellation
+  or lost completion. Its focused Controller correction is documented above;
+  accepted shared-slider Reset responsiveness was not reopened.
+- Rapid local/global Grain coordination is **manually accepted for this run**.
+  Recorded Reset execution/ordering also succeeded; the later display correction
+  does not change this accepted native result. No repeat rapid-Grain test is needed. Real photo/mask/external
+  change safeguards retain their completed automated coverage, not a new native
+  acceptance claim. Accepted Point Color and all other unfinished UI/release
+  items remain intact; this is not overall release approval.
+- Evidence: `local-checkpoints/masking-grain-recording-current.txt` points to the
+  separately hashed archive; private findings and the local handoff contain exact
+  event references. The current recording page is finished and must not be reused
+  as a live trace. No code changes, native edits, reload, commit, build or publication.
+  [Detailed recorded scope](docs/MASKING_CORRECTION_CONFIRMATION.md).
+
+## September 30 Grain/Masking correction — implementation record
+
+- Implemented the two instrumented failures below. Actual scoped Grain Size/
+  Roughness SDK writes now record before/after values and photo/mask identity.
+  The heartbeat grants compatibility only when that complete write chain explains
+  the changed Grain values and every other fingerprint input remains unchanged.
+  Partial reads, failed/unreadable writes and unexplained edits grant no exception.
+- The normal Develop counter still advances. A bounded-by-context compatibility
+  range applies **only to regular Masking corrections** on that photo/mask. Their
+  queued admissions, active gesture ownership and completed results survive those
+  proven transitions. Actual photo/mask changes and unproven Develop changes keep
+  strict invalidation. No edit retry, assumed values or longer timeouts. Public
+  command routes/arguments stay compatible; older plug-ins retain strict behavior.
+- Preserved failures against the pre-change production handlers/Controller for
+  queued -64 cancellation, loss of input 13 and disappearance of confirmed 18.
+  Seven focused coordination groups now pass, including rapid local/global
+  interleaving, pending admission, confirmation before polling, Reset across a
+  revision, and real/unproven context changes. SDK/heartbeat, existing regular
+  confirmation/context/queue/Grain checks and isolated Chromium pass. The private
+  diagnostic copy also passes the focused Lua checks. These were **simulated
+  checks at implementation time**; the later scoped native acceptance is above.
+- Accepted Point Color controller/Lua files retain their hashes. The shared Lua
+  binding helper's new exception is explicitly restricted to `masking.correction.*`;
+  a targeted test proves Point Color still rejects the old Develop binding.
+  `controller.html` changes only carry two context fields to regular Masking.
+  All 370 checked files outside the scoped changes, private settings and stash
+  remain unchanged. Required private full-project FTP backup/readback completed.
+- Source app restarted and verified: executable
+  `D:\Projects\LRBridge\node_modules\electron\dist\electron.exe`, entry
+  `D:\Projects\LRBridge\app\main.js`. The new unstarted recorder is identified by
+  `local-checkpoints/masking-context-capture-current.txt`; the exact LAN link and
+  matching diagnostic plug-in directory are in its `capture.json` and
+  `native-readiness.json`, and the ignored local handoff. LAN HTTP 200 verified.
+- **Prepared manual sequence (actual result above):** disable the previous diagnostic plug-in, add the new
+  diagnostic directory and reload once (Lua changed). Start refuses other workers.
+  On one test photo/mask, press **Start trace**, rapidly alternate local Grain
+  Amount with global Size/Roughness, finish Amount at 13 and pause. Then adjust
+  Amount and immediately Reset, wait three seconds and Finish trace. Observe
+  Lightroom's Amount, jumps, lost final values and error messages. Recording time
+  begins only at Start. No automated edits or repeat Point Color test.
+- All previous recordings/packages remain preserved. No commit, build or
+  publication; overall release remains blocked. Other unfinished UI/release items remain
+  open. [Detailed scope and evidence](docs/MASKING_CORRECTION_CONFIRMATION.md).
+
+## September 30 instrumented Masking capture — cause established, still blocked
+
+- The new recording finished normally (59.855 seconds). Preserved a separate
+  hashed archive via `local-checkpoints/masking-context-recording-current.txt`;
+  all earlier recordings remain. All 303 recorded command polls identify the
+  intended diagnostic worker; actual sequence-tagged SDK writes are present.
+  All 64 recorded source fingerprints match. Point Color remains accepted and
+  unchanged. No repeat capture requested.
+- The reported **Amount 24 + cancelled-before-Lightroom** message is recorded.
+  Global Grain **Size** was written to 55; its later heartbeat observation 64→55
+  advanced Develop 4→5 on the same photo/mask. Queued local Grain sequence 56
+  (-64) was cancelled before dispatch. Prior sequence 55 wrote/read back 24,
+  although its result was rejected after revision invalidation. Newer held input
+  through 13 was interrupted before another request. This is real lost input,
+  not just an unavailable-feedback message or a demonstrated Lightroom rollback.
+- Two further cancellations (Grain sequence 110 and Sharpness 119) also follow
+  global Size observations. Roughness participates in earlier fingerprint changes,
+  but Size is the immediate trigger for these cancellations. No photo/mask change,
+  unavailable fingerprint-input flap, or second command worker is recorded.
+- Actual ending differs from the planned sequence: last Grain drag ends at **18**
+  (sequence 164), which SDK writes/readback and server acceptance confirm. Its
+  completion is then cleared by another Size-driven Develop change before the
+  browser receives it, causing a separate misleading unconfirmed warning.
+  A later recorded Grain Reset (166) confirms **0**, displayed through capture end.
+  Final value **10** belongs to Dehaze (186), also confirmed. Do not infer the exact
+  planned immediate-Reset sequence or native acceptance from these results.
+- Focused correction remains needed for the interaction between known global
+  Grain edits, local correction context ownership and retained completion results.
+  Evidence is sufficient to reproduce it without another capture. Preserve actual
+  photo/mask/external-edit guards, final delivery and Reset ordering; no blind retry
+  or blanket removal of Develop checks. Details:
+  [Regular Masking confirmation](docs/MASKING_CORRECTION_CONFIRMATION.md).
+- This continuation changed documentation/private analysis only: no application
+  changes, tests, Lightroom edits, reload, commit, build or publication. Previous
+  simulated checks are retained, not repeated. Regular Masking is not accepted;
+  release remains blocked. All other unfinished UI/release items below remain open.
+
+## September 30 regular Masking continuation — focused fix, native check pending
+
+- Continued from the recorded Dehaze rejection and unconfirmed local Grain Amount
+  10 / sequence 140. Screenshot timing remains separate and does not block work.
+  Dehaze's old binding was repeatedly reused because rejection cleared its gesture
+  while touch input continued and the host context poll lagged Masking feedback.
+- The Develop counter follows SDK fingerprint changes, including global Grain
+  Size/Roughness. Recovered plug-in logs show interleaved global Grain writes near
+  both failures, but no exact fingerprint-input or sequence-tagged execution log.
+  Sequence 140's placement behind those globals and the later queue drain support
+  cancellation before dispatch; they do not prove a native write of 10. Native
+  recovery after capture end is unknown. Full distinctions are in
+  [Regular Masking confirmation](docs/MASKING_CORRECTION_CONFIRMATION.md).
+- Source correction: stop an already-rejected regular-correction gesture/binding;
+  classify stale-context 409 accurately; coalesce obsolete undispatched regular
+  gestures while retaining final values and Reset/global-operation barriers; retain
+  bounded cancellation receipts across context invalidation and explain interrupted
+  edits. Keep real failures, full context checks, current timing and SDK confirmation.
+  No timeout increase, automatic edit retry or optimistic success.
+- Seven new production-handler/queue/Controller regressions, eleven existing
+  confirmation checks, production-Lua correction cases, correction HTTP checks,
+  queue checks, diagnostic checks and isolated Chromium pass. Pre-change failures
+  are preserved. These are simulated results, **not native acceptance**.
+- **Point Color remains manually accepted and unchanged.** Source Point Color and
+  Masking Lua hashes match the preserved accepted files. No repeat Point Color
+  test. Other unfinished UI/release items below remain open; no broad audit.
+- Source LRBridge has been restarted with diagnostics enabled; no automated photo
+  edits were sent. A fresh recorder is prepared via
+  `local-checkpoints/masking-context-capture-current.txt`; its window starts only
+  with **Start trace**. It adds local/global Grain input, queue lifecycle, SDK-write
+  and fingerprint evidence. A private diagnostic plug-in copy must be loaded once;
+  Start is guarded until it is the only observed command worker. Source plug-in
+  registration has not been changed automatically. Exact link/paths are recorded
+  in `CODEX_HANDOFF.local.md` and the capture's `native-readiness.json`.
+- Full-project private FTP backup was uploaded and independently read back before
+  changes. Branch remains `feature/v0.6-more-sdk-and-web-controller`, HEAD `98d0815`,
+  16 ahead / 0 behind upstream; index empty. Settings, stash, accepted work,
+  recordings, prior packages and unrelated edits are preserved. No commit, build
+  or publication. Release remains blocked pending native verification.
+
+## September 30 regular Masking trace — unresolved, analysis only
+
+- User finished the capture and reports a brief error followed by updates during
+  extremely fast input. User identifies a Grain Amount screenshot with **That
+  correction is no longer available for the selected mask.** Do not infer success
+  from recovery or claim native acceptance. Point Color remains manually accepted.
+- Preserved the finished 27.592-second recording and independently hashed copies;
+  pointer `local-checkpoints/masking-confirmation-recording-current.txt`. Do not
+  reuse the finished capture. Full analysis and source-log snapshot are private.
+- **Recorded distinction:** all 22 `local_Grain` HTTP requests returned 200
+  (admitted, not confirmed). The quoted unavailable message and all 31 recorded
+  HTTP 409 responses target **Dehaze**, during a Develop-counter change from 2
+  to 3 while requests still used 2. Photo and mask identity remained the same;
+  Masking feedback briefly reported `context_changed`, then returned available.
+  This is a real rejection before queueing, not evidence that a parameter was
+  permanently removed or that an older HTTP response marked Grain unavailable.
+- **Final local Grain Amount:** last input/request was 10 at +22.19 s, admitted
+  as correction sequence 140. No corresponding confirmed result was captured.
+  At +25.21 s the Controller's timeout restores its displayed value to -67;
+  returned Lightroom state still reports -67 through capture end. Clearing the
+  error during a later context refresh does not establish execution of value 10.
+  The exact unavailable screenshot message is not present for Grain in this trace;
+  its recording-page/time correspondence remains to be clarified.
+- Grain **Amount is local**; adjacent **Size/Roughness are global**. The source log
+  contains their separate global commands, and they participate in the Develop
+  fingerprint. The recorder does not trace their input/HTTP/SDK execution; do not
+  attribute an individual fingerprint change to them as proven. Queue backlog and
+  later Develop invalidations are recorded, but per-command SDK execution or
+  cancellation of Grain sequence 140 and post-finish recovery are not.
+- No new capture requested or implementation/test changes made in this analysis.
+  Preserve responsiveness, safeguards and accepted work; keep release blocked.
+  Details: [Regular Masking confirmation](docs/MASKING_CORRECTION_CONFIRMATION.md).
+
+## September 30 resumed — regular Masking native test prepared
+
+- Source LRBridge was stopped; launched it using the existing `npm start` workflow.
+  The running server exposes the corrected per-parameter confirmation results,
+  and the capture serves the matching Controller assets. Source and focused-test
+  hashes match the September 29 handoff; accepted Point Color remains unchanged.
+- The prior receiver was stopped. Its files remain preserved; a fresh receiver
+  and link are recorded through `local-checkpoints/masking-confirmation-current.txt`.
+  Readiness is verified **unstarted**, with no recording deadline until the user
+  presses **Start trace**. Exact link/runtime details are in the local handoff and
+  the current capture's `native-readiness.json`.
+- Lightroom was closed at preparation. Open the existing catalog in Develop,
+  select a test photo and mask, then perform the regular Texture/Sharpness capture
+  below. Keep the registered source plug-in; **no plug-in reload required**.
+  Await native observations; automated passes are not native acceptance.
+- Settings, uncommitted work, earlier recordings/backups and all remaining UI and
+  release items are preserved. No application-code changes, automated Lightroom
+  edits, functional-test reruns, build or publication during this preparation.
+
+## September 29 end of night — stopped at the user's request
+
+- **Masking Point Color is manually accepted:** no observed slider jumps, and
+  **Toggle Visualize Range worked in Lightroom**. Preserve its fix, regression
+  tests and recording; no repeat capture unless the problem returns.
+- **Regular Masking confirmation fixes pass automated checks but still require
+  native testing.** Normal-speed behavior was reported good; extreme-speed
+  confirmation remains unaccepted. Do not turn simulated results into a native pass.
+- **Next session:** fully quit source LRBridge, then restart it with
+  `npm.cmd --prefix D:\Projects\LRBridge start` to load the server changes.
+  Verify the running source version and the prepared capture using
+  `local-checkpoints/masking-confirmation-current.txt` and its `capture.json`.
+  The receiver was last verified unstarted; do not assume it survives overnight.
+  Verify or restart it before testing. If the recording has been used or expired,
+  preserve its evidence and prepare a fresh capture. Start the recording window
+  only when the user begins rapid regular Masking adjustments. Use the focused
+  Texture/Sharpness sequence below. **No Lightroom plug-in reload is required**
+  for these browser/server changes; keep the matching source plug-in.
+- Preserve all remaining UI and release items listed below, including the separate
+  pending-click Visualize usability issue. Do not reopen accepted fixes or begin
+  a broad audit. Release remains blocked pending the documented native checks.
+- All source changes, uncommitted work, recordings, private settings, backups,
+  stash and existing packages remain preserved. This closing update changes only
+  the handoff. **No further tests, application-code changes, commit, build or
+  publication tonight. Stop after recording this state.**
+
+## September 29 regular Masking confirmation — source fix, native check pending
+
+- User reports that regular Masking sliders work well at normal speed. At extreme
+  speed, delayed **Updating…** and **Lightroom did not confirm that Masking correction
+  in time** appear. This follow-up concerns the regular `local_*` correction path;
+  the accepted masked Point Color fix and recording below remain unchanged.
+- The quoted error is the Controller's 3-second completion deadline, not proof of
+  an SDK rejection. Reproduced two faults with the production Controller/state
+  machine and simulated SDK results: one slider's completion displaced another's
+  before a browser poll; an older edit's deadline/admission could clear newer input.
+  The former also displaced real error details. Native logs do not identify which
+  mechanism caused the user's exact event; a settled final result is insufficient.
+- `server/masking-state.js` now retains one validated correction result per
+  parameter for the current photo/mask, including real failures. The existing
+  `lastCorrectionResult`, sequences, routes and command semantics remain compatible.
+  `app/controller-masking.js` consumes those results and binds request errors and
+  completion timers to the local edit that owns them. Clear retained ownership on
+  context/selection invalidation. Keep the existing 100 ms drag cadence, 350 ms
+  step submission and 3000 ms confirmation deadline; do not infer success from a
+  matching displayed value. No Lua, Point Color, queue or SDK-write changes.
+- Eleven focused deterministic checks pass; the pre-fix source reproduces the
+  confirmation loss and stale-owner failures. Existing correction metadata,
+  rendered Controller, HTTP/queue and stale-context checks pass. Isolated Chromium
+  confirms cross-slider settlement and the fresh capture observer. These are
+  automated/simulated results, **not native acceptance**. Exact commands and scope:
+  [Regular Masking confirmation](docs/MASKING_CORRECTION_CONFIRMATION.md).
+- At preparation, the fresh regular-Masking capture was verified **unstarted**;
+  recheck its receiver and status next session as above. It records input,
+  display/status, actual proxied requests and SDK-derived feedback; no per-SDK-write
+  timestamps or automated edits. Original/archived Point Color recordings remain
+  preserved and finished. The new window starts only on **Start trace**. Exact
+  link/readiness paths are in ignored local handoff and
+  `local-checkpoints/masking-confirmation-current.txt`.
+- The verified running source app still needs one restart to load the server fix.
+  Quit LRBridge, then run `npm --prefix D:\Projects\LRBridge start`; executable is
+  `D:\Projects\LRBridge\node_modules\electron\dist\electron.exe`, entry
+  `D:\Projects\LRBridge\app\main.js`. Keep the already registered
+  `D:\Projects\LRBridge\lightroom\LRBridge.lrplugin`; **no plug-in reload** for
+  this browser/server-only follow-up. Capture Start checks the new server result
+  field and refuses an old backend. Reopen the fresh link after restarting.
+- Minimum native check: select one test photo/mask, use regular **Texture** and
+  **Sharpness** at the problem speed, alternating/repeating; stop on an error,
+  wait five seconds for returned feedback, then **Finish trace**. Report whether
+  Lightroom reached the final intended values. Do not repeat accepted Point Color
+  or HTTP Contrast checks. Release remains blocked; no commit, build or publish.
+
+## September 29 masked Point Color — native test accepted
+
+- **User accepts the recorded manual test:** no slider jumps observed, and
+  **Toggle Visualize Range visibly worked in Lightroom**. This closes the pending
+  native check for the tested masked Point Color behavior. Preserve the fix,
+  regression tests and recording. **No repeat capture unless the problem returns.**
+  Do not reopen accepted slider/Reset, lifecycle, normal Point Color, masked Hue
+  confirmation or Denoise work, or repeat the completed HTTP Contrast checks.
+- The preceding report involved intermittent jumps in masked Hue Shift,
+  Saturation Shift and Luminance Shift followed by an unresponsive Visualize
+  button. The accepted result is bounded to this recorded test, not all possible
+  scenarios or overall release approval. Other release work remains below.
+- Compared both Point Color/Masking controllers to `98d0815` and the preserved
+  pre-change snapshot (snapshot equals HEAD). The Visualize Range busy exception
+  remains restricted to admitting its own reservation; ordinary snapshot guards
+  are unchanged. It was **not established as the cause**.
+- Reproduced a separate scalar input ownership gap in both HEAD and the recent
+  source: during the existing 225 ms debounce, parent feedback replaces new input
+  with the old value; release can then submit that old value. Demonstrated on Hue
+  Shift, Saturation Shift, Luminance Shift, Variance and Range. Fixed ownership at
+  input time in `app/controller-point-color.js`, keeping the existing submission
+  cadence and authoritative confirmation. Also clear cancelled scalar timers on
+  release/Reset and pipeline cancellation, covering reproduced stuck-busy and
+  old-timer writes after swatch change/failure. No server, API, Lua, normal shared
+  slider, accepted Reset/lifecycle or Denoise changes in this follow-up.
+- New production parent/child/server/Lua regressions fail before and pass after:
+  delayed snapshots/confirmations, rapid repeated/alternating scalar input, Reset,
+  old/duplicate results, context changes, errors/timeouts, and later native edits.
+  Real Chromium reproduces the old rollback and passes with the fix. Rechecked
+  global Point Color input, all three custom range-handle paths, Visualize Range,
+  and the accepted strict masked Hue Shift confirmation. These use SDK doubles;
+  the separate user-observed capture below supplies the native acceptance.
+- Focused Chromium follow-up reproduces the second symptom for all three shifts:
+  before cleanup, release leaves a cancelled timer marked busy; clicking Visualize
+  is silently rejected by the parent before HTTP dispatch. Current fix releases
+  that guard and sends exactly one request per click. A simulated HTTP 409 remains
+  visible; no confirmed toggle state is invented. The unchanged capture observer
+  distinguishes clicks without requests from dispatched requests/failure responses.
+  No further runtime change or capture restart was needed.
+- Completed capture **02:17:22–02:17:58 UTC**, 36.664 seconds, ended by user.
+  Preserved original streams plus independently hashed copies; do not reuse this
+  finished capture. Across 473 scalar input events and 615 display samples, no
+  mismatch with the latest scalar input/Reset was recorded. All 55 Point Color
+  commands (52 scalar, 3 range translations) have confirmed results with matching
+  SDK-derived values. The user confirms no visible slider jumps in this run and
+  accepts this tested behavior; preserve these bounded results.
+- Five Visualize clicks: the first was silently blocked in the browser with one
+  real edit awaiting feedback and one queued. The four later clicks dispatched,
+  returned HTTP 200 and received confirmed plug-in operation results. No HTTP
+  errors; final pending/awaiting counts zero and busy false. The temporary guarded
+  click remains a **separate open usability issue**, distinct from the fixed
+  stale timer and accepted slider behavior. User observation confirms visible
+  native toggling; the Controller still has no confirmed On/Off state getter.
+- Capture has no per-SDK-call instrumentation. The proxy contains the actual HTTP
+  requests/responses; live browser fetch hooks did not intercept the app's earlier
+  saved fetch reference. Input/assignment/state observations are intact. Exact
+  evidence paths are in ignored `CODEX_HANDOFF.local.md` and
+  `local-checkpoints/mask-point-color-recording-current.txt`. No runtime changes,
+  automated photo edits, additional recording or tests during this analysis.
+  Source app/plug-in and comparison package/VM remain unchanged.
+- Details and focused test commands:
+  [Masked Point Color input ownership](docs/MASK_POINT_COLOR_INPUT_OWNERSHIP.md).
+  Accepted work remains uncommitted. No package, stage, commit or publish.
+
+## September 29 remaining work — preserve accepted fixes
+
+- **Dust in the fresh VM:** exact failure trigger still unconfirmed. Need the VM's
+  Lightroom version and read-only `dust` state. Explicit On/Off and independent
+  Dust-only Reset are implemented and automated-tested; native behavior and manual
+  Healing preservation remain to be checked. Renamed Dust Helpers presets and
+  identity-preserving legacy migration need clean-setup/native verification while
+  retaining the tested VM/package baseline.
+- **Masking Effects/Detail at extreme speed:** confirmation retention and timer
+  ownership faults reproduced and fixed in source (see above). Native verification
+  of the reported error/flicker remains pending in the prepared focused capture.
+  Normal-speed behavior was reported good. Keep accepted Point Color unchanged.
+- **Lens Blur Visualize Depth:** targeted readback implementation is automated-
+  tested; native action/confirmation timing and perceived improvement remain
+  unverified. Apply helper wording is implemented without behavioral changes.
+- **Parametric Curve:** the rendering approximation explains the reported hump;
+  the limitation is labeled. Accurate Lightroom preview parity remains unresolved;
+  no photo adjustment or example-fitted formula has been introduced.
+- **Implemented, awaiting user review/acceptance:** integer Blending and ±1
+  Blending/Balance buttons; permanently present grey Lens Correction rows;
+  disabled Favorite Amount appearance; the requested Lens Blur/People/Masking
+  helper text. Desktop/narrow browser checks passed; no broad UI rerun is needed.
+- **Separate usability issue:** a Visualize Range click during real pending Point
+  Color edits is silently blocked. Keep tracked; do not reopen accepted tuning.
+- **Release follow-through:** tonight's source changes remain uncommitted and
+  unpackaged. A scoped checkpoint/fresh private candidate comes after the remaining
+  decisions/acceptances and authorization. Remaining package gates: startup/restart
+  and settings preservation, Companion/PowerShell, phone/tablet LAN, clean Dust
+  setup. Reuse completed checks. **Constrain Crop feedback optimization stays deferred.**
+
+## September 29 source follow-up — native checks pending, baseline preserved
+
+- User findings from private **20260928T025413Z**: normal use feels good; fresh-VM
+  Dust commands unavailable despite visible presets and working native Apply;
+  Masking Point Color Visualize Range does not act; rapid Masking Effects/Detail
+  can show transient feedback errors/flicker; Parametric preview mismatches;
+  Lens Blur Visualize Depth is slow. This does not pass the other package gates.
+- Root remains **`feature/v0.6-more-sdk-and-web-controller` / `98d0815`**,
+  index empty; this batch is **uncommitted source work**. Masked Point Color is
+  now native-accepted as above; the other changes retain their pending checks.
+  Accepted `246d11b` slider/Reset and `95e3592` lifecycle implementations remain
+  intact. Preserve all bounded acceptances below and deferred Constrain Crop work.
+- Implemented explicit Dust **On/Off**, independent verified command capability
+  versus readable state, unknown-result wording, and separately guarded Dust-only
+  Reset. Missing `FilterList` is unknown, never inferred Off. Preset/content,
+  photo/context, preservation, AI and version guards remain. **VM root cause still
+  pending:** need its exact Lightroom version and `dust` object from read-only
+  `http://127.0.0.1:17891/remove/state` with Develop/Dust open. The strict verified
+  Lightroom 15.4.1 guard remains; do not assume missing presets or VM fault.
+- Fixed reproduced Masking Point Color self-block before HTTP dispatch and a
+  correction race where older completion cleared newer input awaiting admission.
+  Latest errors remain visible; no invented toggle state. SDK/native flicker and
+  the user's exact rapid-input error still need native observation.
+- Visualize Depth now uses fresh focused Windows checkbox reads for admission and
+  confirmation, retaining SDK execution/context checks. Avoids unrelated native
+  controls and an extra SDK refresh; follows an older in-flight full poll immediately.
+  Native action/confirmation timing improvement is **not yet measured/accepted**.
+- Parametric mismatch reproduces with static values in the existing approximation.
+  Added a clear approximation note; no photo edits or fitted replacement formula.
+  Exact Lightroom curve parity remains unresolved. Completed requested Lens Blur
+  Apply wording, persistent grey Lens Correction rows, integer Blending + Blending/
+  Balance step buttons, disabled Favorite Amount styling, and three bold helpers.
+- Preset group is now **LRBridge Dust Helpers**, with the same names/UUIDs. Exact
+  original **LRBridge TEST** files remain accepted. Installer migrates only known
+  legacy bytes at the same filenames with non-XMP backups; conflicts still fail.
+  No installed presets, VM files or active plug-in registration were changed.
+- **Passed automated:** 102 Dust Lua/HTTP scenarios; adapted existing Dust browser
+  checks; real shared child/parent Point Color + correction race regressions;
+  Masking Phase 4; Lens Blur transport/polling/context and targeted readback checks;
+  Color Grading UI/public HTTP transport; preset staging/migration/conflict checks;
+  focused desktop/390/320 browser checks and inspected captures. These are simulated
+  Lightroom results. Reused prior accepted slider/lifecycle checks; no full audit.
+  Refreshed generated HTTP source-line references only (206 routes unchanged).
+  Final JS/inline/Lua/PowerShell syntax and diff checks passed; all 14 pre-existing
+  dirty/untracked artifacts and the baseline ZIP match their pre-change hashes.
+- Full findings, limitations and short native checks:
+  [September 29 source findings](docs/SEPTEMBER_29_MANUAL_FINDINGS.md).
+  Source test pair: `D:\Projects\LRBridge\node_modules\electron\dist\electron.exe`
+  with `D:\Projects\LRBridge\app\main.js` (`npm start` from the root), and
+  **`D:\Projects\LRBridge\lightroom\LRBridge.lrplugin`**. Quit the package first;
+  use only the source LRBridge entry and **Reload Plug-in once** for changed Dust
+  Lua. Controller: `http://127.0.0.1:17892/`. Nothing was launched automatically.
+- **No new package built.** The exact September 28 ZIP/EXE/plug-in paths below remain
+  the comparison baseline. Keep its VM installation unchanged during diagnosis.
+  Startup/restart/settings, Companion, phone/tablet LAN and clean Dust setup gates
+  remain bounded/pending. Preserve unrelated edits, settings, stash and recordings.
+  Recovery/evidence details remain in the ignored local handoff. No stage, commit,
+  push or publication in this batch.
 
 ## September 28 fresh private package — test this candidate next
 

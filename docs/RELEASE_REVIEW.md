@@ -1,4 +1,4 @@
-> Current release status (September 28): the captured SDR Brightness rollback
+> Historical release status (September 28): the captured SDR Brightness rollback
 > has a demonstrated confirmation-error cause and an isolated correction with
 > fail-old/pass-new regressions. User observed no jumps in one corrected-source run;
 > The user accepts the current Reset responsiveness for the tested controls.
@@ -11,6 +11,34 @@
 > Remaining package gates stay open; preserve the older candidate. No publication.
 
 # Windows v0.6 beta completion review
+
+## October 1 reviewed source checkpoint and private test package
+
+Parametric Curve is manually accepted for this release, including changed split
+positions. Six newly supplied native graphs and nine prior references support
+the correction, with the documented approximation limits retained. No additional
+curve tuning or capture is required unless a new problem appears. Accepted shared
+slider/Reset, Masking/rapid Grain, Point Color, plug-in lifecycle, Denoise, Dust
+controls and Color Grading results stay accepted within their recorded scope.
+
+The amber Masking recovery notice now explicitly directs the user to click
+**Close Masking** in this Web Controller, then the same button when it shows
+**Open Masking**. Its placement/style and all command behavior are unchanged;
+the exact note was checked at desktop and narrow widths.
+
+Lens Blur Visualize Depth remains a **known slow operation** for this private
+build. The latest manual observation does not distinguish execution delay from
+feedback delay; do not mark performance passed or infer that earlier focused
+read changes resolved it. No new optimization is part of this packaging step.
+
+Dust clean-install and legacy-preset migration checks are explicitly deferred to
+the fresh package. Preserve the existing VM/package comparison baseline and
+accepted current Dust control behavior. Remaining package checks are desktop
+startup/restart/settings preservation, Companion/PowerShell commands, phone/tablet
+LAN, and clean Dust setup plus legacy migration without duplicate presets. Isolated
+installer and packaged-runtime tests do not replace those manual checks. This is
+a private test build, not a public release. Constrain Crop feedback work remains
+deferred.
 
 ## September 28 accepted fixes integrated for private packaging
 

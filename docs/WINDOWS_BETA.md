@@ -1,5 +1,18 @@
 # LRBridge Windows v0.6 beta
 
+**October 1 private test update:** Parametric Curve is manually accepted for this
+release, including changed split positions; six matching native references and
+regression tests are preserved. Small preview approximation differences remain.
+Accepted slider/Reset, Masking, Point Color, lifecycle, Denoise and Dust behavior
+remain accepted within their tested scope. The Masking recovery notice explains
+using the same Web Controller button for Close Masking and then Open Masking.
+
+**Known issue:** Lens Blur Visualize Depth still feels slow. The latest observation
+does not distinguish command execution delay from Controller feedback delay;
+its performance check has not passed. No further optimization is included here.
+Dust clean-install and legacy-preset migration verification will use this fresh
+test package. Existing-machine Dust acceptance does not establish those results.
+
 **September 27 accepted source:** the latest Copy/Paste, Export and Enhance reports
 are accepted within the user's tested scope, including Denoise Reset and its
 availability/appearance/alignment. Earlier accepted Profile, slider feedback,
@@ -21,13 +34,13 @@ Windows PowerShell 5.1 and Windows accessibility/Win32 support are required for 
 
 ### Dust preset setup
 
-`LRBridge Dust On.xmp` and `LRBridge Dust Off.xmp` are LRBridge's preset files for controlling Lightroom Classic's existing Dust feature. Turning Dust **Apply** on uses Dust On; turning Apply off or using Dust **Reset** uses Dust Off. **Close**, Size, Visualize Spots and Threshold do not use these preset files.
+`LRBridge Dust On.xmp` and `LRBridge Dust Off.xmp` are LRBridge's preset files for controlling Lightroom Classic's existing Dust feature. The explicit **On** button uses Dust On; **Off** and the main Dust **Reset** use Dust Off. The group is **LRBridge Dust Helpers**. Exact earlier copies in **LRBridge TEST** remain recognized; the installer can migrate their group name at the same filenames with backups, preserving preset identities. Do not import duplicates. **Close**, Size, Visualize Spots and Threshold do not use these preset files. Unavailable state feedback is not a command failure: check the Apply checkbox in Lightroom when status cannot be read.
 
-The app includes the files but does not install them automatically. Run the separate `Install Dust Presets.cmd` command from the extracted LRBridge folder while Lightroom is closed. It copies the files into `%APPDATA%\Adobe\CameraRaw\Settings`; reopen Lightroom afterward to load them. The installer leaves identical files alone and refuses to overwrite different files with the same names.
+The app includes the files but does not install them automatically. Run the separate `Install Dust Presets.cmd` command from the extracted LRBridge folder while Lightroom is closed. It copies the files into `%APPDATA%\Adobe\CameraRaw\Settings`; reopen Lightroom afterward to load them. The installer leaves identical files alone, backs up and migrates the exact earlier bundled files, and refuses other different files with the same names.
 
 ## Upgrade without losing preferences
 
-Quit LRBridge before upgrading. Extract into a **new folder**, copy your old `config/settings.txt` and, if present, `config/develop-presets.json` into its `config` folder, then add/repoint Lightroom to the new plug-in and restart Lightroom. Keep the old folder until the upgrade is accepted. Do not overwrite your configuration with the example files. Favorites and collapsed sections are saved per browser/device and origin; keep the same browser profile and controller address. Clearing site data or changing the address does not migrate them. The preset installer leaves identical installed presets alone and refuses differing files.
+Quit LRBridge before upgrading. Extract into a **new folder**, copy your old `config/settings.txt` and, if present, `config/develop-presets.json` into its `config` folder, then add/repoint Lightroom to the new plug-in and restart Lightroom. Keep the old folder until the upgrade is accepted. Do not overwrite your configuration with the example files. Favorites and collapsed sections are saved per browser/device and origin; keep the same browser profile and controller address. Clearing site data or changing the address does not migrate them. The preset installer leaves identical installed presets alone and migrates only the exact known legacy files as described above.
 
 ## Everyday controls
 

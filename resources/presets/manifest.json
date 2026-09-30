@@ -5,13 +5,18 @@
   "files": [
     {
       "name": "LRBridge Dust On.xmp",
-      "bytes": 1779392,
-      "sha256": "f13f23d7616ef06ff48cc8b93ac9d4197cbad009c9d6f75550ea2a47aee42301"
+      "bytes": 1779400,
+      "sha256": "83604d3f3f7014e896ab6d8b41991ff84510e553c1b0863b0ac0bccddd1f90e2",
+      "legacySha256": "f13f23d7616ef06ff48cc8b93ac9d4197cbad009c9d6f75550ea2a47aee42301",
+      "legacyBytes": 1779392
     },
     {
       "name": "LRBridge Dust Off.xmp",
-      "bytes": 2878,
-      "sha256": "99f7e11633cfd71d701cf80356117c5fab360b27ad806eec3627dbe456f3abbc"
+      "bytes": 2886,
+      "sha256": "51334448e641a72c98e506a560f0dfcbbbd492eeb56c54ca23629377d221e99f",
+      "legacySha256": "99f7e11633cfd71d701cf80356117c5fab360b27ad806eec3627dbe456f3abbc",
+      "legacyBytes": 2878
     }
-  ]
+  ],
+  "group": "LRBridge Dust Helpers"
 }

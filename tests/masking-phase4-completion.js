@@ -744,17 +744,21 @@ function testProductionSourceContracts() {
         "advanced correction groups must retain the required Masking UI order");
     assert.match(controllerSource, /body\.appendChild\(actionRow\);[\s\S]*body\.appendChild\(corrections\);/,
         "Mask actions must be mounted before the correction controls");
-    for (const unsupportedLabel of ["Reset Sliders Automatically", "Use Fine Adjustment", "Auto Mask"] ) {
-        assert.equal(controllerSource.includes(unsupportedLabel), false,
-            unsupportedLabel + " must not render without authoritative Lightroom state");
+    for (const unsupportedLabel of ["Auto Mask"] ) {
+        assert.equal(maskingCorrections.definitions.some(definition => definition.label === unsupportedLabel), false,
+            unsupportedLabel + " remains an explanation, not a correction control");
+    }
+    for (const explanation of ["Reset Sliders Automatically", "Use Fine Adjustment"]) {
+        assert(controllerSource.includes("<strong>" + explanation + "</strong>"));
+        assert(!maskingCorrections.definitions.some(definition => definition.label === explanation));
     }
     for (const misleadingLabel of ["Toning Hue", "Toning Saturation", "Toning Luminance"]) {
         assert.equal(maskingCorrections.definitions.some(function (definition) {
             return definition.label === misleadingLabel;
         }), false, misleadingLabel + " must not render as a Lightroom-parity slider");
     }
-    assert.doesNotMatch(controllerSource, /Brush Size|Brush Feather|Brush Flow|Brush Density/,
-        "Brush controls must fail closed without an authoritative selected-component API");
+    assert(!maskingCorrections.definitions.some(definition => /Brush Size|Brush Feather|Brush Flow|Brush Density/.test(definition.label)),
+        "Brush tool settings remain explanations without correction controls");
 }
 
 (function run() {

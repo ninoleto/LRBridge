@@ -117,6 +117,7 @@ function createUnavailableWindowsBackend(reason) {
     function reject() { return Promise.reject(new NativeBackendUnavailableError(state.reason)); }
     return Object.freeze({
         readState: function () { return Promise.resolve(unavailableNativeState(state.reason)); },
+        readDepthVisualization: function () { return Promise.resolve(unavailableCheckbox()); },
         setBrushValue: reject,
         resetBrushValue: reject,
         adjustBrushValue: reject,
@@ -160,7 +161,7 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
     let selectionReader = null;
     let selectionObserverPaused = false, selectionObserverGeneration = 0, selectionObserverChangedAt = null;
     let sharedReadPauseUntil = null;
-    const sharedReadOperations = new Set(["readState", "readProfileLabel", "readProfileSnapshot"]);
+    const sharedReadOperations = new Set(["readState", "readDepthVisualization", "readProfileLabel", "readProfileSnapshot"]);
     const sharedReadsPaused = () => sharedReadPauseUntil !== null && Date.now() < sharedReadPauseUntil;
     let drainScheduled = false;
     const transportDiagnostics = {
@@ -410,6 +411,9 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
         readState: async function () {
             try { return rememberState(await request("readState")); }
             catch (error) { return unavailableNativeState(error.message); }
+        },
+        readDepthVisualization: async function () {
+            return sanitizeCheckbox(await request("readDepthVisualization"));
         },
         setBrushValue: async function (control, value, options) {
             validateBrushControl(control);

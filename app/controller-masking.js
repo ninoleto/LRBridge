@@ -406,6 +406,7 @@
         let presetFeedback = null;
         let queuedPreset = null;
         let pointColorStatus = null;
+        let pointColorVisualizeStatus = null;
         let sharedPointColorController = null;
         let toneCurveController = null;
         let toneCurveStatus = null;
@@ -1178,7 +1179,14 @@
             const preset = kind === "preset" ? presets.find(function (entry) { return entry.id === value; }) : null;
             if (kind === "preset" && (!preset || !presetFeedbackKey(state))) return false;
             if (activeOperation || !state || state.available !== true || !sameContext(state, currentContext()) ||
-                state.pendingOperation || correctionBusy(kind === "pointColorVisualize")) return false;
+                state.pendingOperation) return false;
+            if (correctionBusy(kind === "pointColorVisualize")) {
+                if (kind === "pointColorVisualize" && pointColorVisualizeStatus) {
+                    pointColorVisualizeStatus.textContent = "Wait for the current adjustment to finish, then try again.";
+                    pointColorVisualizeStatus.hidden = false;
+                }
+                return false;
+            }
             if (kind === "deleteSelected" && (state.active !== true || state.hasSelectedMaskGroup !== true ||
                 value !== state.selectedMaskGroupId)) return false;
             if (kind === "deleteAll" && state.maskGroupCount < 1) return false;
@@ -1492,11 +1500,16 @@
             title.textContent = "Point Color";
             pointColorStatus = documentRef.createElement("div");
             pointColorStatus.className = "masking-corrections-status";
+            pointColorVisualizeStatus = documentRef.createElement("p");
+            pointColorVisualizeStatus.className = "command-group-note masking-point-color-visualize-status";
+            pointColorVisualizeStatus.setAttribute("role", "status");
+            pointColorVisualizeStatus.hidden = true;
             const host = documentRef.createElement("div");
             host.className = "masking-point-color-shared";
             root.appendChild(title);
             root.appendChild(pointColorStatus);
             root.appendChild(host);
+            root.appendChild(pointColorVisualizeStatus);
             if (!pointColorModule || typeof pointColorModule.createController !== "function") {
                 pointColorStatus.textContent = "Mask-local Point Color is unavailable in this controller.";
                 return root;
@@ -1534,7 +1547,13 @@
                     }
                     return body;
                 },
-                setStatus: function (message) { if (pointColorStatus) pointColorStatus.textContent = message || ""; },
+                setStatus: function (message) {
+                    if (pointColorStatus) pointColorStatus.textContent = message || "";
+                    if (pointColorVisualizeStatus) {
+                        pointColorVisualizeStatus.textContent = "";
+                        pointColorVisualizeStatus.hidden = true;
+                    }
+                },
                 onRefreshRequested: function () { refresh(); },
                 onInteractionChange: function () { if (rootElement) render(); }
             });
@@ -2372,7 +2391,19 @@
                         control.reset.setAttribute("aria-label", "Reset " + definition.label);
                     }
                     group.appendChild(control.row);
+                    if (definition.parameter === "local_Hue") {
+                        const note = documentRef.createElement("p");
+                        note.className = "command-group-note";
+                        note.innerHTML = "<strong>Use Fine Adjustment</strong> allows more precise Hue adjustments in Lightroom Classic. Enable or disable it directly in Lightroom; this option is not available in the Web Controller.";
+                        group.appendChild(note);
+                    }
                 });
+                if (groupName === "Amount") {
+                    const note = documentRef.createElement("p");
+                    note.className = "command-group-note";
+                    note.innerHTML = "Change <strong>Reset Sliders Automatically</strong> directly in Lightroom Classic. This option is not available in the Web Controller.";
+                    group.appendChild(note);
+                }
                 if (groupName === "Effects" && createSharedDevelopSliderControl) {
                     ["GrainSize", "GrainFrequency"].forEach(function (sliderId) {
                         const row = createSharedDevelopSliderControl(sliderId);
@@ -2428,6 +2459,10 @@
             ["Effects", "Detail"].forEach(appendCorrectionGroup);
             correctionStatus = correctionsAvailability;
             body.appendChild(panelRow);
+            const panelHelp = documentRef.createElement("p");
+            panelHelp.className = "command-group-note masking-panel-help";
+            panelHelp.innerHTML = "If Masking opens in Lightroom Classic but the controls here remain unavailable, select a mask in Lightroom Classic. If that does not help, click <strong>Close Masking</strong> in this Web Controller. Then click the same button again when it shows <strong>Open Masking</strong>.";
+            body.appendChild(panelHelp);
             body.appendChild(actionRow);
             body.appendChild(navigation);
             body.appendChild(position);
@@ -2555,6 +2590,7 @@
             closePresetPicker(false);
             presetPicker = null;
             pointColorStatus = null;
+            pointColorVisualizeStatus = null;
             sharedPointColorController = null;
             toneCurveController = null;
             toneCurveStatus = null;

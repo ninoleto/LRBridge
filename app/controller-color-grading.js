@@ -418,7 +418,7 @@
         function setControlPending(control) {
             if (!control) return;
             control.available = false;
-            [control.range, control.number, control.reset].filter(Boolean).forEach(function (element) { element.disabled = true; });
+            [control.range, control.number, control.reset, control.minus, control.plus].filter(Boolean).forEach(function (element) { element.disabled = true; });
             if (control.state) control.state.textContent = "Feedback pending";
         }
 
@@ -491,6 +491,7 @@
             const pending = !result;
             control.available = ready;
             if (!control.editing) [control.range, control.number, control.reset].forEach(function (element) { element.disabled = !ready; });
+            updateScalarStepButtons(control);
             if (control.state) control.state.textContent = ready ? "Available" : pending ? "Feedback pending" : "Parameter unavailable";
         }
 
@@ -527,13 +528,14 @@
             control.runtimeRange = range;
             control.range.min = range.min;
             control.range.max = range.max;
-            control.range.step = range.max - range.min > 100 ? "1" : "0.1";
+            control.range.step = control.control === "blending" || range.max - range.min > 100 ? "1" : "0.1";
             if (String(control.range.value) !== String(value)) control.range.value = value;
             control.number.min = range.min;
             control.number.max = range.max;
-            const numberText = formatNumber(value);
+            const numberText = formatNumber(control.control === "blending" ? Math.round(value) : value);
             if (control.number.value !== numberText) control.number.value = numberText;
             control.rangeText.textContent = formatNumber(range.min) + "–" + formatNumber(range.max);
+            updateScalarStepButtons(control);
             if (rebaseSentValue !== false && control.dispatcher && !isLocallyActive(control.control)) control.dispatcher.rebase(value);
         }
 
@@ -618,11 +620,22 @@
 
         function sendScalar(control, value, final) {
             if (!control.available || !control.runtimeRange) return;
-            const normalized = clamp(value, control.runtimeRange);
+            const normalized = scalarInputValue(control, value);
             if (normalized === control.value && !final) return;
             showScalarValue(control, normalized, control.runtimeRange, false);
             if (final) control.dispatcher.finalize(normalized);
             else control.dispatcher.schedule(normalized);
+        }
+
+        function scalarInputValue(control, value) {
+            return clamp(control.control === "blending" ? Math.round(value) : value, control.runtimeRange);
+        }
+
+        function updateScalarStepButtons(control) {
+            if (!control.minus || !control.plus) return;
+            const ready = control.available && control.runtimeRange && Number.isFinite(control.value);
+            control.minus.disabled = !ready || control.value <= control.runtimeRange.min;
+            control.plus.disabled = !ready || control.value >= control.runtimeRange.max;
         }
 
         function makeButton(label, className) {
@@ -667,8 +680,25 @@
             const rangeText = document.createElement("span");
             rangeText.className = "cg-range-text";
             const reset = makeButton("Reset " + label, "cg-reset");
-            row.append(name, range, number, rangeText, reset);
             const control = { control: controlName, row: row, range: range, number: number, rangeText: rangeText, reset: reset, state: stateHost || null, value: null, authoritativeValue: null, runtimeRange: null, dispatcher: null, editing: false, cancelNextBlur: false };
+            if (controlName === "blending" || controlName === "balance") {
+                if (controlName === "blending") number.inputMode = "numeric";
+                const actions = document.createElement("div");
+                actions.className = "cg-scalar-actions";
+                function step(delta) {
+                    if (!control.available || !control.runtimeRange || !Number.isFinite(control.value)) return;
+                    const current = controlName === "blending" ? Math.round(control.value) : control.value;
+                    sendScalar(control, current + delta, true);
+                }
+                control.minus = makeButton("−", "cg-scalar-step");
+                control.plus = makeButton("+", "cg-scalar-step");
+                control.minus.setAttribute("aria-label", "Decrease " + label + " by 1");
+                control.plus.setAttribute("aria-label", "Increase " + label + " by 1");
+                control.minus.addEventListener("click", function () { if (!control.minus.disabled) step(-1); });
+                control.plus.addEventListener("click", function () { if (!control.plus.disabled) step(1); });
+                actions.append(control.minus, control.plus, reset);
+                row.append(name, range, number, rangeText, actions);
+            } else row.append(name, range, number, rangeText, reset);
             control.dispatcher = createScalarDispatcher({
                 delay: COMMAND_THROTTLE_MS,
                 setTimeout: window.setTimeout.bind(window),
@@ -689,7 +719,7 @@
                     if (control.authoritativeValue !== null) showScalarValue(control, control.authoritativeValue, control.runtimeRange, false);
                     return false;
                 }
-                value = clamp(value, control.runtimeRange);
+                value = scalarInputValue(control, value);
                 number.setAttribute("aria-invalid", "false");
                 control.editing = false;
                 if (value === control.value) return false;

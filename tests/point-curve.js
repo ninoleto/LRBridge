@@ -360,7 +360,8 @@ assert.match(luaToneCurve, /CurveRefineSaturation=/,
 assert.match(feedbackPolling, /refineSaturation=[\s\S]*refineMin=[\s\S]*refineMax=/,
     "Point Curve feedback must publish the authoritative Refine Saturation value and range");
 assert.match(luaToneCurve, /addAdjustmentChangeObserver\(functionContext, owner, function\(\)\s*adjustmentDirty = true\s*end\)/);
-assert.match(feedbackPolling, /maybeSendContextHeartbeat\(toneCurveDirty or presetAmountDirty\)/);
+assert.match(feedbackPolling, /Trace\.call\("sdk\.contextHeartbeat", maybeSendContextHeartbeat, toneCurveDirty or presetAmountDirty\)/,
+    "both dirty flags must still force the heartbeat through the transparent diagnostic wrapper");
 assert.match(feedbackPolling, /contextIntervalSeconds = 0\.75/,
     "Periodic heartbeat polling must remain as observer recovery");
 assert.doesNotMatch(luaToneCurve, /applyDevelopSettings|UI Automation|mouse|keyboard|Profile/i);

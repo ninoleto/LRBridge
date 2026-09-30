@@ -1,0 +1,585 @@
+[
+  {
+    "id": "A",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 33,
+      "ParametricMidtoneSplit": 54,
+      "ParametricHighlightSplit": 79,
+      "ParametricShadows": -49,
+      "ParametricDarks": 44,
+      "ParametricLights": 0,
+      "ParametricHighlights": 0
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        4
+      ],
+      [
+        20,
+        16
+      ],
+      [
+        33,
+        36
+      ],
+      [
+        40,
+        45
+      ],
+      [
+        50,
+        57
+      ],
+      [
+        54,
+        61
+      ],
+      [
+        60,
+        66
+      ],
+      [
+        70,
+        73
+      ],
+      [
+        79,
+        81
+      ],
+      [
+        90,
+        90
+      ]
+    ],
+    "role": "validation, excluded from fitting"
+  },
+  {
+    "id": "B",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 25,
+      "ParametricMidtoneSplit": 44,
+      "ParametricHighlightSplit": 75,
+      "ParametricShadows": 21,
+      "ParametricDarks": 4,
+      "ParametricLights": 81,
+      "ParametricHighlights": -26
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        13
+      ],
+      [
+        20,
+        26
+      ],
+      [
+        30,
+        40
+      ],
+      [
+        40,
+        56
+      ],
+      [
+        50,
+        73
+      ],
+      [
+        60,
+        86
+      ],
+      [
+        70,
+        94
+      ],
+      [
+        80,
+        98
+      ],
+      [
+        90,
+        100
+      ]
+    ],
+    "role": "validation, excluded from fitting"
+  },
+  {
+    "id": "C",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 25,
+      "ParametricMidtoneSplit": 44,
+      "ParametricHighlightSplit": 75,
+      "ParametricShadows": 0,
+      "ParametricDarks": 0,
+      "ParametricLights": 81,
+      "ParametricHighlights": 0
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        12
+      ],
+      [
+        20,
+        23
+      ],
+      [
+        30,
+        38
+      ],
+      [
+        40,
+        55
+      ],
+      [
+        50,
+        73
+      ],
+      [
+        60,
+        87
+      ],
+      [
+        70,
+        95
+      ],
+      [
+        80,
+        98
+      ],
+      [
+        90,
+        100
+      ]
+    ],
+    "role": "calibration"
+  },
+  {
+    "id": "D",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 25,
+      "ParametricMidtoneSplit": 44,
+      "ParametricHighlightSplit": 75,
+      "ParametricShadows": 0,
+      "ParametricDarks": 0,
+      "ParametricLights": 40,
+      "ParametricHighlights": 0
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        11
+      ],
+      [
+        20,
+        22
+      ],
+      [
+        30,
+        34
+      ],
+      [
+        40,
+        47
+      ],
+      [
+        50,
+        60
+      ],
+      [
+        60,
+        73
+      ],
+      [
+        70,
+        84
+      ],
+      [
+        80,
+        92
+      ],
+      [
+        90,
+        98
+      ]
+    ],
+    "role": "calibration"
+  },
+  {
+    "id": "E",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 25,
+      "ParametricMidtoneSplit": 44,
+      "ParametricHighlightSplit": 75,
+      "ParametricShadows": 0,
+      "ParametricDarks": 0,
+      "ParametricLights": -40,
+      "ParametricHighlights": 0
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        10
+      ],
+      [
+        20,
+        19
+      ],
+      [
+        30,
+        28
+      ],
+      [
+        40,
+        36
+      ],
+      [
+        50,
+        43
+      ],
+      [
+        60,
+        52
+      ],
+      [
+        70,
+        62
+      ],
+      [
+        80,
+        73
+      ],
+      [
+        90,
+        85
+      ]
+    ],
+    "role": "calibration"
+  },
+  {
+    "id": "F",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 33,
+      "ParametricMidtoneSplit": 54,
+      "ParametricHighlightSplit": 79,
+      "ParametricShadows": 0,
+      "ParametricDarks": 44,
+      "ParametricLights": 0,
+      "ParametricHighlights": 0
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        15
+      ],
+      [
+        20,
+        27
+      ],
+      [
+        33,
+        41
+      ],
+      [
+        40,
+        49
+      ],
+      [
+        50,
+        58
+      ],
+      [
+        54,
+        61
+      ],
+      [
+        60,
+        66
+      ],
+      [
+        70,
+        74
+      ],
+      [
+        79,
+        81
+      ],
+      [
+        90,
+        90
+      ]
+    ],
+    "role": "calibration"
+  },
+  {
+    "id": "G",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 33,
+      "ParametricMidtoneSplit": 54,
+      "ParametricHighlightSplit": 79,
+      "ParametricShadows": -49,
+      "ParametricDarks": 0,
+      "ParametricLights": 0,
+      "ParametricHighlights": 0
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        3
+      ],
+      [
+        20,
+        12
+      ],
+      [
+        33,
+        27
+      ],
+      [
+        40,
+        37
+      ],
+      [
+        50,
+        50
+      ],
+      [
+        54,
+        54
+      ],
+      [
+        60,
+        60
+      ],
+      [
+        70,
+        70
+      ],
+      [
+        79,
+        79
+      ],
+      [
+        90,
+        90
+      ]
+    ],
+    "role": "calibration"
+  },
+  {
+    "id": "H",
+    "source": "Recorded August 28 Lightroom graph observations; tests/tone-curve-splits.js and local handoff.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 25,
+      "ParametricMidtoneSplit": 44,
+      "ParametricHighlightSplit": 75,
+      "ParametricShadows": 0,
+      "ParametricDarks": 0,
+      "ParametricLights": 0,
+      "ParametricHighlights": -26
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        10,
+        10
+      ],
+      [
+        20,
+        20
+      ],
+      [
+        30,
+        30
+      ],
+      [
+        40,
+        40
+      ],
+      [
+        50,
+        50
+      ],
+      [
+        60,
+        59
+      ],
+      [
+        70,
+        68
+      ],
+      [
+        80,
+        77
+      ],
+      [
+        90,
+        88
+      ]
+    ],
+    "role": "calibration"
+  },
+  {
+    "id": "stress",
+    "source": "Recorded Lightroom stress graph observations; tests/tone-curve-splits.js.",
+    "tolerance": 2.5,
+    "values": {
+      "ParametricShadowSplit": 25,
+      "ParametricMidtoneSplit": 44,
+      "ParametricHighlightSplit": 75,
+      "ParametricShadows": -90,
+      "ParametricDarks": 73,
+      "ParametricLights": 0,
+      "ParametricHighlights": -100
+    },
+    "rgbCurve": [
+      0,
+      0,
+      255,
+      255
+    ],
+    "samples": [
+      [
+        5,
+        1.4
+      ],
+      [
+        10,
+        2.4
+      ],
+      [
+        15,
+        6.2
+      ],
+      [
+        20,
+        15.2
+      ],
+      [
+        25,
+        25.6
+      ],
+      [
+        30,
+        35.5
+      ],
+      [
+        35,
+        45.5
+      ],
+      [
+        40,
+        53.1
+      ],
+      [
+        45,
+        58.3
+      ],
+      [
+        50,
+        61.1
+      ],
+      [
+        55,
+        63.5
+      ],
+      [
+        60,
+        64.9
+      ],
+      [
+        65,
+        66.4
+      ],
+      [
+        70,
+        67.8
+      ],
+      [
+        75,
+        69.2
+      ],
+      [
+        80,
+        71.6
+      ],
+      [
+        85,
+        75.4
+      ],
+      [
+        90,
+        80.1
+      ],
+      [
+        95,
+        88.2
+      ]
+    ],
+    "role": "validation, excluded from fitting"
+  }
+]

@@ -27,8 +27,8 @@ import = function(name)
     return originalImport(name)
 end
 (import "LrMD5").digest = function(value)
-    if value == "inspected-off" then return "6222ed7b14ec731f0d114e24d9bea1d4" end
-    if value == "inspected-on" then return "ca1e4c9e0e49724b8fd9167c496026ba" end
+    if value == "inspected-off" then return dustScenario == "renamed-group" and "050d98209fce4ca04a671708d5730cf5" or "6222ed7b14ec731f0d114e24d9bea1d4" end
+    if value == "inspected-on" then return dustScenario == "renamed-group" and "dec42dfb8c93e593e8582c377a25bef8" or "ca1e4c9e0e49724b8fd9167c496026ba" end
     return originalDigest(value)
 end
 App.activeCatalog = function() return catalog end
@@ -47,6 +47,10 @@ dustSettings = { Exposure2012 = 0.7, CropTop = 0.1, ProcessVersion = "15.4", Fil
 manualPeopleSpots = { { CorrectionID = "manual-original", X = 0.4 } }
 if enabling or closing and dustScenario == "no-treatment" then table.remove(dustSettings.FilterList.Filters, 2) end
 if dustScenario == "process-version" then dustSettings.ProcessVersion = "15.3" end
+if dustScenario == "unknown-state" then dustSettings.FilterList = nil end
+if dustScenario == "already-target" then
+    if enabling then dustSettings.FilterList.Filters[2] = dustFilter() else table.remove(dustSettings.FilterList.Filters, 2) end
+end
 photo.getDevelopSettings = function() return dustSettings end
 local pendingAI = dustScenario == "pending-ai" or dustScenario == "ai-update-needed" or
     dustScenario == "ai-update-locked" or dustScenario == "ai-update-unavailable"
@@ -83,6 +87,7 @@ end
 photo.applyDevelopPreset = function(_, preset, plugin, amount, updateAI, ...)
     assert(not closing and inGate and preset == nativePreset and plugin == nil and amount == nil and updateAI == enabling and select("#", ...) == 0)
     dustCalls = dustCalls + 1
+    if dustScenario == "unknown-state" then return true end -- SDK success alone is not state confirmation.
     if dustScenario == "sdk-error" then error("preset failed C:/private/photo.raw") end
     if dustScenario ~= "no-change" and not string.find(dustScenario, "^no%-dust") and
         not string.find(dustScenario, "editing%-feedback") and dustScenario ~= "delayed" then

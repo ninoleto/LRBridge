@@ -5,6 +5,21 @@ confirms Toggle Visualize Range visibly worked in Lightroom. Preserve the fix,
 regression tests and recording. No repeat capture is needed unless the problem
 returns. Other release items remain separate; this is not overall release approval.
 
+The accepted implementation/tests are in local checkpoint `75876ea`. A separate,
+uncommitted September 30 usability change explains a pending-adjustment Visualize
+click beside the button: “Wait for the current adjustment to finish, then try
+again.” It keeps the same guard, sends no request while blocked and never queues
+or retries that click. Subsequent adjustment feedback clears the explanation;
+existing error messages stay separate. The shared Point Color implementation is
+unchanged. `tests/masking-ui-feedback-browser.js` fails on the prior silent click
+and passes for pending input/admitted edits, no automatic retry, a later explicit
+toggle with simulated confirmed completion and a visible HTTP rejection. Desktop
+and touch layouts were inspected. On September 30 the user accepted this behavior
+for the release: the first click immediately after rapid adjustments may be blocked,
+and a later explicit click works. Preserve the visible explanation and guard;
+no automatic retry, queued toggle, timing change or repeat slider recording.
+The original native observations below remain accepted.
+
 The original report involved intermittent jumps in all three masked Hue Shift,
 Saturation Shift and Luminance Shift sliders, followed by an unresponsive Visualize
 button. The reproduced Controller defect below does not establish whether native

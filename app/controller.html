@@ -669,6 +669,9 @@
         .cg-scalar-row > * { min-width: 0; }
         .cg-scalar-row input[type="range"] { width: 100%; min-height: 44px; accent-color: #2f9ed8; }
         .cg-reset, .cg-reset-region { min-height: 44px; }
+        .cg-scalar-actions { display: flex; gap: 8px; align-items: stretch; }
+        .cg-scalar-actions .cg-reset { flex: 1; }
+        .cg-scalar-step { flex: 0 0 44px; min-height: 44px; padding: 8px; }
         .cg-reset-region { width: 100%; margin-top: 10px; }
         .cg-region-card .cg-scalar-row { grid-template-columns: minmax(0, 1fr) 82px; }
         .cg-region-card .cg-scalar-row > label { grid-column: 1 / -1; }
@@ -681,6 +684,7 @@
             .cg-region-grid { grid-template-columns: repeat(4, minmax(320px, 1fr)); }
         }
         @media (max-width: 760px) {
+            .cg-scalar-actions { grid-column: 1 / -1; }
             .cg-scalar-section .cg-scalar-row { grid-template-columns: minmax(0, 1fr) 88px; }
             .cg-scalar-section .cg-scalar-row > label,
             .cg-scalar-section .cg-scalar-row > input[type="range"],
@@ -1032,6 +1036,13 @@
         .dust-controls > h4 { margin: 0 0 8px; color: #c2ced8; font-size: 14px; font-weight: 600; }
         .dust-action-row { display: flex; flex-wrap: nowrap; gap: 8px; }
         .dust-action-row > button { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 12px; }
+        .dust-toggle-row { width: min(100%, 240px); }
+        .dust-toggle-row > button[data-dust-action="on"]:enabled { background: #237e78; border-color: #399e96; }
+        .dust-toggle-row > button[data-dust-action="on"]:enabled:hover { background: #2b8e87; }
+        .dust-toggle-row > button[data-dust-action="off"]:enabled { background: #a44343; border-color: #c05a5a; }
+        .dust-toggle-row > button[data-dust-action="off"]:enabled:hover { background: #b44c4c; }
+        .dust-toggle-row > button:disabled,
+        .dust-toggle-row > button:disabled:hover { background: #444; border-color: #666; color: #bbb; opacity: 1; }
         .dust-capability-note { margin: 0 0 8px; color: #9fb0bf; font-size: 12px; line-height: 18px; }
         .dust-setup-note { color: #ffb454; font-style: italic; }
         .dust-setup-note strong { color: #fff; font-weight: 700; font-style: normal; }
@@ -1607,7 +1618,8 @@
         .lens-blur-focus-status { min-height: 16px; margin-top: 3px; color: #d6a52b; font-size: 12px; }
         .lens-blur-focus-status.error { color: #ff7b72; }
         .lens-blur-focus-source { min-height: 16px; margin-top: 3px; color: #aeb4bc; font-size: 12px; }
-        .lens-blur-experimental-note {
+        .lens-blur-experimental-note,
+        .masking-panel-help {
             margin: 4px 0 8px;
             padding: 6px 8px;
             border-left: 3px solid #d6a52b;
@@ -1708,12 +1720,18 @@
             background: #6b3c4d;
         }
 
-        button.reset {
+        button.reset,
+        button.cg-reset:enabled,
+        button.cg-reset-region:enabled,
+        .cg-inline-confirm button.command-danger:enabled {
             background: #7a4f24;
             border-color: #9b6530;
         }
 
-        button.reset:hover {
+        button.reset:hover,
+        button.cg-reset:enabled:hover,
+        button.cg-reset-region:enabled:hover,
+        .cg-inline-confirm button.command-danger:enabled:hover {
             background: #8a5a2a;
         }
 
@@ -2093,6 +2111,27 @@
         .develop-preset-current-label {
             color: #9fb0bf;
             font-size: 12px;
+        }
+
+        .develop-preset-amount-row input[type="range"]:disabled,
+        .lens-profile-amount-row input[type="range"]:disabled { cursor: not-allowed; }
+        .develop-preset-amount-row input[type="range"]:disabled::-webkit-slider-runnable-track,
+        .lens-profile-amount-row input[type="range"]:disabled::-webkit-slider-runnable-track { background: #505050; }
+        .develop-preset-amount-row input[type="range"]:disabled::-webkit-slider-thumb,
+        .lens-profile-amount-row input[type="range"]:disabled::-webkit-slider-thumb { background: #858585; border-color: #a0a0a0; }
+        .develop-preset-amount-row input[type="range"]:disabled::-moz-range-track,
+        .develop-preset-amount-row input[type="range"]:disabled::-moz-range-progress,
+        .lens-profile-amount-row input[type="range"]:disabled::-moz-range-track,
+        .lens-profile-amount-row input[type="range"]:disabled::-moz-range-progress { background: #505050; }
+        .develop-preset-amount-row input[type="range"]:disabled::-moz-range-thumb,
+        .lens-profile-amount-row input[type="range"]:disabled::-moz-range-thumb { background: #858585; border-color: #a0a0a0; }
+        .develop-preset-amount-row input[type="text"]:disabled,
+        .lens-profile-amount-row input[type="text"]:disabled {
+            background: #242424;
+            color: #aaa;
+            -webkit-text-fill-color: #aaa;
+            border-color: #505050;
+            cursor: not-allowed;
         }
 
         .develop-preset-config-field input[type="text"] {
@@ -2683,6 +2722,7 @@
 
             .develop-preset-amount-number {
                 grid-column: 1;
+                padding-inline: 4px;
             }
 
             .develop-preset-config-row {
@@ -9116,7 +9156,8 @@
                     contextCounter: lastControllerContextCounter,
                     developCounter: lastControllerDevelopCounter
                 })) return false;
-                lensBlurModel.applyWindowsNative(data.windowsNative);
+                lensBlurModel.applyWindowsNative(Object.assign({}, lensBlurModel.get().windowsNative,
+                    { visualizeDepth: data.windowsNative.visualizeDepth }));
                 if (data.changed === false) {
                     clearLensBlurVisualizePending("Lightroom Visualize Depth state verified", false);
                     updateLensBlurPresentation();
@@ -9142,9 +9183,10 @@
 
         async function requestLensBlurState() {
             if (!lensBlurHelper || activeTab !== "sliders" || lensBlurStateRequestInFlight) return;
+            const depthOnly = Boolean(lensBlurVisualizePending);
             lensBlurStateRequestInFlight = true;
             try {
-                const response = await fetch("/api/lens-blur/state", { cache: "no-store" });
+                const response = await fetch("/api/lens-blur/state" + (depthOnly ? "?depthOnly=true" : ""), { cache: "no-store" });
                 const data = await response.json();
                 if (!response.ok || !data || !data.state) throw new Error("Lens Blur state unavailable");
                 if (activeTab !== "sliders") return;
@@ -9159,13 +9201,19 @@
                     data.revision < lensBlurBokehFeedbackFloor.revision) return;
                 if (Number.isSafeInteger(data.revision)) lensBlurStateRevision = data.revision;
                 lensBlurFocalRangeCommitId = typeof data.focalRangeCommitId === "string" ? data.focalRangeCommitId : null;
-                lensBlurModel.applyAuthoritative(data.state);
+                if (depthOnly && data.depthOnly) {
+                    lensBlurModel.applyWindowsNative(Object.assign({}, lensBlurModel.get().windowsNative,
+                        { visualizeDepth: data.state.windowsNative.visualizeDepth }));
+                } else lensBlurModel.applyAuthoritative(data.state);
                 observeLensBlurVisualizeFeedback(responseContext);
             } catch (err) {
                 lensBlurModel.applyAuthoritative(null);
             } finally {
                 lensBlurStateRequestInFlight = false;
                 updateLensBlurPresentation();
+                // A full poll already in flight when the user clicked may precede
+                // the SDK command. Follow it with a fresh targeted confirmation.
+                if (!depthOnly && lensBlurVisualizePending) requestLensBlurState();
             }
         }
 
@@ -9971,7 +10019,7 @@
             groupElement.appendChild(applyControl.row);
             const applyNote = document.createElement("div");
             applyNote.className = "command-group-note";
-            applyNote.textContent = "Status may take 1–2 seconds to update, especially after switching photos. Please wait for the update before clicking Apply again.";
+            applyNote.textContent = "The Apply status shown here may update slowly, especially after switching photos. You can continue using the other Lens Blur controls while watching the results in Lightroom Classic. Check Lightroom’s Apply checkbox before clicking Apply again.";
             groupElement.appendChild(applyNote);
 
             appendLensBlurSubheading(groupElement, "BLUR");
@@ -10650,7 +10698,7 @@
                 .forEach(function (entry) {
                     const control = appendSlider(profilePanel, entry[0], entry[1]);
                     if (!control) return;
-                    control.hideWhenUnavailable = true;
+                    control.hideWhenUnavailable = false;
                     control.row.classList.add("lens-profile-amount-row");
                     profileAmountRows.push(control.row);
                 });
@@ -12552,6 +12600,10 @@
             parametricPanel.setAttribute("role", "tabpanel");
             parametricPanel.setAttribute("aria-label", "Parametric Curve");
             parametricPanel.appendChild(createParametricCurveGraph());
+            const previewNote = document.createElement("p");
+            previewNote.className = "command-group-note parametric-curve-note";
+            previewNote.textContent = "Approximate preview: its shape can differ from Lightroom’s Parametric Curve, especially with combined region adjustments. Check the curve in Lightroom Classic. Slider values and region boundaries use Lightroom feedback.";
+            parametricPanel.appendChild(previewNote);
             const sliderBlock = document.createElement("div");
             sliderBlock.className = "tone-curve-slider-block parametric-curve-slider-block";
 

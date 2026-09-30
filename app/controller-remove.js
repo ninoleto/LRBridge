@@ -68,9 +68,9 @@
         function selectionSucceeded(result) { return result.outcome === "confirmed" || ["add", "subtract"].includes(result.value) && result.outcome === "requested"; }
         function supported(field) {
             if (field === "selectedSelection") return available() && ["add", "subtract", "cancel", "remove"].some(selectionActionAvailable);
-            if (field === "dustApply") return available() && state.dust?.available === true &&
-                (state.dust.applied ? state.dust.canDisable === true : state.dust.canEnable === true);
-            if (field === "dustClose") return available() && state.dust?.available === true && state.dust.canRequestClose === true;
+            if (field === "dustApply") return available() && Boolean(state.dust?.token) &&
+                (state.dust.canDisable === true || state.dust.canEnable === true);
+            if (field === "dustClose") return available() && Boolean(state.dust?.token) && state.dust.canRequestClose === true;
             if (field === "selectedTool") return panelAvailable();
             if (repairField(field)) return panelAvailable() && state.selectedTool === "dust" &&
                 state.repair && state.repair.available && state.repair.selected && typeof state.repair.token === "string" &&
@@ -105,6 +105,7 @@
                 state.pendingOperation?.field !== "dustApply");
         }
         const viewEnabled = (field, c) => enabled(field) && viewAvailable(c);
+        const dustCommandAvailable = value => available() && state.dust?.[value ? "canEnable" : "canDisable"] === true;
         function setDisabled(element, disabled) {
             element.setAttribute("aria-disabled", String(disabled));
             // Preserve focus when a pending write or native-context change locks an editor.
@@ -172,11 +173,6 @@
                 if (sliders[field]) {
                     if (!c.dragging && !c.editing) showSlider(c, intents.has(field) ? localValue(field) :
                         available() && valid(field, state[field]) ? state[field] : null);
-                } else if (field === "dustApply") {
-                    const known = panelAvailable() && fresh() && state.dust?.available === true;
-                    c.input.indeterminate = !known;
-                    c.input.checked = known && state.dust.applied === true;
-                    c.input.title = known ? state.dust.applied ? "Dust applied" : "Dust not applied" : "Dust Apply state unknown: feedback is unavailable or stale.";
                 } else if (field === "selectedRepairFill" && !localValue(field)) c.input.value = "";
                 else if (c.input.type === "checkbox") {
                     const known = available() && fresh() && typeof state[field] === "boolean";
@@ -193,9 +189,16 @@
             const dustPending = operation?.field === "dustApply" ? operation : state?.pendingOperation?.field === "dustApply" ? state.pendingOperation : null;
             if (dustStatus) dustStatus.textContent = dustPending ?
                 (dustPending.value ? "Applying Dust" : "Clearing Dust") + "; waiting for Lightroom…" : status.textContent || dustFeedback;
-            if (dustNote) dustNote.textContent = state?.dust?.available ? state.dust.reason ||
-                "Apply follows Lightroom. Reset clears Dust treatment and keeps manual Healing repairs." : "Dust state is unavailable.";
-            if (dustButtons.reset) setDisabled(dustButtons.reset, !(enabled("dustApply") && state?.dust?.applied === true));
+            if (dustNote) {
+                const known = available() && fresh() && state.dust?.available;
+                dustNote.textContent = (known ? state.dust.applied ? "Dust is On." : "Dust is Off." :
+                    "Dust status unavailable. Check the Apply checkbox in Lightroom Classic.") +
+                    (state?.dust?.commandReason ? " " + state.dust.commandReason : !supported("dustApply") && state?.dust?.reason ? " " + state.dust.reason : "");
+            }
+            for (const action of ["on", "off"]) if (dustButtons[action])
+                setDisabled(dustButtons[action], !(enabled("dustApply") && dustCommandAvailable(action === "on")));
+            if (dustButtons.reset) setDisabled(dustButtons.reset, !(enabled("dustApply") && dustCommandAvailable(false) &&
+                !(state?.dust?.available && state.dust.applied === false)));
             if (dustButtons.close) setDisabled(dustButtons.close, !enabled("dustClose"));
         }
         function cancelField(field, blockContinuation) {
@@ -244,7 +247,7 @@
                 dustFeedback = result.detail || "Dust result is unknown. Check Lightroom.";
                 const applied = result.outcome === "confirmed" && available() && state.newSpotType === expectedMode &&
                     equal(state.dustApply, request.value);
-                error = applied || result.outcome === "not_applied" ? "" : dustFeedback;
+                error = applied || ["not_applied", "unknown"].includes(result.outcome) ? "" : dustFeedback;
                 // Terminal feedback ends this operation even when Apply remains off. Keep
                 // unrelated, context-bound slider intents separate from the Dust result.
                 intents.delete("dustApply"); operation = null; return;
@@ -365,6 +368,9 @@
             const entry = panelIntent ? ["selectedTool", panelIntent] : modeIntent ? ["newSpotType", modeIntent] : intents.entries().next().value;
             if (!entry) return;
             const [field, intent] = entry;
+            if (field === "dustApply" && !dustCommandAvailable(intent.value)) {
+                cancelField(field, true); render(); notify(); schedule(0); return;
+            }
             if (!viewAvailable(intent.view)) {
                 intents.delete(field); render(); notify(); schedule(0); return;
             }
@@ -377,7 +383,7 @@
             if (field === "selectedSelection" && (intent.selectionToken !== selectionIdentity(intent.value) || !selectionActionAvailable(intent.value))) {
                 intents.delete(field); render(); notify(); return;
             }
-            if (!replace && equal(state[field], intent.value)) {
+            if (!replace && field !== "dustApply" && equal(state[field], intent.value)) {
                 intents.delete(field); render(); notify(); schedule(0); return;
             }
             const request = { id: null, field, value: intent.value, sequence: intent.sequence, base: baseKey(state),
@@ -410,6 +416,7 @@
             }
         }
         function stage(field, value, delay, view) {
+            if (field === "dustApply" && !dustCommandAvailable(value)) return false;
             if (field === "selectedSelection") traceRefinement("stage_attempt", value, { available: selectionActionAvailable(value), reason: state?.selection?.refinementReason || null });
             if (field === "selectedSelection" && !selectionActionAvailable(value)) return false;
             if (!viewEnabled(field, view) || !(field === "selectedRepair" ? ["refresh", "delete"].includes(value) :
@@ -657,15 +664,22 @@
                 const heading = doc.createElement("h4"); heading.textContent = "Dust"; dust.appendChild(heading);
                 const setupNote = doc.createElement("p"); setupNote.className = "dust-capability-note dust-setup-note";
                 setupNote.appendChild(doc.createTextNode("Dust "));
-                const setupApply = doc.createElement("strong"); setupApply.textContent = "Apply"; setupNote.appendChild(setupApply);
+                const setupApply = doc.createElement("strong"); setupApply.textContent = "On / Off"; setupNote.appendChild(setupApply);
                 setupNote.appendChild(doc.createTextNode(" and the main "));
                 const setupReset = doc.createElement("strong"); setupReset.textContent = "Reset"; setupNote.appendChild(setupReset);
                 setupNote.appendChild(doc.createTextNode(" button require LRBridge’s Dust presets to be installed. See "));
                 const setupHelp = doc.createElement("a"); setupHelp.href = "/help#dust-setup"; setupHelp.target = "_blank"; setupHelp.rel = "noopener";
                 setupHelp.textContent = "Help"; setupNote.appendChild(setupHelp);
                 setupNote.appendChild(doc.createTextNode(" for setup instructions.")); dust.appendChild(setupNote);
-                dust.appendChild(preference("dustApply", "Apply"));
-                controls.dustApply.input.dataset.dustApply = "true";
+                const explicitActions = doc.createElement("div"); explicitActions.className = "remove-action-row dust-action-row dust-toggle-row";
+                for (const action of ["On", "Off"]) {
+                    const button = doc.createElement("button"); button.type = "button"; button.textContent = action;
+                    button.dataset.dustAction = action.toLowerCase(); button.disabled = true;
+                    button.setAttribute("aria-describedby", "dust-operation-status");
+                    button.addEventListener("click", () => stage("dustApply", action === "On", 0));
+                    dustButtons[action.toLowerCase()] = button; explicitActions.appendChild(button);
+                }
+                dust.appendChild(explicitActions);
                 dustNote = doc.createElement("p"); dustNote.className = "dust-capability-note";
                 dust.appendChild(dustNote);
                 // Both locations use the same preference intents, command queue and SDK readback.
@@ -677,7 +691,6 @@
                 dust.appendChild(sharedNote);
                 dustStatus = doc.createElement("div"); dustStatus.className = "remove-brush-status dust-status";
                 dustStatus.id = "dust-operation-status";
-                controls.dustApply.input.setAttribute("aria-describedby", dustStatus.id);
                 dustStatus.setAttribute("role", "status"); dust.appendChild(dustStatus);
                 const actions = doc.createElement("div"); actions.className = "remove-action-row dust-action-row";
                 for (const action of ["Reset", "Close"]) {
@@ -686,14 +699,14 @@
                     dustButtons[action.toLowerCase()] = button;
                     button.addEventListener("click", () => {
                         if (action === "Reset") {
-                            if (state?.dust?.applied === true) stage("dustApply", false, 0);
+                            if (!button.disabled) stage("dustApply", false, 0);
                         } else stage("dustClose", "manualRemove", 0);
                     });
                     button.setAttribute("aria-describedby", "dust-native-actions-note"); actions.appendChild(button);
                 }
                 dust.appendChild(actions);
                 const actionNote = doc.createElement("p"); actionNote.id = "dust-native-actions-note"; actionNote.className = "dust-capability-note";
-                actionNote.textContent = "Close requests native Healing controls. Confirm Dust collapses in Lightroom; its panel state cannot be read back.";
+                actionNote.textContent = "Reset clears only Dust treatment and keeps manual Healing repairs. Close requests native Healing controls. Confirm Dust collapses in Lightroom; its panel state cannot be read back.";
                 dust.appendChild(actionNote);
                 parent.appendChild(dust); render();
             },

@@ -1591,12 +1591,13 @@ app.get("/point-color/state", function (req, res) {
 });
 
 app.get("/lens-blur/state", async function (req, res) {
-    if (!exactQueryFields(req, req.query.sdkOnly === undefined ? [] : ["sdkOnly"]) ||
+    const depthOnly = req.query.depthOnly === "true";
+    if (!exactQueryFields(req, depthOnly ? ["depthOnly"] : req.query.sdkOnly === undefined ? [] : ["sdkOnly"]) ||
         (req.query.sdkOnly !== undefined && req.query.sdkOnly !== "true")) return res.status(400).json({ ok: false, error: "Invalid request" });
-    lensBlur.requestRefresh();
+    if (!depthOnly) lensBlur.requestRefresh();
     const contextBeforeRead = context.getContextFields();
     let windowsNative;
-    try { if (req.query.sdkOnly !== "true") windowsNative = await windowsNativeBackend.readState(); }
+    try { if (req.query.sdkOnly !== "true") windowsNative = depthOnly ? await readLensBlurDepthState() : await windowsNativeBackend.readState(); }
     catch (error) { windowsNative = windowsNativeDefinition.unavailableNativeState(error.message); }
     const contextFields = context.getContextFields();
     if (contextBeforeRead.activeModule !== contextFields.activeModule ||
@@ -1607,6 +1608,7 @@ app.get("/lens-blur/state", async function (req, res) {
     }
     res.set("Cache-Control", "no-store").json({
         ok: true,
+        depthOnly: depthOnly,
         state: req.query.sdkOnly === "true" ? lensBlur.get() :
             Object.assign(lensBlur.get(), { windowsNative: windowsNativeDefinition.sanitizeNativeState(windowsNative) }),
         revision: lensBlur.getRevision(),
@@ -2596,6 +2598,16 @@ app.get("/lens-blur/brush/:control/reset", async function (req, res) {
     } catch (error) { sendNativeFailure(res, error); }
 });
 
+async function readLensBlurDepthState() {
+    if (typeof windowsNativeBackend.readDepthVisualization !== "function") {
+        return windowsNativeDefinition.sanitizeNativeState(await windowsNativeBackend.readState());
+    }
+    const visualizeDepth = await windowsNativeBackend.readDepthVisualization();
+    return windowsNativeDefinition.sanitizeNativeState({
+        ...windowsNativeDefinition.unavailableNativeState(), available: true, visualizeDepth
+    });
+}
+
 app.get("/lens-blur/visualize-depth", async function (req, res) {
     const binding = pointCurveBindingFromQuery(req.query);
     if (!hasExactPointCurveQuery(req.query, ["enabled", "selectedPhotoUuid", "contextCounter", "developCounter"]) ||
@@ -2607,7 +2619,7 @@ app.get("/lens-blur/visualize-depth", async function (req, res) {
     }
     let state;
     try {
-        state = windowsNativeDefinition.sanitizeNativeState(await windowsNativeBackend.readState());
+        state = await readLensBlurDepthState();
     } catch (error) { sendNativeFailure(res, error); }
     if (res.headersSent) return;
     if (!lensBlurDepthVisualizationBindingMatches(binding)) {

@@ -148,6 +148,9 @@
                 controls.detect = button("Detect People", "Detect distracting people", "detect");
                 controls.remove = button("Remove Detected", "Remove reviewed distracting people detections", "remove");
                 actionRow.append(controls.detect, controls.remove); section.appendChild(actionRow);
+                const cancelHelp = element("p", "command-group-note people-help");
+                cancelHelp.innerHTML = "To cancel, use <strong>Cancel</strong> in Lightroom Classic. This button is not available in the Web Controller.";
+                section.appendChild(cancelHelp);
                 status = element("div", "people-status"); status.setAttribute("role", "status"); section.appendChild(status);
                 parent.appendChild(section); render(); refresh();
             },

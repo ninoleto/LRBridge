@@ -117,11 +117,12 @@ function sanitize(input) {
     if (!input || typeof input.available !== "boolean" || input.selectedTool !== null && !tools.includes(input.selectedTool)) return null;
     const repair = sanitizeRepair(input.repair);
     const d = input.dust;
-    const dust = d?.available === true && typeof d.applied === "boolean" && typeof d.canDisable === "boolean" &&
+    const dust = d && typeof d.available === "boolean" && (!d.available || typeof d.applied === "boolean") && typeof d.canDisable === "boolean" &&
         typeof d.token === "string" && /^[a-f0-9]{32,128}$/.test(d.token) ?
-        { available: true, applied: d.applied, canDisable: d.canDisable, token: d.token,
+        { available: d.available, applied: d.available ? d.applied : null, canDisable: d.canDisable, token: d.token,
             canEnable: d.canEnable === true, canRequestClose: d.canRequestClose === true, panelStateAvailable: false,
-            preservationConfirmed: d.preservationConfirmed === true, reason: String(d.reason || "").slice(0, 200) } :
+            preservationConfirmed: d.preservationConfirmed === true, reason: String(d.reason || "").slice(0, 200),
+            commandReason: String(d.commandReason || "").slice(0, 200) } :
         { available: false, reason: String(d?.reason || "Dust state unavailable.").slice(0, 200) };
     if (dust.available) dust.completionConfirmed = d.completionConfirmed === true;
     const selectedValues = { dust, dustApply: dust.available ? dust.applied : null,
@@ -327,8 +328,8 @@ function createRemoveState(options) {
                 (panel && value === "loupe" || field === "newSpotType" && pending.command.field !== "newSpotType");
             const supported = selecting ? snapshot.available && snapshot.newSpotType === "heal_patchmatch" && selection.available && selection.active &&
                 selectionAt !== null && now() - selectionAt < 2500 && client.selectionToken === (refinementAction(value) ? selection.refinementToken : selection.token) &&
-                (value === "add" ? selection.canAdd : value === "subtract" ? selection.canSubtract : value === "cancel" ? selection.canCancel : selection.canRemove && submittedSelection !== selection.token) : dust ? snapshot.available && snapshot.dust?.available && (field === "dustClose" ?
-                snapshot.dust.canRequestClose : snapshot.dust.applied !== value &&
+                (value === "add" ? selection.canAdd : value === "subtract" ? selection.canSubtract : value === "cancel" ? selection.canCancel : selection.canRemove && submittedSelection !== selection.token) : dust ? snapshot.available && snapshot.dust?.token && (field === "dustClose" ?
+                snapshot.dust.canRequestClose :
                 (value ? snapshot.dust.canEnable : snapshot.dust.canDisable)) :
                 repair ? snapshot.selectedTool === "dust" && snapshot.repair && snapshot.repair.selected === true &&
                 snapshot.repair.available && client.repairToken === snapshot.repair.token &&

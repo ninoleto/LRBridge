@@ -304,7 +304,9 @@ assert.deepEqual(JSON.parse(JSON.stringify(menuTabsContext.getSliderJumpMenuSect
 assert.match(controller,
     /function getSliderJumpMenuHost\(\)[\s\S]*activeTab === "color-grading"[\s\S]*getElementById\("colorGradingWorkspace"\)[\s\S]*getElementById\("content"\)/,
     "the Develop-related and Tools tabs must mount Jump-to in their existing workspace without moving tab content");
-const renderBlock = controller.slice(controller.indexOf("function render()"), controller.indexOf("async function loadDevelopSliderDefinitions"));
+const mainRenderStart = controller.indexOf("\n        function render() {");
+assert.notEqual(mainRenderStart, -1, "top-level tab render function must exist");
+const renderBlock = controller.slice(mainRenderStart, controller.indexOf("\n        initializeHistoryToolbar();", mainRenderStart));
 assert.match(renderBlock, /colorGradingController\.activate\(\);\s*installSliderJumpMenu\(\);/);
 assert.match(renderBlock, /renderSlidersTab\(\);\s*activateDevelopFeedbackPolling\(\);\s*installSliderJumpMenu\(\);/);
 assert.match(renderBlock, /renderToneCurveTab\(\);\s*activateDevelopFeedbackPolling\(\);\s*installSliderJumpMenu\(\);/);

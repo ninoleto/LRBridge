@@ -50,6 +50,7 @@ function state(value) {
 }
 
 async function run() {
+    await runDepthReadback();
     const f = fixture(), backend = f.backend;
     try {
         const profile = backend.readProfileSnapshot();
@@ -180,4 +181,30 @@ async function run() {
     console.log("Lens Blur polling: bounded/shared queued reads, fair Profile discovery, queue-expiry recovery and six On/Off photo switches passed (simulated).");
 }
 if (require.main === module) run().catch(error => { console.error(error); process.exitCode = 1; });
-module.exports = { run };
+async function runDepthReadback() {
+    const f = fixture(true);
+    const bridge = createBridge({ httpPort: 0, wsPort: 0, windowsNativeBackend: f.backend });
+    await bridge.start();
+    const base = "http://127.0.0.1:" + bridge.getHttpServer().address().port;
+    const get = async route => { const response = await fetch(base + route); return { status: response.status, body: await response.json() }; };
+    try {
+        await get("/context/update?activeModule=develop&selectedPhotoUuid=depth-a&developFingerprint=depth-a");
+        const first = get("/lens-blur/state?depthOnly=true");
+        await until(() => f.sent.length === 1);
+        assert.equal(f.sent[0].operation, "readDepthVisualization", "Confirmation queries only the required checkbox");
+        f.reply(f.sent[0], { available: true, value: false });
+        const read = await first;
+        assert.equal(read.status, 200); assert.equal(read.body.depthOnly, true);
+        assert.deepEqual(read.body.state.windowsNative.visualizeDepth, { available: true, value: false });
+        const second = get("/lens-blur/state?depthOnly=true");
+        await until(() => f.sent.length === 2);
+        await get("/context/update?activeModule=develop&selectedPhotoUuid=depth-b&developFingerprint=depth-b");
+        f.reply(f.sent[1], { available: true, value: true });
+        assert.equal((await second).body.state.windowsNative.visualizeDepth.available, false, "Discard old-photo checkbox feedback");
+        assert.equal((await get("/lens-blur/state?depthOnly=false")).status, 400);
+        assert.equal((await get("/lens-blur/state?depthOnly=true&sdkOnly=true")).status, 400);
+        assert(f.sent.every(message => message.operation === "readDepthVisualization"), "No unrelated full reads or Windows writes");
+        console.log("Lens Blur targeted confirmation: fresh reads, unknown/stale context rejection and unchanged route validation passed (simulated).");
+    } finally { await bridge.stop(); }
+}
+module.exports = { run, runDepthReadback };

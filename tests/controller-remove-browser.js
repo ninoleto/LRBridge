@@ -938,13 +938,13 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('.remove-distraction-removal>section>h4')).map(e=>e.textContent)"), ["Reflections", "People", "Dust"]);
     assert.equal(await evaluate("document.querySelectorAll('[data-remove-preference=visualizeSpots]').length"), 2);
     assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=visualizationThreshold]').length"), 2);
-    assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('.dust-action-row button')).map(b=>[b.textContent,b.disabled])"), [["Reset", false], ["Close", false]]);
+    assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('.dust-action-row button')).map(b=>[b.textContent,b.disabled])"), [["On", false], ["Off", false], ["Reset", false], ["Close", false]]);
     async function checkSetupNote() {
         const note = await evaluate(`(()=>{
             const note=document.querySelector('.dust-setup-note'),link=note.querySelector('a'),rect=note.getBoundingClientRect(),style=getComputedStyle(note),apply=note.nextElementSibling;
             const linkStyle=getComputedStyle(link),otherStyle=getComputedStyle(document.querySelector('#dust-native-actions-note'));
             return {text:note.textContent,heading:note.previousElementSibling.tagName,headingText:note.previousElementSibling.textContent,
-                beforeApply:apply.matches('[data-remove-field="dustApply"]'),href:link.getAttribute('href'),target:link.target,rel:link.rel,
+                beforeApply:apply.matches('.dust-action-row'),href:link.getAttribute('href'),target:link.target,rel:link.rel,
                 helpStyle:note.classList.contains('dust-capability-note'),gap:apply.getBoundingClientRect().top-rect.bottom,
                 color:style.color,fontStyle:style.fontStyle,linkColor:linkStyle.color,linkFontStyle:linkStyle.fontStyle,linkDecoration:linkStyle.textDecorationLine,
                 emphasized:Array.from(note.querySelectorAll('strong')).map(word=>{const s=getComputedStyle(word);return {text:word.textContent,color:s.color,weight:s.fontWeight,style:s.fontStyle};}),
@@ -952,12 +952,12 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
                 visible:!note.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&rect.height>0,
                 fits:rect.left>=0&&rect.right<=innerWidth};
         })()`);
-        assert.equal(note.text,"Dust Apply and the main Reset button require LRBridge’s Dust presets to be installed. See Help for setup instructions.");
+        assert.equal(note.text,"Dust On / Off and the main Reset button require LRBridge’s Dust presets to be installed. See Help for setup instructions.");
         assert.equal(note.heading,"H4"); assert.equal(note.headingText,"Dust"); assert(note.beforeApply);
         assert.equal(note.href,"/help#dust-setup"); assert.equal(note.target,"_blank"); assert.equal(note.rel,"noopener");
         assert.equal(note.color,"rgb(255, 180, 84)","setup note uses the theme's yellow accent");
         assert.equal(note.fontStyle,"italic"); assert.equal(note.linkFontStyle,"italic");
-        assert.deepEqual(note.emphasized,["Apply","Reset"].map(text=>({text,color:"rgb(255, 255, 255)",weight:"700",style:"normal"})),"only Apply and Reset are white, bold and non-italic");
+        assert.deepEqual(note.emphasized,["On / Off","Reset"].map(text=>({text,color:"rgb(255, 255, 255)",weight:"700",style:"normal"})),"command names are white, bold and non-italic");
         assert.equal(note.linkColor,note.color); assert(note.linkDecoration.includes("underline"),"Help remains recognisable as a link");
         assert.equal(note.otherColor,"rgb(159, 176, 191)"); assert.equal(note.otherFontStyle,"normal","other Dust help text keeps its existing styling");
         assert(note.visible&&note.fits&&note.helpStyle,"Dust prerequisite help remains visible and readable independently of availability");
@@ -966,7 +966,9 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     await checkSetupNote();
     const untouched = structuredClone(r.preferences);
     r.hold = true;
-    const apply = '[data-dust-apply]', size = '.dust-controls [data-remove-field="brushSize"] input[type="text"]';
+    const apply = '[data-dust-action=on]', off = '[data-dust-action=off]', size = '.dust-controls [data-remove-field="brushSize"] input[type="text"]';
+    const dustText = "document.querySelector('.dust-controls > .dust-capability-note:not(.dust-setup-note)').textContent";
+    const dustOn = dustText + ".startsWith('Dust is On.')", dustUnknown = "!" + dustText + ".startsWith('Dust is ')";
     const reset = '[data-dust-action=reset]', close = '[data-dust-action=close]';
     const dustSizeRow = '.dust-controls [data-remove-field="brushSize"]';
     const healingSizeRow = '[data-remove-field="brushSize"]';
@@ -1011,36 +1013,36 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     assert.equal(await evaluate("document.querySelector('.dust-controls').getBoundingClientRect().height>0"), true, "Close cannot merely collapse the web section");
     assert.match(await evaluate("document.querySelector('.dust-status').textContent"), /panel state is not exposed/, "No fabricated Closed confirmation");
     assert.equal(await evaluate("document.querySelectorAll('[data-remove-field=brushSize]').length"), 3, "Healing, Selected and Dust retain separate synchronized Size controls");
-    assert.deepEqual(await evaluate("[document.querySelector('[data-dust-apply]').checked,document.querySelector('[data-dust-apply]').indeterminate]"), [true, false]);
-    await evaluate(el(apply) + ".click()");
+    assert.deepEqual(await evaluate("[" + dustOn + "," + dustUnknown + "]"), [true, false]);
+    await evaluate(el(off) + ".click()");
     await waitFor(() => r.pending?.field === "dustApply" && r.pending.value === false, "Dust Off request");
-    assert.equal(await evaluate(el(apply) + ".checked"), true, "Apply must wait for native readback");
+    assert.equal(await evaluate(dustOn), true, "Off must wait for native readback");
     await polls(); await sizeAvailability(false); await blockedDustSizeHandlers();
     await checkSetupNote();
     const offWrites = r.calls.length;
-    await evaluate(el(apply) + ".click()"); await polls();
+    await evaluate(el(off) + ".click()"); await polls();
     assert.equal(r.calls.length, offWrites, "No duplicate Dust Off dispatch");
     r.finish(); await polls();
-    assert.equal(await evaluate(el(apply) + ".checked"), false);
+    assert.equal(await evaluate(dustOn), false);
     await sizeAvailability(false); await blockedDustSizeHandlers();
     await writeSize(healingSizeRow + ' input[type="text"]', 29);
     await sizeAvailability(false);
     await evaluate(el(apply) + ".click()"); await polls();
     await waitFor(() => r.pending?.field === "dustApply" && r.pending.value === true, "Dust On uses the guarded preset route");
-    assert.equal(await evaluate(el(apply) + ".checked"), false, "No optimistic Apply On checkbox");
+    assert.equal(await evaluate(dustOn), false, "No optimistic On status");
     // Replay rb-258: the native call returned, treatment is present and editing is
     // ready, but the photo-wide AI-update requirement remains true.
     r.ageMs = 7000; await polls();
-    assert.equal(await evaluate(el(apply) + ".indeterminate"), true);
+    assert.equal(await evaluate(dustUnknown), true);
     const staleOn = r.state();
     r.ageMs = 0; r.finish();
     r.last.detail = "Dust Apply confirmed by Lightroom readback; other edits preserved. AI settings still need updating in Lightroom.";
-    await waitFor(() => evaluate("!removeController.isInteracting() && " + el(apply) + ".checked && !" + el(apply) + ".indeterminate && " +
+    await waitFor(() => evaluate("!removeController.isInteracting() && " + dustOn + " && !(" + dustUnknown + ") && " +
         el(reset) + ".getAttribute('aria-disabled')==='false' && " + el(close) + ".getAttribute('aria-disabled')==='false'"), "Applied Dust settles and restores Reset and Close despite AI update requirement");
     r.stale = staleOn; await polls();
     assert.equal(await evaluate("removeController.isInteracting()"), false, "Old pending On cannot relock successful Apply");
     assert.match(await evaluate("document.querySelector('.dust-status').textContent"), /AI settings still need updating/);
-    assert.equal(await evaluate(el(apply) + ".checked"), true);
+    assert.equal(await evaluate(dustOn), true);
     await sizeAvailability(true);
     await writeSize(size, 42);
     for (const [selector, value] of [['button[aria-label^="Increase"]', 43], ['button[aria-label^="Decrease"]', 42], ['button.reset', 25]]) {
@@ -1074,7 +1076,7 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
         const callCount = r.calls.length;
         if (outcome === "not_applied") {
             r.ageMs = 7000; await polls();
-            assert.equal(await evaluate(el(apply) + ".indeterminate"), true, "Dash is stale/unknown readback while pending");
+            assert.equal(await evaluate(dustUnknown), true, "Stale feedback has unknown status while pending");
             assert.match(await evaluate("document.querySelector('.dust-status').textContent"), /Applying Dust.*waiting for Lightroom/);
             // A slow SDK call may legitimately outlast the old 12-second browser timeout.
             await new Promise(resolve => setTimeout(resolve, 12500));
@@ -1084,7 +1086,7 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
         const oldPending = r.state();
         r.ageMs = 0; r.finish(undefined, outcome); r.last.detail = detail;
         await waitFor(() => evaluate("!removeController.isInteracting() && document.querySelector('.dust-status').textContent===" + JSON.stringify(detail)), "Immediate terminal Dust settlement: " + outcome);
-        assert.deepEqual(await evaluate("[" + el(apply) + ".checked," + el(apply) + ".indeterminate]"), [false, false]);
+        assert.deepEqual(await evaluate("[" + dustOn + "," + dustUnknown + "]"), [false, false]);
         r.stale = oldPending; await polls();
         assert.equal(await evaluate("removeController.isInteracting()"), false, "Old pending feedback cannot relock a completed Dust action");
         assert.equal(r.calls.length, callCount, "No automatic retry after " + outcome);
@@ -1096,7 +1098,7 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     r.available = false; r.dust.available = false;
     r.finish(undefined, "unknown"); r.last.detail = "Dust completion feedback is unavailable. Check Lightroom.";
     await waitFor(() => evaluate("!removeController.isInteracting() && document.querySelector('.dust-status').textContent==='Dust completion feedback is unavailable. Check Lightroom.'"), "Unreadable terminal state still releases Dust");
-    assert.equal(await evaluate(el(apply) + ".indeterminate"), true, "Unknown completion cannot fabricate Off");
+    assert.equal(await evaluate(dustUnknown), true, "Unknown completion cannot fabricate Off");
     await ordinaryEditing();
     r.available = true; r.dust.available = true; r.revision++; await polls();
     r.dust.canEnable = false; r.revision++; await polls();
@@ -1105,8 +1107,8 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     assert.equal(r.calls.length, unavailableWrites, "Missing On preset and absent Dust block dependent actions");
     assert.equal(await evaluate(el(close) + ".getAttribute('aria-disabled')"), "false", "Navigation does not require the On preset or existing treatment");
     r.dust.applied = true; r.dust.canDisable = false; r.revision++; await polls();
-    assert.equal(await evaluate(el(apply) + ".checked"), true, "Native Apply on synchronizes");
-    assert.equal(await evaluate(el(apply) + ".getAttribute('aria-disabled')"), "true", "Missing/changed preset blocks Off");
+    assert.equal(await evaluate(dustOn), true, "Native Apply on synchronizes");
+    assert.equal(await evaluate(el(off) + ".getAttribute('aria-disabled')"), "true", "Missing/changed preset blocks Off");
     await sizeAvailability(true);
     r.available = false; r.revision++; await polls(); await sizeAvailability(false, false);
     r.available = true; r.ageMs = 6000; r.revision++; await polls();
@@ -1131,7 +1133,7 @@ async function verifyDust({ evaluate, waitFor, fixture, setViewport }) {
     await waitFor(() => r.pending?.field === "brushSize" && r.pending.value === 46, "Healing Size draft survives disabled Dust events");
     r.finish(); await polls();
     r.dust = { available: false }; r.revision++; await polls();
-    assert.equal(await evaluate(el(apply) + ".indeterminate"), true, "Unreadable state is unknown");
+    assert.equal(await evaluate(dustUnknown), true, "Unreadable state is unknown");
     await checkSetupNote();
     await sizeAvailability(false); await blockedDustSizeHandlers();
     r.preferences.brushSize = 37; r.revision++; await polls();

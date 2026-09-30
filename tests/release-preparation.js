@@ -54,6 +54,22 @@ try {
     run("powershell.exe",args);run("powershell.exe",args);
     const preset=path.join(target,"LRBridge Dust On.xmp"), original=build.sha(preset);
     assert.equal(original,require("../resources/presets/manifest.json").files[0].sha256);
+    // Group-only migration keeps filenames and Lightroom preset UUIDs, and backs
+    // up only the exact known legacy bytes without adding another XMP preset.
+    for (const item of require("../resources/presets/manifest.json").files) {
+        const file = path.join(target, item.name);
+        const updated = fs.readFileSync(file, "utf8");
+        const legacy = updated.replace('<rdf:li xml:lang="x-default">LRBridge Dust Helpers</rdf:li>',
+            '<rdf:li xml:lang="x-default">LRBridge TEST</rdf:li>');
+        fs.writeFileSync(file, legacy);
+        assert.equal(build.sha(file), item.legacySha256);
+    }
+    run("powershell.exe", args); run("powershell.exe", args);
+    for (const item of require("../resources/presets/manifest.json").files) {
+        assert.equal(build.sha(path.join(target, item.name)), item.sha256);
+        assert.equal(build.sha(path.join(target, item.name + ".lrbridge-legacy.bak")), item.legacySha256);
+    }
+    assert.equal(fs.readdirSync(target).filter(f => f.endsWith(".xmp")).length, 2);
     fs.writeFileSync(preset,"a user's existing different preset");run("powershell.exe",args,1);
     assert.equal(fs.readFileSync(preset,"utf8"),"a user's existing different preset");
     fs.writeFileSync(path.join(stage,"resources/presets/LRBridge Dust Off.xmp"),"corrupt bundle");

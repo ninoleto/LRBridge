@@ -8,6 +8,7 @@ local fingerprint = (require "DustPasteDiagnostics").fingerprint
 local Dust = {}
 local title = "$$$/CRaw/Filter/DustRemoval/FilterPanelTitle=Dust Removal"
 local offDigest = "6222ed7b14ec731f0d114e24d9bea1d4"
+local renamedOffDigest = "050d98209fce4ca04a671708d5730cf5"
 local seen = {}
 local diagnosticsEnabled = false
 -- Lightroom may omit getenv. Optional diagnostics must never block an edit.
@@ -45,7 +46,11 @@ local function md5(value)
     return (string.gsub(hash, ".", function(c) return string.format("%02x", string.byte(c)) end))
 end
 local function split(settings)
-    if type(settings) ~= "table" or type(settings.FilterList) ~= "table" then error("Dust settings unavailable.", 0) end
+    if type(settings) ~= "table" then error("Dust settings unavailable.", 0) end
+    -- An omitted FilterList supplies no On/Off state. Native preset commands can
+    -- still preserve the readable settings and manual repairs; never infer Off.
+    if settings.FilterList == nil then return nil, {}, {} end
+    if type(settings.FilterList) ~= "table" then error("Dust settings unavailable.", 0) end
     local filters = settings.FilterList.Filters or {}
     if type(filters) ~= "table" then error("Dust filter list unavailable.", 0) end
     local count, dust, other, envelope = 0, 0, {}, {}
@@ -83,7 +88,8 @@ local function offPreset()
     end
     if not match then error("LRBridge Dust Off preset is missing.", 0) end
     local contents = (import "LrFileUtils").readFile(match:getFile())
-    if type(contents) ~= "string" or #contents > 8192 or md5(contents) ~= offDigest then
+    if type(contents) ~= "string" or #contents > 8192 or
+        (md5(contents) ~= offDigest and md5(contents) ~= renamedOffDigest) then
         error("Dust Off preset differs from the inspected definition.", 0)
     end
     local settings = match:getSetting()
@@ -107,13 +113,16 @@ function Dust.read(photo, contextMatches)
         local applied = split(settings)
         local presetOk = Tasks.pcall(offPreset)
         local onOk = false
-        if not applied and settings.ProcessVersion == "15.4" and type(photo.applyDevelopPreset) == "function" then
+        if settings.ProcessVersion == "15.4" and type(photo.applyDevelopPreset) == "function" then
             onOk = Tasks.pcall(function() return (require "DustOnPreset").resolve() end)
         end
         if not contextMatches() then error("Dust photo context changed.", 0) end
-        return { available = true, applied = applied, canDisable = presetOk, canEnable = onOk,
+        return { available = type(applied) == "boolean", applied = applied,
+            canDisable = presetOk and type(photo.applyDevelopPreset) == "function", canEnable = onOk,
             canRequestClose = type(SDK.goToRemove) == "function", panelStateAvailable = false,
-            token = fingerprint(settings.FilterList), reason = applied and (presetOk and "" or "Inspected Dust Off preset unavailable or changed.") or
+            token = fingerprint(settings.FilterList),
+            reason = applied == nil and "Dust status unavailable. Check the Apply checkbox in Lightroom Classic." or "",
+            commandReason = not presetOk and "Inspected Dust Off preset unavailable or changed." or
                 (onOk and "" or "Dust On needs the inspected preset and Process Version 15.4.") }
     end)
     if ok then return result end
@@ -181,7 +190,7 @@ function Dust.setApplied(command, guard)
         -- On may update AI, so retain its current-AI baseline requirement. Off only
         -- deletes Dust and can safely preserve stale AI when native editing is ready.
         local before = enabling and evidence(photo, nativeBound) or cleanupEvidence(photo, nativeBound)
-        if before.applied == enabling or before.token ~= command.expectedValue or before.mode ~= command.expectedRemoveMode then
+        if before.token ~= command.expectedValue or before.mode ~= command.expectedRemoveMode then
             error("Dust state changed before dispatch.", 0)
         end
         if enabling and before.processVersion ~= "15.4" then error("Dust On must not change the photo's Process Version.", 0) end
@@ -225,13 +234,13 @@ function Dust.setApplied(command, guard)
                 lastToken = after.all
                 if not enabling or stable >= 3 then
                     return { confirmed = true, attempted = attempted,
-                        detail = (enabling and "Dust Apply" or "Dust Off / Reset") .. " confirmed by Lightroom readback; other edits preserved." .. aiUpdateNote(after) }
+                        detail = (enabling and "Dust On" or "Dust Off / Reset") .. " confirmed by Lightroom readback; other edits preserved." .. aiUpdateNote(after) }
                 end
             else stable, lastToken = 0, nil end
             -- A returned preset call alone does not prove AI completion. Require Lightroom's
             -- editing-ready signal on both sides of stable, AI-current, preserved Off readback.
             -- This confirms only that Dust was not applied, never that no dust was detected.
-            if enabling and readyBefore == true and ready == true and not after.applied and not after.needsAIUpdate then
+            if enabling and readyBefore == true and ready == true and after.applied == false and not after.needsAIUpdate then
                 idle = lastIdleToken == after.all and idle + 1 or 1
                 lastIdleToken = after.all
                 if idle >= 4 then
@@ -241,7 +250,6 @@ function Dust.setApplied(command, guard)
             else idle, lastIdleToken = 0, nil end
             if attempt < attempts then Tasks.sleep(enabling and 0.25 or 0.1) end
         end
-        if not enabling then error(label .. " state was not confirmed after the SDK call; no retry.", 0) end
         return { outcome = "unknown", attempted = attempted,
             detail = label .. " result is unknown: " .. unknownReason .. ". Check Lightroom; no automatic retry." }
     end)

@@ -636,21 +636,27 @@ assert.doesNotMatch(controller.match(/async function setLensBlurVisualizeDepth[\
     /visualizeDepth\s*:\s*\{[^}]*value\s*:\s*enabled|state\.value\s*=\s*enabled/,
     "Visualize Depth must not write an optimistic Web state");
 const visualizeRoute = bridgeSource.match(/app\.get\("\/lens-blur\/visualize-depth"[\s\S]*?^}\);/m)?.[0] || "";
-assert.match(visualizeRoute, /windowsNativeBackend\.readState\(\)/,
+assert.match(visualizeRoute, /readLensBlurDepthState\(\)/,
     "Visualize Depth admission must begin from fresh authoritative native state");
+const depthRead = nativeSource.match(/function Get-DepthVisualizationState[\s\S]*?^}/m)?.[0] || "";
+assert.match(depthRead, /Get-LightroomWindows/);
+assert.match(depthRead, /Find-UniqueButtonInRoot[\s\S]*?"Visualize Depth"/);
+assert.match(depthRead, /Try-ReadCheckbox/);
+assert.doesNotMatch(depthRead, /Discover-NativeControls|Read-TrackControl|Start-Sleep|BM_CLICK/,
+    "Depth readback must not wait for unrelated controls or perform edits");
 assert.match(visualizeRoute, /lensBlurDepthVisualizationBindingMatches\(binding\)/);
 assert.match(visualizeRoute, /queueOrReject[\s\S]*?lens_blur\.depth_visualization\.toggle/);
 assert.doesNotMatch(visualizeRoute, /setCheckbox|BM_CLICK|SendInput|SetCursorPos/,
     "Visualize Depth mutation must not use the Windows native writer or input automation");
 const lensBlurUiBlock = controller.match(/function renderLensBlurSection[\s\S]*?let lensCorrectionsView/)[0];
 const lensBlurControllerBlock = controller.match(/function updateLensBlurExplicitSwitch[\s\S]*?let lensCorrectionsView/)[0];
-const experimentalWarningHtml = "Focus Range (near/far) uses the Lightroom SDK. Subject Focus, Point / Area Focus and Brush Refinement use Windows interface automation. Create <strong>New Refinement</strong> directly in Lightroom; the installed SDK has no documented action to create it. Focus-mode feedback may lag or be unavailable; check Lightroom if the displayed mode is unclear.";
+const experimentalWarningHtml = "<strong>Experimental:</strong> Subject Focus and Point / Area Focus use Windows automation. These buttons may not always respond, and LRBridge may not show which mode is active. If needed, use them directly in Lightroom.";
 assert.match(lensBlurUiBlock,
     /groupElement\.appendChild\(lensBlurFocusRangeView\.nativeActions\);\s*const focusRangeExperimentalNote[\s\S]*?setAttribute\("role", "note"\)[\s\S]*?focusRangeExperimentalNote\.innerHTML[\s\S]*?groupElement\.appendChild\(focusRangeExperimentalNote\);\s*groupElement\.appendChild\(lensBlurFocusRangeView\.root\)/,
     "The non-error experimental warning must remain directly between the labeled Focus Range actions and range control");
 assert.ok(lensBlurUiBlock.includes('focusRangeExperimentalNote.innerHTML = "' + experimentalWarningHtml + '";'),
     "The complete approved Lens Blur experimental warning must remain present verbatim");
-assert.match(lensBlurUiBlock, /<strong>New Refinement<\/strong>/);
+assert.match(lensBlurUiBlock, /<strong>Experimental:<\/strong>/);
 assert.match(controller, /\.lens-blur-experimental-note strong\s*\{\s*font-weight:\s*700;/,
     "The semantic Experimental label must be visibly bold");
 assert.doesNotMatch(lensBlurUiBlock, /\*\*Experimental:/,
@@ -849,6 +855,7 @@ function createFakeNativeBackend() {
         setFocusPaintBehavior: function (behavior) { paintBehavior = behavior; },
         setVisualizeDepthForTest: function (enabled) { state.visualizeDepth.value = enabled; },
         readState: async function () { calls.push(["readState"]); return clone(state); },
+        readDepthVisualization: async function () { calls.push(["readDepthVisualization"]); return clone(state.visualizeDepth); },
         setBrushValue: async function (control, value, options) {
             calls.push(["setBrushValue", control, value, options]); state.brush[control].value = value; return clone(state);
         },
@@ -952,7 +959,7 @@ async function requestWithin(base, pathname, timeoutMs) {
         result = await request(base, "/lens-blur/visualize-depth?enabled=true&" + visualizationQuery);
         assert.equal(result.response.status, 200);
         assert.equal(result.body.changed, true);
-        assert.deepEqual(fakeNative.calls.at(-1), ["readState"],
+        assert.deepEqual(fakeNative.calls.at(-1), ["readDepthVisualization"],
             "Visualize Depth admission must read native state and never call the native checkbox writer");
         assert.deepEqual(commands.getNextCommand(), {
             command: "lens_blur.depth_visualization.toggle",

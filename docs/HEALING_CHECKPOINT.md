@@ -16,7 +16,7 @@ The checkpoint also retains the existing compact Healing layout, Selected Repair
 
 ## Required native preset dependencies
 
-Both presets must remain uniquely named in native group **LRBridge TEST**. Saved definitions are under **`C:\Users\nino\AppData\Roaming\Adobe\CameraRaw\Settings\`** (`%APPDATA%\Adobe\CameraRaw\Settings` on this installation).
+At this historical checkpoint both presets were uniquely named in native group **LRBridge TEST**. Current source bundles the same identities under **LRBridge Dust Helpers** and recognizes both exact original and renamed files. Use the current installer for a group-only migration; do not import duplicate copies. The fingerprints below describe the original checkpoint files. Saved definitions are under **`C:\Users\nino\AppData\Roaming\Adobe\CameraRaw\Settings\`** (`%APPDATA%\Adobe\CameraRaw\Settings` on this installation).
 
 | Native name / filename | Bytes | MD5 used by LRBridge | SHA-256 for backup verification |
 | --- | ---: | --- | --- |
