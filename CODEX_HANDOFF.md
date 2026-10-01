@@ -1,5 +1,57 @@
 # LRBridge Codex Handoff
 
+## October 2 candidate ready — 20261001T224235Z (UTC); live integration awaiting Lightroom setup
+
+- Release checkpoint: **`bf44384a4d3d04f810e456d6b0beda4b6cf5a773`**, 15 reviewed
+  files, on `feature/v0.6-more-sdk-and-web-controller`. Build **20261001T224235Z**
+  uses an isolated export of that commit. The timestamp is UTC; preparation is
+  October 2 local time. Prior packages and accepted results remain preserved.
+- Exact new private Windows v0.6.0 candidate paths:
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261001T224235Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261001T224235Z\LRBridge.exe`
+  - Production plug-in: `D:\Projects\LRBridge\dist\private-test-20261001T224235Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261001T224235Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `bb8a7a9624e0647f767639f82773e15524d90c9736ade0859f917ed7fa127aa8`.
+- **Package verification passed:** ZIP/extracted manifests and hashes; 69 runtime
+  allowlist entries, 33 app/Controller assets, 41 matching production Lua modules,
+  both external native helpers, required Dust presets/installer, public defaults
+  and empty preset configuration. Credential/development-artifact scans and all
+  packaged relative Markdown links passed. The macOS developer guide stays outside
+  the package; the packaged README explicitly directs readers to the source copy.
+- **Isolated package checks passed:** Electron Node-mode metadata, empty polling,
+  stop/restart and unchanged settings; packaged Help/HTTP Builder served by the
+  actual packaged modules at 1280/390/320 px. **836 snippets collected from the
+  packaged Builder parsed without errors in Windows PowerShell 5.1**. Separately,
+  138 simple HTTP admissions and 268 executed workflow scripts plus 10 negative/
+  result scenarios passed with fixture Lightroom state. Do not call these live
+  Lightroom execution. Existing accepted feature checks were reused.
+- The real packaged read-only depth helper check stopped honestly with
+  **“Lightroom is not running”**. Its availability/lifecycle check must be completed
+  after Lightroom is open. No helper or SDK performance regression is established
+  by this missing prerequisite; do not change the accepted helper implementation.
+- Started only the new production EXE, main PID **1676** at preparation, after
+  confirming no LRBridge/source Electron or Lightroom processes were running.
+  Desktop HTTP startup and Controller HTTP 200 passed with an empty command queue.
+  No plug-in registration, private settings or photo was changed. Runtime process
+  paths must be checked again before edits; do not rely on this recorded PID later.
+- Prepared bounded agent-run PowerShell cases from the packaged Builder: Contrast
+  Set 12 → Adjust +1 → Reset; Color Grading Blending Set 60 → Reset; Quick Copy
+  Settings with a matching SDK result; and explicit Visualize Depth On/Off if its
+  native prerequisites are available. The harness locks to the user's disposable
+  photo/context, reads fresh SDK/native results, preserves required review and
+  stops on uncertainty without replaying edits. **None has run live yet.**
+- Next prerequisite: in Lightroom, disable other LRBridge entries and add/enable
+  the exact packaged plug-in above; select one disposable photo/virtual copy in
+  Develop, open Lens Blur, and confirm readiness. The agent runs the commands;
+  the user does not need to copy scripts. Evidence/scripts and prior failures are
+  preserved under `local-checkpoints/private-release-current.txt`.
+- Remaining release gates: bounded actual Lightroom HTTP execution; packaged
+  Visualize Depth (automatable once available); desktop UI restart/settings and
+  final package review; phone/tablet LAN. The reported Dust VM pass remains accepted;
+  only unreported migration/duplicate/Healing subcases remain coverage limits,
+  not an instruction to repeat that accepted VM test. Auto Mask/Constrain Crop
+  performance remain deferred. No push, publication or release approval claimed.
+
 ## October 2 reviewed release checkpoint and package preparation
 
 - User authorized the local checkpoint of Lens Profile Amount availability and
