@@ -1,6 +1,6 @@
 # LRBridge Codex Handoff
 
-## October 2 candidate ready — 20261001T224235Z (UTC); live integration awaiting Lightroom setup
+## October 2 candidate — 20261001T224235Z (UTC); bounded live integration passed
 
 - Release checkpoint: **`bf44384a4d3d04f810e456d6b0beda4b6cf5a773`**, 15 reviewed
   files, on `feature/v0.6-more-sdk-and-web-controller`. Build **20261001T224235Z**
@@ -25,34 +25,60 @@
   138 simple HTTP admissions and 268 executed workflow scripts plus 10 negative/
   result scenarios passed with fixture Lightroom state. Do not call these live
   Lightroom execution. Existing accepted feature checks were reused.
-- The real packaged read-only depth helper check stopped honestly with
-  **“Lightroom is not running”**. Its availability/lifecycle check must be completed
-  after Lightroom is open. No helper or SDK performance regression is established
-  by this missing prerequisite; do not change the accepted helper implementation.
-- Started only the new production EXE, main PID **1676** at preparation, after
-  confirming no LRBridge/source Electron or Lightroom processes were running.
-  Desktop HTTP startup and Controller HTTP 200 passed with an empty command queue.
-  No plug-in registration, private settings or photo was changed. Runtime process
-  paths must be checked again before edits; do not rely on this recorded PID later.
-- Prepared bounded agent-run PowerShell cases from the packaged Builder: Contrast
-  Set 12 → Adjust +1 → Reset; Color Grading Blending Set 60 → Reset; Quick Copy
-  Settings with a matching SDK result; and explicit Visualize Depth On/Off if its
-  native prerequisites are available. The harness locks to the user's disposable
-  photo/context, reads fresh SDK/native results, preserves required review and
-  stops on uncertainty without replaying edits. **None has run live yet.**
-- Next prerequisite: in Lightroom, disable other LRBridge entries and add/enable
-  the exact packaged plug-in above; select one disposable photo/virtual copy in
-  Develop, open Lens Blur, and confirm readiness. The agent runs the commands;
-  the user does not need to copy scripts. Evidence/scripts and prior failures are
-  preserved under `local-checkpoints/private-release-current.txt`.
-- Remaining release gates: bounded actual Lightroom HTTP execution; packaged
-  Visualize Depth (automatable once available); desktop UI restart/settings and
-  final package review; phone/tablet LAN. The reported Dust VM pass remains accepted;
-  only unreported migration/duplicate/Healing subcases remain coverage limits,
-  not an instruction to repeat that accepted VM test. Auto Mask/Constrain Crop
-  performance remain deferred. No push, publication or release approval claimed.
+- **Live package checks passed in Lightroom Classic 15.4.1.** The user enabled
+  the matching packaged plug-in and selected one disposable photo in Develop with
+  Lens Blur open. Process inspection verified the exact EXE above (main PID 1676
+  during this session), with no source Electron app. Recheck paths in future
+  sessions; a recorded PID is not a permanent identity or proof of plug-in ownership.
+- Executed eight packaged Builder PowerShell stages once each, with unchanged
+  photo/context and fresh SDK/native confirmation: Contrast Set **0 → 12**, Adjust
+  **12 → 17**, Reset **17 → 0**; Blending Set **50 → 60**, Reset **60 → 50**; Quick
+  Copy with matching request/operation IDs and `invoked=true`, `sdkResult=true`,
+  `outcome=success`; Visualize Depth **Off → On → Off**, confirmed by native readback.
+  Copy contents cannot be independently inspected through this SDK result. No Paste,
+  Export or additional Dust native scenario is inferred, and no uncertain edit was
+  retried or acknowledgement bypassed. The final command queue was empty.
+- Before Adjust, verified the packaged handler calls `LrDevelopController.increment`
+  and reused the accepted native three-increment **20 → 35** evidence. Corrected
+  only the private harness expectation from **13 to 17**; the generated command
+  remains `amount=1`. This live run independently confirmed the five-unit Contrast
+  increment. No application, plug-in or public HTTP behavior changed.
+- **Packaged read-only depth helper lifecycle passed:** two start/read/reuse/stop
+  cycles, four available checkbox reads, distinct restarted helper, no surviving
+  test child and unchanged settings. The earlier “Lightroom is not running” evidence
+  remains preserved, now superseded by this completed prerequisite/check. Packaged
+  On/Off submission-to-observed-confirmation was **713/171 ms**; these are HTTP/native
+  readback timings, not overlay-paint measurements or a new touchscreen acceptance.
+- Final integrity verification: all **141 package manifest files** and ZIP SHA-256
+  unchanged after live use; 15 protected/unrelated files and stash unchanged. Private
+  recordings, settings, backups and previous packages are preserved. Evidence and
+  exact scripts remain under `local-checkpoints/private-release-current.txt`.
+- **Scoped automated package/live checks passed, with one additional unresolved
+  native-feedback finding.** Shared-helper counters rose from 0 to 7 execution
+  timeouts/restarts and from 4 to 127 expired queued state reads during this session.
+  The final 15-second read-only diagnostic observation recorded three of those queue
+  expirations while `readProfileSnapshot` occupied the helper for about four seconds;
+  no further execution timeout occurred in that observation. Production code gives
+  queued background reads 3 seconds and helper execution 5 seconds. This establishes
+  shared-read contention; counters alone do not identify each earlier timeout's
+  operation or underlying native cost. The independent depth helper had **zero**
+  timeouts/restarts and all live command confirmations passed. Preserve that scope.
+  No speculative timing/queue change was made. Before publication, perform bounded
+  triage of this shared Profile/full-state read issue or explicitly accept its
+  feedback limitation; do not silently call it resolved or reopen accepted Depth.
+- Remaining manual gates: normal desktop/tray quit/restart with settings/favorites
+  preservation and Lightroom reconnection; phone/tablet LAN use; final candidate UI
+  review and publication approval. The physical Companion client was not exercised;
+  the representative HTTP commands were executed by PowerShell against Lightroom,
+  so do not ask the user to repeat those scripts. The reported Dust VM pass remains
+  accepted; unreported migration/duplicate/Healing subcases are coverage limits,
+  not an instruction to repeat that VM test. Auto Mask/Constrain Crop performance
+  remain deferred. No rebuild, push, publication or release approval claimed.
 
 ## October 2 reviewed release checkpoint and package preparation
+
+Historical preparation record; the completed live results above supersede its
+pending-setup instructions.
 
 - User authorized the local checkpoint of Lens Profile Amount availability and
   effective-disabled touch guards, Color Grading Reset Region styling, their tests,

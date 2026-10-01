@@ -12,6 +12,64 @@
 
 # Windows v0.6 beta completion review
 
+## October 2 private candidate integration completed
+
+Private build **20261001T224235Z** uses release checkpoint **`bf44384`**. Packaged
+runtime, Controller, production plug-in, native helpers, public defaults and Dust
+assets match the reviewed snapshot. ZIP/manifest verification and packaged document
+links passed; private settings, capture tools and developer evidence are excluded.
+
+The user enabled the matching production plug-in and selected one disposable photo
+in Develop with Lens Blur open. The agent verified the running EXE path and executed
+these packaged Builder scripts once each against Lightroom Classic 15.4.1:
+
+| Live check | Authoritative result |
+| --- | --- |
+| Contrast Set / Adjust / Reset | SDK values **0 → 12 → 17 → 0**. |
+| Color Grading Blending Set / Reset | SDK values **50 → 60 → 50**. |
+| Quick Copy Settings | Matching request/operation IDs; invoked, SDK result true, success. Clipboard contents are not independently inspectable. |
+| Visualize Depth On / Off | Native checkbox readback **false → true → false**. |
+
+Contrast Adjust counts SDK increments, not numeric units. Before executing it,
+the handler and accepted native **20 → 35 for three increments** evidence established
+a five-unit increment. Only the private test expectation changed from 13 to 17;
+`amount=1` and application behavior were preserved. Fresh SDK readback confirmed 17.
+Photo/context checks, acknowledgement controls and no-retry safeguards stayed intact.
+The final queue was empty; admission alone was never treated as completion.
+
+The packaged read-only depth helper passed two start/read/reuse/stop cycles and four
+fresh available reads, with settings preserved and no surviving test child. Packaged
+On/Off took 713/171 ms from script submission to observed native confirmation; this
+does not measure overlay painting or establish a new touch-performance result.
+All 141 package manifest files and the ZIP hash remained unchanged after live use.
+
+Separate generated-script checks passed: **836** scripts from the actual packaged
+Builder parsed in Windows PowerShell 5.1; **268** workflow examples plus **10** failure/
+result scenarios executed against fixtures; **138** isolated simple HTTP admissions.
+These fixture checks are not additional Lightroom execution. No new Paste, Export,
+Dust or physical Companion-client scenario is claimed. Prior feature and Dust VM
+acceptances remain intact. No production change or replacement build was needed.
+
+**Additional unresolved finding:** while these commands confirmed successfully,
+the shared native helper accumulated seven execution timeouts/restarts and queued
+state-read expirations increased from 4 to 127. A bounded 15-second diagnostic-only
+observation captured three queue expirations while `readProfileSnapshot` occupied
+the helper for roughly four seconds; no additional execution timeout occurred in
+that interval. Background queue expiry is 3 seconds, helper execution timeout is
+5 seconds. This establishes shared-read contention, but the counters do not identify
+the operation/cost behind every earlier execution timeout. The independent depth
+helper recorded zero timeouts/restarts. No edit was repeated, accepted behavior was
+not retuned, and no application fix is claimed. This finding needs focused triage
+or explicit acceptance as a feedback limitation before publication.
+
+Remaining manual gates are normal desktop/tray quit/restart, settings/favorites
+preservation and Lightroom reconnection; phone/tablet LAN use; final candidate UI
+review and publication approval. All scoped automated package/live checks passed;
+the shared-native finding above remains open. Physical Companion configuration and
+unreported Dust migration, duplicate-preset and manual-Healing subcases remain
+explicit coverage limits, without
+reopening completed tests. Auto Mask and Constrain Crop performance stay deferred.
+
 ## October 1 reviewed source checkpoint and private test package
 
 Parametric Curve is manually accepted for this release, including changed split
@@ -49,16 +107,12 @@ the parent fieldset. Reset Region is dark red while Reset Luminance stays orange
 Focused browser states, touch guards and desktop/narrow rendering pass; package
 UI review remains open. Existing private packages are preserved.
 
-Remaining package checks are desktop startup/restart/settings preservation,
-Visualize Depth in the package, Companion/PowerShell commands and phone/tablet LAN.
-Builder-generated PowerShell verification passes 268 workflow examples and 10
-failure/result scenarios through isolated production handlers; simple-command
-coverage passes 138 isolated HTTP admissions. These are fixture results, not actual
-Lightroom execution. Bounded live checks against the new package and matching
-plug-in remain pending. Retain unreported Dust
-migration/duplicate/Healing coverage limits without reopening the accepted VM test.
-Isolated installer and packaged-runtime tests do not replace manual checks. This is
-a private test build, not a public release.
+The October 2 results above complete the bounded package PowerShell/Lightroom and
+Visualize Depth checks that were pending at this source checkpoint. Desktop
+restart/settings, phone/tablet LAN and final review remain separate manual gates.
+Retain unreported Dust migration/duplicate/Healing coverage limits without reopening
+the accepted VM test. Isolated installer and packaged-runtime tests do not replace
+manual checks. This is a private test build, not a public release.
 
 ## September 28 accepted fixes integrated for private packaging
 
