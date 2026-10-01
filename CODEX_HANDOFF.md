@@ -1,12 +1,14 @@
 # LRBridge Codex Handoff
 
-## October 1 private package preparation — authorized scope and latest report
+## October 1 private package ready — test 20260930T235011Z next
 
-- User authorizes a scoped local checkpoint and fresh private Windows package of
-  the reviewed release changes. Preserve unrelated work, private settings, stash,
-  original recordings/references, existing packages and VM baseline; no push or
-  publication. Parametric Curve and all previously accepted slider/Masking/Reset,
-  Point Color, lifecycle, Denoise and Dust results stay accepted within scope.
+- Reviewed release source checkpoint: **`f7974a9087c891f30bde54ef47d2cb6929a79592`**
+  on `feature/v0.6-more-sdk-and-web-controller` (50 explicitly reviewed paths).
+  Built from an isolated export of that commit using the existing Windows portable
+  workflow and `--publish never`. Later handoff-only commits do not alter the
+  package runtime. Parametric Curve and all previously accepted slider/Masking/
+  Reset, Point Color, lifecycle, Denoise and Dust results stay accepted within scope.
+  No feature tuning, broad audit, push or publication in this step.
 - The Masking helper now uses the exact approved wording explaining **Close
   Masking** in this Web Controller and then the same button showing **Open
   Masking**. Both names are bold; the existing amber appearance and placement
@@ -19,15 +21,55 @@
 - Dust clean-install and legacy-preset migration checks will be performed using
   the fresh package. Existing accepted Dust behavior remains accepted. Do not
   infer that unreported VM/install checks or the original VM diagnosis passed.
-- Reuse completed verification; required remaining work is scoped checkpoint,
-  committed/sanitized build, runtime and bundled production plug-in/preset/defaults
-  verification. Package desktop startup/restart/settings, Companion/PowerShell,
-  phone/tablet LAN and Dust installation/migration remain manual gates afterward.
-- Verified recovery backup/upload/readback and preparation evidence:
-  `local-checkpoints/private-release-current.txt`. Source app and active Lightroom
-  plug-in are preserved; do not launch the new desktop package against Lightroom
-  or change registration automatically. Final checkpoint/package paths follow
-  after verification. Constrain Crop feedback optimization stays deferred.
+- **Exact candidate paths** (v0.6.0, Windows x64, unsigned private portable):
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20260930T235011Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20260930T235011Z\LRBridge.exe`
+  - Matching production plug-in: `D:\Projects\LRBridge\dist\private-test-20260930T235011Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20260930T235011Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `01fd83946f597e582bd745fdf3f789f7537c56eb84e516e47531a3b387e54388`.
+- **Automated verification passed:** focused note rendering at 1280/390/320 px;
+  release preparation/cleanup (safe staging, Lua syntax, default configuration,
+  isolated Dust install/idempotence/known-legacy migration/conflict/integrity);
+  unchanged 206 HTTP operations with refreshed source-line references; ZIP/extracted
+  manifests and hashes; 69 runtime allowlist entries, all 33 Controller/app assets
+  and all 41 production Lua modules match the checkpoint/current production source.
+  Both Dust presets retain their identities in **LRBridge Dust Helpers**; installer
+  and manifest included. Default settings are `poll_interval_ms=100`, empty Favorite
+  Presets configuration. Private settings, development tools/evidence and injected
+  diagnostic capture hooks are excluded. Built-in opt-in diagnostics remain disabled.
+- Extracted Electron Node-mode checks passed module loading, metadata, empty poll,
+  two start/stop cycles and settings preservation on isolated ports. Bundled
+  Controller/reference responses match the exported source; Help/HTTP Builder render
+  at 1280/390/320 px with working links and no overflow. These checks use no desktop
+  lifecycle, Windows native helper or Lightroom actions. Completed feature/native
+  checks were reused; automated package checks do not establish native acceptance.
+- **Switch for the next test:** quit source LRBridge with its tray **Quit** action
+  and close Lightroom. To test preserving desktop preferences, copy the source
+  `config/settings.txt` and `config/develop-presets.json` into the new folder's
+  `config` while LRBridge is stopped; keep a clean VM installation at defaults.
+  Run the new folder's **Install Dust Presets.cmd** with Lightroom closed. Launch
+  only the new EXE. In Lightroom's Plug-in Manager, disable other LRBridge entries,
+  add/enable the exact matching plug-in folder above, then restart Lightroom once
+  to load that plug-in and the presets. Open/refresh `http://127.0.0.1:17892/`.
+  Do not run source `npm start` or an older package alongside it. Keep the same browser
+  profile/address for browser-local favorites and collapsed sections.
+- **Remaining package checks:** native desktop startup/restart and settings
+  preservation; Companion/PowerShell commands; phone/tablet LAN; Dust clean install,
+  discovery and On/Off/Reset with manual Healing preservation; exact legacy preset
+  migration/backups, repeat-install idempotence and no duplicate presets. Confirm
+  the renamed group in Lightroom. The original VM unavailable-state cause is still
+  unproven. Review unreported presentation details during normal package use; accepted
+  Parametric and slider/control behavior require no repeat capture or tuning.
+  Visualize Depth slowness remains a known issue, not a passed performance check.
+  Constrain Crop feedback optimization stays deferred; other documented limits remain.
+- No automatic registration change, live edit or new desktop launch was performed.
+  Existing source app/diagnostic plug-in remain in use. Private settings, unrelated
+  tracked/untracked work, protected cheat sheets, stash, recordings/references and
+  old packages/VM baseline are preserved. Required recovery ZIP upload/readback and
+  all preparation/package evidence are indexed by
+  `local-checkpoints/private-release-current.txt`. No automated preparation blocker;
+  manual package acceptance is still pending. Earlier preparation states below are
+  historical and superseded by this section where they describe pending packaging.
 
 ## October 1 Parametric Curve correction — manually accepted for this release
 
@@ -48,7 +90,7 @@
   its original spline, endpoints and deliberate turns. No slider/Reset timing, input ownership, SDK write,
   photo/context or HTTP behavior changes. Accepted Masking, Grain, Point Color,
   lifecycle, Denoise and all earlier manual results remain accepted.
-- This is **manually accepted and still uncommitted**, not a claim of pixel-exact
+- This is **manually accepted and checkpointed in `f7974a9`**, not a claim of pixel-exact
   equivalence for every setting. The six new native cases are complete.
   Six existing isolated-control screenshot references selected two shared slope
   constants. Three mixed-control references were excluded from fitting. All nine
@@ -87,9 +129,10 @@
   before/after SVG/PNG are indexed by
   `local-checkpoints/parametric-native-analysis-current.txt`. Useful public fixtures,
   focused tests and comparison scripts are retained. Previous recordings/packages/private settings,
-  stash and unrelated dirty work are preserved. HEAD remains `75876ea`, 17 ahead/
-  0 behind its configured upstream; nothing staged or committed.
-- Remaining before the next private build:
+  stash and unrelated dirty work are preserved. At the time of this acceptance,
+  HEAD was `75876ea`, 17 ahead/0 behind its configured upstream; the later reviewed
+  checkpoint and package are recorded above.
+- Earlier pre-build checklist (superseded by the package status above):
   1. Lens Blur Visualize Depth: native check separating Lightroom's action delay
      from Controller confirmation after the focused-read change. The source app
      was already restarted for October 1 collection; verify the current helper
@@ -108,8 +151,8 @@
   and settings preservation, Companion/PowerShell, phone/tablet LAN and clean Dust
   setup. Preserve comparison package `20260928T025413Z` and the VM baseline.
   Parametric is no longer an unresolved release decision. Constrain Crop feedback
-  optimization stays deferred. This acceptance update changes documentation only;
-  no tests, application changes, staging, commit, build, push or publication.
+  optimization stays deferred. The original acceptance update changed documentation
+  only; the subsequent authorized checkpoint/package work is recorded above.
 
 ## September 30 narrow release follow-up — current state
 
