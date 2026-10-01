@@ -1,5 +1,61 @@
 # LRBridge Codex Handoff
 
+## October 1 private release candidate ready — test 20261001T020010Z next
+
+- Reviewed Visualize Depth checkpoint: **`98c38ba0e813a66990b8e847addb78a4d15bd300`**
+  on `feature/v0.6-more-sdk-and-web-controller`, 13 explicitly reviewed paths.
+  The user accepts source responsiveness for this release. Release notes now record
+  that acceptance; native timing evidence and fail-before/pass-after regressions
+  are preserved. All prior feature acceptances and documented limits remain intact.
+- Built from an isolated export of that checkpoint with the existing Windows
+  portable workflow and `--publish never`. Later handoff-only commits do not change
+  the packaged runtime. **Exact paths** (v0.6.0, Windows x64, unsigned private candidate):
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261001T020010Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261001T020010Z\LRBridge.exe`
+  - Matching production plug-in: `D:\Projects\LRBridge\dist\private-test-20261001T020010Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261001T020010Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `78b3b74e3a640ed03cbed9f63e3ad0600b20bb96c526ecbaf4c2f26d3b7b3f9e`.
+- **Required automated package checks passed:** release preparation/cleanup;
+  sanitized staging/default settings; isolated Dust install/idempotence/known-legacy
+  migration/conflict/integrity; ZIP and extracted manifests/hashes; all 69 runtime
+  allowlist entries, 33 Controller/app assets, 41 production Lua modules and both
+  external native helper scripts matched the checkpoint. Required Dust presets and
+  installer are included. No private settings, credentials, diagnostic capture
+  hooks/bootstraps or development evidence shipped. Packaged Help/HTTP Builder
+  links and rendering passed at 1280/390/320 px. Completed feature checks were reused.
+- **Packaged lifecycle checks passed:** isolated packaged Electron Node runtime
+  startup/stop/restart, metadata and settings preservation; two independent
+  start/read/reuse/stop cycles of the real read-only depth helper loaded from this
+  package. Four fresh reads returned available/Off; each cycle reused one helper,
+  then stopped it, with no pending reads or surviving child. No shared action helper
+  or SDK edits were invoked. This verifies the shipped helper path and transport;
+  it does not replace the pending desktop/native package checks below.
+- Current source app remains running (PID 30096 at final inspection) through the
+  existing private timing bootstrap; Lightroom PID 19372 is unchanged. Package test
+  children have exited. The latest source polling report shows one **unmarked**
+  worker, not the earlier diagnostic worker tag; active registration must not be
+  inferred from the old capture. No registration or running setup was changed.
+- **Switch next session:** quit source LRBridge using its tray Quit command and
+  close Lightroom. Keep the old package. For the settings-preservation check, copy
+  the intended existing `config/settings.txt` and `config/develop-presets.json` into
+  the new folder while stopped; clean-install tests should retain public defaults.
+  Run the new Dust installer with Lightroom closed. Launch only the EXE above;
+  in Lightroom Plug-in Manager disable other LRBridge entries, add/enable the exact
+  production plug-in above, and restart Lightroom once. Refresh the normal
+  `http://127.0.0.1:17892/` Controller; do not use a finished capture page or `npm start`.
+- **Remaining manual package checks:** desktop startup/restart and settings
+  preservation; Visualize Depth responsiveness/confirmation in this package;
+  Companion/PowerShell commands; phone/tablet LAN; Dust clean installation, exact
+  legacy-preset migration, no duplicate presets, On/Off/Reset and preservation of
+  manual Healing repairs. No source feature acceptance is reopened, and no unreported
+  VM check is inferred. No automated packaging blocker remains; publication is not
+  authorized and final package acceptance is still pending.
+- Previous packages (including **20260930T235011Z**), unrelated edits/private
+  settings, research, recordings, backups and stash are preserved. Full recovery
+  backup and FTP readback verified before checkpointing. Detailed package evidence
+  is indexed by `local-checkpoints/private-release-current.txt`. No broad audit,
+  additional source capture, feature changes, push or publication in this step.
+
 ## October 1 Visualize Depth — responsiveness manually accepted for release
 
 - The user reports that Visualize Depth now feels fast and explicitly accepts its
