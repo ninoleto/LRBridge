@@ -91,6 +91,7 @@ async function pair(first, second) {
         ...context, Date, AbortSignal, activeTab: "sliders", lensBlurHelper: lens, lensBlurModel: model,
         lensBlurBokehPending: false, lensBlurBokehFeedbackFloor: null, lensBlurStateRevision: 1,
         lensBlurStateRequestInFlight: false, lensBlurVisualizePending: null,
+        lensBlurDepthRequestInFlight: false, lensBlurDepthReadSerial: 0, lensBlurDepthFeedbackFloor: 0,
         updateLensBlurPresentation() {}, observeLensBlurVisualizeFeedback() {},
         lensBlurResponseContextMatchesCurrent: c => c.selectedPhotoUuid === binding.selectedPhotoUuid && c.developCounter === binding.developCounter,
         sendCommand: async () => true,

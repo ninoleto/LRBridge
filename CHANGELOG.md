@@ -25,6 +25,7 @@
 
 ### Changed
 
+- Improved Lens Blur Visualize Depth responsiveness with an independent read-only native helper, focused checkbox discovery and ordered confirmation that does not wait for unrelated status reads. Current-photo safeguards, SDK toggle behavior and honest confirmation remain intact. Manually accepted for this release; timing evidence and focused regression tests are preserved.
 - Masking Grain adjustments preserve Lightroom panel position and Web viewport stability. Routine same-context Tone Curve feedback updates silently in place with stable graph/status layout.
 - Selected-mask deletion now confirms complete inventory removal and recovers a surviving mask/component selection. The admission response includes its selected-mask target so Web retains the operation until authoritative confirmation; obsolete warning recovery preserves unrelated errors. The user confirmed deletion, automatic replacement selection and the final success message in the tested live case.
 

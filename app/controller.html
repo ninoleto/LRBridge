@@ -5251,6 +5251,9 @@
             applyAuthoritative: function () { return this.get(); }
         };
         let lensBlurStateRequestInFlight = false;
+        let lensBlurDepthRequestInFlight = false;
+        let lensBlurDepthReadSerial = 0;
+        let lensBlurDepthFeedbackFloor = 0;
         let lensBlurApplyCheckbox = null;
         let lensBlurApplyRequestInFlight = false;
         let lensBlurApplyStatus = null;
@@ -9134,7 +9137,9 @@
             if (!binding || !current || current.available !== true || typeof current.value !== "boolean") return false;
             if (current.value === enabled) return true;
 
-            lensBlurVisualizePending = { target: enabled, binding: binding, timer: null };
+            const pending = { target: enabled, binding: binding, timer: null };
+            lensBlurVisualizePending = pending;
+            lensBlurDepthFeedbackFloor = ++lensBlurDepthReadSerial;
             updateLensBlurPresentation();
             const query = [
                 "enabled=" + String(enabled),
@@ -9150,7 +9155,7 @@
                 if (!response.ok || !data || data.ok !== true || !data.windowsNative) {
                     throw new Error(data && data.error ? data.error : "Visualize Depth unavailable");
                 }
-                if (!lensBlurVisualizePending || !lensBlurVisualizeBindingMatches(binding, {
+                if (lensBlurVisualizePending !== pending || !lensBlurVisualizeBindingMatches(binding, {
                     activeModule: lastControllerActiveModule,
                     selectedPhotoUuid: lastControllerSelectedPhotoUuid,
                     contextCounter: lastControllerContextCounter,
@@ -9174,6 +9179,7 @@
                 requestLensBlurState();
                 return true;
             } catch (error) {
+                if (lensBlurVisualizePending !== pending) return false;
                 clearLensBlurVisualizePending(error.message || "Visualize Depth unavailable", true);
                 updateLensBlurPresentation();
                 requestLensBlurState();
@@ -9182,9 +9188,13 @@
         }
 
         async function requestLensBlurState() {
-            if (!lensBlurHelper || activeTab !== "sliders" || lensBlurStateRequestInFlight) return;
+            if (!lensBlurHelper || activeTab !== "sliders") return;
             const depthOnly = Boolean(lensBlurVisualizePending);
-            lensBlurStateRequestInFlight = true;
+            if (depthOnly ? lensBlurDepthRequestInFlight : lensBlurStateRequestInFlight) return;
+            if (depthOnly) lensBlurDepthRequestInFlight = true;
+            else lensBlurStateRequestInFlight = true;
+            const depthReadId = ++lensBlurDepthReadSerial;
+            const pendingAtRead = lensBlurVisualizePending;
             try {
                 const response = await fetch("/api/lens-blur/state" + (depthOnly ? "?depthOnly=true" : ""), { cache: "no-store" });
                 const data = await response.json();
@@ -9192,7 +9202,7 @@
                 if (activeTab !== "sliders") return;
                 const responseContext = data.context;
                 if (!lensBlurResponseContextMatchesCurrent(responseContext)) {
-                    if (lensBlurVisualizePending) {
+                    if (pendingAtRead && lensBlurVisualizePending === pendingAtRead) {
                         clearLensBlurVisualizePending("Visualize Depth context changed before confirmation", true);
                     }
                     return;
@@ -9201,18 +9211,38 @@
                     data.revision < lensBlurBokehFeedbackFloor.revision) return;
                 if (Number.isSafeInteger(data.revision)) lensBlurStateRevision = data.revision;
                 lensBlurFocalRangeCommitId = typeof data.focalRangeCommitId === "string" ? data.focalRangeCommitId : null;
+                // A slow full poll can overlap the focused confirmation. Keep its
+                // other feedback, but never let older depth data undo a newer read
+                // or cross the start of an edit. Future polls still see external edits.
+                const acceptsDepth = depthReadId >= lensBlurDepthFeedbackFloor;
+                const depth = acceptsDepth ? data.state.windowsNative.visualizeDepth : lensBlurModel.get().windowsNative.visualizeDepth;
                 if (depthOnly && data.depthOnly) {
-                    lensBlurModel.applyWindowsNative(Object.assign({}, lensBlurModel.get().windowsNative,
-                        { visualizeDepth: data.state.windowsNative.visualizeDepth }));
-                } else lensBlurModel.applyAuthoritative(data.state);
-                observeLensBlurVisualizeFeedback(responseContext);
+                    if (acceptsDepth) lensBlurModel.applyWindowsNative(Object.assign({}, lensBlurModel.get().windowsNative,
+                        { available: lensBlurModel.get().windowsNative.available || depth.available, visualizeDepth: depth }));
+                } else lensBlurModel.applyAuthoritative(Object.assign({}, data.state, {
+                    windowsNative: Object.assign({}, data.state.windowsNative, {
+                        available: data.state.windowsNative.available || depth.available,
+                        brush: data.state.windowsNative.brush || {}, visualizeDepth: depth
+                    })
+                }));
+                if (acceptsDepth) {
+                    lensBlurDepthFeedbackFloor = depthReadId;
+                    observeLensBlurVisualizeFeedback(responseContext);
+                }
             } catch (err) {
-                lensBlurModel.applyAuthoritative(null);
+                const depth = lensBlurModel.get().windowsNative.visualizeDepth;
+                if (!depthOnly) lensBlurModel.applyAuthoritative(null);
+                const replacementDepth = depthReadId >= lensBlurDepthFeedbackFloor ? { available: false, value: null } : depth;
+                lensBlurModel.applyWindowsNative(Object.assign({}, lensBlurModel.get().windowsNative, {
+                    available: lensBlurModel.get().windowsNative.available || replacementDepth.available,
+                    visualizeDepth: replacementDepth
+                }));
+                lensBlurDepthFeedbackFloor = Math.max(lensBlurDepthFeedbackFloor, depthReadId);
             } finally {
-                lensBlurStateRequestInFlight = false;
+                if (depthOnly) lensBlurDepthRequestInFlight = false;
+                else lensBlurStateRequestInFlight = false;
                 updateLensBlurPresentation();
-                // A full poll already in flight when the user clicked may precede
-                // the SDK command. Follow it with a fresh targeted confirmation.
+                // An overlapping full poll may finish before the SDK command.
                 if (!depthOnly && lensBlurVisualizePending) requestLensBlurState();
             }
         }

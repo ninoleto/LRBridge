@@ -710,10 +710,34 @@ function Get-NativeState {
     return Get-NativeStateFromDiscovery (Discover-NativeControls)
 }
 
+function Get-LightroomWindowsForDepth {
+    # Enumerate afresh, but build full snapshots only for candidate Lens Blur
+    # anchors/checkboxes and their parents. Snapshotting every unrelated window
+    # dominated the focused read even when trackbar values were omitted.
+    $processes = @([System.Diagnostics.Process]::GetProcessesByName("Lightroom"))
+    if ($processes.Count -eq 0) { Throw-Unavailable "Lightroom is not running" }
+    $windows = @{}
+    foreach ($process in $processes) {
+        foreach ($handle in [LRBridgeNative]::GetProcessWindows($process.Id)) {
+            $class = [LRBridgeNative]::ClassName($handle)
+            if ($class -ne "Button" -and $class -notmatch '^AfxWnd\d+u$') { continue }
+            $text = [LRBridgeNative]::WindowText($handle)
+            if (-not (($class -eq "Button" -and $text -eq "Visualize Depth") -or
+                ($class -match '^AfxWnd\d+u$' -and $text -eq "LensBlurContents"))) { continue }
+            foreach ($target in @($handle, [LRBridgeNative]::GetParent($handle))) {
+                if ($target -eq [IntPtr]::Zero -or $windows.ContainsKey([Int64]$target)) { continue }
+                $snapshot = Get-WindowSnapshot $target $process.Id -SkipTrackValues
+                if ($null -ne $snapshot) { $windows[[Int64]$target] = $snapshot }
+            }
+        }
+    }
+    return @($windows.Values)
+}
+
 function Get-DepthVisualizationState {
-    # Fresh discovery and the same native/accessibility agreement as the full
-    # read. Window identity/geometry is needed; unrelated slider values are not.
-    $windows = Get-LightroomWindows -SkipTrackValues
+    # Retain unique-root/button discovery, fresh identity checks and native /
+    # accessibility agreement. Nothing from the last read is reused as state.
+    $windows = Get-LightroomWindowsForDepth
     $root = Find-LensBlurRoot $windows
     $button = Add-AnchorIdentity (Find-UniqueButtonInRoot $windows $root "Visualize Depth") $root
     return Public-CheckboxState (Try-ReadCheckbox $button)

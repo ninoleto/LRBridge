@@ -26,16 +26,22 @@ The amber Masking recovery notice now explicitly directs the user to click
 **Open Masking**. Its placement/style and all command behavior are unchanged;
 the exact note was checked at desktop and narrow widths.
 
-Lens Blur Visualize Depth remains a **known slow operation** for this private
-build. The latest manual observation does not distinguish execution delay from
-feedback delay; do not mark performance passed or infer that earlier focused
-read changes resolved it. No new optimization is part of this packaging step.
+Lens Blur Visualize Depth responsiveness is **manually accepted for this release**:
+the user reports that the corrected source now feels fast. Preserved native timing
+identified shared-helper queue waits and unnecessary full-window discovery. The
+focused correction uses an independent read-only depth helper, fresh targeted
+discovery and ordered Controller confirmation. SDK writes, photo/context guards
+and truthful state remain unchanged. Final measured On/Off confirmation was
+168/425 ms with a warm helper; first-use On was 1056 ms including startup. These
+measurements do not measure overlay-paint completion or certify every workload.
+Timing evidence and regressions are retained; no further source capture is required.
 
 Dust clean-install and legacy-preset migration checks are explicitly deferred to
 the fresh package. Preserve the existing VM/package comparison baseline and
 accepted current Dust control behavior. Remaining package checks are desktop
-startup/restart/settings preservation, Companion/PowerShell commands, phone/tablet
-LAN, and clean Dust setup plus legacy migration without duplicate presets. Isolated
+startup/restart/settings preservation, Visualize Depth in the new package,
+Companion/PowerShell commands, phone/tablet LAN, and clean Dust setup plus legacy
+migration without duplicate presets, On/Off/Reset and manual Healing preservation. Isolated
 installer and packaged-runtime tests do not replace those manual checks. This is
 a private test build, not a public release. Constrain Crop feedback work remains
 deferred.

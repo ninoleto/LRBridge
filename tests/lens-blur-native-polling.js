@@ -26,12 +26,14 @@ function profileResult(operation) {
 }
 function fixture(autoProfile, profileDelayMs = 0) {
     const sent = [];
-    let child, kills = 0;
+    const owners = new WeakMap();
+    let kills = 0;
     const backend = native.createWindowsLightroomNativeBackend({ platform: "win32", spawn() {
-        child = new EventEmitter();
+        const child = new EventEmitter();
         child.stdout = new PassThrough(); child.stderr = new PassThrough();
         child.stdin = new Writable({ write(chunk, _encoding, done) {
             const message = JSON.parse(chunk);
+            owners.set(message, child);
             if (autoProfile === "hold-next" && message.operation.startsWith("readProfile")) {
                 autoProfile = true; sent.push(message);
             } else if (autoProfile && message.operation.startsWith("readProfile")) {
@@ -43,7 +45,7 @@ function fixture(autoProfile, profileDelayMs = 0) {
         return child;
     } });
     return { backend, sent, kills: () => kills, setAutoProfile(value) { autoProfile = value; },
-        reply(message, result) { child.stdout.write(JSON.stringify({ id: message.id, ok: true, result }) + "\n"); } };
+        reply(message, result) { owners.get(message).stdout.write(JSON.stringify({ id: message.id, ok: true, result }) + "\n"); } };
 }
 function state(value) {
     return { ...native.unavailableNativeState(), available: true, reason: null, apply: { available: true, value } };

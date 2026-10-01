@@ -7,9 +7,11 @@ Accepted slider/Reset, Masking, Point Color, lifecycle, Denoise and Dust behavio
 remain accepted within their tested scope. The Masking recovery notice explains
 using the same Web Controller button for Close Masking and then Open Masking.
 
-**Known issue:** Lens Blur Visualize Depth still feels slow. The latest observation
-does not distinguish command execution delay from Controller feedback delay;
-its performance check has not passed. No further optimization is included here.
+**Visualize Depth:** responsiveness is manually accepted for this release; the
+user reports that the corrected source now feels fast. Focused native reads and
+ordered confirmation remove the measured queue/discovery delay. First use still
+includes helper startup. The new package needs its normal Visualize Depth check;
+accepted source behavior does not require another recording.
 Dust clean-install and legacy-preset migration verification will use this fresh
 test package. Existing-machine Dust acceptance does not establish those results.
 

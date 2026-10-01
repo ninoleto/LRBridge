@@ -138,7 +138,7 @@ function createUnavailableWindowsBackend(reason) {
     });
 }
 
-function createWindowsLightroomNativeBackend(options, selectionReadOnly = false) {
+function createWindowsLightroomNativeBackend(options, selectionReadOnly = false, depthReadOnly = false) {
     options = options || {};
     const platform = options.platform || process.platform;
     if (platform !== "win32") return createUnavailableWindowsBackend("Windows native backend is unavailable on " + platform);
@@ -159,6 +159,7 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
     const requestQueue = [];
     let activeRequest = null;
     let selectionReader = null;
+    let depthReader = null;
     let selectionObserverPaused = false, selectionObserverGeneration = 0, selectionObserverChangedAt = null;
     let sharedReadPauseUntil = null;
     const sharedReadOperations = new Set(["readState", "readDepthVisualization", "readProfileLabel", "readProfileSnapshot"]);
@@ -329,6 +330,7 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
 
     function request(operation, parameters) {
         if (selectionReadOnly && operation !== "readRemoveSelection") throw new TypeError("Selected observer only permits reads");
+        if (depthReadOnly && operation !== "readDepthVisualization") throw new TypeError("Depth observer only permits checkbox reads");
         if (sharedReadOperations.has(operation) && sharedReadsPaused()) {
             return Promise.reject(new NativeBackendUnavailableError("Shared native reads temporarily paused for diagnostic comparison."));
         }
@@ -413,7 +415,13 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
             catch (error) { return unavailableNativeState(error.message); }
         },
         readDepthVisualization: async function () {
-            return sanitizeCheckbox(await request("readDepthVisualization"));
+            if (depthReadOnly || selectionReadOnly) return sanitizeCheckbox(await request("readDepthVisualization"));
+            if (sharedReadsPaused()) throw new NativeBackendUnavailableError("Shared native reads temporarily paused for diagnostic comparison.");
+            // Profile/full discovery can occupy the native action queue for over a
+            // second. This reader never writes; SDK admission still validates the
+            // photo/context before and after every fresh checkbox read.
+            if (!depthReader) depthReader = createWindowsLightroomNativeBackend(options, false, true);
+            return depthReader.readDepthVisualization();
         },
         setBrushValue: async function (control, value, options) {
             validateBrushControl(control);
@@ -472,7 +480,7 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
             return request("readProfileSnapshot");
         },
         setSharedReadPauseUntil: function (until) {
-            if (selectionReadOnly || until !== null && (!Number.isSafeInteger(until) || until <= 0 || until > Date.now() + 600000)) {
+            if (selectionReadOnly || depthReadOnly || until !== null && (!Number.isSafeInteger(until) || until <= 0 || until > Date.now() + 600000)) {
                 throw new TypeError("Invalid shared native read diagnostic expiry");
             }
             // Existing requests drain normally. No helper is killed and no action
@@ -483,6 +491,7 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
             return request("readProfileLabel");
         },
         readRemoveSelection: function () {
+            if (depthReadOnly) throw new TypeError("Depth observer only permits checkbox reads");
             if (selectionReadOnly) return request("readRemoveSelection");
             const generation = selectionObserverGeneration;
             const paused = () => ({ available: false, observationPaused: selectionObserverPaused,
@@ -497,7 +506,7 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
                 error => { if (generation !== selectionObserverGeneration) return paused(); throw error; });
         },
         setSelectionObserverPaused: function (paused) {
-            if (typeof paused !== "boolean" || selectionReadOnly) throw new TypeError("Invalid parent observer pause request");
+            if (typeof paused !== "boolean" || selectionReadOnly || depthReadOnly) throw new TypeError("Invalid parent observer pause request");
             if (paused === selectionObserverPaused) return;
             selectionObserverPaused = paused; selectionObserverGeneration++; selectionObserverChangedAt = Date.now();
             // Only stop the dedicated reader. The action/Profile/Lens Blur helper
@@ -524,10 +533,12 @@ function createWindowsLightroomNativeBackend(options, selectionReadOnly = false)
                 pendingCount: pending.size
             }, transportDiagnostics, { helperPid: child?.pid || null, selectionObserverPaused, selectionObserverChangedAt,
                 sharedReadsPaused: sharedReadsPaused(), sharedReadPauseUntil },
-                selectionReader ? { selectedObserver: selectionReader.getTransportDiagnostics() } : {});
+                selectionReader ? { selectedObserver: selectionReader.getTransportDiagnostics() } : {},
+                depthReader ? { depthObserver: depthReader.getTransportDiagnostics() } : {});
         },
         stop: function () {
             if (selectionReader) { selectionReader.stop(); selectionReader = null; }
+            if (depthReader) { depthReader.stop(); depthReader = null; }
             const instance = child;
             const error = new NativeBackendUnavailableError("Windows native backend stopped");
             if (instance) rejectPendingForInstance(instance, error);

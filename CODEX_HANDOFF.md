@@ -1,6 +1,82 @@
 # LRBridge Codex Handoff
 
-## October 1 private package ready — test 20260930T235011Z next
+## October 1 Visualize Depth — responsiveness manually accepted for release
+
+- The user reports that Visualize Depth now feels fast and explicitly accepts its
+  responsiveness for this release. Preserve the implementation, timing evidence
+  and regression coverage. No further source recording, feature audit or tuning.
+- A scoped local checkpoint and fresh private Windows candidate are authorized.
+  Build from the checkpoint with production plug-in/helper and public defaults;
+  exclude private instrumentation/settings. Preserve the previous package and
+  running source/diagnostic setup; do not switch or publish automatically.
+- Remaining **package** checks: desktop startup/restart and settings preservation;
+  Visualize Depth in the package; Companion/PowerShell commands; phone/tablet LAN;
+  Dust clean installation, legacy migration, no duplicate presets, On/Off/Reset
+  and preservation of manual Healing repairs. Source acceptances remain valid.
+
+- User finished the timing capture. Preserved two user-operated On/Off pairs:
+  **1.757–2.356 s** from release to confirmed Controller display; no recorded
+  Visualize Depth errors or photo/context changes. SDK calls returned in 1.5–3 ms
+  (not overlay-paint measurements). The dominant measured costs were unrelated
+  native helper queue waits (283–1194 ms) and full-window identity/geometry
+  discovery (369–415 ms within 438–578 ms admission reads).
+- The reviewed correction touches only Controller depth confirmation and
+  the Windows native read backend/helper. Depth has an independent read-only
+  helper; SDK commands and all native writes retain their existing paths/guards.
+  Fresh discovery snapshots only candidate anchors, checkbox and parents, preserving
+  uniqueness, process/ancestry/identity checks and native/accessibility agreement.
+  Targeted confirmation can overlap a full status request. Ordered feedback rejects
+  older depth results; newer external changes remain visible. A fresh checkbox read
+  can confirm despite unavailable full discovery, without enabling other failed
+  controls. No optimistic success, edit retry, timeout or polling-interval changes.
+- **Actual Lightroom after-change evidence:** two automated Controller On/Off
+  pairs, same test photo and sole diagnostic worker, each ending confirmed Off.
+  First-use On **1.056 s** (including cold helper startup), following Off **0.491 s**.
+  Final source with warm helper: On **0.168 s**, Off **0.425 s**. Admission queue
+  wait was 0–2 ms; subsequent focused reads 19–73 ms; confirmed display followed
+  helper return by 2–4 ms. No recorded action/SDK/native/browser errors. These are
+  real native timing results, distinct from simulated checks and from user acceptance.
+- Remaining latency includes first-use helper startup, SDK polling/context work,
+  and the existing confirmation polling cadence when the first read precedes SDK
+  execution. Overlay-paint completion is not measured; subjective responsiveness
+  is now manually accepted within the tested scope. Keep the small-sample limits.
+  See [timing and regression details](docs/VISUALIZE_DEPTH_TIMING.md).
+- Focused fail-before/pass-after checks saved for queue blocking, unnecessary window
+  snapshots and full-poll confirmation blocking. Final checks pass fresh reads,
+  stale/full-response ordering, external changes, partial unavailability, photo
+  changes, failures/timeouts, no retry, read-only observers and shutdown. Existing
+  targeted HTTP/context and feedback-compatibility checks pass. No broad suite/audit.
+- Source app was restarted by Codex and currently uses
+  `D:\Projects\LRBridge\node_modules\electron\dist\electron.exe`
+  with private timing bootstrap
+  `D:\Projects\LRBridge\local-checkpoints\visualize-depth-after-20261001T011913Z\source-bootstrap.cjs`
+  loading actual `app/main.js` (PID 30096 at verification). Shared/read-only helper
+  PIDs 32932/38860 use that directory's instrumented copy of the corrected helper.
+  Production files contain no new capture hooks. **Refresh**
+  `http://127.0.0.1:17892/#sliders` to load the final Controller; no further source
+  restart is needed. Keep the same registered diagnostic plug-in:
+  `D:\Projects\LRBridge\local-checkpoints\visualize-depth-20261001T003617Z\diagnostic\lightroom\LRBridge.lrplugin`.
+  It was active throughout both follow-ups; **no plug-in reload is required**.
+- Correction to older handoff: initial runtime inspection found the production
+  source plug-in, not the older Grain diagnostic registration. The user switched
+  once to the Visualize Depth diagnostic copy for the baseline; only that worker
+  consumed commands. Verify actual processes/registration next session if changed.
+- Baseline/follow-up/final captures are finished and preserved; their recording
+  pages must not be reused for new tests. Detailed correlations, source hashes,
+  regression output and verified recovery ZIP/FTP readback are indexed by
+  `local-checkpoints/visualize-depth-analysis-current.txt`; current timed runtime
+  and final capture are indexed by `visualize-depth-after-current.txt` and
+  `visualize-depth-final-current.txt` in the same directory. Initial fast follow-up
+  missed two standalone trace events during arm-cache startup; exact timestamps
+  survived in completion records. Final capture has complete timing events.
+- Checkpoint preparation began at **992a30b** on
+  `feature/v0.6-more-sdk-and-web-controller`, 19 ahead/0 behind configured upstream,
+  with an empty index and the existing stash. Private package **20260930T235011Z**
+  remains unchanged and was not launched. All accepted slider/Reset, Masking/Point Color,
+  Grain, Parametric, lifecycle, Dust/Denoise work and unrelated WIP/settings/evidence
+  remain preserved. Package/manual checks below are still pending and unchanged.
+
+## October 1 previous private package — 20260930T235011Z comparison baseline
 
 - Reviewed release source checkpoint: **`f7974a9087c891f30bde54ef47d2cb6929a79592`**
   on `feature/v0.6-more-sdk-and-web-controller` (50 explicitly reviewed paths).
@@ -14,7 +90,7 @@
   Masking**. Both names are bold; the existing amber appearance and placement
   directly below the button are unchanged. Text-only runtime change in this step.
   Focused actual Controller rendering passed at 1280/390/320 px; images inspected.
-- Latest manual report: **Visualize Depth still feels slow**. The observation
+- Historical report for this older package: **Visualize Depth still feels slow**. The observation
   does not distinguish command delay from feedback delay. Carry this as a known
   issue in the private build; performance is not passed, and no further tuning
   or optimization is part of this step.
@@ -60,7 +136,8 @@
   the renamed group in Lightroom. The original VM unavailable-state cause is still
   unproven. Review unreported presentation details during normal package use; accepted
   Parametric and slider/control behavior require no repeat capture or tuning.
-  Visualize Depth slowness remains a known issue, not a passed performance check.
+  Visualize Depth slowness was a known issue in this package; the corrected source
+  is now manually accepted above and will be included in the fresh candidate.
   Constrain Crop feedback optimization stays deferred; other documented limits remain.
 - No automatic registration change, live edit or new desktop launch was performed.
   Existing source app/diagnostic plug-in remain in use. Private settings, unrelated

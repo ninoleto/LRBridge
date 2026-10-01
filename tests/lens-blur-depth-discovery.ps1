@@ -10,11 +10,12 @@ $functions = @('Throw-Unavailable', 'Get-WindowSnapshot', 'Get-LightroomWindows'
     'Test-AfxParent', 'Test-IsDescendantOfSnapshot', 'Find-LensBlurRoot', 'Find-UniqueButtonInRoot',
     'Add-AnchorIdentity', 'Assert-AnchorIdentity', 'Assert-ButtonIdentity', 'Read-Checkbox',
     'Try-ReadCheckbox', 'Public-CheckboxState', 'Get-DepthVisualizationState')
+if ($source.Contains('function Get-LightroomWindowsForDepth')) { $functions += 'Get-LightroomWindowsForDepth' }
 foreach ($name in $functions) {
     $node = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
     if ($null -eq $node) { throw "Missing production function: $name" }
     $definition = $node.Extent.Text
-    if ($name -eq 'Get-LightroomWindows') {
+    if ($name -in @('Get-LightroomWindows', 'Get-LightroomWindowsForDepth')) {
         $processCall = '[System.Diagnostics.Process]::GetProcessesByName("Lightroom")'
         if (-not $definition.Contains($processCall)) { throw 'Process-enumeration fixture seam changed' }
         $definition = $definition.Replace($processCall, '[LRBridgeNative]::FixtureProcesses()')
@@ -32,7 +33,7 @@ public class DepthTestProcess { public int Id=50; }
 public static class LRBridgeNative {
     public struct RECT { public int Left,Top,Right,Bottom; }
     public static Dictionary<long,DepthTestWindow> Windows=new Dictionary<long,DepthTestWindow>();
-    public static int TrackReads, CheckReads, Discoveries;
+    public static int TrackReads, CheckReads, Discoveries, UnrelatedSnapshots;
     public static bool Checked, AccessibleChecked;
     public static DepthTestProcess[] FixtureProcesses() { return new [] { new DepthTestProcess() }; }
     public static IntPtr[] GetProcessWindows(int pid) {
@@ -42,7 +43,10 @@ public static class LRBridgeNative {
     }
     public static bool IsWindow(IntPtr h) { return Windows.ContainsKey(h.ToInt64()); }
     public static int ProcessId(IntPtr h) { return Windows[h.ToInt64()].ProcessId; }
-    public static bool GetWindowRect(IntPtr h,ref RECT rect) { rect.Right=500;rect.Bottom=500;return true; }
+    public static bool GetWindowRect(IntPtr h,ref RECT rect) {
+        if (Windows[h.ToInt64()].Class=="msctls_trackbar32") UnrelatedSnapshots++;
+        rect.Right=500;rect.Bottom=500;return true;
+    }
     public static string ClassName(IntPtr h) { return Windows[h.ToInt64()].Class; }
     public static string WindowText(IntPtr h) { return Windows[h.ToInt64()].Text; }
     public static IntPtr GetParent(IntPtr h) { return new IntPtr(Windows[h.ToInt64()].Parent); }
@@ -79,6 +83,7 @@ Assert ($off.available -and $off.value -eq $false) 'Fresh Off checkbox must rema
 Write-Output "Focused depth discovery: $([LRBridgeNative]::TrackReads) unrelated track reads; $([LRBridgeNative]::CheckReads) checkbox read."
 Assert ([LRBridgeNative]::TrackReads -eq 0) 'Focused Visualize Depth read must not synchronously query unrelated slider ranges/positions'
 Assert ([LRBridgeNative]::CheckReads -eq 1) 'One native checkbox read, with accessibility agreement'
+Assert ([LRBridgeNative]::UnrelatedSnapshots -eq 0) 'Depth must not build full identity/geometry snapshots of unrelated slider windows'
 [LRBridgeNative]::Checked=$true; [LRBridgeNative]::AccessibleChecked=$true
 $on = Get-DepthVisualizationState
 Assert ($on.available -and $on.value -eq $true -and [LRBridgeNative]::Discoveries -eq 2) 'Each read must freshly discover and confirm the new state'
@@ -96,6 +101,15 @@ Assert (-not (Get-DepthVisualizationState).available) 'Changed Lens Blur anchor 
 Add-Window 4 2 'Button' 'Visualize Depth'
 Assert (-not (Get-DepthVisualizationState).available) 'Ambiguous matching buttons must fail closed'
 [void][LRBridgeNative]::Windows.Remove(4)
+Add-Window 5 1 'AfxWnd140u' 'LensBlurContents'
+Assert (-not (Get-DepthVisualizationState).available) 'Duplicate panel roots must fail closed'
+[void][LRBridgeNative]::Windows.Remove(5)
+[LRBridgeNative]::Windows[3].ProcessId=51
+Assert (-not (Get-DepthVisualizationState).available) 'A checkbox from another process must fail closed'
+[LRBridgeNative]::Windows[3].ProcessId=50
+[LRBridgeNative]::Windows[3].Parent=1
+Assert (-not (Get-DepthVisualizationState).available) 'Reparented checkbox outside Lens Blur must fail closed'
+[LRBridgeNative]::Windows[3].Parent=2
 [LRBridgeNative]::TrackReads=0
 $full = Get-LightroomWindows
 Assert ([LRBridgeNative]::TrackReads -eq 60) 'Ordinary discovery must preserve three reads for each of the twenty fixture sliders'
