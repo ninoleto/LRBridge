@@ -36,15 +36,29 @@ and truthful state remain unchanged. Final measured On/Off confirmation was
 measurements do not measure overlay-paint completion or certify every workload.
 Timing evidence and regressions are retained; no further source capture is required.
 
-Dust clean-install and legacy-preset migration checks are explicitly deferred to
-the fresh package. Preserve the existing VM/package comparison baseline and
-accepted current Dust control behavior. Remaining package checks are desktop
-startup/restart/settings preservation, Visualize Depth in the new package,
-Companion/PowerShell commands, phone/tablet LAN, and clean Dust setup plus legacy
-migration without duplicate presets, On/Off/Reset and manual Healing preservation. Isolated
-installer and packaged-runtime tests do not replace those manual checks. This is
-a private test build, not a public release. Constrain Crop feedback work remains
-deferred.
+The user's **VM Dust test passed** and is accepted within the reported scope. Do not
+repeat that accepted check or infer unreported legacy-migration, duplicate-preset
+or manual-Healing subcases. Preserve the VM/package comparison baseline and earlier
+accepted Dust behavior. **Auto Mask performance optimization is deferred for this
+release**, alongside the existing Constrain Crop feedback deferral.
+
+The reviewed Controller follow-up gates both Lens Profile Amount
+rows while Profile Corrections is off, preserving individual availability when on;
+disabled pointer/input handlers cannot start edits or targeted feedback through
+the parent fieldset. Reset Region is dark red while Reset Luminance stays orange.
+Focused browser states, touch guards and desktop/narrow rendering pass; package
+UI review remains open. Existing private packages are preserved.
+
+Remaining package checks are desktop startup/restart/settings preservation,
+Visualize Depth in the package, Companion/PowerShell commands and phone/tablet LAN.
+Builder-generated PowerShell verification passes 268 workflow examples and 10
+failure/result scenarios through isolated production handlers; simple-command
+coverage passes 138 isolated HTTP admissions. These are fixture results, not actual
+Lightroom execution. Bounded live checks against the new package and matching
+plug-in remain pending. Retain unreported Dust
+migration/duplicate/Healing coverage limits without reopening the accepted VM test.
+Isolated installer and packaged-runtime tests do not replace manual checks. This is
+a private test build, not a public release.
 
 ## September 28 accepted fixes integrated for private packaging
 

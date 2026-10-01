@@ -60,6 +60,7 @@ function verifySession() {
     if(mode==="wrong-result")assert(session.polls>=2,"unrelated result cannot settle this request");
     if(recipe.method && paths.length)assert.equal(session.body.presets[0].alias,"Nino's & ž preset","UTF-8 JSON and literal apostrophes");
     if(recipe.route.startsWith("/lens-blur/brush/"))assert.equal(session.nativeCalls.length,1,"one native call with no controller-created state binding");
+    if(recipe.route==="/lens-blur/visualize-depth")assert.deepEqual(session.nativeCalls.map(call=>call.name),["readDepthVisualization"],"explicit depth admission uses the focused read-only path");
     verified++;
 }
 function current() {
@@ -96,6 +97,7 @@ function maskCommand(spec,binding,kind) {
 const mockCommands={...commands,tryEnqueueCommand:()=>({accepted:true,status:commands.ADMISSION_ACCEPTED}),getNextCommand:()=>null};
 const context={getContextFields:()=>session.ctx,getContext:()=>session.ctx};
 const environment={app,console,Date,Set,Map,Buffer,URL,URLSearchParams,Number,Object,Array,JSON,
+    pollingTrace:require("../server/polling-trace").createPollingTrace(os.tmpdir(),Date.now,false),
     context,commands:mockCommands,numbers:require("../server/numbers"),
     pointCurveDefinition:curves,pointColorDefinition:pointColor,focalRangeDefinition:require("../server/lens-blur-focal-range"),
     maskingDefinition:require("../server/masking-state"),maskingCorrections:maskDefs,developPresetsDefinition:presetDefs,
@@ -146,20 +148,25 @@ pc.finishGesture=pc.finishRefineGesture=()=>{};
 environment.pointCurve=pc;
 const nativeState=()=>({...native.unavailableNativeState(),available:true,visualizeDepth:{available:true,value:false},autoMask:{available:true,value:true}});
 environment.windowsNativeBackend={};
+environment.windowsNativeBackend.readDepthVisualization=async()=>{
+    session.nativeCalls.push({name:"readDepthVisualization",args:[]});return nativeState().visualizeDepth;
+};
 for(const name of ["readState","setBrushValue","adjustBrushValue","resetBrushValue","setCheckbox","setRefinementMode","setRefinementDisclosure","resetRefinement","activateFocusRangeAction"])
     environment.windowsNativeBackend[name]=async(...args)=>{session.nativeCalls.push({name,args});return nativeState();};
 const sandbox=vm.createContext(environment);
 function loadFunction(name) {
     const start=bridgeSource.indexOf("function "+name+"(");
     const end=bridgeSource.indexOf("\n}",start)+2;
-    assert(start>=0 && end>start,name);vm.runInContext(bridgeSource.slice(start,end),sandbox);
+    assert(start>=0 && end>start,name);
+    const prefix=bridgeSource.slice(start-6,start)==="async "?"async ":"";
+    vm.runInContext(prefix+bridgeSource.slice(start,end),sandbox);
 }
 for(const name of ["parseStrictFiniteNumber","exactQueryFields","parseMaskingCounter","maskingBindingFromRequest","presetBindingFromRequest",
     "parsePointCurveCounter","parsePointCurveNumber","pointCurveBindingFromQuery","hasExactPointCurveQuery","pointCurveCommandFromQuery",
     "pointCurveCancellationCommand","queuePointCurveCancellation","gestureAdmission","queuePointCurveGesture",
     "refineSaturationCommandFromQuery","refineGestureAdmission","queueRefineSaturationGesture",
     "queueMaskingOperation","queueMaskingEdit","maskingCurveGesture","maskingRefineGesture","queueMaskingCorrection","correctionSpecification",
-    "validExplicitBooleanQuery","lensBlurDepthVisualizationBindingMatches","currentFocalRangeMatches","queueFocalRange"]) loadFunction(name);
+    "validExplicitBooleanQuery","lensBlurDepthVisualizationBindingMatches","readLensBlurDepthState","currentFocalRangeMatches","queueFocalRange"]) loadFunction(name);
 for(const name of ["MASKING_COMMAND_BINDING_FIELDS","MASKING_EDIT_FIELDS","MASKING_TONE_BINDING_FIELDS","MASKING_CORRECTION_FIELDS"]) {
     const start=bridgeSource.indexOf("const "+name+" ="),end=bridgeSource.indexOf(";",start)+1;
     vm.runInContext(bridgeSource.slice(start,end),sandbox);

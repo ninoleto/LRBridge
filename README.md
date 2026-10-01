@@ -1149,6 +1149,9 @@ https://github.com/ninoleto/companion-module-ninoleto-lrbridge
 
 ## 23. Development workflow for humans
 
+For a future macOS port, start with the [macOS porting guide](docs/MACOS_PORTING.md).
+It separates verified Windows behavior from proposed, untested macOS work.
+
 Create a branch:
 
 ```powershell

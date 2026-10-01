@@ -296,6 +296,13 @@
             max-width: 1120px;
         }
 
+        .lens-profile-amount-controls {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            min-width: 0;
+        }
+
         .lens-subheading {
             margin: 18px 0 9px;
             padding-bottom: 5px;
@@ -1722,7 +1729,6 @@
 
         button.reset,
         button.cg-reset:enabled,
-        button.cg-reset-region:enabled,
         .cg-inline-confirm button.command-danger:enabled {
             background: #7a4f24;
             border-color: #9b6530;
@@ -1730,9 +1736,18 @@
 
         button.reset:hover,
         button.cg-reset:enabled:hover,
-        button.cg-reset-region:enabled:hover,
         .cg-inline-confirm button.command-danger:enabled:hover {
             background: #8a5a2a;
+        }
+
+        button.cg-reset-region:enabled {
+            background: #4a1f24;
+            border-color: #73343d;
+            color: #ffffff;
+        }
+
+        button.cg-reset-region:enabled:hover {
+            background: #612932;
         }
 
         .global-history-toolbar {
@@ -2132,6 +2147,14 @@
             -webkit-text-fill-color: #aaa;
             border-color: #505050;
             cursor: not-allowed;
+        }
+
+        .lens-profile-amount-row button:disabled,
+        .lens-profile-amount-row button:disabled:hover {
+            background: #444;
+            border-color: #666;
+            color: #bbb;
+            opacity: 1;
         }
 
         .develop-preset-config-field input[type="text"] {
@@ -6749,7 +6772,7 @@
             return { row: row, input: input };
         }
 
-        function addSwitchRow(groupElement, item) {
+        function addSwitchRow(groupElement, item, onPresentationChange) {
             const row = document.createElement("div");
             row.className = "switch-row native-checkbox-row";
             row.dataset.sliderId = item.slider;
@@ -6781,6 +6804,7 @@
                 const known = authoritative === 0 || authoritative === 1;
                 updateNativeCheckbox(checkbox.input, known, authoritative === 1, pending, pending);
                 status.textContent = !known ? "Unavailable" : pending ? "Awaiting Lightroom…" : "";
+                if (onPresentationChange) onPresentationChange(known && authoritative === 1);
             }
             developSliderControls[item.slider] = {
                 row: row, definition: { id: item.slider },
@@ -7875,7 +7899,7 @@
                 }
                 blockLegacyTouchClick = true;
                 if (!event.isPrimary || event.button !== 0 || event.defaultPrevented ||
-                    button.disabled || !button.isConnected) return;
+                    button.matches(":disabled") || !button.isConnected) return;
                 tap = { pointerId: event.pointerId, x: event.clientX, y: event.clientY,
                     scrollX: window.scrollX, scrollY: window.scrollY, binding: developSliderFeedbackBinding() };
                 document.addEventListener("pointerdown", anotherPointer, true);
@@ -7894,7 +7918,7 @@
                 const completed = tap;
                 const rect = button.getBoundingClientRect();
                 const valid = event.pointerType === "touch" && event.isPrimary && event.button === 0 &&
-                    !event.defaultPrevented && !button.disabled && button.isConnected &&
+                    !event.defaultPrevented && !button.matches(":disabled") && button.isConnected &&
                     withinTap(event) && event.clientX >= rect.left && event.clientX <= rect.right &&
                     event.clientY >= rect.top && event.clientY <= rect.bottom &&
                     window.scrollX === tap.scrollX && window.scrollY === tap.scrollY && sameTapContext(tap);
@@ -7904,7 +7928,7 @@
                 // Match normal button focus/blur ordering before the existing Reset
                 // cancels unsent edits and joins the ordered command path.
                 button.focus({ preventScroll: true });
-                if (!button.disabled && button.isConnected && sameTapContext(completed)) onActivate();
+                if (!button.matches(":disabled") && button.isConnected && sameTapContext(completed)) onActivate();
             });
             return button;
         }
@@ -8018,6 +8042,8 @@
             row.dataset.sliderId = definition.id;
 
             range.addEventListener("pointerdown", function (event) {
+                // Disabled fieldsets can still deliver pointer events to a range.
+                if (range.matches(":disabled")) return;
                 if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                     event.preventDefault();
                     restoreWhiteBalanceDependentSlider(control);
@@ -8030,6 +8056,7 @@
                 if (range.setPointerCapture) range.setPointerCapture(event.pointerId);
             });
             range.addEventListener("input", function () {
+                if (range.matches(":disabled")) return;
                 if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                     restoreWhiteBalanceDependentSlider(control);
                     return;
@@ -8048,7 +8075,7 @@
                 control.pointerActive = false;
                 control.dragging = false;
                 if (event && range.hasPointerCapture && range.hasPointerCapture(event.pointerId)) range.releasePointerCapture(event.pointerId);
-                if (submitFinal && !invalidated) {
+                if (submitFinal && !invalidated && !range.matches(":disabled")) {
                     const nextValue = constrainParametricCurveSplitValue(
                         control,
                         developSliderControlPositionToActual(control, Number(range.value))
@@ -10673,9 +10700,9 @@
                 return definition ? developSliderControls[id] : null;
             }
 
-            function appendSwitch(panel, id) {
+            function appendSwitch(panel, id, onPresentationChange) {
                 const definition = switches.get(id);
-                if (definition) addSwitchRow(panel, definition);
+                if (definition) addSwitchRow(panel, definition, onPresentationChange);
             }
 
             const tabs = document.createElement("div");
@@ -10716,17 +10743,26 @@
 
             profilePanel.appendChild(createLensSubheading("Profile"));
             appendSwitch(profilePanel, "AutoLateralCA");
-            appendSwitch(profilePanel, "LensProfileEnable");
+            // Parent availability is independent of each slider's SDK/interaction
+            // guards: later amount feedback cannot enable a disabled fieldset.
+            const profileAmountControls = document.createElement("fieldset");
+            profileAmountControls.className = "lens-profile-amount-controls";
+            profileAmountControls.setAttribute("aria-label", "Lens profile correction Amount");
+            profileAmountControls.disabled = true;
+            appendSwitch(profilePanel, "LensProfileEnable", function (enabled) {
+                profileAmountControls.disabled = !enabled;
+            });
             const profileNote = document.createElement("div");
             profileNote.className = "command-group-note lens-corrections-note";
             profileNote.textContent = "Changing lens profiles is not supported in LRBridge. Please select and configure your lens profile in Lightroom Classic.";
             profilePanel.appendChild(profileNote);
             const profileAmountHeading = createLensSubheading("Amount");
             profilePanel.appendChild(profileAmountHeading);
+            profilePanel.appendChild(profileAmountControls);
             const profileAmountRows = [];
             [["LensProfileDistortionScale", "Distortion"], ["LensProfileVignettingScale", "Vignetting"]]
                 .forEach(function (entry) {
-                    const control = appendSlider(profilePanel, entry[0], entry[1]);
+                    const control = appendSlider(profileAmountControls, entry[0], entry[1]);
                     if (!control) return;
                     control.hideWhenUnavailable = false;
                     control.row.classList.add("lens-profile-amount-row");

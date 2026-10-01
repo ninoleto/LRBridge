@@ -377,7 +377,7 @@ assert.match(slidersOnlyBlock,
     /switchGroupIsEmbedded[\s\S]*!switchGroupIsEmbedded && !renderedSwitchPlacements\.has\(placement\)/,
     "Embedded switch groups must not also render as standalone Switches groups");
 assert.match(controller,
-    /function renderLensCorrectionsSection[\s\S]*function appendSwitch\(panel, id\)[\s\S]*addSwitchRow\(panel, definition\)/,
+    /function renderLensCorrectionsSection[\s\S]*function appendSwitch\(panel, id, onPresentationChange\)[\s\S]*addSwitchRow\(panel, definition, onPresentationChange\)/,
     "Lens Corrections switches must reuse the existing switch row renderer");
 assert.match(controller,
     /function appendEmbeddedActionGroups[\s\S]*addActionRow\(parent, item\)/,
@@ -807,8 +807,8 @@ assert.match(feedback, /local postOk = LrTasks\.pcall\(function\(\) LrHttp\.get\
     "Unavailable treatment results must use yield-safe protection");
 assert.match(feedback, /table\.insert\(pendingTreatmentRequestIds, id\)[\s\S]*while running\(\) and #pendingTreatmentRequestIds > 0/,
     "Every queued treatment request must receive a terminal worker result");
-assert.match(feedback, /startTreatmentWorker\(id\)[\s\S]*slider = nil[\s\S]*if slider ~= nil then/,
-    "The feedback loop must dispatch treatment work without waiting for it");
+assert.match(feedback, /Trace\.call\("startTreatmentWorker", startTreatmentWorker, id\)\s+return true\s+end\s+if slider == nil then return false end/,
+    "The feedback dispatcher must return after starting treatment work without waiting for it");
 assert.match(feedback, /treatment snapshot failure: runtime_error[\s\S]*postUnavailableTreatmentResult\(requestId, "runtime_error"\)/);
 assert.match(feedback, /postUnavailableTreatmentResult[\s\S]*status=unavailable/);
 assert.match(feedback, /log\("treatment result post failed"\)/);

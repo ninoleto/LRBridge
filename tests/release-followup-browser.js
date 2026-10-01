@@ -89,8 +89,8 @@ const helper = "If Masking opens in Lightroom Classic but the controls here rema
         })()`);
         assert(resetStyle.some(b => b.label === "Reset Blending") && resetStyle.some(b => b.label === "Reset Balance"));
         for (const button of resetStyle) {
-            assert.equal(button.bg, "rgb(122, 79, 36)", button.label + " uses shared Reset background");
-            assert.equal(button.border, "rgb(155, 101, 48)");
+            assert.equal(button.bg, button.label === "Reset Region" ? "rgb(74, 31, 36)" : "rgb(122, 79, 36)", button.label + " uses its Reset background");
+            assert.equal(button.border, button.label === "Reset Region" ? "rgb(115, 52, 61)" : "rgb(155, 101, 48)");
             assert.deepEqual(button.disabled, button.label === "Reset"
                 ? { bg: "rgb(116, 47, 58)", border: "rgb(154, 68, 82)", opacity: "0.45" }
                 : { bg: "rgb(39, 52, 66)", border: "rgb(59, 75, 92)", opacity: "0.45" },

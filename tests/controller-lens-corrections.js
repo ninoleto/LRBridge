@@ -571,7 +571,7 @@ for (const id of ["VignetteAmount", "VignetteMidpoint", "LensProfileEnable", "Au
     assert.match(polling, new RegExp("\\\"" + id + "\\\""));
 }
 
-assert.match(lensBlock, /control\.hideWhenUnavailable = true/);
+assert.match(lensBlock, /control\.hideWhenUnavailable = false/, "Profile Amount rows remain visible when unavailable");
 assert.match(controller, /if \(control\.hideWhenUnavailable\) control\.row\.hidden = true/);
 assert.match(controller, /if \(control\.hideWhenUnavailable\) control\.row\.hidden = false/);
 for (const unsupported of ["LensProfileSetup", "LensProfileMake", "LensProfileModel", "LensProfileName", "DefringeEyedropper", "selectDefringeTool"]) {

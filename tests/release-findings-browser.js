@@ -144,6 +144,7 @@ const grading = require("../server/color-grading");
             assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth"), true, "Develop overflow " + width);
             await capture(".lens-profile-amount-row", "lens-disabled-" + width);
         }
+        fixture.values.LensProfileEnable = 1;
         lensAmountsAvailable = true;
         await evaluate("requestLiveFeedbackSnapshot(true)");
         await waitFor(() => evaluate("Array.from(document.querySelectorAll('.lens-profile-amount-row')).every(r=>!r.hidden && !r.querySelector('input').disabled)"), "Available Lens rows retain their position");

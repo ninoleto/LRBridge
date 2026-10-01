@@ -6,6 +6,11 @@ const runtimeFiles = require("./release-runtime-files.json");
 const publicDocs = ["WINDOWS_BETA.md", "RELEASE_REVIEW.md", "RELEASE_CLEANUP.md", "LENS_BLUR_FOCUS_RANGE_STATE_AND_LIMITATIONS.md", "HTTP_WORKFLOWS.md", "HTTP_OPERATIONS.md", "COMPANION_HTTP_CHEATSHEET.md",
     "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md"];
 const defaults = "poll_interval_ms=100\n";
+function distributionReadme(source) {
+    // Developer guides link to source/tests that are deliberately not distributed.
+    return source.replace("[macOS porting guide](docs/MACOS_PORTING.md)",
+        "macOS porting guide (`docs/MACOS_PORTING.md` in the source repository)");
+}
 function sha(file) { return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex"); }
 function copy(relative, stage) {
     const destination = path.join(stage, relative);
@@ -40,6 +45,7 @@ function stageProject(stage) {
     }
     allow.add(luaRoot+"color-grading.properties");
     for(const relative of allow) copy(relative,stage);
+    fs.writeFileSync(path.join(stage,"README.md"), distributionReadme(fs.readFileSync(path.join(root,"README.md"),"utf8")));
     fs.writeFileSync(path.join(stage,"config/settings.txt"), defaults);
     fs.writeFileSync(path.join(stage,"config/develop-presets.json"), JSON.stringify({version:1,presets:[]},null,2)+"\n");
     // extraFiles source paths must not overlap ASAR inputs: electron-builder excludes overlaps.
@@ -87,5 +93,5 @@ async function main() {
     fs.writeFileSync(zip+".sha256",result.sha256+"  "+path.basename(zip)+"\n");
     console.log(JSON.stringify(result,null,2));
 }
-module.exports={stageProject,inspectCandidate,walk,sha,defaults};
+module.exports={stageProject,inspectCandidate,walk,sha,defaults,distributionReadme};
 if(require.main===module) main().catch(e=>{console.error(e);process.exitCode=1;});

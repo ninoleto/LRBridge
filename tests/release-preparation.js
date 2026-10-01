@@ -30,6 +30,9 @@ try {
     assert(result.luaModules>25,"transitive runtime dependencies including dofile loops must be staged");
     for(const f of ["AutoStartPolling.lua","FeedbackPolling.lua","SettingsClipboard.lua","Export.lua","DustOnPreset.lua","DustPasteDiagnostics.lua","People.lua","Remove.lua"]) assert(fs.existsSync(path.join(stage,"lightroom/LRBridge.lrplugin",f)),"missing "+f);
     const files=build.walk(stage);
+    assert(!files.includes("docs/MACOS_PORTING.md"), "Source-only macOS guide must not expand the distribution documentation allowlist");
+    assert(fs.readFileSync(path.join(root,"README.md"),"utf8").includes("[macOS porting guide](docs/MACOS_PORTING.md)"), "Source README retains the developer link");
+    assert(fs.readFileSync(path.join(stage,"README.md"),"utf8").includes("macOS porting guide (`docs/MACOS_PORTING.md` in the source repository)"), "Portable README explains where to find the source-only guide");
     for(const file of files.filter(f=>f.endsWith(".md"))) {
         const source=fs.readFileSync(path.join(stage,file),"utf8");
         for(const match of source.matchAll(/\[[^\]\r\n]*\]\(([^)\s]+)\)/g)) {

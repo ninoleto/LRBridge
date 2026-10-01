@@ -1,5 +1,130 @@
 # LRBridge Codex Handoff
 
+## October 2 reviewed release checkpoint and package preparation
+
+- User authorized the local checkpoint of Lens Profile Amount availability and
+  effective-disabled touch guards, Color Grading Reset Region styling, their tests,
+  and the macOS guide/README/handoff. The Controller changes are unchanged from the
+  preceding focused verification. Reuse the completed Off/On/unavailable, late
+  feedback, touch/Reset and 1280/390/320 px checks; do not reopen accepted sliders.
+- Portable documentation is resolved using the existing public-doc allowlist:
+  only the staged README's macOS guide link becomes an explicit source-repository
+  reference. The source README retains its relative link. The guide, developer
+  source/tests, private evidence and configuration remain outside the distribution.
+- Required release preparation/cleanup passed: route inventory, relative packaged
+  links, sanitized defaults, isolated Dust installer scenarios, production Lua
+  syntax, disabled diagnostics and isolated staged startup. Updated Lens and
+  generic-slider contracts passed. Prior Lens browser files/source are byte-identical.
+- Builder checks passed **138 isolated HTTP admissions** and **268 generated
+  PowerShell workflow examples plus 10 failure/result scenarios**. These validate
+  syntax, construction, fresh bindings, matching results, cancellation and no edit
+  retries against fixtures, not Lightroom. Fixed stale test dependencies for the
+  accepted focused depth read, disabled Masking trace and treatment dispatcher;
+  no corresponding production command/feedback behavior changed.
+- The reported Dust VM test remains accepted within its reported scope. Auto Mask
+  and Constrain Crop performance work remain deferred. Preserve every earlier
+  feature acceptance and unreported Dust-subcase limitation.
+- Neither LRBridge nor Lightroom was running at initial inspection. Live package
+  tests have not run; first finish the committed candidate and package checks, then
+  request only the matching plug-in/disposable-photo setup needed in Lightroom.
+  The agent will execute the PowerShell commands. No live edit has been sent.
+- Full recovery backup uploaded/read back with 1,403 manifest entries verified and
+  credentials excluded. Unrelated edits, settings, stash, evidence and prior packages
+  are preserved. Working evidence: `local-checkpoints/private-release-current.txt`.
+  Checkpoint/build identifiers and final package results follow when complete.
+
+## October 1 macOS porting starting point (documentation only, uncommitted)
+
+- Added [docs/MACOS_PORTING.md](docs/MACOS_PORTING.md) and a README development
+  link. The guide maps current production sources and committed regression tests,
+  separates command execution from feedback (including Visualize Depth's SDK
+  toggle and Windows state dependency), and proposes a bounded SDK-first port.
+  It records Windows-only verification, macOS unknowns, settings/path and lifecycle
+  work, Dust installation semantics, preserved coordination/HTTP contracts and an
+  ordered native validation plan. No macOS tests or support are claimed.
+- Documentation-only review: repository-relative links and committed references
+  checked; no application code, feature tests, running setup or private evidence
+  changed. Existing Controller fixes remain uncommitted. Accepted feature/VM
+  results, private settings, stash, recordings, backups and packages are preserved.
+- Before the next package, reconcile the new README developer link with the
+  Windows staging public-document allowlist: this guide targets a full source
+  checkout and links to source/tests excluded from a portable distribution. Keep
+  packaged links valid without adding development evidence to the distributable.
+  Packaging code is unchanged in this documentation-only step.
+- Next release work remains the reviewed scoped checkpoint, updated private
+  Windows package and automated PowerShell integration checks, plus the existing
+  manual package gates below. Auto Mask and Constrain Crop optimizations remain
+  deferred. No port implementation, commit, build, push or publication.
+
+## October 1 disabled Lens Amount touch follow-up (uncommitted)
+
+- Focused isolated Chromium touch input reproduced a real Controller request bug:
+  a disabled range still receives pointer events through its parent fieldset.
+  The custom handler began a drag, then flushed the unchanged value on release.
+  First disabled taps sent **Set 76** for `LensProfileDistortionScale` and **Set 64**
+  for `LensProfileVignettingScale`; four tap/drag gestures produced four targeted
+  confirmation reads. No Reset request was sent. Later same-value touches could
+  be deduplicated as writes but still requested confirmation. This is fixture HTTP
+  evidence, not proof of a write in the user's live Lightroom session.
+- Added only effective `range.matches(":disabled")` guards before pointer/input
+  interaction and before final drag submission. Parent-fieldset and directly
+  disabled controls are covered. Background feedback, values/layout, SDK/HTTP
+  implementation, coordination timing and accepted touch Reset handling unchanged.
+- Same focused check now passes with **zero disabled interaction starts, commands
+  or targeted reads**; trusted touch events still reached both disabled sliders.
+  Enabled drags continue to write and confirm (fixture final values 144/144).
+  Ordinary 500 ms polling continues before, during and after touches. Existing
+  Reset and presentation checks were reused; no new native capture or broad suite.
+  Evidence and preceding source: `local-checkpoints/lens-profile-touch-current.txt`.
+- Next release steps remain a scoped checkpoint of reviewed Controller changes,
+  an updated private Windows package, and automated PowerShell integration checks.
+  Preserve remaining manual package gates below, accepted VM Dust/Visualize Depth
+  results and the Auto Mask/Constrain Crop optimization deferrals. Refresh only a
+  source-served Controller to load this guard; no plug-in reload is needed. Existing
+  package `20261001T020010Z` is unchanged. No commit, build, native edits or publication.
+
+## October 1 VM Dust accepted; limited Controller follow-up (uncommitted)
+
+- **User result:** the VM Dust test passed. Record it as accepted within the
+  reported tested scope; do not repeat the accepted VM test. The report does not
+  enumerate legacy migration, duplicate-preset or manual-Healing subcases, so do
+  not infer additional coverage. Preserve earlier accepted Dust behavior.
+- **Auto Mask performance optimization is deferred for this release.** No timing,
+  command, native-helper or plug-in changes are included in this follow-up.
+- Lens Corrections Profile Amount now has a parent availability gate tied to
+  confirmed Enable Profile Corrections feedback. Off/unknown disables Distortion
+  and Vignetting ranges, value fields, minus/plus and Reset even if later individual
+  amount feedback says available. On retains each control's existing availability
+  and guards. Both rows and their values remain in place across Off/On; no SDK or
+  HTTP behavior changed. Disabled inputs and buttons are gray.
+- The parent gate uses a disabled fieldset without changing the row grid. Touch
+  Reset checks effective `:disabled` state, including the parent, so its existing
+  pointer-up path cannot bypass this gate. Accepted touch ordering and timing remain.
+- Color Grading **Reset Region** is very dark red (`#4a1f24`) with white text;
+  **Reset Luminance** remains orange. Other Reset and disabled styles are preserved.
+- **Focused automated checks passed:** new production-browser regression fails
+  against the preceding source with all five Amount controls enabled while Off;
+  passes Off, On/available, On/unavailable, mixed availability, late amount feedback,
+  unknown switch, retained values, independent Reset guard and disabled mouse/touch.
+  Rendered states/colors verified at 1280/390/320 px without horizontal page overflow.
+  Existing Lens Corrections contract and focused touch Reset regression pass.
+  Older visible-row/color expectations were aligned; other completed feature checks
+  were reused. These are isolated browser/feedback fixtures, not new native acceptance.
+- Source changes need review; refresh a **source-served** Controller to load them.
+  No server restart or plug-in reload is needed. Private candidate **20261001T020010Z**
+  remains unchanged and does **not** contain these two new Controller changes.
+- Keep the remaining package checks open: desktop startup/restart and settings
+  preservation; packaged Visualize Depth; Companion/PowerShell commands; phone/tablet
+  LAN. **Automated PowerShell integration checks remain pending** and were not run
+  in this UI-only step. Retain unreported Dust migration/duplicate/Healing coverage
+  limits separately from the accepted VM result. All previous feature acceptances,
+  Constrain Crop deferral and documented limitations stay intact.
+- Started at `423e188` on `feature/v0.6-more-sdk-and-web-controller`, 21 ahead/0
+  behind configured upstream, empty index and existing stash. Unrelated work,
+  private settings, recordings, backups and packages preserved. Evidence and before
+  snapshots: `local-checkpoints/lens-profile-ui-current.txt`. No commit, build,
+  running-setup switch, native edits, broad audit, push or publication.
+
 ## October 1 private release candidate ready — test 20261001T020010Z next
 
 - Reviewed Visualize Depth checkpoint: **`98c38ba0e813a66990b8e847addb78a4d15bd300`**

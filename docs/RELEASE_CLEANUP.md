@@ -69,6 +69,11 @@ leaves diagnostics disabled. The disabled `Trace.call` wrapper is unchanged.
   public defaults and an empty preset configuration. Existing recovery backups and
   research remain in their original locations, outside distribution and this
   checkpoint where unrelated.
+- The macOS porting guide is source-only: its links require developer source and
+  tests excluded from the portable package. The source README keeps its relative
+  guide link; staging turns only that link into an explicit source-repository
+  reference. The public-document allowlist stays unchanged, and every remaining
+  packaged Markdown link must resolve without adding development evidence.
 
 ## Completed verification
 
