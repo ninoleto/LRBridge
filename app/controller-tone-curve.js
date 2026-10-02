@@ -684,6 +684,12 @@
                 snapshot.editFeedbackSequence >= transaction.editSequence &&
                 snapshot.lastEditResult && snapshot.lastEditResult.sequence >= transaction.editSequence;
         }
+        // updatedAt also advances on an unchanged SDK heartbeat. It is not an
+        // edit result and must not cancel queued point work before SDK execution.
+        if (validCurveArray(transaction.submittedPoints) && snapshot.curves &&
+            curvesEqual(snapshot.curves[transaction.channel], transaction.submittedPoints) &&
+            snapshot.developCounter === transaction.submittedDevelopCounter &&
+            snapshot.revision === transaction.submittedRevision) return false;
         return validBinding(snapshot) &&
             (snapshot.developCounter > transaction.submittedDevelopCounter ||
                 snapshot.revision > transaction.submittedRevision ||
@@ -711,6 +717,7 @@
             submittedDevelopCounter: snapshot.developCounter,
             submittedRevision: snapshot.revision,
             submittedUpdatedAt: snapshot.updatedAt,
+            submittedPoints: snapshot.curves[session.channel].slice(),
             points: points.slice(),
             submittedAt: submittedAt
         }, snapshot);
@@ -997,6 +1004,11 @@
         }
 
         function activePreview(points) {
+            if (!gesture && awaitingTarget && awaitingTarget.operation === "add" && points && authoritative &&
+                awaitingTarget.channel === selectedChannel && sameIdentity(awaitingTarget, authoritative)) {
+                const pointIndex = locateInsertedPoint(awaitingTarget.points, awaitingTarget.insertion);
+                if (pointIndex !== null) return { points: awaitingTarget.points, pointIndex: pointIndex };
+            }
             if (!gesture || !points || gesture.channel !== selectedChannel || !authoritative ||
                 !sameIdentity(gesture.identity, authoritative) || (!gesture.adding && !gesture.dragStarted)) return null;
             const previewPoints = gestureTarget(gesture, points);
@@ -1308,6 +1320,7 @@
             session.lastSubmittedDevelopCounter = authoritative.developCounter;
             session.lastSubmittedRevision = authoritative.revision;
             session.lastSubmittedUpdatedAt = authoritative.updatedAt;
+            session.lastSubmittedPoints = baseline.slice();
             session.lastSubmittedAt = now();
             const submittedSnapshot = normalizeSnapshot(authoritative);
             const path = routePrefix + "/gesture/" + phase + "?channel=" + encodeURIComponent(session.channel) +
@@ -1823,6 +1836,13 @@
                 });
                 if (failure) {
                     retireActiveGesture(gesture, "ERROR: " + failure);
+                } else if (gesture.oneShot) {
+                    // Delete owns a complete curve, not a draggable point index.
+                    // An unchanged snapshot during HTTP admission is not cancellation.
+                    const points = normalized.curves[gesture.channel];
+                    if (!curvesEqual(points, gesture.baseline) && !curvesEqual(points, gesture.target)) {
+                        retireActiveGesture(gesture, "Point Curve request cancelled because Lightroom changed the curve");
+                    }
                 } else {
                     const previousGesturePoints = previous && previous.curves ? previous.curves[gesture.channel] : null;
                     let remappedIndex;
@@ -1856,6 +1876,8 @@
                                 developCounter: gesture.identity.developCounter,
                                 submittedDevelopCounter: gesture.lastSubmittedDevelopCounter,
                                 submittedRevision: gesture.lastSubmittedRevision,
+                                submittedPoints: gesture.lastSubmittedPoints,
+                                channel: gesture.channel,
                                 submittedAt: gesture.lastSubmittedAt,
                                 editSequence: gesture.lastSubmittedEditSequence
                             }, gesture.identity));
@@ -1996,25 +2018,39 @@
                 channel: selectedChannel,
                 identity: identityForBinding(authoritative),
                 operation: operation || "change",
+                oneShot: true,
+                baseline: baseline.slice(),
+                target: target.slice(),
                 cancelSent: false
             };
+            function ownsAdmission() {
+                return active && gesture === session && sameIdentity(session.identity, expectedBinding);
+            }
             gesture = session;
             render();
             try {
                 await requestJson(routePrefix + "/gesture/begin?" + baseQuery);
+                if (!ownsAdmission()) return false;
+                if (!bindingsEqual(session.identity, expectedBinding)) {
+                    retireActiveGesture(session, "Point Curve request cancelled because Lightroom's editing context changed");
+                    return false;
+                }
                 session.begun = true;
                 const admission = await requestJson(routePrefix + "/gesture/end?" + baseQuery +
                     "&points=" + encodeURIComponent(serializeCurve(target)));
+                if (!ownsAdmission()) return false;
                 awaitingTarget = attachAdmission(createAwaitingTarget(session, target, submittedSnapshot, now()), admission);
                 setStatus("Point Curve change committed; awaiting authoritative Lightroom feedback");
                 return true;
             } catch (error) {
                 releaseRemoteGesture(session);
-                setStatus("ERROR: " + error.message);
+                if (ownsAdmission()) setStatus("ERROR: " + error.message);
                 return false;
             } finally {
-                if (gesture === session) gesture = null;
-                render();
+                if (gesture === session) {
+                    gesture = null;
+                    render();
+                }
             }
         }
 

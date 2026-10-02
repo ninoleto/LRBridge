@@ -106,13 +106,20 @@ local function activePhoto()
     return photo
 end
 
-local function prepareDevelop()
+local function prepareDevelop(resetReady)
     local photo = activePhoto()
+    -- Scalar Reset already has an active Develop photo in normal Controller use.
+    -- Transitions retain their wait; both paths revalidate the photo before Reset.
+    if resetReady == true and string.lower(tostring(LrApplicationView.getCurrentModuleName())) == "develop" then
+        if activePhoto() ~= photo then error("Color Grading photo changed before Reset") end
+        return photo
+    end
     LrApplicationView.switchToModule("develop")
     LrTasks.sleep(0.2)
     if string.lower(tostring(LrApplicationView.getCurrentModuleName())) ~= "develop" then
         error("Color Grading requires the Develop module")
     end
+    if resetReady == true and activePhoto() ~= photo then error("Color Grading photo changed before Reset") end
     return photo
 end
 
@@ -156,8 +163,11 @@ end
 function ColorGrading.resetValue(control)
     local parameter = controls[control]
     if parameter == nil then error("Invalid Color Grading control") end
-    prepareDevelop()
+    local photo = prepareDevelop(true)
     runtimeRange(parameter)
+    if activePhoto() ~= photo or string.lower(tostring(LrApplicationView.getCurrentModuleName())) ~= "develop" then
+        error("Color Grading context changed before Reset")
+    end
     LrDevelopController.resetToDefault(parameter)
     return true
 end

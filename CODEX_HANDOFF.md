@@ -1,5 +1,410 @@
 # LRBridge Codex Handoff
 
+## October 2 final beta checkpoint — Reset guard accepted; Help links ready
+
+- User **manually accepts Color Grading's Reset guard**. Further testing reports
+  that the other sliders also respond well to Reset; preserve their current
+  behavior and **do not extend the cooldown beyond Color Grading**. Remaining
+  Color Grading Reset latency is accepted for this beta. Normal and Masking Point
+  Curve, accepted Parametric preview and all earlier accepted results remain intact.
+- Added **For developers and AI agents** as the final Help section, with the exact
+  approved introduction. **Source code and complete documentation** links to the
+  actual repository; **HTTP API and workflows** uses the existing packaged local
+  route `/reference/HTTP_WORKFLOWS.md`; **macOS porting guide** links to the actual
+  source-only `docs/MACOS_PORTING.md` on the feature branch. That remote guide is
+  absent from the configured upstream snapshot and **awaits source publication**.
+  No private handoff, settings, capture/recording or backup link was added. Existing
+  package documentation routes/allowlists and the source-only README transformation
+  remain unchanged; the developer guide itself is not distributed.
+- **New focused checks passed:** Help section at 1280/390/320 px, exact links and
+  introduction, local HTTP workflow/inventory content, final placement and no
+  horizontal overflow (`release-docs-browser.js --developers-only`). Source-only
+  filenames and repository paths are verified separately; no claim that the
+  unpublished guide URL is currently live. Required `release-preparation` and
+  `release-cleanup` checks pass, including runtime exclusions, defaults, Lua syntax
+  and disposable Dust installer integrity/idempotence/migration/conflict handling.
+- Reuse completed Color Grading ordering/confirmation/latency/guard and Add/Delete
+  regressions; their implementation/test inputs are unchanged. No accepted slider,
+  Point Color, Masking, Point Curve, Parametric Curve, Profile or Depth suite/capture
+  was repeated. The eight successful live HTTP integrations and generated PowerShell
+  checks remain accepted, with their documented scope; Dust VM acceptance remains.
+- User authorizes the scoped local checkpoint and fresh private Windows package.
+  Stage only the accepted Controller/ColorGrading Lua changes, relevant tests,
+  package test commands and this handoff; exclude unrelated rules/settings/research/
+  diagnostic work. Build from the committed export with matching production Lua,
+  native helpers, Dust presets/installer and public defaults. Preserve all previous
+  packages, stash, settings, recordings and backups. Current backup was uploaded
+  and independently read back; source/refs stayed unchanged during its creation.
+- Package verification/results follow below after building. Remaining manual package
+  checks: Lightroom connection/Profile feedback, normal desktop quit/restart with
+  settings/favorites preserved, and phone/tablet LAN use. Auto Mask and Constrain
+  Crop performance remain deferred. No push/publication is authorized.
+
+## October 2 beta acceptance — final Color Grading Reset interaction guard
+
+- User **accepts the remaining Color Grading Reset latency for this beta** and
+  **accepts normal Point Curve and Masking Point Curve** within the reported
+  testing. Preserve the existing Reset ordering/latency corrections, Add/Delete
+  ownership, accepted Parametric preview, native recordings and all other accepted
+  results. Neither Point Curve implementation was changed or retested in this step.
+- **Final UI guard:** touching or editing Hue, Saturation or Luminance holds both
+  region Reset buttons disabled and explicitly grey. They become available 500 ms
+  after the last interaction ends, subject to existing SDK availability and pending
+  Reset restrictions. Each region has its own guard; Blending and Balance each have
+  a separate guard and visible **Reset** labels with descriptive accessibility names.
+  New input restarts only its guard; feedback never restarts the clock. Held pointer
+  pauses, numeric editing, outside release, cancellation, focus loss and context/
+  tab changes are handled. An already open Reset Region confirmation cannot bypass
+  the guard. Enabled buttons retain the orange/dark-red colours. Command timing,
+  polling, queues, SDK writes, confirmation/defaults and error handling are unchanged.
+- **Focused verification:** the existing Reset browser/production-queue state and
+  ordering regression passes with the new labels. The new dedicated interaction
+  regression exercises the real Controller with isolated SDK fixtures, including
+  the 499/500 ms boundary, repeated input, held/outside/cancelled touches, numeric
+  editing, independent regions/scalars, feedback, capability and pending-Reset
+  precedence, confirmation-dialog guarding and context cleanup. Rendering checks
+  pass at 1280/390 px: grey disabled buttons, restored orange/dark-red styling,
+  accessible short labels, 44 px touch targets and no horizontal overflow. Both
+  `node tests/color-grading-reset-guard.js` and
+  `node tests/controller-color-grading-reset-browser.js` pass; syntax/diff checks
+  pass. These are automated checks, not new Lightroom tests or acceptance of the
+  new UI guard.
+- **Source refresh:** the running source server serves the updated HTML and Color
+  Grading module byte-for-byte. Refresh the normal Controller at
+  `http://127.0.0.1:17892/`; no source restart, plug-in reload or new recording is
+  required for these browser-only changes.
+- HEAD remains `113fd40`, index empty; changes remain uncommitted. Keep scope frozen.
+  Review this final UI guard before the scoped checkpoint and fresh private package;
+  include its HTML styling and dedicated regression with the previously reviewed
+  release fixes. Preserve unrelated edits, private settings, stash and both existing
+  packages. Package connection/Profile feedback, normal quit/restart/settings and
+  phone/tablet LAN checks remain. Auto Mask and Constrain Crop performance remain
+  deferred; no new feature work, build, push or publication occurred.
+- The new credential-free full recovery backup was uploaded and independently read
+  back with matching SHA-256 and manifest. The initial status lookup used the wrong
+  verification filename; the new backup has no outstanding FTP verification blocker.
+  Private evidence is indexed by `local-checkpoints/color-grading-reset-guard-current.txt`.
+
+## October 2 beta scope frozen — Add accepted; final Reset UI/Delete retest ready
+
+- User completed the latest test and **accepts Add Point for that recorded run**:
+  additions worked and remained. Preserve the nine native SDK/write/readback
+  results, regression, reference evidence and accepted Parametric preview.
+  Reset Luminance works when used more slowly; **immediate Reset after rapid
+  adjustment is not accepted**. No stopping instruction was supplied. Scope is
+  limited to the following two corrections, then checkpoint/package after acceptance.
+- **Reset presentation:** use the existing generation/context/revision-owned
+  scalar Reset intent to disable/mute the button and show **Resetting…** immediately
+  after one accepted tap, through HTTP admission and real SDK confirmation.
+  Confirmation, rejection/uncertainty, new adjustment and context cancellation
+  restore the appropriate label/availability. SDK unavailability always disables
+  Reset, including during numeric editing. Ordinary pending adjustments still use
+  the preserved ordered adjustment → Reset path; their `pendingSince` alone must
+  not disable Reset indefinitely. No timing/engine changes or assumed-zero display.
+- **Captured Red Delete correction:** one-shot admission owns a baseline/target
+  curve and does not enter drag-index remapping. Unchanged feedback retains it;
+  a genuinely conflicting curve cancels it. Recheck ownership after Begin/End;
+  stale Begin cannot send End and stale End/error cannot recreate pending deletion
+  or overwrite another context's status. Full Develop binding is checked before
+  End; existing photo/mask/queue/SDK checks and accepted Add ownership remain.
+- **Focused checks passed:** actual Chromium/production-queue Reset checks cover
+  enabled one-tap admission, disabled repeated touch, immediate **Resetting…**,
+  delayed/nonmatching feedback, failed admission, new adjustment, unavailable SDK
+  feedback during numeric editing, existing ordering/no-retry/context cases.
+  Rendered 1280/390 px checks pass: muted pending button, ≥44 px touch height,
+  no horizontal overflow. Add/Delete browser/production-route/Lua-SDK-double
+  regression reproduces the captured Red baseline, unchanged feedback during held
+  Begin/End, exact Red-only deletion/readback and real conflict/Develop/photo
+  changes/late responses. New regressions fail on preserved pre-change source and
+  pass after the correction. Existing focused Point Curve tests, syntax and diff
+  checks pass. These results are automated, not new native acceptance.
+- **Brief native retest:** refresh the normal source Controller at
+  `http://127.0.0.1:17892/` (source Electron PID 3244, repository app; served modules
+  verified equal to disk). Keep the currently loaded matching diagnostic plug-in;
+  these latest changes need **no reload/restart** and no new/long capture.
+  On a disposable photo: rapidly adjust one Color Grading Luminance, release and
+  immediately tap its enabled **Reset Luminance** once; observe **Resetting…** then
+  the confirmed reset in Lightroom/Controller. In Point Curve select **Red**, select
+  an interior point and tap **Delete Point** once; it must stay deleted in both.
+- Work remains uncommitted at HEAD `113fd40` with empty index. After this retest is
+  accepted, explicitly stage only the two Controller modules, ColorGrading Lua,
+  package test commands, four relevant tests and handoff; review cached diff and
+  create the scoped checkpoint/fresh private package with the production plug-in.
+  Preserve unrelated files/settings/stash/evidence/both packages. New credential-free
+  full recovery archive is locally verified; FTP again returned 500, so remote
+  verification remains outstanding. No build/push/publication yet. Package connection/
+  Profile feedback, normal quit/restart/settings and phone/tablet LAN checks remain;
+  all other accepted results stay accepted. Auto Mask/Constrain Crop work is deferred.
+
+## October 2 corrected source trace finished — results preserved, acceptance pending
+
+- The 74.541 s recording is finished (**user finished** in receiver and browser).
+  `local-checkpoints/reset-add-point-current.txt` identifies the evidence root;
+  its `finished-current.txt` identifies a separate frozen copy of eight files,
+  with lengths/SHA-256 hashes. Previous recordings remain intact. The named
+  diagnostic worker was active, and recorded Controller assets match the corrected
+  source. This does not independently enumerate every possible plug-in worker.
+- **Reset Luminance:** 11 isolated taps produced 11 HTTP admissions and 11 correct
+  SDK Resets: Midtones 5, Shadows 2, Highlights 4. Preceding Sets completed before
+  Reset; none overwrote it afterward. Actual execution-to-SDK delay is now 0–2 ms,
+  versus 201–206 ms previously. Tap-to-confirmed displayed zero is 168–496 ms,
+  median 228 ms (previous isolated attempts 331–655 ms, median 385 ms; different
+  recorded sequences). Settled attempts take 168–225 ms; pending attempts
+  228–496 ms. Remaining delay is queue/polling and confirmation. No new Reset
+  error or warning occurred. Global Reset/repeated-tap deduplication were not
+  exercised natively in this run; existing focused automated coverage remains.
+- **Add Point:** all nine insertions across RGB/Red/Green/Blue reached exact SDK
+  writes, matching readback and authoritative Controller handles. No addition was
+  cancelled before its write or rolled back natively. Seven tap insertions confirmed
+  227–606 ms after end admission; two held additions wrote during Update. Later
+  intentional drags and one successful Green deletion must not be mistaken for
+  disappearing additions. Five intermediate DOM observations hide the pending
+  preview for about 4 ms while the Develop binding advances before curve feedback
+  catches up; the recording does not establish visible paint/flicker.
+- **Separate recorded failure: Red Delete Point.** Its admitted Begin/End were
+  cancelled before SDK execution, leaving the Red curve unchanged. Same photo,
+  context, Develop counter and curve feedback arrived while `commitOneShot`
+  exposed a temporary gesture without `pointIndex`; ordinary gesture remapping
+  can retire it and send Cancel. The End continuation then recreated pending
+  deletion. Request/state/SDK evidence and the production branch support this
+  diagnosis; no JavaScript call stack was recorded. Preserve it as a focused
+  follow-up, not a successful deletion or a failed native Add write.
+- User observation/acceptance of first-tap Reset and point persistence is still
+  required; **Finish trace** alone is not acceptance. Release sign-off and rebuilding
+  remain held. No new capture is requested. This analysis changed only handoff
+  documentation/private evidence; no application changes, feature tests, photo
+  edits, commit, build, push or publication. All 406 unrelated backed-up source
+  files/private settings, both package ZIPs, HEAD `113fd40`, stash and empty index
+  are unchanged. All previously accepted features/results remain accepted.
+
+## October 2 source Reset Luminance and Add Point — neither accepted, focused corrections ready
+
+- User reports **both failures still occur in source (`npm start`) and candidate
+  20261002T020721Z**. Earlier Reset SDK execution evidence remains valid, but it
+  is not responsiveness acceptance. Release sign-off/rebuilding remain held.
+  Reset disabled/busy styling is on hold; no such styling was added.
+- Verified the sole bridge process is source Electron PID **3244**, running from
+  `D:\Projects\LRBridge\node_modules\electron\dist\electron.exe app/main.js`;
+  it owns ports 17891/17892 and its renderer loads this repository's `app`.
+  Served HTML, Color Grading and Tone Curve modules match source bytes. Lightroom's
+  saved registration lists only the source production plug-in enabled, including
+  the old diagnostic/package copies as disabled. Developer diagnostics are off,
+  so live worker enumeration is unavailable: do not claim the empty worker list
+  independently proves there are no stray workers. No duplicate-worker explanation
+  is assumed for either demonstrated failure.
+- **Reset response:** reuse the finished 24.156 s recording. All 11 taps reached
+  their correct SDK Reset; first rapid Shadows Reset read back 0 after 413 ms,
+  whereas the display reached 0 after 1.10 s. Later taps queued redundant resets
+  and replaced the original confirmation cycle. Every Reset also incurred a
+  fixed 200 ms Develop preparation even when already in Develop. These rules
+  predate the latest accepted checkpoint; no new commit introducing a missed
+  native Reset is established by this recording/history comparison.
+- **Focused Reset correction:** keep one revision/context-owned scalar Reset
+  intent from the initial tap through HTTP admission and SDK confirmation;
+  subsequent taps retain its original feedback cycle. New real adjustments,
+  failures, terminal confirmation and context changes retire it. Preserve the
+  earlier proven unsent-timer cancellation/admission ordering fix. Production
+  `ColorGrading.resetValue` skips redundant Develop switching/waiting only when
+  already ready; real module transitions keep their wait. Revalidate photo/module
+  immediately before the SDK Reset. Other Color Grading Set/wheel preparation and
+  Reset Region are unchanged. No assumed default is displayed as confirmation.
+- **Add Point demonstrated failure:** actual Controller handlers, production
+  routes/queue and delayed SDK dequeue reproduce admission of begin/end followed
+  by unchanged feedback with a newer timestamp. The old Controller calls that
+  supersession and sends cancellation; production coalescing removes both queued
+  edits, leaving only Cancel for dequeue. Separately its pending preview disappears
+  immediately on HTTP end admission. Both rules already existed in accepted
+  `ab146a5` (originating in `701522c`); no later introducing change was found.
+  This proves a command-loss mechanism, not that it caused every reported native
+  attempt; the new capture adds the missing actual Tone Curve SDK write/readback.
+- **Focused Add correction:** retain the submitted curve baseline with pending
+  work; an unchanged same-counter/revision heartbeat cannot retire it. Keep the
+  addition visibly pending using the existing preview while awaiting real SDK
+  feedback. Genuine external curve/context changes, rejection, timeout, stale
+  response handling and the stronger masked edit-sequence path remain intact.
+  Authoritative points still come only from Lightroom. Parametric preview math
+  and its accepted native comparisons are unchanged.
+- **Focused checks passed:** Reset browser/production-queue and production-Lua
+  fixtures cover repeated taps during admission/delayed confirmation, one original
+  feedback cycle, newer adjustments, explicit retry after rejection, ordering,
+  unavailable/no-photo and changed-photo/module guards. New rendered touch Add
+  regression covers heartbeat before SDK dequeue, exact production Lua write and
+  `readSnapshot` with SDK doubles, matching feedback, true external curve/photo
+  changes. Both reported mechanisms fail against preserved pre-change source and
+  pass after correction. Existing Point Curve, Color Grading UI/transport, coupled
+  split checks and syntax pass; no full suite or accepted native feature repetition.
+  Private SDK forwarding copies pass the same mutation/readback fixtures. These
+  automated results are separate from physical Lightroom acceptance.
+- **Source retest preparation (now finished; see latest entry):** `local-checkpoints/reset-add-point-current.txt`
+  points to the new private capture/diagnostic copy. Receiver is ready, unstarted;
+  only **Start trace** starts its five-minute window, and it requires the named
+  diagnostic worker to produce SDK evidence. It proxies the actual source assets,
+  records browser preview/authority, real HTTP requests, actual SDK writes/readback
+  and existing operation outcomes; no automated edits/extra SDK reads/retries.
+  Keep source running, disable the production LRBridge copy, enable the prepared
+  diagnostic copy and **Reload once** because Color Grading Lua changed. Test one
+  settled Luminance Reset, one immediately after adjustment, then RGB **+ Add Point**
+  and one empty-graph tap. Watch Lightroom and Controller, wait about two seconds
+  per action without repeating a failed tap, then **Finish trace**. Browser refresh
+  loads Controller changes; no source-app restart is required.
+- All work remains uncommitted on `feature/v0.6-more-sdk-and-web-controller`, HEAD
+  `113fd40`, empty index. Existing recordings, packages, private settings, stash,
+  unrelated work and all other accepted results remain preserved. Credential-free
+  recovery archive is locally verified; new FTP upload failed (existing client
+  returned 500; curl authentication returned 67). Earlier verified uploaded backup
+  remains intact; remote backup verification is outstanding. No build/push/publication.
+  Prior package connection/Profile, quit/restart/settings and LAN checks remain;
+  Auto Mask/Constrain Crop performance remains deferred.
+
+## October 2 Reset Luminance native trace — finished, manual acceptance pending
+
+- User finished the fresh trace. Receiver and browser both record **user finished**;
+  all raw files/hash manifests are preserved in an immutable evidence copy through
+  `local-checkpoints/color-grading-reset-current.txt` → `finished-current.txt`.
+  The recording lasted **24.156 seconds**. No automated photo edits were sent.
+- Recorded **11 Reset Luminance clicks/requests/SDK calls**: six Shadows, three
+  Midtones, one Highlights and one Global. Each HTTP request was admitted, each
+  `resetToDefault` addressed its correct SDK parameter and returned without error.
+  Subsequent SDK reads confirmed **0**, with no nonzero value restored before the
+  next intentional adjustment. Photo/module/context stayed unchanged. All four
+  displayed luminances finished at 0, with no pending edit/reset or reported error.
+- **Seven separate single-click attempts** displayed confirmed 0 in **331–655 ms**.
+  The Midtones 62 → Reset case arrived while the preceding Set was executing:
+  Set completed first, Reset executed afterward, and readback/display reached 0.
+  This supplies native ordering evidence beyond the isolated fixtures.
+- The other four clicks were a **rapid Shadows 98 → Reset burst**, about 0.55 s
+  from first to fourth click. The first Reset reached the SDK after ~300 ms and
+  read back 0 after ~413 ms. Controller confirmation appeared after **1.10 s**.
+  Repeated clicks queued redundant SDK resets and replaced the browser's feedback
+  cycle before its first zero snapshot was retrieved; they did not cause the first
+  SDK reset to work. Do not describe this burst as four isolated one-click tests.
+- Timing split: click → HTTP **0–2 ms**; SDK calls themselves **0–3 ms**. Each
+  command spent approximately **200 ms** in the existing Develop preparation before
+  invoking Reset; polling/queued commands and snapshot confirmation account for
+  the remaining delay. No additional delay optimization is inferred or implemented.
+- Recorded native execution/feedback supports the correction in this tested run.
+  The user's visual observation/responsiveness acceptance has not yet been supplied;
+  **release sign-off and rebuilding remain held**. No repeat capture is requested.
+  No application code, tests, settings, package, commit or publication changed during
+  this analysis. Earlier accepted results and remaining package checks stay intact.
+
+## October 2 Color Grading Reset Luminance — correction awaiting native verification
+
+- User reports unreliable one-tap **Reset Luminance** in candidate
+  **20261002T020721Z**. Release sign-off and rebuilding are held. This new report
+  does not reopen the accepted Profile, SDK sliders/Reset, Masking/Point Color,
+  Curve, Depth, Dust or eight successful HTTP/PowerShell integrations.
+- Source remains on `feature/v0.6-more-sdk-and-web-controller`, HEAD `113fd40`,
+  empty index. The source app was running at initial inspection; by capture
+  preparation the exact candidate EXE was the sole running LRBridge app. Preserve
+  both existing packages, unrelated edits/private settings, stash and recordings.
+- **Demonstrated browser/production-queue failure:** an unsent 125 ms luminance
+  timer can submit an older Set after Reset has been admitted while its response
+  is pending. The preserved pre-fix regression queues Reset then Set 64 and ends
+  at 64. Idle single taps work in the isolated fixture; that does **not** prove
+  the user's native idle symptom resolved or establish its exact cause.
+- Focused source correction in `app/controller-color-grading.js`: cancel unsent
+  scalar work at Reset intent; order per-control HTTP admission behind prior Sets;
+  retain revision/context ownership so late acceptance cannot cancel a newer edit.
+  Keep the displayed value until the correct SDK parameter confirms Reset. Failed
+  or uncertain admission releases only its owned pending display to fresh feedback,
+  keeps errors visible, and sends no automatic retry. Reset Region participates in
+  its luminance admission lane to preserve its existing scope/confirmation dialog.
+  No production Lua, SDK operation, HTTP route, defaults or timing constants changed.
+- **Focused automated checks passed:** `npm run test:color-grading-reset` executes
+  actual Controller DOM/touch handlers and the production queue in isolated
+  fixtures, plus production Lua with SDK doubles. Covers four luminance regions,
+  Blending/Balance defaults, old pending/in-flight Sets, newer adjustment ownership,
+  stale feedback, rejected pending intent, Reset Region ordering, changed photo,
+  unavailable/no-photo SDK guards and uncertain admission/no retry. Existing
+  Color Grading Controller/transport/metadata checks and JavaScript syntax pass.
+  These are separate from physical Lightroom validation. Private SDK forwarding
+  instrumentation also passes the same mutation/scope fixture checks.
+- One bounded native recording is prepared through the existing infrastructure.
+  Pointer: `local-checkpoints/color-grading-reset-current.txt`. It overlays only
+  the corrected source Controller module onto the running candidate's Controller;
+  the EXE/package and production plug-in bytes remain intact. A separate private
+  diagnostic plug-in records command dispatch, actual SDK Set/Reset entry/return
+  and existing SDK readback values; it produces no edits or automatic retries.
+  **Start trace** starts the five-minute window. Read-only page verification shows
+  the corrected asset, four enabled Reset Luminance buttons and an unstarted trace.
+- **Next:** keep the candidate running, disable the currently registered LRBridge
+  plug-in, enable/reload the prepared diagnostic copy once, and use only the fresh
+  recording tab. On a disposable photo test one idle Reset Luminance tap, then one
+  immediately after adjustment; watch the same region's luminance in Lightroom and
+  the Controller. Record any failed first tap without repeated clicking, wait for
+  readback, then Finish trace. Native one-tap reliability/latency remains unverified.
+- Credential-free recovery backup uploaded/read back before application edits.
+  All changes remain uncommitted. No build, push or publication. Prior remaining
+  package connection/Profile, normal quit/restart/settings and LAN checks remain;
+  Auto Mask/Constrain Crop performance stays deferred.
+
+## October 2 replacement private candidate — 20261002T020721Z ready
+
+- Scoped release checkpoint: **`113fd401aa2affb98c3546066574433bd0e45289`**
+  (`113fd40`), 13 reviewed files on `feature/v0.6-more-sdk-and-web-controller`.
+  Contains accepted Profile discovery/provider correction, final full-row amber
+  **Experimental:** notice, focused regressions/test entry point and documentation.
+  Concrete packaging repair converts the source-only investigation link to a source
+  reference; public document/runtime allowlists remain unchanged. Unrelated edits,
+  private settings, research/captures and stash were not staged.
+- Fresh private Windows v0.6.0 candidate built from an isolated Git export of that
+  checkpoint with the existing workflow and Electron 43.1.1; no push/publication.
+  Baseline **20261001T224235Z** remains intact. Exact new paths:
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261002T020721Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261002T020721Z\LRBridge.exe`
+  - Production plug-in: `D:\Projects\LRBridge\dist\private-test-20261002T020721Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261002T020721Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `bfb1e25e8b780901ae91e36890b029580f55ecb699e0c95f3d815d952b67a157`.
+- **Package content checks passed:** ZIP/extracted manifest and hashes; all 69
+  runtime allowlist files, 33 Controller assets, 41 production Lua modules, both
+  external native scripts, required Dust presets/installer, public defaults and
+  empty preset configuration match the committed export. All packaged relative
+  Markdown links resolve. Developer source/tests/investigation, private credentials,
+  personal settings, capture hooks and evidence are excluded. Export text/EOL
+  normalization is accounted for; packaged Controller's 18 script blocks parse.
+- **Focused source/staging checks passed:** `test:profile`, `release-preparation`,
+  `release-cleanup`. Existing isolated Windows fixture also passed against the
+  actual packaged native helper, covering provider bootstrap, complete 48-item
+  offscreen inventory and changed/recreated ownership. These fixture checks are
+  separate from accepted native Lightroom results; no full feature suite was run.
+- **Isolated packaged lifecycle passed:** exact package Electron in Node mode on
+  ephemeral loopback ports, two server start/metadata/empty-poll/stop cycles and
+  unchanged settings. Read-only shared Profile helper started/reused/stopped in two
+  cycles, with all four fresh reads available, complete eight-item native inventory
+  and current **Adobe Color** selection. Cold snapshots took **885/1084 ms** and
+  labels **205/255 ms**; zero execution timeouts, queue expirations or restarts.
+  These timings are helper reads, not GUI change-to-confirmation measurements.
+- Independent packaged depth helper also passed two start/reuse/stop cycles with
+  no surviving child/settings changes. Its four checkbox reads truthfully returned
+  unavailable in the current Lightroom panel context; this check proves lifecycle,
+  not renewed Visualize Depth functionality/performance acceptance. Prior accepted
+  Depth implementation/results remain unchanged. All test children stopped; source
+  Electron PID 8976/helper PID 15456 remained the sole production setup. No SDK/photo
+  edit, desktop package launch or plug-in registration/reload was performed.
+- Reused unchanged queue/read-comparison regressions, HTTP Builder/PowerShell
+  syntax/execution checks and all **eight accepted live Lightroom integrations**.
+  No command repetition or new scenario is inferred. Slider/Reset/Masking/Point
+  Color/Curve/Depth and reported Dust VM acceptance remain accepted. Slight Profile
+  feedback delay stays documented; Auto Mask/Constrain Crop performance stay deferred.
+- Final preservation check passed: **400 unrelated source files**, all **141**
+  baseline and **141** new package manifest files, both ZIPs and stash unchanged.
+  Credential-free recovery backup was uploaded/read back before checkpointing.
+  Evidence pointer: `local-checkpoints/profile-release-current.txt`. Final package
+  results are saved here after the build; this handoff update is not part of the
+  binary checkpoint. No automated packaging blocker remains.
+- **Switch next:** use **Quit** in the running source app (closing/minimizing is
+  insufficient), then launch the exact new EXE above. Keep only one LRBridge app
+  running. Production Lua bytes are unchanged; the existing matching production
+  plug-in may stay enabled and requires no reload. The bundled path above is the
+  matching copy if changing registration; leave only one LRBridge plug-in enabled.
+- **Remaining manual package checks:** Lightroom connection and Profile inventory/
+  current selection/feedback through the packaged Controller; normal desktop/tray
+  quit/restart with settings/favorites preserved and Lightroom reconnection;
+  phone/tablet LAN access/use. These desktop/manual checks are not passed in advance.
+  No repeated HTTP scripts or accepted feature captures are required. Final release
+  review/publication approval remain later steps; package is ready for private testing.
+
 ## October 2 accepted Profile checkpoint — replacement package preparation
 
 - User authorizes a scoped local checkpoint and fresh private replacement for

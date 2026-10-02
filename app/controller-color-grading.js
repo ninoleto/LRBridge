@@ -10,6 +10,7 @@
     const SNAPSHOT_TIMEOUT_MS = 4000;
     const RESET_RETRY_MS = 180;
     const RESET_MAX_ATTEMPTS = 6;
+    const RESET_INTERACTION_DELAY_MS = 500;
     const RESET_DEFAULTS = Object.freeze({
         shadow_luminance: 0, midtone_luminance: 0, highlight_luminance: 0, global_luminance: 0,
         blending: 50, balance: 0
@@ -102,6 +103,38 @@
             cancel() { active = false; },
             isActive() { return active; },
             getAttempts() { return attempts; }
+        };
+    }
+
+    // Presentation only. Contacts hold the guard; only real input/release can
+    // start its cooldown. Authoritative feedback never changes this clock.
+    function createResetInteractionGuard(options) {
+        const contacts = new Set();
+        let timer = null, blocked = false;
+        function clearTimer() {
+            if (timer !== null) options.clearTimeout(timer);
+            timer = null;
+        }
+        function setBlocked(value) {
+            if (blocked === value) return;
+            blocked = value;
+            options.onChange();
+        }
+        function cooldown() {
+            clearTimer();
+            if (contacts.size) return;
+            timer = options.setTimeout(function () {
+                timer = null;
+                setBlocked(false);
+            }, RESET_INTERACTION_DELAY_MS);
+        }
+        return {
+            begin(contact) { contacts.add(contact); clearTimer(); setBlocked(true); },
+            input() { clearTimer(); setBlocked(true); cooldown(); },
+            end(contact) { if (contacts.delete(contact)) cooldown(); },
+            releaseAll() { if (contacts.size) { contacts.clear(); cooldown(); } },
+            cancel() { clearTimer(); contacts.clear(); setBlocked(false); },
+            isBlocked() { return blocked; }
         };
     }
 
@@ -232,11 +265,15 @@
             regionControls: Object.create(null),
             draggingRegion: null,
             localRevision: Object.create(null),
+            scalarCommandTails: Object.create(null),
+            scalarResetIntents: Object.create(null),
+            regionResetAdmissions: Object.create(null),
             pendingSince: Object.create(null),
             snapshotRequestedAt: 0,
             hasCompleteSnapshot: false,
             pollingGeneration: 0,
             resetConfirmations: Object.create(null),
+            resetInteractionGuards: Object.create(null),
             resetWarning: null,
             wheelDispatchers: Object.create(null)
         };
@@ -253,6 +290,9 @@
         function activate() {
             state.visible = true;
             state.pollingGeneration += 1;
+            window.addEventListener("pointerup", endResetPointer, true);
+            window.addEventListener("pointercancel", endResetPointer, true);
+            window.addEventListener("blur", releaseResetContacts);
             if (!state.hasCompleteSnapshot) status("Loading Lightroom values…", "pending");
             if (state.metadata) scheduleSnapshot(0, true);
         }
@@ -260,6 +300,10 @@
         function deactivate() {
             state.visible = false;
             state.pollingGeneration += 1;
+            window.removeEventListener("pointerup", endResetPointer, true);
+            window.removeEventListener("pointercancel", endResetPointer, true);
+            window.removeEventListener("blur", releaseResetContacts);
+            cancelResetInteractionGuards();
             cancelResetConfirmations();
             stopPolling();
         }
@@ -288,6 +332,7 @@
 
         function invalidateFeedback(message) {
             resetSentValueState();
+            cancelResetInteractionGuards();
             state.pendingSince = Object.create(null);
             cancelResetConfirmations();
             if (!state.hasCompleteSnapshot) status(message || "Loading Lightroom values…", "pending");
@@ -374,7 +419,9 @@
                 confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
             });
             state.resetConfirmations = Object.create(null);
+            state.scalarResetIntents = Object.create(null);
             state.resetWarning = null;
+            Object.values(state.controls).forEach(updateScalarResetAppearance);
         }
 
         function resetStatusText() {
@@ -388,17 +435,20 @@
                 const result = confirmation.tracker.observe(snapshot.parameters, state.pollingGeneration, contextKey);
                 if (result === "obsolete") {
                     delete state.resetConfirmations[key];
+                    delete state.scalarResetIntents[key];
                     confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
                     return;
                 }
                 if (result === "confirmed") {
                     confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
                     delete state.resetConfirmations[key];
+                    delete state.scalarResetIntents[key];
                     return;
                 }
                 if (result === "failed") {
                     confirmation.pendingKeys.forEach(function (pendingKey) { delete state.pendingSince[pendingKey]; });
                     delete state.resetConfirmations[key];
+                    delete state.scalarResetIntents[key];
                     state.resetWarning = "Color Grading reset confirmation unavailable";
                 }
             });
@@ -409,6 +459,7 @@
             pendingKeys.forEach(function (pendingKey) { state.pendingSince[pendingKey] = Date.now(); });
             state.resetConfirmations[key] = {
                 kind: kind, label: label, expected: expected, pendingKeys: pendingKeys,
+                revisions: Object.fromEntries(pendingKeys.map(function (pendingKey) { return [pendingKey, state.localRevision[pendingKey]]; })),
                 tracker: createResetConfirmation(expected, state.pollingGeneration, state.contextKey, RESET_MAX_ATTEMPTS)
             };
             status(label, "pending");
@@ -430,7 +481,8 @@
             const pendingAt = state.pendingSince[key];
             const control = state.controls[key];
             const card = state.regionControls[key];
-            return state.draggingRegion === key || Boolean(control && control.editing) || Boolean(card && card.editingField) || Boolean(pendingAt);
+            const resetting = Object.values(state.resetConfirmations).some(function (confirmation) { return confirmation.pendingKeys.indexOf(key) >= 0; });
+            return state.draggingRegion === key || Boolean(control && control.editing) || Boolean(card && card.editingField) || Boolean(pendingAt) || resetting;
         }
 
         function renderAuthoritativeState() {
@@ -481,7 +533,8 @@
             const ready = hue && saturation && hue.available === true && saturation.available === true;
             const pending = !hue || !saturation;
             card.available = ready;
-            if (!card.editingField) [card.wheel, card.hueRange, card.hue, card.saturationRange, card.saturation, card.resetRegion].forEach(function (element) { element.disabled = !ready; });
+            if (!card.editingField) [card.wheel, card.hueRange, card.hue, card.saturationRange, card.saturation].forEach(function (element) { element.disabled = !ready; });
+            updateRegionResetAppearance(card);
             card.state.textContent = ready ? "Available" : pending ? "Feedback pending" : "Parameter unavailable";
             card.root.classList.toggle("unavailable", !ready);
         }
@@ -490,9 +543,79 @@
             const ready = result && result.available === true;
             const pending = !result;
             control.available = ready;
-            if (!control.editing) [control.range, control.number, control.reset].forEach(function (element) { element.disabled = !ready; });
+            if (!control.editing) [control.range, control.number].forEach(function (element) { element.disabled = !ready; });
+            updateScalarResetAppearance(control);
             updateScalarStepButtons(control);
             if (control.state) control.state.textContent = ready ? "Available" : pending ? "Feedback pending" : "Parameter unavailable";
+        }
+
+        function scalarResetPending(control) {
+            const intent = state.scalarResetIntents[control.control];
+            return Boolean(intent && intent.generation === state.pollingGeneration &&
+                intent.contextKey === state.contextKey && intent.revision === state.localRevision[control.control]);
+        }
+
+        function updateScalarResetAppearance(control) {
+            const resetting = scalarResetPending(control);
+            control.reset.disabled = !control.available || resetting || control.resetGuard.isBlocked();
+            control.reset.textContent = resetting ? "Resetting…" : control.resetLabel;
+            control.reset.setAttribute("aria-busy", String(resetting));
+            control.reset.title = resetting ? "Waiting for Lightroom to confirm this reset." : "";
+        }
+
+        function updateRegionResetAppearance(card) {
+            const disabled = !card.available || card.resetGuard.isBlocked();
+            card.resetRegion.disabled = disabled;
+            card.confirmReset.disabled = disabled;
+        }
+
+        function resetInteractionGuard(key) {
+            if (!state.resetInteractionGuards[key]) state.resetInteractionGuards[key] = createResetInteractionGuard({
+                setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window),
+                onChange: function () {
+                    Object.values(state.controls).forEach(updateScalarResetAppearance);
+                    Object.values(state.regionControls).forEach(updateRegionResetAppearance);
+                }
+            });
+            return state.resetInteractionGuards[key];
+        }
+
+        function endResetPointer(event) {
+            Object.values(state.resetInteractionGuards).forEach(function (guard) { guard.end("pointer:" + event.pointerId); });
+        }
+
+        function releaseResetContacts() {
+            Object.values(state.resetInteractionGuards).forEach(function (guard) { guard.releaseAll(); });
+        }
+
+        function cancelResetInteractionGuards() {
+            Object.values(state.resetInteractionGuards).forEach(function (guard) { guard.cancel(); });
+        }
+
+        function bindResetInteraction(element, guard, numeric) {
+            function usable() { return state.visible && element.disabled !== true && !element.matches(":disabled"); }
+            element.addEventListener("pointerdown", function (event) {
+                if (usable()) guard.begin("pointer:" + event.pointerId);
+            }, true);
+            element.addEventListener("lostpointercapture", endResetPointer, true);
+            element.addEventListener("input", function () {
+                if (!usable()) return;
+                if (numeric && document.activeElement === element) guard.begin(element);
+                guard.input();
+            }, true);
+            if (numeric) {
+                // Editing ends on Enter/Escape/blur. Do not let blur's command
+                // delivery turn an apparently enabled Reset into a missed click.
+                element.addEventListener("focus", function () { if (usable()) guard.begin(element); }, true);
+                element.addEventListener("blur", function () { guard.end(element); }, true);
+            } else {
+                element.addEventListener(element.tagName === "BUTTON" ? "click" : "change", function () {
+                    if (usable()) guard.input();
+                }, true);
+                element.addEventListener("keydown", function (event) {
+                    if (usable() && /^(Arrow|Home$|End$|Page)/.test(event.key)) guard.input();
+                }, true);
+            }
         }
 
         function showWheelValue(card, hue, saturation, hueRange, saturationRange, rebaseSentPair) {
@@ -560,9 +683,58 @@
             state.pendingSince[key] = Date.now();
         }
 
+        // Order scalar HTTP admission, not SDK execution or feedback. Reset must
+        // follow already submitted Sets; a later edit must follow Reset admission.
+        function sendScalarCommand(controlName, path, onAccepted, pendingKeys) {
+            const generation = state.pollingGeneration, contextKey = state.contextKey;
+            const keys = pendingKeys || [controlName];
+            const revisions = Object.fromEntries(keys.map(function (key) { return [key, state.localRevision[key]]; }));
+            const currentContext = function () { return state.visible && generation === state.pollingGeneration && contextKey === state.contextKey; };
+            async function dispatch() {
+                if (!currentContext()) return false;
+                try {
+                    return await send(path, function () {
+                        if (!currentContext()) return;
+                        if (onAccepted) onAccepted();
+                        else scheduleSnapshot(160, true);
+                    });
+                } catch (_) {
+                    setGlobalStatus("ERROR: Color Grading command acceptance could not be confirmed. No automatic retry was sent.");
+                    return null; // Uncertain admission: do not send queued edits past it.
+                }
+            }
+            const previous = state.scalarCommandTails[controlName];
+            const operation = previous ? previous.then(function (result) { return result === null ? null : dispatch(); }) : dispatch();
+            state.scalarCommandTails[controlName] = operation;
+            operation.then(function (result) {
+                if (state.scalarCommandTails[controlName] === operation) delete state.scalarCommandTails[controlName];
+                if (result !== true && currentContext()) {
+                    keys.forEach(function (key) { if (revisions[key] === state.localRevision[key]) delete state.pendingSince[key]; });
+                    requestSnapshot(true); // Resolve failed/uncertain intent from fresh SDK feedback.
+                }
+            });
+            return operation;
+        }
+
+        function retireScalarReset(controlName) {
+            delete state.scalarResetIntents[controlName];
+            Object.keys(state.resetConfirmations).forEach(function (key) {
+                const confirmation = state.resetConfirmations[key];
+                if (confirmation.pendingKeys.indexOf(controlName) < 0) return;
+                confirmation.tracker.cancel();
+                confirmation.pendingKeys.forEach(function (pendingKey) {
+                    if (confirmation.revisions[pendingKey] === state.localRevision[pendingKey]) delete state.pendingSince[pendingKey];
+                });
+                delete state.resetConfirmations[key];
+            });
+            const control = state.controls[controlName];
+            if (control) updateScalarResetAppearance(control);
+        }
+
         function sendWheel(region, final) {
             const card = state.regionControls[region];
             if (!card.available || !card.value) return;
+            retireScalarReset(region);
             markPending(region);
             const pair = { hue: card.value.hue, saturation: card.value.saturation };
             if (final) return state.wheelDispatchers[region].finalize(pair);
@@ -622,6 +794,8 @@
             if (!control.available || !control.runtimeRange) return;
             const normalized = scalarInputValue(control, value);
             if (normalized === control.value && !final) return;
+            retireScalarReset(control.control);
+            markPending(control.control);
             showScalarValue(control, normalized, control.runtimeRange, false);
             if (final) control.dispatcher.finalize(normalized);
             else control.dispatcher.schedule(normalized);
@@ -665,7 +839,7 @@
             return { row: row, range: range, number: number, rangeText: rangeText };
         }
 
-        function createScalar(controlName, label, stateHost) {
+        function createScalar(controlName, label, stateHost, regionGuard) {
             const row = document.createElement("div");
             row.className = "cg-scalar-row";
             const name = document.createElement("label");
@@ -679,8 +853,11 @@
             number.setAttribute("aria-label", label + " numeric value");
             const rangeText = document.createElement("span");
             rangeText.className = "cg-range-text";
-            const reset = makeButton("Reset " + label, "cg-reset");
-            const control = { control: controlName, row: row, range: range, number: number, rangeText: rangeText, reset: reset, state: stateHost || null, value: null, authoritativeValue: null, runtimeRange: null, dispatcher: null, editing: false, cancelNextBlur: false };
+            const resetLabel = controlName === "blending" || controlName === "balance" ? "Reset" : "Reset " + label;
+            const reset = makeButton(resetLabel, "cg-reset");
+            if (controlName === "blending" || controlName === "balance") reset.setAttribute("aria-label", "Reset " + label);
+            const resetGuard = regionGuard || resetInteractionGuard("scalar:" + controlName);
+            const control = { control: controlName, row: row, range: range, number: number, rangeText: rangeText, reset: reset, resetLabel: resetLabel, resetGuard: resetGuard, state: stateHost || null, value: null, authoritativeValue: null, runtimeRange: null, dispatcher: null, editing: false, cancelNextBlur: false };
             if (controlName === "blending" || controlName === "balance") {
                 if (controlName === "blending") number.inputMode = "numeric";
                 const actions = document.createElement("div");
@@ -696,6 +873,8 @@
                 control.plus.setAttribute("aria-label", "Increase " + label + " by 1");
                 control.minus.addEventListener("click", function () { if (!control.minus.disabled) step(-1); });
                 control.plus.addEventListener("click", function () { if (!control.plus.disabled) step(1); });
+                bindResetInteraction(control.minus, resetGuard, false);
+                bindResetInteraction(control.plus, resetGuard, false);
                 actions.append(control.minus, control.plus, reset);
                 row.append(name, range, number, rangeText, actions);
             } else row.append(name, range, number, rangeText, reset);
@@ -704,8 +883,7 @@
                 setTimeout: window.setTimeout.bind(window),
                 clearTimeout: window.clearTimeout.bind(window),
                 send: function (value) {
-                    markPending(control.control);
-                    send(commandPath("color_grading.value.set", { control: control.control, value: value }));
+                    sendScalarCommand(control.control, commandPath("color_grading.value.set", { control: control.control, value: value }));
                 }
             });
             range.addEventListener("input", function () { sendScalar(control, Number(range.value), false); });
@@ -746,16 +924,34 @@
                 }
             });
             reset.addEventListener("click", function () {
+                if (!control.available || reset.disabled) return;
+                // Another tap on the same owned Reset must not replace its SDK
+                // confirmation cycle or enqueue another native Reset. A genuine
+                // new adjustment retires this intent through retireScalarReset.
+                if (scalarResetPending(control)) return;
+                control.editing = false;
+                control.dispatcher.resetContext();
+                retireScalarReset(controlName);
                 markPending(controlName);
-                send(commandPath("color_grading.value.reset", { control: controlName }), function () {
-                    control.editing = false;
-                    if (control.dispatcher) control.dispatcher.resetContext();
+                const revision = state.localRevision[controlName];
+                const intent = { revision: revision, generation: state.pollingGeneration, contextKey: state.contextKey };
+                state.scalarResetIntents[controlName] = intent;
+                updateScalarResetAppearance(control);
+                sendScalarCommand(controlName, commandPath("color_grading.value.reset", { control: controlName }), function () {
+                    if (revision !== state.localRevision[controlName]) return;
                     const parameter = state.metadata.scalarControls[controlName].parameter;
                     const expected = {}; expected[parameter] = RESET_DEFAULTS[controlName];
                     const label = controlName.indexOf("luminance") >= 0 ? "Resetting Luminance…" : "Resetting " + state.metadata.scalarControls[controlName].label + "…";
                     beginResetConfirmation(controlName, controlName.indexOf("luminance") >= 0 ? "luminance" : "scalar", expected, [controlName], label);
+                }).then(function (accepted) {
+                    if (accepted !== true && state.scalarResetIntents[controlName] === intent) {
+                        delete state.scalarResetIntents[controlName];
+                        updateScalarResetAppearance(control);
+                    }
                 });
             });
+            bindResetInteraction(range, resetGuard, false);
+            bindResetInteraction(number, resetGuard, true);
             state.controls[controlName] = control;
             setControlPending(control);
             return control;
@@ -781,7 +977,8 @@
             const hue = makeWheelScalarRow(definition.label, "hue", "cg-hue-input");
             const saturation = makeWheelScalarRow(definition.label, "saturation", "cg-saturation-input");
             const luminanceControls = { shadows: "shadow_luminance", midtones: "midtone_luminance", highlights: "highlight_luminance", global: "global_luminance" };
-            const luminance = createScalar(luminanceControls[region], "Luminance", stateText);
+            const resetGuard = resetInteractionGuard("region:" + region);
+            const luminance = createScalar(luminanceControls[region], "Luminance", stateText, resetGuard);
             const resetRegion = makeButton("Reset Region", "cg-reset-region");
             const confirmation = document.createElement("div");
             confirmation.className = "cg-inline-confirm";
@@ -792,12 +989,18 @@
             const cancel = makeButton("Cancel", "command-neutral");
             confirmation.append(prompt, confirm, cancel);
             cardRoot.append(heading, stateText, wheel, hue.row, saturation.row, luminance.row, resetRegion, confirmation);
-            const card = { region: region, root: cardRoot, wheel: wheel, pointer: pointer, hueRange: hue.range, hue: hue.number, hueRangeText: hue.rangeText, saturationRange: saturation.range, saturation: saturation.number, saturationRangeText: saturation.rangeText, luminance: luminance, resetRegion: resetRegion, state: stateText, value: null, authoritativeValue: null, ranges: null, available: false, editingField: null, cancelNextBlur: false };
+            const card = { region: region, root: cardRoot, wheel: wheel, pointer: pointer, hueRange: hue.range, hue: hue.number, hueRangeText: hue.rangeText, saturationRange: saturation.range, saturation: saturation.number, saturationRangeText: saturation.rangeText, luminance: luminance, resetRegion: resetRegion, confirmReset: confirm, resetGuard: resetGuard, state: stateText, value: null, authoritativeValue: null, ranges: null, available: false, editingField: null, cancelNextBlur: false };
+            [wheel, card.hueRange, card.saturationRange].forEach(function (input) { bindResetInteraction(input, resetGuard, false); });
+            [card.hue, card.saturation].forEach(function (input) { bindResetInteraction(input, resetGuard, true); });
             state.wheelDispatchers[region] = createWheelPairDispatcher({
                 delay: COMMAND_THROTTLE_MS,
                 setTimeout: window.setTimeout.bind(window),
                 clearTimeout: window.clearTimeout.bind(window),
-                send: function (pair) { send(commandPath("color_grading.wheel.set", { region: region, hue: pair.hue, saturation: pair.saturation })); }
+                send: function (pair) {
+                    const path = commandPath("color_grading.wheel.set", { region: region, hue: pair.hue, saturation: pair.saturation });
+                    if (state.regionResetAdmissions[region]) sendScalarCommand(card.luminance.control, path, null, [region]);
+                    else send(path);
+                }
             });
             [
                 { property: "hue", range: card.hueRange },
@@ -870,21 +1073,34 @@
                     }
                 });
             });
-            resetRegion.addEventListener("click", function () { confirmation.hidden = false; confirm.focus(); });
+            resetRegion.addEventListener("click", function () { if (!resetRegion.disabled) { confirmation.hidden = false; confirm.focus(); } });
             cancel.addEventListener("click", function () { confirmation.hidden = true; resetRegion.focus(); });
             confirm.addEventListener("click", function () {
+                if (confirm.disabled) return;
                 confirmation.hidden = true;
+                card.editingField = null;
+                state.wheelDispatchers[region].cancel();
+                card.luminance.dispatcher.resetContext();
+                retireScalarReset(region);
+                retireScalarReset(card.luminance.control);
                 markPending(region);
-                send(commandPath("color_grading.region.reset", { region: region }), function () {
-                    card.editingField = null;
-                    state.wheelDispatchers[region].cancel();
-                    if (card.luminance.dispatcher) card.luminance.dispatcher.resetContext();
+                markPending(card.luminance.control);
+                const regionRevision = state.localRevision[region], luminanceRevision = state.localRevision[card.luminance.control];
+                const admission = sendScalarCommand(card.luminance.control, commandPath("color_grading.region.reset", { region: region }), function () {
+                    if (regionRevision !== state.localRevision[region] || luminanceRevision !== state.localRevision[card.luminance.control]) {
+                        if (regionRevision === state.localRevision[region]) delete state.pendingSince[region];
+                        if (luminanceRevision === state.localRevision[card.luminance.control]) delete state.pendingSince[card.luminance.control];
+                        requestSnapshot(true);
+                        return;
+                    }
                     const expected = {};
                     expected[definition.hue] = 0;
                     expected[definition.saturation] = 0;
                     expected[definition.luminance] = 0;
                     beginResetConfirmation(region, "region", expected, [region, card.luminance.control], "Resetting Region…");
-                });
+                }, [region, card.luminance.control]);
+                state.regionResetAdmissions[region] = admission;
+                admission.then(function () { if (state.regionResetAdmissions[region] === admission) delete state.regionResetAdmissions[region]; });
             });
             state.regionControls[region] = card;
             updateWheelAvailability(card, null, null);
@@ -893,6 +1109,8 @@
 
         function renderWorkspace() {
             resetSentValueState();
+            cancelResetInteractionGuards();
+            state.resetInteractionGuards = Object.create(null);
             state.controls = Object.create(null);
             state.regionControls = Object.create(null);
             elements.viewButtons.length = 0;
@@ -944,5 +1162,5 @@
         return { state: state, initialize: initialize, activate: activate, deactivate: deactivate, applySnapshot: applySnapshot, requestSnapshot: requestSnapshot };
     }
 
-    return { ACTIVE_INTERVAL_MS: ACTIVE_INTERVAL_MS, COMMAND_THROTTLE_MS: COMMAND_THROTTLE_MS, RESET_DEFAULTS: RESET_DEFAULTS, normalizeNumber: normalizeNumber, clamp: clamp, updateWheelPair: updateWheelPair, createWheelPairDispatcher: createWheelPairDispatcher, resetSnapshotMatches: resetSnapshotMatches, createResetConfirmation: createResetConfirmation, updateStatusElement: updateStatusElement, wheelPoint: wheelPoint, commandPath: commandPath, createScalarDispatcher: createScalarDispatcher, createCycleGate: createCycleGate, finishWheelPointer: finishWheelPointer, createController: createController };
+    return { ACTIVE_INTERVAL_MS: ACTIVE_INTERVAL_MS, COMMAND_THROTTLE_MS: COMMAND_THROTTLE_MS, RESET_DEFAULTS: RESET_DEFAULTS, RESET_INTERACTION_DELAY_MS: RESET_INTERACTION_DELAY_MS, createResetInteractionGuard: createResetInteractionGuard, normalizeNumber: normalizeNumber, clamp: clamp, updateWheelPair: updateWheelPair, createWheelPairDispatcher: createWheelPairDispatcher, resetSnapshotMatches: resetSnapshotMatches, createResetConfirmation: createResetConfirmation, updateStatusElement: updateStatusElement, wheelPoint: wheelPoint, commandPath: commandPath, createScalarDispatcher: createScalarDispatcher, createCycleGate: createCycleGate, finishWheelPointer: finishWheelPointer, createController: createController };
 }));

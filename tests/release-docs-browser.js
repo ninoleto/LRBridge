@@ -3,7 +3,8 @@ const fs=require("node:fs"),path=require("node:path"),http=require("node:http"),
 const browser=require("./controller-browser-lifecycle");
 const checkBuilder=require("./http-builder-browser-checks");
 const root=path.resolve(__dirname,".."),errors=[];
-const helpOnly=process.argv.includes("--help-only");
+const developersOnly=process.argv.includes("--developers-only");
+const helpOnly=process.argv.includes("--help-only")||developersOnly;
 const builderToolbarOnly=process.argv.includes("--builder-toolbar-only");
 const builderStepHelpOnly=process.argv.includes("--builder-step-help-only");
 const builderTabsOnly=process.argv.includes("--builder-tabs-only");
@@ -58,13 +59,39 @@ const server=http.createServer((req,res)=>{
                     assert.equal(response.status,200,href);
                     assert.equal(await response.text(),fs.readFileSync(path.join(root,"docs/HTTP_WORKFLOWS.md"),"utf8"));
                 }
+            } else if(developersOnly) {
+                const section=await evaluate(`(()=>{
+                    const box=document.querySelector('main > section:last-child'),heading=box.previousElementSibling;
+                    box.scrollIntoView({block:'end'});
+                    const rect=box.getBoundingClientRect(),h=heading.getBoundingClientRect();
+                    return {id:box.getAttribute('aria-labelledby'),heading:heading.textContent,
+                        introduction:box.querySelector('p').textContent,aligned:rect.left===h.left,
+                        links:Array.from(box.querySelectorAll('a')).map(a=>({label:a.textContent,href:a.getAttribute('href'),
+                            fits:Array.from(a.getClientRects()).every(r=>r.left>=0&&r.right<=innerWidth)}))};
+                })()`);
+                assert.equal(section.id,"developers-ai-agents");
+                assert.equal(section.heading,"For developers and AI agents");
+                assert.equal(section.introduction,"Want to fork LRBridge or continue its development? Start with the documentation below. You can also share these documents with your AI coding agent.");
+                assert(section.aligned,"Developer heading and box align with existing Help sections");
+                assert.deepEqual(section.links.map(({label,href})=>({label,href})),[
+                    {label:"Source code and complete documentation",href:"https://github.com/ninoleto/LRBridge"},
+                    {label:"HTTP API and workflows",href:"/reference/HTTP_WORKFLOWS.md"},
+                    {label:"macOS porting guide",href:"https://github.com/ninoleto/LRBridge/blob/feature/v0.6-more-sdk-and-web-controller/docs/MACOS_PORTING.md"}
+                ]);
+                assert(section.links.every(link=>link.fits),"Developer links fit desktop and narrow widths");
+                for(const link of section.links) assert.doesNotMatch(link.href,/CODEX_HANDOFF|settings|capture|recording|backup|local-checkpoints/i);
+                for(const name of ["HTTP_WORKFLOWS.md","HTTP_OPERATIONS.md"]){
+                    const response=await fetch("http://127.0.0.1:"+port+"/reference/"+name);
+                    assert.equal(response.status,200);assert.equal(await response.text(),fs.readFileSync(path.join(root,"docs",name),"utf8"));
+                }
+                assert(fs.existsSync(path.join(root,"docs/MACOS_PORTING.md")),"External macOS link names the actual source document");
             } else {
                 const headings=await evaluate('Array.from(document.querySelector("main").children).flatMap(el=>{if(el.matches("h2"))return [el.textContent];if(el.matches("section")&&!el.previousElementSibling?.matches("h2")){const heading=el.querySelector(":scope > h2, :scope > h3");return heading?[heading.textContent]:[];}return [];})');
                 assert.deepEqual(headings,[
                     "What the Web Controller is for", "Security and network exposure",
                     "Bitfocus Companion integration methods", "PowerShell example", "Web Controller and API ports",
-                    "Known issues and limitations", "Set up the Lightroom plug-in", "Support development"
-                ],"the original idea belongs in the introduction, delays in Known issues, and support stays last");
+                    "Known issues and limitations", "Set up the Lightroom plug-in", "Support development", "For developers and AI agents"
+                ],"the original idea belongs in the introduction, delays in Known issues, and developer documentation is last");
                 const layout=await evaluate(`(()=>{
                     const reference=Array.from(document.querySelectorAll("main > h2")).find(h=>h.textContent==="Bitfocus Companion integration methods");
                     const measure=heading=>{
@@ -197,8 +224,8 @@ const server=http.createServer((req,res)=>{
                 assert.match(interfaceControls,/may not always be able to confirm their current state/);
                 assert.match(interfaceControls,/use the corresponding control directly in Lightroom Classic/);
                 assert.doesNotMatch(interfaceControls,/Profile|Visualize Depth/,"reading interface feedback must not be confused with operating those controls");
-                const support=await evaluate('(()=>{const section=document.querySelector("main > section:last-child"),link=section.querySelector("a"),rect=link.getBoundingClientRect();return {id:section.getAttribute("aria-labelledby"),text:section.querySelector("p").textContent,label:link.textContent,href:link.getAttribute("href"),fitsPage:rect.left>=0&&rect.right<=innerWidth};})()');
-                assert.equal(support.id,"support-development","support must be the final Help section");
+                const support=await evaluate('(()=>{const section=document.querySelector("section[aria-labelledby=support-development]"),link=section.querySelector("a"),rect=link.getBoundingClientRect();return {id:section.getAttribute("aria-labelledby"),text:section.querySelector("p").textContent,label:link.textContent,href:link.getAttribute("href"),fitsPage:rect.left>=0&&rect.right<=innerWidth};})()');
+                assert.equal(support.id,"support-development","support retains its own Help section");
                 assert.equal(support.text,"LRBridge is an independent project. If you find it useful, you can support its development on Ko-fi. Donations are optional and appreciated.");
                 assert.equal(support.label,"Support LRBridge on Ko-fi");
                 assert.equal(support.href,"https://ko-fi.com/ninoleto");
@@ -245,7 +272,7 @@ const server=http.createServer((req,res)=>{
                 fs.mkdirSync(process.env.LRBRIDGE_LAYOUT_ARTIFACTS,{recursive:true});
                 const shot=await cdp.send("Page.captureScreenshot",{format:"png"});
                 fs.writeFileSync(path.join(process.env.LRBRIDGE_LAYOUT_ARTIFACTS,page+"-"+width+".png"),Buffer.from(shot.data,"base64"));
-                if(page==="help") for(const id of ["controller-purpose","connection-addresses-title","known-issues","install-plugin","support-development"]) {
+                if(page==="help") for(const id of developersOnly?["developers-ai-agents"]:["controller-purpose","connection-addresses-title","known-issues","install-plugin","support-development"]) {
                     const clip=await evaluate('(()=>{const h=document.getElementById('+JSON.stringify(id)+'),box=h.nextElementSibling,y=Math.max(0,h.getBoundingClientRect().top+scrollY-48),bottom=Math.min(document.documentElement.scrollHeight,box.getBoundingClientRect().bottom+scrollY+80);return {x:0,y,width:innerWidth,height:Math.ceil(bottom-y),scale:1};})()');
                     const sectionShot=await cdp.send("Page.captureScreenshot",{format:"png",clip,captureBeyondViewport:true});
                     fs.writeFileSync(path.join(process.env.LRBRIDGE_LAYOUT_ARTIFACTS,page+"-"+width+"-"+id+".png"),Buffer.from(sectionShot.data,"base64"));
@@ -269,7 +296,8 @@ const server=http.createServer((req,res)=>{
             }
         }
         assert.deepEqual(errors,[]);
-        if(!builderOnly) console.log("Accepted Help layout and text checks passed at 1280/390/320px.");
+        if(developersOnly) console.log("New Help developer section layout and links passed at 1280/390/320px; external source publication is checked separately.");
+        else if(!builderOnly) console.log("Accepted Help layout and text checks passed at 1280/390/320px.");
         if(builderTabsOnly) console.log("Builder tab interaction passed at "+widths.join('/')+"px: actual mouse press/release and emulated touch in both directions, unchanged tab positions/scroll, atomic selected state/count/cards, Step edits, preserved inputs and accessible keyboard navigation. No live Lightroom or physical-device testing.");
         else if(builderStepHelpOnly) console.log("Builder Step size text/layout passed at 1280/390/320px: exact wording, divider/subheading inside Base URL, accessible input description, retained tab description and no clipping/overflow. No behavior suites or live Lightroom requests.");
         else if(builderToolbarOnly) console.log("Builder permanent toolbar passed at "+widths.join('/')+"px: responsive rows, touch/keyboard controls, synchronized Step inputs/validation, unchanged Set/Reset, stable panel/Contrast ordering with reversed metadata arrival, preserved elements, Top and section offsets. Continuous wheel/touch scrolling runs at 1280/320px. No executable requests, live Lightroom or physical Android test.");

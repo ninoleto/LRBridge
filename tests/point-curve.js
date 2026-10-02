@@ -273,8 +273,9 @@ const transaction = controllerToneCurve.createAwaitingTarget(
 );
 assert.deepEqual(Object.keys(transaction).sort(), [
     "channel", "contextCounter", "developCounter", "gestureId", "operation", "points", "selectedPhotoUuid", "submittedAt",
-    "submittedDevelopCounter", "submittedRevision", "submittedUpdatedAt"
+    "submittedDevelopCounter", "submittedPoints", "submittedRevision", "submittedUpdatedAt"
 ].sort(), "Pending writes must bind gesture, photo, context, Develop counter, revision, channel, and target");
+assert.deepEqual(transaction.submittedPoints, green, "Pending point work retains its submitted SDK baseline separately from the target");
 assert.equal(controllerToneCurve.parseRefineEditorValue("72", refineSaturation), 72);
 assert.equal(controllerToneCurve.parseRefineEditorValue("120", refineSaturation), 100,
     "Refine editor values must clamp to Lightroom's authoritative maximum");
