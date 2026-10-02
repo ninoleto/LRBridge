@@ -1280,10 +1280,7 @@
         .develop-categorical-status.error { color: #ff9b9b; }
 
         .develop-profile-help {
-            grid-column: 2 / 4;
-            color: #8fa2b3;
-            font-size: 12px;
-            line-height: 1.35;
+            grid-column: 1 / -1;
         }
 
         .develop-categorical-status.visually-hidden {
@@ -11944,8 +11941,8 @@
             status.setAttribute("role", "status");
             status.setAttribute("aria-live", "polite");
             const help = document.createElement("div");
-            help.className = "develop-profile-help";
-            help.textContent = "Lightroom SDK limitation: only supported profiles can be selected here. Other profiles are shown for feedback but must be selected in Lightroom. Manage additional profiles through Browse in Lightroom.";
+            help.className = "develop-profile-help lens-blur-experimental-note";
+            help.innerHTML = "<strong>Experimental:</strong> Lightroom’s plug-in SDK does not support all profiles. If a profile is missing or disabled here, select it directly in Lightroom Classic. Windows automation checks the selected profile, so the Web Controller may take a moment to show the change.";
             select.addEventListener("change", function () {
                 const presentation = profileModel ? profileModel.presentation() : null;
                 if (select.disabled || !presentation || presentation.pending) {

@@ -53,6 +53,7 @@ function state(value) {
 
 async function run() {
     await runDepthReadback();
+    await runExecutionTimeoutSeparation();
     const f = fixture(), backend = f.backend;
     try {
         const profile = backend.readProfileSnapshot();
@@ -180,9 +181,38 @@ async function run() {
     } finally {
         polling = false; await Promise.all(loops); clearInterval(answerStates); await normalBridge.stop(); await normal.backend.stop();
     }
-    console.log("Lens Blur polling: bounded/shared queued reads, fair Profile discovery, queue-expiry recovery and six On/Off photo switches passed (simulated).");
+    console.log("Lens Blur polling: separate queue/execution expiry, no read replay, fresh recovery, bounded/shared queued reads, fair Profile discovery and six On/Off photo switches passed (simulated).");
 }
 if (require.main === module) run().catch(error => { console.error(error); process.exitCode = 1; });
+async function runExecutionTimeoutSeparation() {
+    const f = fixture();
+    try {
+        const profile = f.backend.readProfileSnapshot().then(
+            () => assert.fail("A held native Profile read cannot succeed"), error => error
+        );
+        const expired = await f.backend.readState();
+        assert.equal(expired.available, false);
+        assert.equal(expired.apply.value, null);
+        assert.match(expired.reason, /waited too long in the queue/);
+        let diagnostics = f.backend.getTransportDiagnostics();
+        assert.equal(diagnostics.stateQueueTimeouts, 1);
+        assert.equal(diagnostics.timedOut, 0, "3s queue expiry is not a 5s execution timeout");
+        assert.equal(f.kills(), 0, "Queued expiry must not restart the active helper");
+        assert.match((await profile).message, /helper timed out/);
+        diagnostics = f.backend.getTransportDiagnostics();
+        assert.equal(diagnostics.timedOut, 1);
+        assert.equal(diagnostics.helperRestarts, 1);
+        assert.equal(f.kills(), 1);
+        assert.equal(diagnostics.queueDepth, 0, "Expired background work is discarded");
+        const recovery = f.backend.readState();
+        await until(() => f.sent.length === 2);
+        assert.deepEqual(f.sent.map(message => message.operation), ["readProfileSnapshot", "readState"],
+            "Neither the timed-out Profile read nor the expired poll is replayed");
+        f.reply(f.sent[0], state(true)); // A late reply from the terminated helper.
+        f.reply(f.sent[1], state(false));
+        assert.equal((await recovery).apply.value, false, "Recovery requires the new helper's fresh read");
+    } finally { await f.backend.stop(); }
+}
 async function runDepthReadback() {
     const f = fixture(true);
     const bridge = createBridge({ httpPort: 0, wsPort: 0, windowsNativeBackend: f.backend });

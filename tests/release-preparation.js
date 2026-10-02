@@ -33,6 +33,9 @@ try {
     assert(!files.includes("docs/MACOS_PORTING.md"), "Source-only macOS guide must not expand the distribution documentation allowlist");
     assert(fs.readFileSync(path.join(root,"README.md"),"utf8").includes("[macOS porting guide](docs/MACOS_PORTING.md)"), "Source README retains the developer link");
     assert(fs.readFileSync(path.join(stage,"README.md"),"utf8").includes("macOS porting guide (`docs/MACOS_PORTING.md` in the source repository)"), "Portable README explains where to find the source-only guide");
+    assert(!files.includes("docs/SHARED_NATIVE_FEEDBACK.md"), "Developer investigation stays outside the portable documentation allowlist");
+    assert(fs.readFileSync(path.join(root,"docs/RELEASE_REVIEW.md"),"utf8").includes("[Cause, comparison and coverage limits](SHARED_NATIVE_FEEDBACK.md)"), "Source review retains its investigation link");
+    assert(fs.readFileSync(path.join(stage,"docs/RELEASE_REVIEW.md"),"utf8").includes("Cause, comparison and coverage limits (`docs/SHARED_NATIVE_FEEDBACK.md` in the source repository)"), "Portable review explains where to find the source-only investigation");
     for(const file of files.filter(f=>f.endsWith(".md"))) {
         const source=fs.readFileSync(path.join(stage,file),"utf8");
         for(const match of source.matchAll(/\[[^\]\r\n]*\]\(([^)\s]+)\)/g)) {

@@ -1,5 +1,196 @@
 # LRBridge Codex Handoff
 
+## October 2 accepted Profile checkpoint — replacement package preparation
+
+- User authorizes a scoped local checkpoint and fresh private replacement for
+  baseline **20261001T224235Z**. Reviewed runtime changes are only the accepted
+  native Profile discovery correction and final amber full-row **Experimental:**
+  notice. Relevant regressions, test entry point and supporting documentation are
+  included; unrelated edits/settings/research/captures stay outside the checkpoint.
+- Concrete packaging repair: release review's new source-only investigation link
+  is transformed to an explicit source-repository reference in staging, following
+  the existing README/macOS-guide rule. The public-document/runtime allowlists stay
+  unchanged; no developer source/tests or diagnostic evidence enters the package.
+- Focused `test:profile`, `release-preparation` and `release-cleanup` pass, including
+  final text assertion, isolated 48-item Windows discovery fixture, document links,
+  safe defaults, Dust installation fixtures, runtime dependencies and clean startup.
+  Reuse unchanged native queue/read-comparison checks and accepted real Lightroom
+  on/offscreen Profile and eight HTTP/PowerShell integrations; no photo edit or
+  repeated native feature capture is needed.
+- Fresh credential-free recovery archive uploaded/read back, manifest verified.
+  Source remains the sole running production app with the existing Lightroom
+  plug-in; replacement package lifecycle checks use isolated ports/Node mode.
+  Package build and verification results will be recorded above after completion.
+  No push/publication. Auto Mask and Constrain Crop performance stay deferred.
+
+## October 2 end-of-night stopping point — Profile work accepted
+
+- User accepts the Profile notice's wording and full-row layout. Final requested
+  change: bold **EXPERIMENTAL:** becomes bold **Experimental:**; nothing else in
+  the notice or its layout changes. Source and existing matching text assertion
+  updated. No tests rerun for this capitalization-only change, as requested.
+- Accepted native Profile discovery fix and on/offscreen results remain intact,
+  including complete inventory, correct selection and zero observed helper
+  timeouts/restarts. Keep the remaining slight Controller feedback delay documented.
+  Preserve all previously accepted feature results and eight live integration results.
+- Stopping on `feature/v0.6-more-sdk-and-web-controller`, HEAD `b11159a`, upstream
+  ahead/behind **24/0**, empty index. All source work remains uncommitted; unrelated
+  changes, private settings, stash, recordings, backups and baseline package
+  **20261001T224235Z** are preserved. No other application changes, tests, commit,
+  build, push or publication tonight.
+- **Next session:** review and create a scoped local checkpoint of the accepted
+  Profile discovery correction, final notice, relevant regression tests and
+  documentation. Build a fresh private Windows package from that checkpoint with
+  the matching production plug-in and corrected native helper; retain the current
+  baseline, public defaults and distribution exclusions. Then complete the remaining
+  package checks from this handoff. Reuse accepted source and integration results;
+  do not reopen slider/Reset/Point Color/Masking/Curve/Depth work. Auto Mask and
+  Constrain Crop performance work remain deferred.
+
+## October 2 Profile notice — final wording and full-row layout
+
+- Uses the latest user-supplied explanation beginning **Experimental:**; only that
+  label is bold. It explains unsupported/missing/disabled profiles, selecting them
+  directly in Lightroom Classic and Windows feedback taking a moment to catch up.
+- Notice spans the full row at every width, with its left border aligned with the
+  Profile label's box. Existing DOM ordering keeps it below the selector and above
+  Profile Amount. Reuses the Focus Range `lens-blur-experimental-note` amber styling
+  without duplicating its typography, padding, colors or border rules.
+- Actual Controller rendered with fixture feedback at 1280/390/320 CSS px: exact
+  wording, only the introduction bold, full-row alignment, position above Profile
+  Amount and no horizontal overflow verified. Computed notice styling matched
+  Focus Range; screenshots reviewed, all 18 Controller script blocks parsed and
+  test-file syntax checked before the final capitalization-only edit. Earlier
+  presentation evidence remains preserved; existing wording assertion updated.
+- Profile commands/availability/confirmation and accepted offscreen result remain
+  unchanged. No Lightroom requests, feature suite, commit or build. Baseline package,
+  unrelated WIP, settings, stash and prior evidence preserved. Refresh the Web
+  Controller; no app restart or plug-in reload is needed.
+
+## October 2 source runtime review — offscreen Profile test accepted
+
+- User started source with `npm start`, keeping Lightroom and the existing
+  production plug-in. Verified source Electron PID 8976 owns ports 17891/17892;
+  renderer uses `D:\Projects\LRBridge\app`. No packaged LRBridge is running.
+  Native helper PID 15456 loads `D:\Projects\LRBridge\server\windows-lightroom-native.ps1`,
+  started after the corrected file was saved (SHA-256
+  `8a76c18d2e671babe99a0a6401adc1a97258b99aaa1131466b036154da894197`).
+- **Actual source server/Controller read-only review passed within observed scope:**
+  served HTML/Profile asset matched source bytes; live Chromium DOM showed all
+  eight original choices and **Adobe Color** selected/status. Adaptive Color/B&W
+  remain present but read-only under the accepted SDK limitation. Observed 18
+  categorical and 7 Lens Blur responses; live Profile/Lens API samples took
+  **237/1399 ms**, shared native Lens snapshot available with confirmed Apply On.
+  No editing request was sent, no browser exception or blocked request occurred.
+- Shared helper completed **658 → 676** requests during the bounded browser review;
+  execution timeouts, queued expirations and restarts stayed **0/0/0**, helper PID
+  unchanged. Photo/Develop context unchanged. Additional source startup polling
+  already had hundreds of successful reads. This is real running-server/Controller
+  evidence, separate from earlier timed helper copies and simulated checks.
+- **User's offscreen test passed within its tested scope:** Lightroom showed Color
+  Grading while Profile was out of view. Changing Profiles through the Controller
+  applied the correct Profile immediately in Lightroom. Controller feedback followed
+  slightly later, settled correctly and remained usable. Record that remaining
+  feedback delay; do not describe confirmation as instantaneous or infer a measured
+  touch-to-confirmation latency.
+- Post-test verification used the current selection from fresh live state, rather
+  than expecting the old label. Native and source server both reported **Adobe Color**
+  at verification; all eight labels/positions remained intact. A read-only native
+  check confirmed **IsOffscreen=true**, complete inventory and the matching selected
+  item (416 ms discovery / 827 ms including helper startup). Three source API reads
+  returned in **156/213/172 ms**; these are request latencies, not gesture timings.
+- Main source helper PID 15456 remained unchanged; completed reads **1807 → 1815**,
+  execution timeouts/queued expirations/restarts still **0/0/0**. Current photo/Develop
+  context stayed stable during verification. The user had changed photo/Profile
+  during testing; its new context was used, not the previous test photo/selection.
+  No agent edit, plug-in reload or repeated command test was sent. Offscreen review
+  is accepted; other catalogs/localizations/restarts and remaining release gates
+  retain their documented scope. No more tuning or repeat capture is requested.
+- Evidence pointer: `local-checkpoints/profile-source-review-current.txt`.
+  Baseline ZIP hash unchanged; HEAD/index/stash preserved. No application code
+  change, commit, build, push or publication during this review.
+
+## October 2 final Profile discovery attempt — focused source correction
+
+- Startup verified branch `feature/v0.6-more-sdk-and-web-controller`, HEAD
+  `b11159a`, empty index, upstream ahead/behind **24/0**, and preserved stash. The
+  exact private candidate **20261001T224235Z** remains running and unchanged; no
+  source app, plug-in switch/reload or photo edit was started. Eight live integration
+  results and accepted sliders/Reset/Point Color/Masking/Curve/Depth remain accepted.
+- Corrected only native Profile discovery: explicitly initialize Microsoft's
+  client-side providers through a non-inlined C# frame, then enumerate fresh
+  Lightroom ComboBoxes and reach the complete owned list through its selected
+  virtual item. Earlier narrow trials reached the right native handles but saw
+  generic panes without selection patterns. A fresh probe captured the .NET
+  bootstrap exception; removing `NoInlining` reproduces it. Preserve all original
+  inventory/pattern checks; additionally revalidate process start time, main window,
+  native ComboBox/list ownership and selection identity. No cached inventory/state.
+- **Actual Lightroom comparison:** unchanged transport/3s queue/5s execution limits.
+  Original three-pair run: **3 Profile timeouts / 3 queued state expirations /
+  3 restarts / 0 completed reads**. Corrected observations: cold snapshots
+  **846/1064 ms**, repeated snapshot/label **393–499 ms**, Lens Blur full-state total
+  **1170–2074 ms**, **0 timeouts / 0 expirations / 0 restarts / 6 of 6 reads** each.
+  Both native inventories exactly match all eight original labels/positions/enabled
+  flags and selected **Adobe Color**. Photo/context unchanged; test helpers stopped.
+- No shared-queue redesign or separate Profile process was needed. Lens full-state
+  still executes in about **0.9–1.1s** and waits **0.4–0.95s** in the final run.
+  Unknown causes of the earlier seven historical timeouts stay unknown. Actual
+  Lightroom offscreen, other catalogs/localizations and process restart coverage
+  are limits; the 48-item real Windows fixture verifies collapsed/offscreen access
+  and ownership changes separately. Do not equate these fixtures with Lightroom.
+- Focused checks pass: `profile-native-discovery` (old/broken bootstrap fail,
+  correction passes), `profile-native`, `lens-blur-native-polling`,
+  `native-read-comparison`. SDK/Profile context, late responses, truthful unavailable
+  states, queue deadlines/no replay, public HTTP and independent Depth remain intact.
+  [Implementation, timings and limits](docs/SHARED_NATIVE_FEEDBACK.md).
+- New recovery backup uploaded/read back; existing settings/WIP/evidence/packages
+  and stash preserved. Hash verification passed for 404 unrelated source files,
+  all 141 baseline package manifest files and its ZIP; index/HEAD/stash unchanged.
+  Private evidence pointer remains
+  `local-checkpoints/shared-native-feedback-current.txt`; rejected trials preserved
+  separately. No commit, rebuild, push or publication.
+- **Next review:** candidate above lacks this correction. To review the Controller,
+  quit that package using **Quit**, then run `npm start` from `D:\Projects\LRBridge`.
+  Keep its existing production Lightroom plug-in; no reload. Check Profile inventory
+  and Lens Blur feedback, optionally with Profile scrolled offscreen/on another test
+  photo. Do not repeat the eight completed command checks. After acceptance, a scoped
+  checkpoint/replacement package is still required. Remaining desktop restart/settings,
+  LAN and final review gates remain; Auto Mask/Constrain Crop stay deferred.
+
+## October 2 shared native feedback investigation — no verified small fix
+
+- Current branch/HEAD at start matched `b11159a`; candidate `20261001T224235Z`
+  remained the sole running LRBridge app, with the user's matching production
+  plug-in/photo setup preserved. The eight successful live results and accepted
+  Visualize Depth implementation remain accepted within their recorded scope.
+- New operation/phase timings reproduced **three Profile execution timeouts**
+  (two snapshots, one label) and **three separate queued full-state expirations**.
+  A complete original read took **7935 ms**: Browse discovery **4067 ms**, ComboBox
+  discovery **3320 ms**, inventory **33 ms**, selection **8 ms**. Broad accessibility
+  discovery dominates. The earlier seven timeouts still lack operation history;
+  do not assign all of them to Profile. Duplicate polling is bounded by existing
+  browser/Profile in-flight guards; the expensive serial read blocks other feedback.
+- Faster narrow scopes lost the valid eight-option Profile inventory and were
+  rejected. Process-root/direct-owner trials still hit the deadline; the comparable
+  direct-owner run remained **3 execution timeouts / 3 queue expirations / 3 restarts**.
+  No performance fix is claimed. All trial helper edits were removed byte for byte;
+  timing code exists only in ignored evidence. Production behavior is unchanged.
+- Focused queue regression now distinguishes 3s expiry from 5s execution failure,
+  discards expired work without replay and requires fresh replacement-helper
+  feedback. `lens-blur-native-polling` and `native-read-comparison` pass; these
+  simulated checks remain distinct from the native timings. Findings,
+  affected controls and release-decision scope: [shared native feedback](docs/SHARED_NATIVE_FEEDBACK.md).
+- Next decision: accept the temporary native Profile/Lens Blur feedback limitation
+  or undertake bounded verified Profile discovery work; no slider redesign or
+  timeout extension. No replacement package or user action is required for this
+  diagnosis/test/documentation work. Remaining desktop restart/settings, LAN and
+  final review gates stay open. Auto Mask/Constrain Crop remain deferred.
+- Recovery archive uploaded/read back with 1,403 manifest entries verified;
+  credentials excluded. Private evidence pointer:
+  `local-checkpoints/shared-native-feedback-current.txt`. Current/old packages,
+  unrelated edits, private settings, recordings and stash are preserved. No commit,
+  build, push or publication in this step.
+
 ## October 2 candidate — 20261001T224235Z (UTC); bounded live integration passed
 
 - Release checkpoint: **`bf44384a4d3d04f810e456d6b0beda4b6cf5a773`**, 15 reviewed

@@ -9,7 +9,7 @@
     "test:lens-blur": "node tests/lens-blur.js",
     "test:section-collapse": "node tests/controller-section-collapse.js",
     "test:basic-categorical": "node tests/basic-profile-white-balance.js",
-    "test:profile": "node tests/profile-native.js",
+    "test:profile": "node tests/profile-native.js && node tests/profile-native-discovery.js",
     "test:profile-amount": "node tests/profile-amount.js",
     "test:develop-categorical": "node tests/develop-categorical.js",
     "test:tone-curve": "node tests/tone-curve-splits.js",

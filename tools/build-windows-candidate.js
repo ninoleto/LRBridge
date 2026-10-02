@@ -11,6 +11,14 @@ function distributionReadme(source) {
     return source.replace("[macOS porting guide](docs/MACOS_PORTING.md)",
         "macOS porting guide (`docs/MACOS_PORTING.md` in the source repository)");
 }
+function distributionDocument(relative, source) {
+    if (relative === "README.md") return distributionReadme(source);
+    if (relative === "docs/RELEASE_REVIEW.md") {
+        return source.replace("[Cause, comparison and coverage limits](SHARED_NATIVE_FEEDBACK.md)",
+            "Cause, comparison and coverage limits (`docs/SHARED_NATIVE_FEEDBACK.md` in the source repository)");
+    }
+    return source;
+}
 function sha(file) { return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex"); }
 function copy(relative, stage) {
     const destination = path.join(stage, relative);
@@ -45,7 +53,9 @@ function stageProject(stage) {
     }
     allow.add(luaRoot+"color-grading.properties");
     for(const relative of allow) copy(relative,stage);
-    fs.writeFileSync(path.join(stage,"README.md"), distributionReadme(fs.readFileSync(path.join(root,"README.md"),"utf8")));
+    for (const relative of ["README.md", "docs/RELEASE_REVIEW.md"]) {
+        fs.writeFileSync(path.join(stage, relative), distributionDocument(relative, fs.readFileSync(path.join(root, relative), "utf8")));
+    }
     fs.writeFileSync(path.join(stage,"config/settings.txt"), defaults);
     fs.writeFileSync(path.join(stage,"config/develop-presets.json"), JSON.stringify({version:1,presets:[]},null,2)+"\n");
     // extraFiles source paths must not overlap ASAR inputs: electron-builder excludes overlaps.
@@ -93,5 +103,5 @@ async function main() {
     fs.writeFileSync(zip+".sha256",result.sha256+"  "+path.basename(zip)+"\n");
     console.log(JSON.stringify(result,null,2));
 }
-module.exports={stageProject,inspectCandidate,walk,sha,defaults,distributionReadme};
+module.exports={stageProject,inspectCandidate,walk,sha,defaults,distributionReadme,distributionDocument};
 if(require.main===module) main().catch(e=>{console.error(e);process.exitCode=1;});

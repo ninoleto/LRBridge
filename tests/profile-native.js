@@ -957,12 +957,16 @@ function capturedLookAndProductionBoundaryTests() {
     }
     assert.doesNotMatch(nativeJs + nativePs + server, /selectProfileOption|Select-ProfileOption|\.Pattern\.Select\(\)/,
         "production Profile writing must not retain the Windows-native selection path");
-    assert.match(nativeDiscovery, /ControlViewWalker[\s\S]*Browse…?[\s\S]*FindFirst/,
-        "Profile discovery must start from the bound Browse item and walk only its list siblings");
-    assert.doesNotMatch(nativeDiscovery, /\.FindAll\(/,
-        "Profile discovery must not restore the slow desktop-wide full snapshot traversal");
-    assert.match(nativeDiscovery, /browseRuntimeId[\s\S]*comboHandle[\s\S]*listRuntimeId/,
-        "Browse-first discovery must retain exact ComboBox and list runtime-ID binding");
+    assert.match(nativeDiscovery, /Initialize-ProfileUiaProviders[\s\S]*GetProcessWindows[\s\S]*FromHandle[\s\S]*GetParent\(\$initialSelection\[0\]\)/,
+        "Profile discovery binds fresh native ComboBoxes to their selected virtual item's complete owned list");
+    assert.doesNotMatch(nativeDiscovery, /RootElement|\.FindAll\(|\.FindFirst\(/,
+        "Profile discovery must not restore expensive desktop accessibility traversal");
+    assert.match(nativeDiscovery, /comboRuntimeId[\s\S]*selectedRuntimeId[\s\S]*listRuntimeId/,
+        "Discovery retains exact ComboBox, selected-item and list runtime-ID binding");
+    assert.match(nativePs, /MethodImplOptions\.NoInlining[\s\S]*RegisterClientSideProviderAssembly/,
+        "Cold provider initialization must avoid the PowerShell dynamic stack bootstrap failure");
+    assert.match(nativeDiscovery, /\$process\.Refresh\(\)[\s\S]*processStartedAt[\s\S]*ComboListHandle/,
+        "Recreated process/window/control ownership must be rejected after enumeration");
     assert.match(nativeJs, /const background = operation === "readState"(?: \|\| operation === "readRemoveSelection")?;/,
         "native state polling retains its background coalescing classification");
     assert.match(nativeJs, /else if \(operation === "readProfileSnapshot" \|\| operation === "readProfileLabel"\) \{\s*requestQueue\.push\(job\)/,
@@ -974,8 +978,8 @@ function capturedLookAndProductionBoundaryTests() {
         "disabled Adaptive Profiles must not advertise a writable confirmation transaction");
     assert.match(controller, /control\.select\.disabled = !presentation\.inventoryStable \|\| presentation\.pending/);
     assert.match(controller,
-        /help\.textContent = "Lightroom SDK limitation: only supported profiles can be selected here\. Other profiles are shown for feedback but must be selected in Lightroom\. Manage additional profiles through Browse in Lightroom\."/,
-        "Profile help text must explain the Lightroom SDK selection limitation");
+        /help\.innerHTML = "<strong>Experimental:<\/strong> Lightroom’s plug-in SDK does not support all profiles\. If a profile is missing or disabled here, select it directly in Lightroom Classic\. Windows automation checks the selected profile, so the Web Controller may take a moment to show the change\."/,
+        "Profile help text must distinguish SDK changes from experimental Windows feedback and explain disabled profiles");
     assert.match(controller, /control\.select\.value = presentation\.authoritativeToken \|\| ""/,
         "pending Profile writes must keep the latest authoritative label instead of showing an optimistic target");
     assert.match(controller, /presentation\.updating[\s\S]*Updating Profile…/,

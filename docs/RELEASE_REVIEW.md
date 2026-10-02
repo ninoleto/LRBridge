@@ -62,10 +62,34 @@ helper recorded zero timeouts/restarts. No edit was repeated, accepted behavior 
 not retuned, and no application fix is claimed. This finding needs focused triage
 or explicit acceptance as a feedback limitation before publication.
 
+The focused October 2 investigation now reproduces three new Profile execution
+timeouts separately from three undispatched full-state queue expirations. A complete
+original read took 7935 ms, dominated by Browse/ComboBox desktop searches (4067/3320
+ms); inventory/selection took 33/8 ms. The earlier seven timeouts remain unattributed.
+Initial scoped trials either lost valid Profile options or retained the timeouts and
+were removed. The final focused attempt now verifies a source correction: initialize
+the built-in UIA providers through a non-inlined C# frame and read the complete owned
+Profile list from fresh native ComboBoxes. Native inventory/selection matches the
+original eight options; cold reads took 846/1064 ms, repeated reads 393–499 ms and
+paired Lens Blur reads 1170–2074 ms. Each corrected six-read run had zero execution
+timeouts, queue expirations or helper restarts. Existing context/no-retry guards and
+the independent Depth helper are unchanged. [Cause, comparison and coverage limits](SHARED_NATIVE_FEEDBACK.md).
+The preserved baseline candidate does not include this correction. The user has
+now passed source offscreen Profile review: changing Profiles while Lightroom showed
+Color Grading applied the correct Profile immediately; Controller feedback settled
+slightly later and stayed usable. Post-test native discovery confirmed offscreen
+ownership, all eight choices and the current selected item; the source helper retained
+zero timeouts/queue expirations/restarts. The remaining feedback delay is documented.
+The discovery correction and final full-row amber Profile notice are manually
+accepted for this release. The notice uses bold **Experimental:** and explains the
+SDK limitation and remaining feedback delay. A scoped local checkpoint and fresh
+private replacement package are authorized; package verification is recorded
+separately after building. Preserve the baseline and all completed live results.
+
 Remaining manual gates are normal desktop/tray quit/restart, settings/favorites
 preservation and Lightroom reconnection; phone/tablet LAN use; final candidate UI
 review and publication approval. All scoped automated package/live checks passed;
-the shared-native finding above remains open. Physical Companion configuration and
+the accepted source correction is ready for checkpoint/package inclusion. Physical Companion configuration and
 unreported Dust migration, duplicate-preset and manual-Healing subcases remain
 explicit coverage limits, without
 reopening completed tests. Auto Mask and Constrain Crop performance stay deferred.
