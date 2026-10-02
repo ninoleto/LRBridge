@@ -127,7 +127,10 @@
         }
         function render() {
             if (!section) return;
-            panelButton.firstChild.textContent = panelAvailable() && state.selectedTool === "dust" ? "Close Healing Tool" : "Open Healing Tool";
+            const closeHealing = panelAvailable() && state.selectedTool === "dust";
+            panelButton.firstChild.textContent = closeHealing ? "Close Healing Tool" : "Open Healing Tool";
+            panelButton.classList.toggle("command-danger", closeHealing);
+            panelButton.classList.toggle("positive", !closeHealing);
             panelButton.setAttribute("aria-label", panelButton.textContent);
             panelButton.setAttribute("aria-busy", String(intents.has("selectedTool") || operation && operation.field === "selectedTool"));
             setDisabled(panelButton, !enabled("selectedTool"));

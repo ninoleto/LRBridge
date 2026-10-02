@@ -1,5 +1,12 @@
 # LRBridge Windows v0.6 beta
 
+**October 3 accepted beta limitation:** Refine Saturation can intermittently jump
+in both normal and Masking Point Curve. The user accepts this limitation for the
+beta; both Curve implementations and the accepted Parametric preview are preserved.
+Close Masking and Close Healing use the existing red Close style. Global Reset
+Transform temporarily greys and disables its slider rows for one second from the
+tap; current Lightroom availability still governs them afterwards.
+
 **October 1 private test update:** Parametric Curve is manually accepted for this
 release, including changed split positions; six matching native references and
 regression tests are preserved. Small preview approximation differences remain.

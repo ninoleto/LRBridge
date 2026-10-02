@@ -1,5 +1,107 @@
 # LRBridge Codex Handoff
 
+## October 3 final UI checkpoint — stable beta; Curve limitation accepted
+
+- User reports the latest private package feels stable. **Refine Saturation may
+  intermittently jump in normal and Masking Point Curve; accepted as a beta
+  limitation.** Both Curve implementations, Add/Delete ownership and accepted
+  Parametric preview remain unchanged. No new Curve investigation or capture.
+- Close Masking and Close Healing Tool now use the existing red Close-button
+  style, with their Open states retaining their original blue colour. Labels,
+  handlers and Lightroom state/availability are unchanged.
+- An enabled global Reset Transform tap immediately disables and greys all seven
+  Transform slider rows, including numeric fields, step and individual Reset
+  buttons, for one second from that tap. Feedback updates child availability
+  during the guard without cancelling/extending it; expiry removes only the
+  temporary parent restriction. Failed requests and actual photo/module/context
+  changes clear it safely. Develop feedback alone does not clear it; an older
+  request failure cannot clear a newer tap's guard. This guard is Transform-only;
+  no SDK command, default, queue, polling or other slider timing changed.
+- Focused isolated Chromium checks pass for both Close/Open colour transitions
+  and the Transform guard: all seven rows, 999/1000 ms boundary, held request,
+  feedback/availability precedence, disabled custom input rejection, independent
+  unrelated controls, failures/context cleanup and unchanged enabled edits.
+  Actual rendered desktop 1280 and narrow/touch 390/320 px fit without horizontal
+  overflow; grey track/thumb, readable grey fields/buttons and restored styling
+  are verified. Controller/module/test syntax and diff whitespace checks pass.
+  These are simulated HTTP/SDK checks, not additional native Lightroom results.
+- Preserve all accepted results, including Color Grading guard/remaining beta
+  latency, Masking/Point Color, Curve, Profile/offscreen and Depth responsiveness,
+  Denoise, reported Dust VM result and eight live HTTP integrations. Auto Mask
+  and Constrain Crop performance remain deferred. No repeat feature suites.
+- Focused release preparation and cleanup checks pass: sanitized staging/public
+  defaults, route inventory, production Lua syntax and disposable Dust preset
+  install/idempotence/conflict/integrity tests. Required recovery backup was
+  uploaded and independently read back before edits. Unrelated edits/private
+  settings, stash, recordings, backups and all prior packages are preserved.
+  Private evidence: `local-checkpoints/final-ui-release-current.txt`.
+- Scoped checkpoint/private package preparation is in progress. Reuse unchanged
+  feature/native helper results; verify packaged contents and isolated packaged
+  startup/shutdown/settings preservation. Do not switch the user's running
+  package or production plug-in automatically. Remaining manual gates: new
+  package Lightroom connection/Profile feedback, normal desktop quit/restart/
+  settings preservation and phone/tablet LAN; brief new Close-colour and Transform
+  guard observation. Source-only macOS Help link still awaits upstream source
+  publication. No push or public publication is authorised.
+
+## October 2 private beta ready — 20261002T205820Z
+
+- **Scoped checkpoint:** `fb71cb6f78e7591369cf791c93f7e8d913266d6b` (`fb71cb6`),
+  13 reviewed files. Contains the accepted Color Grading Reset ordering/latency,
+  presentation and independent 500 ms guard; accepted Point Curve Add/Delete
+  ownership; regressions/test commands; final developer Help section and acceptance
+  documentation. The cooldown remains confined to Color Grading. Normal/Masking
+  Point Curve and all other accepted controls were preserved, not reopened.
+- **Fresh private Windows v0.6.0 package:** built from an isolated Git export of
+  that checkpoint with the existing sanitized workflow and Electron 43.1.1.
+  Previous packages, including 20261002T020721Z and 20261001T224235Z, are preserved.
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261002T205820Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261002T205820Z\LRBridge.exe`
+  - Matching production plug-in: `D:\Projects\LRBridge\dist\private-test-20261002T205820Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261002T205820Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `2702504c4ce3ab59813cceb8e5ae50da636055bcdeb8976628aca5dcf0b428cc`.
+- **Checks passed:** new Help section layout/links at 1280/390/320 px; actual
+  source Help/local HTTP document routes; focused staging/cleanup, Lua syntax and
+  disposable Dust installer checks; ZIP/extracted manifest and SHA-256; all 69
+  runtime inputs, 33 Controller assets and 41 production Lua modules match the
+  committed export. Matching native helpers, Dust presets/installer, public
+  settings (`poll_interval_ms=100`) and empty preset configuration are verified.
+  Packaged relative document links resolve. Tests/developer source, diagnostic
+  capture hooks/bootstraps, private handoffs/settings/credentials, recordings and
+  backups are excluded from the distributable.
+- Exact packaged Electron **isolated Node-mode** startup/shutdown/restart passed
+  two cycles on ephemeral loopback ports, with metadata, empty plug-in polling,
+  unchanged settings and no surviving packaged process. This is not desktop/tray
+  or Lightroom connection acceptance. Native helper inputs are byte-for-byte
+  identical to the previous candidate; reuse its completed shared/depth helper
+  lifecycle/native evidence. No competing production app/helper, new native probe,
+  plug-in reload or automated photo edit was started. Source PID 6004/helper 34688,
+  Lightroom PID 1932 and source ownership of ports 17890–17892 are unchanged.
+- Reused accepted feature regressions, recordings, eight successful live HTTP
+  integrations and generated PowerShell checks within their recorded scope. User
+  accepts the Color Grading guard/remaining beta latency and other slider Reset
+  behavior, normal/Masking Point Curve, Parametric preview, Profile/Depth and
+  previously reported Dust VM result. No additional scenario is inferred.
+- **Switch when ready:** use **Quit** in source LRBridge, then launch the new EXE;
+  do not run both. In Lightroom Plug-in Manager enable the bundled production
+  plug-in above and disable the old/diagnostic entries; reload once if replacing
+  the currently loaded plug-in. The new package includes the accepted ColorGrading
+  Lua fast path, which differs from the previous packaged plug-in.
+- **Remaining manual package checks:** packaged Lightroom connection/Profile
+  inventory/current selection/feedback; normal desktop/tray quit/restart with
+  settings/favorites preserved and Lightroom reconnection; phone/tablet LAN use.
+  Do not repeat accepted slider/capture or HTTP checks. Auto Mask and Constrain
+  Crop performance remain deferred; documented preview/feedback limits remain.
+- **Source publication pending:** the macOS Help link names the actual committed
+  repository/feature-branch path, but that guide is not yet in the upstream snapshot.
+  Publish reviewed source documentation before public distribution; local HTTP
+  documentation links already work in the package. No push/publication occurred.
+- Recovery backup uploaded and independently read back before checkpointing.
+  Unrelated edits/settings/research, stash and evidence remain intact. Private build
+  evidence: `local-checkpoints/beta-release-current.txt`. These final build results
+  are saved after the binary checkpoint. No automated packaging blocker remains;
+  the package is ready for the manual checks above.
+
 ## October 2 final beta checkpoint — Reset guard accepted; Help links ready
 
 - User **manually accepts Color Grading's Reset guard**. Further testing reports

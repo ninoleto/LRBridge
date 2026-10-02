@@ -663,6 +663,8 @@
                 });
             }
             controls.panel.textContent = view.panelLabel;
+            controls.panel.classList.toggle("command-danger", view.panelLabel === "Close Masking");
+            controls.panel.classList.toggle("positive", view.panelLabel !== "Close Masking");
             controls.panel.disabled = view.panelDisabled;
             controls.previous.disabled = view.previousDisabled;
             controls.next.disabled = view.nextDisabled;

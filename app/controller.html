@@ -1349,6 +1349,13 @@
         /* Match Tone's spacing: 8px margin + 16px feedback line + 8px grid gap. */
         .point-color-slider-row { margin-bottom: 32px; }
 
+        fieldset.develop-slider-row {
+            border: 0;
+            padding: 0;
+            margin-inline: 0;
+            min-inline-size: 0;
+        }
+
         .develop-slider-row input[type="range"],
         .angle-control input[type="range"] {
             width: 100%;
@@ -1424,6 +1431,28 @@
             color: #9fb0bf;
             font-size: 12px;
             line-height: 16px;
+        }
+
+        .transform-reset-guard input[type="range"]:disabled { cursor: not-allowed; }
+        .transform-reset-guard input[type="range"]:disabled::-webkit-slider-runnable-track { background: #505050; }
+        .transform-reset-guard input[type="range"]:disabled::-webkit-slider-thumb { background: #858585; border-color: #a0a0a0; }
+        .transform-reset-guard input[type="range"]:disabled::-moz-range-track,
+        .transform-reset-guard input[type="range"]:disabled::-moz-range-progress { background: #505050; }
+        .transform-reset-guard input[type="range"]:disabled::-moz-range-thumb { background: #858585; border-color: #a0a0a0; }
+        .transform-reset-guard input[type="text"]:disabled {
+            background: #242424;
+            color: #aaa;
+            -webkit-text-fill-color: #aaa;
+            border-color: #505050;
+            cursor: not-allowed;
+        }
+        .transform-reset-guard button:disabled,
+        .transform-reset-guard button:disabled:hover {
+            background: #444;
+            color: #bbb;
+            border-color: #666;
+            cursor: not-allowed;
+            opacity: 1;
         }
 
         .develop-slider-step {
@@ -5605,6 +5634,50 @@
         let lastControllerSelectedPhotoKey = null;
         let lastControllerSelectedPhotoUuid = null;
         let lastControllerHeartbeatAt = null;
+        let transformResetGuard = null;
+
+        function applyTransformResetGuard() {
+            Object.keys(developSliderControls).forEach(function (slider) {
+                connectedDevelopSliderControls(slider).forEach(function (control) {
+                    if (control.definition.group !== "Transform") return;
+                    control.row.disabled = transformResetGuard !== null;
+                    control.row.classList.toggle("transform-reset-guard", transformResetGuard !== null);
+                });
+            });
+        }
+
+        function clearTransformResetGuard(owner) {
+            if (!transformResetGuard || (owner && owner !== transformResetGuard)) return;
+            clearTimeout(transformResetGuard.timer);
+            transformResetGuard = null;
+            // Child disabled flags still contain the latest SDK availability.
+            applyTransformResetGuard();
+        }
+
+        function startTransformResetGuard() {
+            clearTransformResetGuard();
+            const owner = {
+                contextCounter: lastControllerContextCounter,
+                contextChangedAt: lastControllerContextChangedAt,
+                activeModule: lastControllerActiveModule,
+                selectedPhotoKey: lastControllerSelectedPhotoKey,
+                selectedPhotoUuid: lastControllerSelectedPhotoUuid,
+                timer: null
+            };
+            transformResetGuard = owner;
+            owner.timer = setTimeout(function () { clearTransformResetGuard(owner); }, 1000);
+            applyTransformResetGuard();
+            return owner;
+        }
+
+        function updateTransformResetGuardContext(context) {
+            if (!transformResetGuard) return;
+            const owner = transformResetGuard;
+            if (["contextCounter", "contextChangedAt", "activeModule", "selectedPhotoKey", "selectedPhotoUuid"]
+                .some(function (key) { return context[key] !== owner[key]; })) {
+                clearTransformResetGuard(owner);
+            }
+        }
         let heartbeatWasStale = false;
         const DEBUG_DEVELOP_REFRESH = true;
         let currentDevelopRefreshClassification = "initial";
@@ -6068,6 +6141,7 @@
                     lastHeartbeatAt: lastControllerHeartbeatAt
                 };
                 const classification = classifyControllerContextChange(previous, data);
+                updateTransformResetGuardContext(data);
                 if (lensBlurVisualizePending &&
                     !lensBlurVisualizeBindingMatches(lensBlurVisualizePending.binding, data)) {
                     clearLensBlurVisualizePending("Visualize Depth context changed before confirmation", true);
@@ -6718,6 +6792,7 @@
             if (!item.standalone) row.appendChild(name);
 
             const actionButton = makeButton(item.button || "Send", item.className || "positive", function () {
+                if (actionButton.matches(":disabled")) return;
                 if (isAutoActionCooldownActiveFor(item.action)) {
                     setStatus("Auto Tone / Auto White Balance is waiting for Lightroom to finish the last slider command.");
                     return;
@@ -6731,7 +6806,9 @@
                     startAutoActionCooldown();
                     whiteBalanceCommandCooldownUntil = autoActionCooldownUntil;
                 }
+                const transformGuardOwner = item.action === "resetTransforms" ? startTransformResetGuard() : null;
                 sendCommand("/api/action?action=" + encodeURIComponent(item.action)).then(function (accepted) {
+                    if (!accepted && transformGuardOwner) clearTransformResetGuard(transformGuardOwner);
                     if (accepted && item.action === "setAutoWhiteBalance") {
                         setTimeout(requestDevelopCategoricalState, 300);
                     }
@@ -7942,8 +8019,12 @@
 
         function createDevelopSliderControl(definition, navigationOptions) {
             const previousControl = developSliderControls[definition.id];
-            const row = document.createElement("div");
+            const row = document.createElement(definition.group === "Transform" ? "fieldset" : "div");
             row.className = "develop-slider-row";
+            if (definition.group === "Transform") {
+                row.disabled = transformResetGuard !== null;
+                row.classList.toggle("transform-reset-guard", transformResetGuard !== null);
+            }
 
             const name = document.createElement("div");
             name.className = "slider-name";
@@ -7969,16 +8050,19 @@
             let control = null;
 
             const decrement = makeButton("−", "develop-slider-step", function () {
+                if (decrement.matches(":disabled")) return;
                 stepDevelopSliderValue(control, -1);
             });
             decrement.setAttribute("aria-label", "Decrease " + definition.label);
 
             const increment = makeButton("+", "develop-slider-step", function () {
+                if (increment.matches(":disabled")) return;
                 stepDevelopSliderValue(control, 1);
             });
             increment.setAttribute("aria-label", "Increase " + definition.label);
 
             const reset = makeDevelopSliderResetButton(function () {
+                if (reset.matches(":disabled")) return;
                 if (profileAmountSubmissionBlocked(control)) return;
                 if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                     restoreWhiteBalanceDependentSlider(control);
@@ -8113,6 +8197,10 @@
             });
 
             function commitNumericValue() {
+                if (number.matches(":disabled")) {
+                    endDevelopSliderInteraction(control);
+                    return;
+                }
                 if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                     restoreWhiteBalanceDependentSlider(control);
                     endDevelopSliderInteraction(control);
@@ -8153,6 +8241,7 @@
             }
 
             number.addEventListener("focus", function () {
+                if (number.matches(":disabled")) return;
                 if (isWhiteBalanceDependentSlider(control) && whiteBalanceCommandInProgress()) {
                     restoreWhiteBalanceDependentSlider(control);
                     number.blur();

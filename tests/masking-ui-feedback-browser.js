@@ -19,13 +19,14 @@ const page = `<!doctype html><meta charset="utf-8"><meta name="viewport" content
 <main id="layout" class="content"><div id="dust"></div><div id="host"></div></main><div id="remove-base" hidden></div>
 ${sourceFiles.map(name => '<script src="/' + name + '"></script>').join("\n")}
 <script>
-const fixture={state:${JSON.stringify(initial)},context:${JSON.stringify(context)},commands:[],visualizeRequests:[],failToggle:false};
+const fixture={state:${JSON.stringify(initial)},context:${JSON.stringify(context)},commands:[],visualizeRequests:[],requests:[],failToggle:false};
 fixture.remove={ok:true,...fixture.context,serverEpoch:'dust-fixture',revision:1,available:true,ageMs:0,
  selectedTool:'dust',newSpotType:'heal',brushSize:25,brushFeather:50,visualizeSpots:false,visualizationThreshold:50,
  dust:{available:false,canEnable:true,canDisable:true,canRequestClose:true,token:'a'.repeat(64)},repair:{available:false}};
 const response=(data,status=200)=>({ok:status===200,status,json:async()=>JSON.parse(JSON.stringify(data))});
 const fetchFixture=async(request)=>{
  const url=new URL(request,location.href);
+ fixture.requests.push(url.pathname);
  if(url.pathname==='/api/masking/state')return response(fixture.state);
  if(url.pathname==='/api/masking/presets')return response({ok:true,presets:[]});
  if(url.pathname==='/api/remove/state')return response(fixture.remove);
@@ -97,6 +98,53 @@ const server = http.createServer((req, res) => {
             fs.writeFileSync(path.join(artifacts, name + ".png"), Buffer.from(png.data, "base64"));
         };
         await cdp.send("Page.navigate", { url: "http://127.0.0.1:" + port });
+        if (process.argv.includes("--close-colors-only")) {
+            await waitFor("!!document.querySelector('#host .masking-panel-button')&&!!document.querySelector('[data-remove-panel=true]')");
+            await evaluate("document.querySelector('#remove-base').hidden=false;document.querySelector('#layout').prepend(document.querySelector('#remove-base'))");
+            for (const width of [1280, 390, 320]) {
+                await cdp.send("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor: 1, mobile: width < 760 });
+                await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: width < 760 });
+                // Change only synthetic authoritative readback, never click an
+                // operation or reopen unrelated Point Color/Curve checks.
+                for (const close of [true, false, true]) {
+                    await evaluate(`fixture.state.active=${close};fixture.state.revision++;
+                        fixture.remove.selectedTool=${JSON.stringify(close ? "dust" : "loupe")};fixture.remove.revision++;
+                        Promise.all([controller.refresh(),removeController.refresh()])`);
+                    await evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
+                    const layout = await evaluate(`(()=>{
+                        const button=selector=>{const e=document.querySelector(selector),s=getComputedStyle(e),b=e.getBoundingClientRect();
+                            return {text:e.textContent,positive:e.classList.contains('positive'),danger:e.classList.contains('command-danger'),
+                                background:s.backgroundColor,border:s.borderColor,color:s.color,disabled:e.disabled,height:b.height};};
+                        return {width:innerWidth,close:${close},overflow:document.documentElement.scrollWidth>innerWidth,
+                            masking:button('#host .masking-panel-button'),healing:button('[data-remove-panel=true]')};
+                    })()`);
+                    assert.equal(layout.width, width);
+                    assert.equal(layout.overflow, false, "Open/Close controls do not overflow at " + width);
+                    for (const [name, button] of [["Masking", layout.masking], ["Healing Tool", layout.healing]]) {
+                        assert.equal(button.text, (close ? "Close " : "Open ") + name);
+                        assert.equal(button.disabled, false, "Fresh readback keeps the panel action available");
+                        assert.equal(button.positive, !close, "Preserve the existing positive class only for Open " + name);
+                        assert.equal(button.danger, close, "Use existing danger class only for Close " + name);
+                        assert.equal(button.background, close ? "rgb(116, 47, 58)" : "rgb(42, 111, 151)");
+                        assert.equal(button.border, close ? "rgb(154, 68, 82)" : "rgb(58, 140, 192)");
+                        if (close) assert.equal(button.color, "rgb(255, 255, 255)");
+                        assert(button.height >= 44, "Preserve comfortable panel-button touch targets");
+                    }
+                    layouts.push(layout);
+                    if (layouts.filter(row => row.width === width && row.close === close).length === 1) {
+                        await capture(".remove-action-row", "healing-" + (close ? "close" : "open") + "-" + width);
+                        await capture(".masking-panel-row", "masking-" + (close ? "close" : "open") + "-" + width);
+                    }
+                }
+            }
+            assert.deepEqual(errors, []);
+            assert.equal(await evaluate("fixture.commands.length+fixture.visualizeRequests.length"), 0);
+            assert.equal(await evaluate("fixture.requests.every(path=>['/api/masking/state','/api/masking/presets','/api/masking/tone-curve/state','/api/remove/state'].includes(path))"), true,
+                "Color checks send only synthetic feedback reads and no adjustment/Reset/panel commands: " + await evaluate("JSON.stringify(fixture.requests)"));
+            if (artifacts) fs.writeFileSync(path.join(artifacts, "close-colors-results.json"), JSON.stringify(layouts, null, 2));
+            console.log("PASS Masking and Healing authoritative Close/Open/Close color transitions: existing red Close and unchanged blue Open; desktop 1280 and touch 390/320 without overflow or edits. Synthetic browser only.");
+            return;
+        }
         await waitFor("!!document.querySelector('[data-point-color-field=HueShift] input')&&!toggle().disabled");
         // Pending input before debounce and an admitted edit awaiting confirmation
         // both explain the guard; neither click queues or dispatches a toggle.
