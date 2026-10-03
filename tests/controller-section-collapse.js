@@ -51,7 +51,11 @@ const expectedToolsJumpEntries = [
     { id: "crop-straighten", label: "Crop & Straighten", toolsSection: true },
     { id: "healing", label: "Healing", toolsSection: true },
     { id: "red-eye", label: "Red Eye", toolsSection: true },
-    { id: "masking", label: "Masking", toolsSection: true }
+    { id: "masking", label: "Masking", toolsSection: true },
+    { tab: "sliders", label: "Develop Sliders", toolsTabShortcut: true },
+    { tab: "presets", label: "Presets", toolsTabShortcut: true },
+    { tab: "selection", label: "Selection", toolsTabShortcut: true },
+    { tab: "application", label: "Application", toolsTabShortcut: true }
 ];
 
 class FakeClassList {
@@ -273,7 +277,7 @@ assert.equal(expectedJumpEntries[13].label, "Presets", "Presets must be the fina
 assert.doesNotMatch(controller.slice(jumpModelStart, jumpModelEnd), /developPresetController|draft|uuid|alias|Preset Controls|Manage Presets/,
     "the shared Jump-to model must never reflect the configured preset draft or manager");
 assert.deepEqual(JSON.parse(JSON.stringify(jumpModelContext.getToolsJumpSections())), expectedToolsJumpEntries,
-    "Tools Jump-to entries must contain only actual Tools sections in page order");
+    "Tools Jump-to entries must contain its actual sections followed by four tab shortcuts");
 
 const menuTabsStart = controller.indexOf("function isSliderJumpMenuTab(");
 const menuTabsEnd = controller.indexOf("function getSliderJumpMenuHost(", menuTabsStart);
@@ -464,7 +468,7 @@ assert.doesNotMatch(metadataInitializationBlock, /\.catch\(/,
     "the slider-metadata error path must not catch unrelated tab-render failures");
 
 const activationStart = controller.indexOf("function activateSliderJumpEntry(section)");
-const activationEnd = controller.indexOf("\n\n            sections.forEach", activationStart);
+const activationEnd = controller.indexOf("            sections.forEach", activationStart);
 assert.notEqual(activationStart, -1, "missing Jump-to activation helper");
 assert.notEqual(activationEnd, -1, "missing Jump-to activation helper boundary");
 const selectedTabs = [];
@@ -495,19 +499,24 @@ expectedJumpEntries.filter(function (entryDefinition) { return entryDefinition.i
         name: entryDefinition.label
     }), true, entryDefinition.label + " must retain Develop-section navigation");
 });
-expectedToolsJumpEntries.forEach(function (entryDefinition) {
+expectedToolsJumpEntries.filter(function (entryDefinition) { return entryDefinition.toolsSection; }).forEach(function (entryDefinition) {
     assert.equal(activationContext.activateSliderJumpEntry({
         id: "slider-jump-section-" + entryDefinition.id,
         toolsSectionId: entryDefinition.id,
         name: entryDefinition.label
     }), true, entryDefinition.label + " must retain Tools-section navigation");
 });
-assert.deepEqual(selectedTabs, [["tone-curve", true], ["color-grading", true], ["presets", true], ["sliders", true], ["tools", true]],
+expectedToolsJumpEntries.filter(function (entryDefinition) { return entryDefinition.toolsTabShortcut; }).forEach(function (entryDefinition) {
+    assert.equal(activationContext.activateSliderJumpEntry({ tab: entryDefinition.tab, toolsTabShortcut: true }), true,
+        entryDefinition.label + " must reuse the existing tab-selection path");
+});
+assert.deepEqual(selectedTabs, [["tone-curve", true], ["color-grading", true], ["presets", true], ["sliders", true], ["tools", true],
+    ["sliders", true], ["presets", true], ["selection", true], ["application", true]],
     "all cross-tab Jump-to navigation must use the existing authoritative tab-selection path");
 assert.deepEqual(scrolledTargets.map(function (entry) { return entry[0]; }),
     expectedJumpEntries.filter(function (entryDefinition) { return entryDefinition.id; })
         .map(function (entryDefinition) { return "slider-jump-section-" + entryDefinition.id; })
-        .concat(expectedToolsJumpEntries.map(function (entryDefinition) {
+        .concat(expectedToolsJumpEntries.filter(function (entryDefinition) { return entryDefinition.toolsSection; }).map(function (entryDefinition) {
             return "slider-jump-section-" + entryDefinition.id;
         })),
     "every Develop and Tools navigation target must retain its heading-scroll path");

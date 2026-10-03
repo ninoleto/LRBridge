@@ -1,10 +1,20 @@
 # LRBridge Windows v0.6 beta
 
-**October 3 accepted beta limitation:** Refine Saturation can intermittently jump
-in both normal and Masking Point Curve. The user accepts this limitation for the
-beta; both Curve implementations and the accepted Parametric preview are preserved.
+**Final October 3 UI acceptance:** Calibration's Shadows, Red Primary, Green
+Primary and Blue Primary headings/dividers are accepted. The Tools Jump menu
+keeps Crop & Straighten, Healing, Red Eye and Masking in the left column and
+Develop Sliders, Presets, Selection and Application in the right column, using
+the existing Presets shortcut's blue styling. Narrow screens show the four black
+links first, followed by the four blue shortcuts. Other Jump menus and slider
+behavior are unchanged.
+
+**October 3 Refine beta acceptance:** The user accepts the current Refine
+Saturation behavior as a beta compromise, with further improvement deferred.
+The terminal-confirmation and blocked-touch corrections, both Curve implementations
+and the accepted Parametric preview are preserved. This is not a claim that all
+interaction cases are resolved or newly tested.
 Close Masking and Close Healing use the existing red Close style. Global Reset
-Transform temporarily greys and disables its slider rows for one second from the
+Transform temporarily greys and disables its slider rows for two seconds from the
 tap; current Lightroom availability still governs them afterwards.
 
 **October 1 private test update:** Parametric Curve is manually accepted for this
@@ -17,10 +27,12 @@ using the same Web Controller button for Close Masking and then Open Masking.
 **Visualize Depth:** responsiveness is manually accepted for this release; the
 user reports that the corrected source now feels fast. Focused native reads and
 ordered confirmation remove the measured queue/discovery delay. First use still
-includes helper startup. The new package needs its normal Visualize Depth check;
-accepted source behavior does not require another recording.
-Dust clean-install and legacy-preset migration verification will use this fresh
-test package. Existing-machine Dust acceptance does not establish those results.
+includes helper startup. The completed packaged Visualize Depth integration check
+is preserved; unchanged implementation inputs do not require another recording.
+The user reports that the VM Dust test passed. Preserve this bounded result;
+the report does not separately establish legacy migration, duplicate-preset checks
+or preservation of manual Healing repairs. Automated installer/migration checks
+and their native coverage limits remain separate.
 
 **September 27 accepted source:** the latest Copy/Paste, Export and Enhance reports
 are accepted within the user's tested scope, including Denoise Reset and its
@@ -60,6 +72,14 @@ Quit LRBridge before upgrading. Extract into a **new folder**, copy your old `co
 - **Develop:** numeric sliders, Tone Curve, Color Grading, Lens Blur and supported Profiles use Lightroom feedback. Unavailable is not zero. A pending value or HTTP acceptance is not authoritative completion.
 
 <details><summary>Native acceptance and known limitations</summary>
+
+Tone Curve sometimes remains at “Awaiting authoritative Lightroom feedback” after
+using Point Color and other adjustments. The cause is unknown and the issue remains
+unresolved. This observation does not establish that the preceding adjustment caused
+it. Do not automatically reset photos as a workaround. Current Refine Saturation
+behavior is accepted as a beta compromise; further improvement is deferred. The
+latest accepted Masking recording covers 18 complete drags and five blocked touches,
+with an incomplete startup fragment; it does not provide native Reset coverage.
 
 The user reports Copy/Paste working in the cases tested, with no problems observed. The report does not enumerate photo counts, same-active-photo selection changes or other edge cases; do not claim those as additional native coverage. SDK batch true means at least one photo, not all photos. The clipboard cannot be inspected or frozen; it is consumed at execution time. AI-needed readback does not establish completed processing, visual correctness or preservation of every existing mask/AI edit. Uncertain operations require review and never retry automatically.
 

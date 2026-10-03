@@ -1,3 +1,27 @@
+## October 3 final accepted UI follow-ups
+
+Development scope is frozen. Calibration headings/dividers and the Tools Jump
+menu's desktop columns, narrow black-first order and final Presets-blue shortcut
+styling are manually accepted. These are presentation/navigation follow-ups;
+other menus and all accepted control implementations remain unchanged. Matching
+Tools model and tab-activation assertions accompany the checkpoint. Desktop
+1280 px and narrow 390/320 px rendering/navigation evidence is retained.
+
+Reuse completed feature results, including eight live PowerShell/HTTP integrations,
+accepted Profile/offscreen feedback and Visualize Depth, and the reported Dust VM
+pass within its scope. Tone Curve's intermittent awaiting-feedback issue remains
+unresolved with unknown cause. Refine Saturation is accepted as a beta compromise;
+no native Reset coverage is inferred from the latest 18-drag/five-blocked-touch
+recording. Auto Mask and Constrain Crop performance work remain deferred.
+
+Final package gates remain Lightroom/Profile connection, normal desktop quit/
+restart with settings and favorites preserved, phone/tablet LAN access, and a brief
+normal/Masking Refine movement/Reset, Add Point and two-second Transform smoke.
+Sanitized packaging excludes developer tests, macOS source documentation and
+private evidence; the full developer documentation remains in the source tree.
+Local GitHub notes and source-push preparation do not constitute publication.
+Verify the source-only Help links after the explicitly authorized source push.
+
 > Historical release status (September 28): the captured SDR Brightness rollback
 > has a demonstrated confirmation-error cause and an isolated correction with
 > fail-old/pass-new regressions. User observed no jumps in one corrected-source run;
@@ -41,9 +65,16 @@ The independent global Reset Transform guard is now **two seconds from the tap**
 Only its duration and matching assertions change; feedback cannot extend it and
 existing failure/context cleanup and Lightroom availability remain authoritative.
 
-The photo-specific persistent “Awaiting authoritative Lightroom feedback…” problem
-remains unresolved. Do not reset photos automatically or claim this integration
-fixes that issue. The previous beta remains the unchanged fallback. Remaining
+The user additionally reports Tone Curve sometimes remaining at “Awaiting
+authoritative Lightroom feedback” after Point Color and other adjustments. The
+cause is unknown; this observed sequence does not establish causation or a
+relationship to photo complexity. The issue remains unresolved. Do not reset
+photos automatically or claim this integration fixes it.
+
+The current Refine Saturation behavior is accepted as a beta compromise, with
+further improvement deferred. Preserve the corrections and bounded evidence above;
+this acceptance adds no native Reset coverage to the latest recording.
+The previous beta remains the unchanged fallback. Remaining
 package checks include brief normal/Masking Refine movement and Reset, ordinary
 Add Point, the two-second Transform guard, Lightroom/Profile connection, desktop
 quit/restart with settings preserved, and phone/tablet LAN. Previously completed

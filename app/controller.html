@@ -1349,6 +1349,16 @@
         /* Match Tone's spacing: 8px margin + 16px feedback line + 8px grid gap. */
         .point-color-slider-row { margin-bottom: 32px; }
 
+        .group[data-develop-section="calibration"] .calibration-group-heading {
+            margin: 12px 0 8px;
+            padding-top: 10px;
+            border-top: 1px solid #2b3744;
+            color: #d7e1ea;
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 20px;
+        }
+
         fieldset.develop-slider-row {
             border: 0;
             padding: 0;
@@ -2878,15 +2888,48 @@
             border-color: #f0a64a;
         }
 
-        .slider-jump-option.preset-tab-entry {
+        .slider-jump-option.preset-tab-entry,
+        .tools-jump-popover .slider-jump-option.tools-tab-shortcut {
             border-color: #2f9ed8;
             background: #123b52;
         }
 
         .slider-jump-option.preset-tab-entry:hover,
-        .slider-jump-option.preset-tab-entry:focus {
+        .slider-jump-option.preset-tab-entry:focus,
+        .tools-jump-popover .slider-jump-option.tools-tab-shortcut:hover,
+        .tools-jump-popover .slider-jump-option.tools-tab-shortcut:focus {
             border-color: #65c4e8;
             background: #194d67;
+        }
+
+        .slider-jump-popover.tools-jump-popover {
+            grid-template-rows: repeat(4, auto);
+            grid-auto-flow: column;
+        }
+
+        .tools-jump-popover .tools-jump-divider {
+            position: absolute;
+            left: 50%;
+            top: 14px;
+            bottom: 14px;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.18);
+            pointer-events: none;
+        }
+
+        @media (max-width: 520px) {
+            .slider-jump-popover.tools-jump-popover {
+                grid-template-rows: none;
+                grid-auto-flow: row;
+            }
+
+            .tools-jump-popover .tools-jump-divider {
+                position: static;
+                grid-column: 1 / -1;
+                width: auto;
+                height: 1px;
+                margin: 2px 0;
+            }
         }
 
         .slider-jump-target {
@@ -4655,7 +4698,11 @@
                 { id: "crop-straighten", label: "Crop & Straighten", toolsSection: true },
                 { id: "healing", label: "Healing", toolsSection: true },
                 { id: "red-eye", label: "Red Eye", toolsSection: true },
-                { id: "masking", label: "Masking", toolsSection: true }
+                { id: "masking", label: "Masking", toolsSection: true },
+                { tab: "sliders", label: "Develop Sliders", toolsTabShortcut: true },
+                { tab: "presets", label: "Presets", toolsTabShortcut: true },
+                { tab: "selection", label: "Selection", toolsTabShortcut: true },
+                { tab: "application", label: "Application", toolsTabShortcut: true }
             ];
         }
 
@@ -4917,7 +4964,8 @@
                         return {
                             tab: section.tab,
                             name: section.label,
-                            presetTab: section.presetTab === true
+                            presetTab: section.presetTab === true,
+                            toolsTabShortcut: section.toolsTabShortcut === true
                         };
                     }
                     const heading = findSliderJumpHeading(contentHost, section);
@@ -4968,7 +5016,7 @@
             });
 
             const popover = document.createElement("div");
-            popover.className = "slider-jump-popover";
+            popover.className = "slider-jump-popover" + (activeTab === "tools" ? " tools-jump-popover" : "");
             popover.hidden = true;
 
             function updateSliderJumpPopoverLayout() {
@@ -5027,10 +5075,17 @@
                 return true;
             }
 
-            sections.forEach(function (section) {
+            sections.forEach(function (section, index) {
+                if (section.toolsTabShortcut && index > 0 && sections[index - 1].toolsSectionId) {
+                    const divider = document.createElement("div");
+                    divider.className = "tools-jump-divider";
+                    divider.setAttribute("aria-hidden", "true");
+                    popover.appendChild(divider);
+                }
                 const option = document.createElement("button");
                 option.type = "button";
                 option.className = "slider-jump-option" + (section.presetTab ? " preset-tab-entry" : "");
+                if (section.toolsTabShortcut) option.classList.add("tools-tab-shortcut");
                 option.textContent = section.name;
 
                 option.addEventListener("click", function () {
@@ -12262,6 +12317,20 @@
                     if (item.definition.id === "ColorNR") appendDevelopSubheading(groupElement, "Color", true);
                 }
                 if (section.id === "effects" && item.definition.id === "GrainAmount") appendDevelopSubheading(groupElement, "Grain");
+                if (section.id === "calibration") {
+                    const label = {
+                        ShadowTint: "Shadows",
+                        RedHue: "Red Primary",
+                        GreenHue: "Green Primary",
+                        BlueHue: "Blue Primary"
+                    }[item.definition.id];
+                    if (label) {
+                        const heading = document.createElement("h3");
+                        heading.className = "calibration-group-heading";
+                        heading.textContent = label;
+                        groupElement.appendChild(heading);
+                    }
+                }
                 if (section.id === "hdr-sdr-rendition" && item.definition.id === "HDRMaxValue") {
                     const divider = document.createElement("div");
                     divider.className = "hdr-section-divider";

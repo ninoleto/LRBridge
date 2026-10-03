@@ -1,6 +1,134 @@
 # LRBridge Codex Handoff
 
-## October 3 accepted Refine integrated — scoped checkpoint preparation
+## October 3 final Windows beta preparation — accepted UI follow-ups
+
+- User accepts Calibration's four headings/dividers and the Tools Jump menu's
+  desktop columns, narrow black-first order and final shared Presets-blue styling.
+  Development is finished for this release. No control redesign or deferred work.
+- Scoped checkpoint allowlist: app/controller.html,
+  tests/controller-section-collapse.js, README.md, docs/WINDOWS_BETA.md,
+  docs/RELEASE_REVIEW.md and this handoff. The UI diff contains only those accepted
+  follow-ups; matching model/tab-activation assertions and known-limit docs stay
+  with it. Private settings, contract/gitignore edits, research, probes, stash,
+  isolated worktrees, recordings, backups and existing packages remain excluded.
+- Preserve accepted Refine terminal-confirmation/touch corrections and the
+  two-second Transform guard. Refine is a beta compromise with further improvement
+  deferred. Its latest capture covers 18 complete Masking drags/five blocked
+  touches, an incomplete startup fragment, and no native Reset. Tone Curve can
+  remain awaiting authoritative feedback after Point Color/other adjustments;
+  cause unknown and unresolved. No automatic photo resets. Auto Mask and Constrain
+  Crop performance remain deferred.
+- Corrected stale beta documentation: packaged Depth integration is already
+  completed and the user-reported VM Dust test passed. No extra migration,
+  duplicate-preset or manual Healing coverage is inferred. All eight live HTTP/
+  PowerShell results and previously accepted features remain accepted.
+- Fresh full-project recovery backup uploaded and independently read back before
+  changes. Private release evidence: local-checkpoints/final-beta-current.txt.
+- Focused section/menu assertions, inline JavaScript syntax, sanitized staging/
+  safe defaults/Dust installer fixtures and release cleanup/Lua syntax pass.
+  Reused accepted desktop 1280 and narrow 390/320 rendering/appearance evidence;
+  no broad feature suites or Lightroom actions. A stale line-ending-sensitive
+  menu-test boundary was corrected; production navigation is unchanged.
+  Scoped local checkpoint, isolated committed export and package checks are next;
+  no live edits or running-setup switch are authorized in this step.
+- Prepare local GitHub beta notes and source push with the already committed
+  macOS/developer docs. Do not push/publish now. Local link checks precede it;
+  live GitHub destination verification must follow a later authorized push.
+
+## October 3 Tools shortcuts reuse Presets accent — source styling only
+
+- Replaced the Tools shortcuts' teal rules with the exact existing Develop Jump
+  Presets shortcut rules: base #123b52/#2f9ed8, hover/focus #194d67/#65c4e8.
+  The four Tools entries share those CSS declarations; markup/JavaScript and
+  navigation are unchanged. Desktop black-left/accent-right columns, narrow
+  black-first order, touch sizes, divider, other menus and Calibration are intact.
+- Appearance-only isolated Chromium checks pass at 1280/390/320 px: all four
+  shortcuts match the actual Develop Presets shortcut in base, hover, focus,
+  focus-visible, active and hover-active states. Geometry/order/divider unchanged.
+  No functional suites or Lightroom actions. Private evidence:
+  local-checkpoints/tools-jump-preset-style-current.txt.
+- Source styling awaits review; candidate and fallback remain unchanged. No
+  staging, commit, build, app switch or publication; preserve prior acceptance,
+  remaining package checks, limitations, settings, stash and diagnostic evidence.
+
+## October 3 Tools columns and Calibration headings — source layout only
+
+- Supersedes the earlier Tools shortcut layout: desktop left column is Crop &
+  Straighten, Healing, Red Eye and Masking with existing black styling; right is
+  Develop Sliders, Presets, Selection and Application in teal. Narrow screens
+  show all four black links first, then the four teal shortcuts. The subtle
+  divider is vertical between desktop columns and horizontal between narrow
+  groups. Navigation handlers, 54 px targets and every other Jump menu remain
+  unchanged. Matching Tools order assertions updated.
+- Calibration now has readable Shadows, Red Primary, Green Primary and Blue
+  Primary headings. The four subtle dividers moved to these group headings;
+  each Hue/Saturation pair remains together. Slider row/control dimensions,
+  within-pair spacing, values, touch handling, feedback and Reset logic are
+  unchanged; only headings and group presentation changed.
+- Isolated layout checks pass at 1280/390/320 px: exact requested columns/order,
+  four headings/dividers, unchanged slider touch spacing and no horizontal
+  overflow. Existing navigation and slider handlers match preserved source.
+  Syntax/whitespace checks pass. No slider suites, Lightroom actions or app
+  switch. Private evidence: local-checkpoints/tools-calibration-layout-current.txt.
+- Source layout awaits review. Candidate 20261003T012920Z and fallback remain
+  intact; preserve all accepted results, known limitations, settings, evidence
+  and unrelated edits. No staging, commit, build or publication.
+
+## October 3 Tools Jump shortcuts — source navigation follow-up, not packaged
+
+- Tools Jump menu now starts with teal Develop Sliders, Presets, Selection and
+  Application shortcuts, followed by a subtle full-width divider and the existing
+  Crop & Straighten, Healing, Red Eye and Masking links. Shortcuts inherit the
+  existing 54 px touch targets and reuse the existing close-menu/tab-selection
+  path. Teal styling and row-order layout are scoped to the Tools popover only.
+- Focused isolated Chromium navigation passes at desktop 1280 and narrow 390/320
+  px, including real browser touch dispatch for the narrow shortcuts: correct
+  active tab/content/hash, closed menu, existing section links, four teal entries,
+  one divider and no horizontal overflow. Other Jump-menu model, tab switching and
+  activation handlers match the preserved source. Matching Tools model assertions
+  updated; no full section/slider suite or Lightroom action performed. Syntax and
+  whitespace checks pass. Private evidence: local-checkpoints/tools-jump-shortcuts-current.txt.
+- This source follow-up awaits review. Candidate 20261003T012920Z, fallback,
+  accepted controls/results, Calibration dividers, known Tone Curve limitation,
+  private settings, stash and diagnostic evidence remain preserved. No commit,
+  build, publication or running-app switch. Remaining release gates unchanged.
+
+## October 3 additional Tone Curve report and Refine beta acceptance
+
+- User reports Tone Curve sometimes remains at “Awaiting authoritative Lightroom
+  feedback” after using Point Color and other adjustments. This is an unresolved
+  intermittent Controller feedback issue. Cause is unknown; the observed sequence
+  does not establish causation or a relationship to photo complexity.
+- User accepts the current Refine Saturation behavior as a beta compromise;
+  further improvement is deferred. Preserve the terminal-confirmation and blocked
+  touch corrections, accepted curve editing and Parametric preview. Existing
+  evidence remains bounded to the 18 complete Masking drags/five blocked contacts;
+  the incomplete startup fragment and absence of Reset in that recording remain
+  documented. This report adds no unperformed native-test coverage.
+- Known limitations updated in README.md, docs/WINDOWS_BETA.md and
+  docs/RELEASE_REVIEW.md. No redesign, new investigation, timing changes or
+  automatic photo Reset workaround. Candidate 20261003T012920Z, fallback
+  20261002T224000Z, diagnostic evidence, settings, stash and all existing source
+  changes remain preserved. Documentation only; no tests, commit, build or
+  publication. Remaining package checks and performance deferrals are unchanged.
+
+## October 3 Calibration dividers — source visual follow-up, not packaged
+
+- Added four subtle one-pixel dividers before Shadow Tint and Red/Green/Blue
+  Primary Hue. Each primary's Hue/Saturation rows stay together. CSS is scoped
+  to Calibration and draws in the existing row gaps; control geometry, touch
+  spacing, markup, JavaScript, feedback, values and Reset behavior are unchanged.
+- Isolated Chromium layout check passes at desktop 1280 and narrow/touch 390/320
+  px: exactly four dividers, none between Hue/Saturation, unchanged row/control
+  dimensions and no horizontal overflow. Inline syntax and diff checks pass.
+  No slider suites, Lightroom actions or production app switch were performed.
+  Private layout evidence: local-checkpoints/calibration-dividers-current.txt.
+- Source change awaits visual review; no checkpoint/build/publication. Current
+  private candidate 20261003T012920Z and fallback 20261002T224000Z remain intact,
+  with all accepted results, remaining package gates, settings, stash and evidence
+  preserved.
+
+## October 3 Refine checkpoint and private package ready — 20261003T012920Z
 
 - Both Refine corrections are integrated from the frozen accepted Masking source:
   terminal-confirmation display ownership and disabled-start touches remaining
@@ -40,6 +168,53 @@
   connection, desktop quit/restart/settings preservation and phone/tablet LAN gates;
   source-only macOS Help link awaits upstream publication. All other accepted
   features/results and Auto Mask/Constrain Crop deferrals remain intact.
+- **Scoped local checkpoint:** `fbfaa9f2cda39f57a1505787fff31758e140f367`
+  (`fbfaa9f`), eight explicitly staged/reviewed files. Fallback `689c505` is its
+  unchanged parent; stash and unrelated dirty work remain intact. The isolated
+  experimental worktree and all recordings/frozen source remain preserved.
+- **Fresh private Windows package: `20261003T012920Z`**, built from an isolated
+  Git export of that checkpoint using the unchanged sanitized packaging workflow.
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261003T012920Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261003T012920Z\LRBridge.exe`
+  - Matching production plug-in: `D:\Projects\LRBridge\dist\private-test-20261003T012920Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261003T012920Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `c581d03b94c449781fafb25041d1cb6f849ee9e85cb21642fb35408646e86ce5`.
+- Package verification passes: all 69 runtime inputs, 33 Controller assets and
+  41 Lua modules match the committed export. Bundled Refine matches the accepted
+  frozen source; all 67 other runtime files, 42 external plug-in files and native
+  helpers are byte-identical to fallback 20261002T224000Z. Both Dust presets,
+  installer, public documentation links, default settings and empty preset config
+  are verified. All 141 manifest files and ZIP hash match. Diagnostic hooks,
+  private settings/credentials, developer tests/tools, handoffs, recordings and
+  backups are excluded. Fallback ZIP and all earlier protected packages remain
+  unchanged; private settings, unrelated work and stash hashes are preserved.
+- Two exact packaged Electron **isolated Node-mode** startup/stop/restart cycles
+  pass on ephemeral loopback ports, with module/metadata/empty-poll checks and
+  settings unchanged. No native helper or Lightroom action was invoked. This is
+  not desktop/tray or native package acceptance. Manifest remains unchanged after
+  those checks; unchanged helper lifecycle and eight completed HTTP/PowerShell
+  integration results are reused. Running fallback app PID 19136, its helper,
+  Lightroom PID 33284 and ports 17890–17892 remain unchanged.
+- **Switch only when ready:** Quit the running fallback app before launching the
+  new EXE; run one production app. In Lightroom Plug-in Manager disable the
+  diagnostic registration under the private curve-refine-attempt task, enable
+  the new package's production plug-in above and reload it once. Do not leave
+  both polling workers enabled. Use the normal Web Controller at
+  `http://127.0.0.1:17892`, not a finished trace page. Existing private
+  settings are preserved in their current locations; the new package contains
+  public defaults. Copy desired settings/favorites deliberately while apps are
+  stopped rather than replacing the fallback configuration.
+- **Brief native check still required:** on a disposable photo, move Refine in
+  normal Point Curve and Masking Point Curve, then press Reset in each and verify
+  Lightroom's confirmed result; try ordinary Add Point and confirm it remains;
+  press global Reset Transform and observe two seconds of grey/disabled rows,
+  followed by availability according to Lightroom. Do not infer native Reset
+  coverage from the accepted 18-drag recording. Also retain packaged Lightroom/
+  Profile connection feedback, desktop quit/restart/settings/favorites/reconnection
+  and phone/tablet LAN gates. Persistent photo-specific awaiting feedback remains
+  unresolved. No automated packaging blocker; private testing/sign-off and the
+  source-only macOS Help link's upstream publication remain pending. No push or
+  publication. Final binary-check results are saved here after the scoped commit.
 
 ## October 3 Masking Refine touch manually accepted — integration not yet performed
 

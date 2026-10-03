@@ -1645,6 +1645,8 @@ v0.8.0-companion-feedback
 * Lightroom plugin polling must be running.
 * Web Controller feedback is polling-based, not true native realtime feedback.
 * Lightroom context detection is polling-based, not a native realtime Lightroom event stream.
+* Tone Curve sometimes remains at “Awaiting authoritative Lightroom feedback” after Point Color or other adjustments. Cause unknown; unresolved. Do not automatically reset photos as a workaround.
+* Current Refine Saturation behavior is accepted as a beta compromise; further improvement is deferred. See the [Windows beta notes](docs/WINDOWS_BETA.md) for the recorded test scope.
 * Auto Tone and Auto White Balance need a short cooldown after slider movement because of Lightroom timing behavior.
 * Lightroom may occasionally stop reacting after plugin reloads, crashes, or heavy SDK activity. Switching Library → Develop usually wakes the Develop controller again.
 * Native Companion module lives in a separate GitHub repo and may need manual installation until it is included in official Companion builds.
