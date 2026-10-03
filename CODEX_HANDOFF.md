@@ -1,5 +1,82 @@
 # LRBridge Codex Handoff
 
+## October 3 accepted Refine integrated — scoped checkpoint preparation
+
+- Both Refine corrections are integrated from the frozen accepted Masking source:
+  terminal-confirmation display ownership and disabled-start touches remaining
+  visibly blocked through release/cancellation. The shared normal/Masking module
+  exactly matches that frozen implementation. Its focused DOM and rendered-touch
+  regressions are included. No SDK, queue, polling, timeout, Point Curve editing
+  or Parametric mathematics changes are included.
+- The independent Transform hunk changes only the global Reset guard from
+  1000 to 2000 ms, with matching focused assertions. All other controller.html
+  content, cleanup rules and SDK availability are preserved.
+- Acceptance remains bounded: 18 complete fresh Masking drags confirmed; five
+  disabled touches stayed blocked through release; no thumb rollback during those
+  complete contacts. The incomplete startup fragment lacks its starting event.
+  Reset was not tested in that recording. Persistent photo-specific awaiting
+  feedback remains unresolved; no automatic photo Reset is authorized.
+- Explicit checkpoint allowlist: app/controller-tone-curve.js, the single
+  app/controller.html timer hunk, tests/controller-transform-reset-guard-browser.js,
+  tests/controller-refine-saturation-browser.js,
+  tests/controller-refine-saturation-touch-browser.js, package.json test alias,
+  docs/RELEASE_REVIEW.md and this handoff. Unrelated edits, settings, stash,
+  diagnostic recordings and backups remain excluded and preserved.
+- Fresh full-project recovery backup uploaded and independently read back before
+  integration. Private release evidence: local-checkpoints/refine-release-current.txt.
+  Fallback checkpoint 689c505 and package 20261002T224000Z remain unchanged.
+- Post-integration Refine DOM and rendered Chromium touch checks pass for normal
+  and Masking adapters, including terminal feedback ownership, blocked contacts,
+  outside release/cancellation, subsequent valid drags, context changes and
+  confirmed non-default Reset results. These use simulated HTTP/SDK feedback.
+  Transform 1999/2000 ms boundaries, all seven rows, failure/context cleanup and
+  availability precedence pass, with desktop 1280 and narrow 390/320 px layouts.
+  Syntax/whitespace, sanitized release preparation and cleanup checks pass. Public
+  release notes reference source tests without broken portable-package links.
+  No native edit,
+  app switch, helper probe or repeat feature suite was performed.
+- Required next native package check: normal and Masking Refine movement and Reset,
+  ordinary Add Point and the two-second Transform guard. Retain Lightroom/Profile
+  connection, desktop quit/restart/settings preservation and phone/tablet LAN gates;
+  source-only macOS Help link awaits upstream publication. All other accepted
+  features/results and Auto Mask/Constrain Crop deferrals remain intact.
+
+## October 3 Masking Refine touch manually accepted — integration not yet performed
+
+- User manually accepts the corrected Masking Refine Saturation touch behavior
+  within this run. Trace finished normally via Finish trace; raw browser/HTTP/
+  SDK logs, tested source and regressions are frozen with hashes. Start verified
+  unchanged package20261002T224000Z/PID19136 and the existing diagnostic worker;
+  all78 prepared asset/plug-in hashes match.
+- All18 complete fresh drags delivered their final input/terminal targets to
+  Lightroom and received matching explicit operation confirmations. All105 SDK
+  writes match the86 updates/19 terminal writes; all303 SDK reads match the most
+  recent recorded write. No unexpected native rollback, HTTP error or SDK failure.
+  Final SDK, thumb and numeric field agree at40/result199, with no pending edit.
+- Five touches starting disabled stayed blocked until release, including while
+  the preceding command confirmed. No new edit/request or native range input
+  occurred during those holds; thumb values stayed48/18/46/83/60. No renderer
+  thumb rollback occurred after the first complete fresh contact.
+- Preserve the recording boundary caveat: logging began during an already-held,
+  unowned contact, with a pre-existing recorder-before-Start error. Four thumb
+  restores to SDK17 occur before the first fully recorded fresh pointerdown.
+  Its starting event is missing; do not claim zero restores across the entire
+  file or invent its origin. It does not reproduce the corrected disabled-start
+  sequence. No unexplained SDK value change accompanied those restores.
+- **Reset was not performed in this run.** No HTTP/SDK Reset exists in the trace;
+  no new native Reset coverage is claimed. Existing focused simulated Reset/
+  cancellation/context tests and earlier native Reset evidence remain separate.
+  Normal-view native coverage is unchanged; do not extend this Masking acceptance.
+- Fix remains isolated on experiment/curve-refine-20261002T225842Z. Main HEAD/
+  fallback689c505 and private package20261002T224000Z remain intact; separate
+  two-second Transform patch, settings, stash, backups and earlier recordings
+  preserved. Persistent awaiting-feedback on certain photos remains unresolved.
+  Other accepted features and deferred release work remain unchanged.
+- Private capture/analysis pointer: task `refine-touch-capture-current.txt` under
+  `local-checkpoints/curve-refine-attempt-current.txt`, then `analysis-current.txt`.
+  No code changes, repeat tests, integration, commit, build or publication in
+  this analysis. Await the next scoped release-preparation instruction.
+
 ## October 3 final UI checkpoint — stable beta; Curve limitation accepted
 
 - User reports the latest private package feels stable. **Refine Saturation may
@@ -35,14 +112,48 @@
   uploaded and independently read back before edits. Unrelated edits/private
   settings, stash, recordings, backups and all prior packages are preserved.
   Private evidence: `local-checkpoints/final-ui-release-current.txt`.
-- Scoped checkpoint/private package preparation is in progress. Reuse unchanged
-  feature/native helper results; verify packaged contents and isolated packaged
-  startup/shutdown/settings preservation. Do not switch the user's running
-  package or production plug-in automatically. Remaining manual gates: new
-  package Lightroom connection/Profile feedback, normal desktop quit/restart/
-  settings preservation and phone/tablet LAN; brief new Close-colour and Transform
-  guard observation. Source-only macOS Help link still awaits upstream source
-  publication. No push or public publication is authorised.
+- **Scoped checkpoint:** `689c505952f0d86b2de588cb9d6a3163a2a88ebc` (`689c505`),
+  eight explicitly staged/reviewed files. Includes these two UI changes, focused
+  regressions/test commands, this acceptance and previous saved package results.
+  Index is empty; unrelated work/private settings and stash remain untouched.
+- **Fresh private package to test next: `20261002T224000Z`**, built from an
+  isolated Git export of that checkpoint with the existing sanitized workflow.
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261002T224000Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261002T224000Z\LRBridge.exe`
+  - Matching production plug-in: `D:\Projects\LRBridge\dist\private-test-20261002T224000Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261002T224000Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `bae337adce83f9e823d1f4150bdbf1c93ca1b03022d7c82df1dfbfca5ccc8ba5`.
+- **Package checks passed:** all 69 runtime inputs/33 Controller assets and 41
+  Lua modules match the committed export; external production plug-in, native
+  helpers, presets/installer, relative documentation links, public settings and
+  empty preset configuration verified. All 141 manifest files and ZIP SHA-256
+  match, including after startup checks. Private configuration/credentials,
+  handoffs, diagnostic hooks/bootstraps, tests/developer source, recordings and
+  backups are excluded. Previous ZIPs, including 20261002T205820Z, are unchanged.
+- Two exact packaged Electron **isolated Node-mode** startup/stop/restart cycles
+  pass on ephemeral loopback ports: module loading/metadata, empty polling,
+  reconnection and unchanged settings. This does not establish desktop/tray or
+  native Lightroom connection acceptance. The 66 other runtime files and all
+  42 external plug-in files/native helpers are byte-identical to the previous
+  package; reuse completed native helper lifecycle/integration results. Both
+  Curve modules, Point Color and Color Grading are unchanged. No new helper,
+  competing production app, automated photo edit or plug-in reload was started.
+  Running package PID 2436, its helpers, Lightroom PID 29656 and ownership of
+  ports 17890–17892 are unchanged.
+- **Switch when ready:** use **Quit** in the currently running
+  `private-test-20261002T205820Z` app, then launch the new EXE above. Run only one
+  production app. The production plug-in is byte-identical to that package, so
+  the existing matching production registration may stay enabled; no reload is
+  required for these browser-only changes. If switching registration to the new
+  bundled folder, disable the old entry and reload the newly enabled entry once.
+- **Remaining manual package checks:** Lightroom connection/Profile inventory,
+  current selection and feedback; briefly verify red Close/open colours and
+  the one-second Transform-only grey guard; normal desktop quit/restart/settings/
+  favorites preservation and reconnection; phone/tablet LAN. Completed feature,
+  Dust VM and eight HTTP results remain accepted, with no added scenario inferred.
+  Source-only macOS Help link still awaits upstream source publication before
+  public distribution. No push/publication; no automated packaging blocker remains.
+  Final package results are saved in this handoff after the binary checkpoint.
 
 ## October 2 private beta ready — 20261002T205820Z
 

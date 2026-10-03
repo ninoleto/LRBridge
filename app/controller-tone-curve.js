@@ -641,6 +641,7 @@
             submittedDevelopCounter: snapshot.developCounter,
             submittedRevision: snapshot.revision,
             submittedUpdatedAt: snapshot.updatedAt,
+            submittedValue: gestureId ? snapshot.refineSaturation.value : null,
             value: value,
             submittedAt: submittedAt
         }, snapshot);
@@ -688,6 +689,12 @@
         // edit result and must not cancel queued point work before SDK execution.
         if (validCurveArray(transaction.submittedPoints) && snapshot.curves &&
             curvesEqual(snapshot.curves[transaction.channel], transaction.submittedPoints) &&
+            snapshot.developCounter === transaction.submittedDevelopCounter &&
+            snapshot.revision === transaction.submittedRevision) return false;
+        // A heartbeat with the unchanged scalar baseline is not an edit receipt.
+        // Keep terminal Refine work owned until SDK state actually advances.
+        if (Number.isFinite(transaction.submittedValue) && snapshot.refineSaturation &&
+            snapshot.refineSaturation.value === transaction.submittedValue &&
             snapshot.developCounter === transaction.submittedDevelopCounter &&
             snapshot.revision === transaction.submittedRevision) return false;
         return validBinding(snapshot) &&
@@ -918,6 +925,10 @@
         let presetRequestToken = 0;
         let refineNumberEditing = false;
         let ignoreNextRefineChange = false;
+        // A rejected contact is physical input, not SDK edit ownership. Feedback
+        // must not enable the native range underneath that same held finger.
+        const blockedRefinePointers = new Set();
+        let refinePointerListenersInstalled = false;
         let presetOptionsSignature = "";
         let addPointArmed = false;
 
@@ -970,6 +981,86 @@
                 documentObject.addEventListener("keydown", handleControllerKeydown);
             }
             recoveryListenersInstalled = true;
+            installRefinePointerListeners();
+        }
+
+        function blockRefinePointer(event) {
+            if (event.pointerId === undefined || event.pointerId === null) return;
+            blockedRefinePointers.add(event.pointerId);
+            if (typeof event.preventDefault === "function") event.preventDefault();
+            render();
+        }
+
+        function handleDisabledRefinePointerDown(event) {
+            if (event.target === refineRange && refineRangeIsDisabled()) blockRefinePointer(event);
+        }
+
+        function refineRangeIsDisabled() {
+            return refineRange.disabled || (typeof refineRange.matches === "function" && refineRange.matches(":disabled"));
+        }
+
+        function handleRefinePointerEnd(event) {
+            if (blockedRefinePointers.delete(event.pointerId)) {
+                ignoreNextRefineChange = true;
+                render();
+                removeRefinePointerListeners();
+                return;
+            }
+            if (!refineGesture || refineGesture.finishing || refineGesture.pointerId !== event.pointerId) return;
+            refineGesture.desired = Number(refineRange.value);
+            refineGesture.finishing = true;
+            ignoreNextRefineChange = true;
+            pumpRefineGesture();
+            render();
+        }
+
+        function handleRefinePointerCancel(event) {
+            if (blockedRefinePointers.has(event.pointerId)) {
+                handleRefinePointerEnd(event);
+                return;
+            }
+            if (!refineGesture || refineGesture.pointerId !== event.pointerId) return;
+            ignoreNextRefineChange = true;
+            retireRefineGesture(refineGesture, "Refine Saturation gesture cancelled");
+            render();
+        }
+
+        function handleRefineWindowBlur() {
+            blockedRefinePointers.clear();
+            if (refineGesture && !refineGesture.finishing && refineGesture.pointerId !== null) {
+                handleRefinePointerCancel({ pointerId: refineGesture.pointerId });
+            }
+            render();
+            removeRefinePointerListeners();
+        }
+
+        function retainHeldRefinePointer() {
+            if (refineGesture && !refineGesture.finishing && refineGesture.pointerId !== null &&
+                refineGesture.pointerId !== undefined) blockedRefinePointers.add(refineGesture.pointerId);
+        }
+
+        function installRefinePointerListeners() {
+            if (refinePointerListenersInstalled) return;
+            documentObject.addEventListener("pointerdown", handleDisabledRefinePointerDown, true);
+            if (windowObject && typeof windowObject.addEventListener === "function") {
+                windowObject.addEventListener("pointerup", handleRefinePointerEnd, true);
+                windowObject.addEventListener("pointercancel", handleRefinePointerCancel, true);
+                windowObject.addEventListener("blur", handleRefineWindowBlur);
+            }
+            refinePointerListenersInstalled = true;
+        }
+
+        function removeRefinePointerListeners() {
+            // Keep release listeners during navigation/deactivation if a finger
+            // is still held, so it cannot become input for a replacement context.
+            if (!refinePointerListenersInstalled || active || blockedRefinePointers.size) return;
+            documentObject.removeEventListener("pointerdown", handleDisabledRefinePointerDown, true);
+            if (windowObject && typeof windowObject.removeEventListener === "function") {
+                windowObject.removeEventListener("pointerup", handleRefinePointerEnd, true);
+                windowObject.removeEventListener("pointercancel", handleRefinePointerCancel, true);
+                windowObject.removeEventListener("blur", handleRefineWindowBlur);
+            }
+            refinePointerListenersInstalled = false;
         }
 
         function removeRecoveryListeners() {
@@ -1045,6 +1136,8 @@
 
         function render() {
             if (!rootElement) return;
+            refineRange.style.opacity = blockedRefinePointers.size ? "0.5" : "";
+            refineRange.style.cursor = blockedRefinePointers.size ? "not-allowed" : "";
             const points = currentPoints();
             const available = !!points && expectedBinding && bindingsEqual(authoritative, expectedBinding);
             const preview = available ? activePreview(points) : null;
@@ -1148,7 +1241,8 @@
                 const refine = authoritative.refineSaturation;
                 const presentedRefineValue = refineStepIntent && Number.isFinite(refineStepIntent.desired)
                     ? refineStepIntent.desired : (refineGesture && Number.isFinite(refineGesture.desired)
-                        ? refineGesture.desired : refine.value);
+                        ? refineGesture.desired : (awaitingRefine && sameIdentity(awaitingRefine, authoritative)
+                            ? awaitingRefine.value : refine.value));
                 const presentedRefineNumber = refineStepIntent && Number.isFinite(refineStepIntent.desired)
                     ? refineStepIntent.desired : refine.value;
                 refineRange.min = String(refine.min);
@@ -1184,7 +1278,8 @@
             });
             refineRow.hidden = selectedChannel !== "rgb";
             const refineChannelAvailable = available && selectedChannel === "rgb";
-            refineRange.disabled = !refineChannelAvailable || (busy && refineGesture === null);
+            refineRange.disabled = !refineChannelAvailable || (busy && refineGesture === null) ||
+                !!(refineGesture && refineGesture.finishing) || blockedRefinePointers.size > 0;
             refineNumber.disabled = !refineChannelAvailable || busy;
             refineNumber.classList.toggle("pending", !!(refineGesture || awaitingRefine || awaitingRefineReset || refineStepIntent));
             refineNumber.setAttribute("aria-busy", String(!!(refineGesture || awaitingRefine || awaitingRefineReset || refineStepIntent)));
@@ -1562,12 +1657,14 @@
             session.lastSubmittedDevelopCounter = authoritative.developCounter;
             session.lastSubmittedRevision = authoritative.revision;
             session.lastSubmittedUpdatedAt = authoritative.updatedAt;
+            session.lastSubmittedValue = refine.value;
             session.lastSubmittedAt = now();
             const submittedSnapshot = normalizeSnapshot(authoritative);
+            const submittedValue = session.desired;
             const path = routePrefix + "/refine-saturation/gesture/" + phase + "?gestureId=" +
                 encodeURIComponent(session.id) + "&" + contextQuery(authoritative) +
                 "&baseline=" + encodeURIComponent(String(refine.value)) +
-                "&value=" + encodeURIComponent(String(session.desired));
+                "&value=" + encodeURIComponent(String(submittedValue));
             try {
                 const admission = await requestJson(path);
                 if (refineGesture !== session) return;
@@ -1576,7 +1673,7 @@
                 }
                 if (phase === "end") {
                     awaitingRefine = attachAdmission(createAwaitingScalar(
-                        session.desired, submittedSnapshot, session.lastSubmittedAt, session.id
+                        submittedValue, submittedSnapshot, session.lastSubmittedAt, session.id
                     ), admission);
                     if (Number.isSafeInteger(session.stepIntentRevision)) {
                         awaitingRefine.stepIntentRevision = session.stepIntentRevision;
@@ -1635,6 +1732,7 @@
                 lastSubmittedDevelopCounter: null,
                 lastSubmittedRevision: null,
                 lastSubmittedUpdatedAt: null,
+                lastSubmittedValue: null,
                 lastSubmittedAt: null,
                 cancelSent: false,
                 stepIntentRevision: stepSubmission && stepSubmission.revision
@@ -1799,7 +1897,10 @@
                     const completed = awaitingRefine;
                     awaitingRefine = null;
                     const stepCompleted = finishRefineStepSubmission(completed, failure ? "ERROR: " + failure : null);
-                    if (!stepCompleted) releaseRemoteRefineGesture(completed);
+                    if (!stepCompleted) {
+                        releaseRemoteRefineGesture(completed);
+                        if (failure) setStatus("ERROR: " + failure);
+                    }
                     if (!failure) {
                         setStatus(resolution === "matched"
                             ? (refineStepIntent
@@ -1907,6 +2008,7 @@
                             developCounter: refineGesture.identity.developCounter,
                             submittedDevelopCounter: refineGesture.lastSubmittedDevelopCounter,
                             submittedRevision: refineGesture.lastSubmittedRevision,
+                            submittedValue: refineGesture.lastSubmittedValue,
                             submittedAt: refineGesture.lastSubmittedAt,
                             editSequence: refineGesture.lastSubmittedEditSequence
                         }, refineGesture.identity));
@@ -2293,34 +2395,47 @@
             refineResetButton.textContent = "Reset";
             refineResetButton.disabled = true;
             refineRange.addEventListener("pointerdown", function (event) {
-                if (beginRefineGesture(event.pointerId, Number(refineRange.value), false) &&
-                    refineRange.setPointerCapture && event.pointerId !== undefined) {
+                if (refineRangeIsDisabled()) {
+                    blockRefinePointer(event);
+                    return;
+                }
+                ignoreNextRefineChange = false;
+                if (!beginRefineGesture(event.pointerId, Number(refineRange.value), false)) {
+                    blockRefinePointer(event);
+                    return;
+                }
+                if (refineRange.setPointerCapture && event.pointerId !== undefined) {
                     refineRange.setPointerCapture(event.pointerId);
                 }
             });
             refineRange.addEventListener("input", function () {
+                if (blockedRefinePointers.size) { render(); return; }
                 if (!refineGesture) return;
+                if (refineRange.disabled || refineGesture.finishing) {
+                    render();
+                    return;
+                }
                 refineGesture.desired = Number(refineRange.value);
                 render();
                 if (!refineGesture.awaitingAuthoritative) pumpRefineGesture();
             });
-            refineRange.addEventListener("pointerup", function (event) {
-                if (!refineGesture || refineGesture.pointerId !== event.pointerId) return;
-                refineGesture.desired = Number(refineRange.value);
-                refineGesture.finishing = true;
-                ignoreNextRefineChange = true;
-                pumpRefineGesture();
-                render();
-            });
-            refineRange.addEventListener("pointercancel", function (event) {
-                if (!refineGesture || refineGesture.pointerId !== event.pointerId) return;
-                ignoreNextRefineChange = true;
-                retireRefineGesture(refineGesture, "Refine Saturation gesture cancelled");
-                render();
+            refineRange.addEventListener("pointerup", handleRefinePointerEnd);
+            refineRange.addEventListener("pointercancel", handleRefinePointerCancel);
+            refineRange.addEventListener("keydown", function (event) {
+                if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key)) {
+                    if (refineRangeIsDisabled()) event.preventDefault();
+                    else ignoreNextRefineChange = false;
+                }
             });
             refineRange.addEventListener("change", function () {
+                if (blockedRefinePointers.size) { render(); return; }
                 if (ignoreNextRefineChange) {
                     ignoreNextRefineChange = false;
+                    render();
+                    return;
+                }
+                if (refineRange.disabled || (refineGesture && refineGesture.finishing)) {
+                    render();
                     return;
                 }
                 if (!refineGesture) beginRefineGesture(null, Number(refineRange.value), true);
@@ -2440,11 +2555,13 @@
             },
             deactivate: function () {
                 active = false;
+                retainHeldRefinePointer();
                 configureStatus(false);
                 addPointArmed = false;
                 if (pollTimer !== null) clearIntervalImpl(pollTimer);
                 pollTimer = null;
                 removeRecoveryListeners();
+                removeRefinePointerListeners();
                 abortStateRequest();
                 if (gesture) retireActiveGesture(gesture);
                 if (awaitingTarget) releaseRemoteGesture(awaitingTarget);
@@ -2476,6 +2593,7 @@
                     if (!retainCurveDisplay) displayedBinding = null;
                     addPointArmed = false;
                     if (navigationChanged) {
+                        retainHeldRefinePointer();
                         if (gesture) retireActiveGesture(gesture, "Point Curve gesture cancelled by navigation");
                         if (awaitingTarget) releaseRemoteGesture(awaitingTarget);
                         if (refineGesture) retireRefineGesture(refineGesture, "Refine Saturation gesture cancelled by navigation");
@@ -2496,6 +2614,7 @@
                     }
                     expectedBinding = normalized;
                     if (!normalized) {
+                        retainHeldRefinePointer();
                         if (gesture) retireActiveGesture(gesture, "Point Curve gesture cancelled outside Develop");
                         if (awaitingTarget) releaseRemoteGesture(awaitingTarget);
                         if (refineGesture) retireRefineGesture(refineGesture, "Refine Saturation gesture cancelled outside Develop");
@@ -2558,6 +2677,7 @@
                     },
                     awaitingReset: awaitingReset && Object.assign({}, awaitingReset),
                     refineGestureActive: refineGesture !== null,
+                    refineTouchBlocked: blockedRefinePointers.size > 0,
                     refineGesture: refineGesture && {
                         id: refineGesture.id,
                         finishing: !!refineGesture.finishing,

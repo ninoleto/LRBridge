@@ -63,7 +63,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
             window.guardClock={now:0,next:2000000000,timers:new Map()};
             const realTimeout=window.setTimeout,realClear=window.clearTimeout;
             window.setTimeout=function(callback,ms,...args){
-                if(ms===1000&&new Error().stack.includes('startTransformResetGuard')){
+                if(ms===2000&&new Error().stack.includes('startTransformResetGuard')){
                     const id=++guardClock.next;guardClock.timers.set(id,{at:guardClock.now+ms,callback:()=>callback(...args)});return id;
                 }return realTimeout(callback,ms,...args);
             };
@@ -97,7 +97,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         // Develop feedback is not a new photo/context and cannot lift the guard.
         fixture.context.developCounter++;
         await run("readControllerContext()");
-        await run("advanceGuard(999)");
+        await run("advanceGuard(1999)");
         assert((await run("transformState()")).every(s => s.disabled.every(Boolean)));
         await run("feedbackTransform();markDevelopSliderUnavailable(developSliderControls.PerspectiveY,true);advanceGuard(1)");
         assert.equal(await run("transformResetGuard===null"), true, "expires from tap even while HTTP is held");
@@ -118,7 +118,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         await pause(40); assert.equal(held.length, 2);
         held.shift()(true); await pause(40);
         assert.equal(await run("transformResetGuard!==null"), true);
-        await run("advanceGuard(999);feedbackTransform()");
+        await run("advanceGuard(1999);feedbackTransform()");
         assert.equal(await run("transformResetGuard!==null"), true);
         await run("advanceGuard(1)");
         assert.equal(await run("transformResetGuard===null"), true);
@@ -141,7 +141,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
             await run("transformButton().click()");
             await pause(40); held.shift()(false);
             for (const guarded of [true, false]) {
-                if (!guarded) await run("advanceGuard(1000)");
+                if (!guarded) await run("advanceGuard(2000)");
                 const layout = await run(`(()=>{const c=developSliderControls.PerspectiveVertical;c.row.scrollIntoView({block:'center'});
                     const field=getComputedStyle(c.number),button=getComputedStyle(c.reset),r=c.row.getBoundingClientRect();
                     return {width:innerWidth,guarded:${guarded},overflow:document.documentElement.scrollWidth>innerWidth,
@@ -176,7 +176,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         assert.equal(requests[before].slider, "PerspectiveVertical");
         assert.deepEqual(errors, []);
         if (process.env.LRBRIDGE_UI_ARTIFACTS) fs.writeFileSync(path.join(process.env.LRBRIDGE_UI_ARTIFACTS, "transform-results.json"), JSON.stringify({ layouts, requests }, null, 2));
-        console.log("PASS Transform-only 1000 ms tap-owned guard, all seven rows/controls, feedback and availability precedence, disabled input rejection, failure/context cleanup and stale ownership; enabled edit unchanged; 1280/390/320 grey/enabled layouts. Simulated Lightroom only.");
+        console.log("PASS Transform-only 2000 ms tap-owned guard, all seven rows/controls, feedback and availability precedence, disabled input rejection, failure/context cleanup and stale ownership; enabled edit unchanged; 1280/390/320 grey/enabled layouts. Simulated Lightroom only.");
     } finally {
         for (const finish of held) finish(true);
         await browser.cleanup(resources);

@@ -5665,7 +5665,7 @@
                 timer: null
             };
             transformResetGuard = owner;
-            owner.timer = setTimeout(function () { clearTransformResetGuard(owner); }, 1000);
+            owner.timer = setTimeout(function () { clearTransformResetGuard(owner); }, 2000);
             applyTransformResetGuard();
             return owner;
         }

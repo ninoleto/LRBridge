@@ -12,6 +12,44 @@
 
 # Windows v0.6 beta completion review
 
+## October 3 Refine Saturation integration and Transform guard
+
+The accepted Refine Saturation correction preserves the last submitted display
+target until matching terminal confirmation. A touch beginning while Refine is
+disabled now remains visibly blocked through release or cancellation, even if
+Lightroom confirms the preceding adjustment during that contact. This shared
+normal/Masking implementation does not change SDK operations, command timing,
+polling, Curve editing or the accepted Parametric preview mathematics.
+
+The latest native Masking recording contains **18 complete accepted drags** with
+matching final HTTP targets, SDK writes/readback and explicit confirmations, plus
+**five disabled touches** that stayed blocked. No thumb rollback occurred during
+those complete contacts. An incomplete startup contact predates the first fully
+recorded pointerdown; its starting event is missing and remains a separate evidence
+limit. **Reset was not tested in this recording.** This acceptance does not imply
+new native coverage for normal-view interaction, cancellation or context changes.
+
+Focused source regressions are `tests/controller-refine-saturation-browser.js`
+(display/gesture ownership), `tests/controller-refine-saturation-touch-browser.js`
+(rendered normal/Masking touch lifecycle) and
+`tests/controller-transform-reset-guard-browser.js` (Transform availability).
+Tests remain outside the portable package.
+Run `npm run test:refine-saturation` and `npm run test:transform-reset-guard`.
+Their simulated SDK/HTTP results remain distinct from native Lightroom acceptance.
+
+The independent global Reset Transform guard is now **two seconds from the tap**.
+Only its duration and matching assertions change; feedback cannot extend it and
+existing failure/context cleanup and Lightroom availability remain authoritative.
+
+The photo-specific persistent “Awaiting authoritative Lightroom feedback…” problem
+remains unresolved. Do not reset photos automatically or claim this integration
+fixes that issue. The previous beta remains the unchanged fallback. Remaining
+package checks include brief normal/Masking Refine movement and Reset, ordinary
+Add Point, the two-second Transform guard, Lightroom/Profile connection, desktop
+quit/restart with settings preserved, and phone/tablet LAN. Previously completed
+feature and HTTP checks remain accepted within their recorded scope. Auto Mask
+and Constrain Crop performance work remains deferred.
+
 ## October 2 private candidate integration completed
 
 Private build **20261001T224235Z** uses release checkpoint **`bf44384`**. Packaged

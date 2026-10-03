@@ -9,6 +9,7 @@
     "test:color-grading-reset": "node tests/color-grading-reset-sdk.js && node tests/controller-color-grading-reset-browser.js",
     "test:color-grading-reset-guard": "node tests/color-grading-reset-guard.js",
     "test:transform-reset-guard": "node tests/controller-transform-reset-guard-browser.js",
+    "test:refine-saturation": "node tests/controller-refine-saturation-browser.js && node tests/controller-refine-saturation-touch-browser.js",
     "test:close-colors": "node tests/masking-ui-feedback-browser.js --close-colors-only",
     "test:lens-blur": "node tests/lens-blur.js",
     "test:section-collapse": "node tests/controller-section-collapse.js",
