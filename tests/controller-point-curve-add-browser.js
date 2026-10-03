@@ -66,7 +66,7 @@ async function main() {
                 res.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-store" });
                 return res.end(`<!doctype html><style>${style}</style><div id="status"></div><div id="content"></div>
                   <script src="/controller-tone-curve.js"></script><script>
-                  window.controller=LRBridgeToneCurve.createController({document,window,fetch:window.fetch.bind(window),setStatus:text=>{document.getElementById('status').textContent=text;}});
+                  window.controller=LRBridgeToneCurve.createController({document,window,fetch:window.fetch.bind(window),setInterval:()=>1,clearInterval:()=>{},setStatus:text=>{document.getElementById('status').textContent=text;}});
                   document.getElementById('content').append(controller.element);
                   controller.activate(${JSON.stringify({ activeModule: "develop", ...binding })});</script>`);
             }
@@ -123,14 +123,20 @@ async function main() {
         }
         async function admissionHeld() {
             const until = Date.now() + 5000;
-            while (!heldAdmissions.length) { assert(Date.now() < until, "Admission was not held"); await pause(10); }
+            while (!heldAdmissions.length) {
+                assert(Date.now() < until, "Admission was not held: "+JSON.stringify(await state())+" "+JSON.stringify(requests));
+                await pause(10);
+            }
         }
-        async function add() {
+        async function add(armDirectly = false) {
             await cdp.send("Page.bringToFront");
             await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
             const button = await run("(()=>{const b=document.querySelector('.point-curve-add-button');b.scrollIntoView();const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()");
-            await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [button] });
-            await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+            if (armDirectly) await run("document.querySelector('.point-curve-add-button').click()");
+            else {
+                await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [button] });
+                await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+            }
             await wait("controller.getState().addPointArmed");
             const rectangle = await run("(()=>{const graph=document.querySelector('.point-curve-graph');graph.scrollIntoView();const r=graph.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}})()");
             const point = { x: rectangle.x + rectangle.width * 100 / 255, y: rectangle.y + rectangle.height * 105 / 255 };
@@ -229,8 +235,64 @@ async function main() {
             assert.equal(await run("document.getElementById('status').textContent"), "New photo status", "Late admission must not overwrite another context's status");
             if (phase === "begin") assert(!requests.some(request => request.includes("/gesture/end?")));
         }
+        const nativeBlue = require("./fixtures/deep-blue-native-curve.json").curves.blue;
+        for (const native of [nativeBlue, [0,34,...nativeBlue.slice(2,-2),253,223], [2,34,...nativeBlue.slice(2,-2),253,223]]) {
+            for (const operation of ["add", "delete", "drag"]) {
+                heldPhase = null; heldAdmissions.splice(0).forEach(release => release());
+                await run("controller.deactivate()"); await pause(40); commands.resetQueueForTests(); requests.length=0;
+                curves.blue = native.slice(); await feedback();
+                await run(`controller.activate(${JSON.stringify({activeModule:"develop",...binding})})`);
+                await wait("JSON.stringify(controller.getState().authoritative?.curves.blue)==="+JSON.stringify(JSON.stringify(native)));
+                await wait("!controller.getState().requestInFlight");
+                await run("document.querySelector('.point-curve-channel-blue').click()");
+                assert.equal(await run("document.querySelector('.point-curve-add-button').disabled"), false);
+                if (operation === "add") await add(true);
+                if (operation === "delete") {
+                    await run("document.querySelectorAll('.point-curve-hit-target')[2].dispatchEvent(new MouseEvent('click',{bubbles:true}))");
+                    await touch(".point-curve-delete-button"); await wait("!!controller.getState().awaitingTarget");
+                }
+                if (operation === "drag") {
+                    // Hold only the HTTP acknowledgement so the actual touch
+                    // lifecycle submits one terminal edit, not intermediate writes.
+                    heldPhase="begin";
+                    const coordinates=await run("(()=>{const g=document.querySelector('.point-curve-graph');g.scrollIntoView({block:'center'});const m=g.getScreenCTM();return {a:m.a,b:m.b,c:m.c,d:m.d,e:m.e,f:m.f}})()");
+                    const contact=(x,y)=>({x:coordinates.a*x+coordinates.c*(255-y)+coordinates.e,
+                        y:coordinates.b*x+coordinates.d*(255-y)+coordinates.f});
+                    const hit=contact(native[4],native[5]);
+                    assert.equal(await run(`document.elementFromPoint(${hit.x},${hit.y})?.classList.contains('point-curve-hit-target')`),true,
+                        JSON.stringify(await run(`(()=>{const e=document.elementFromPoint(${hit.x},${hit.y});return {hit:${JSON.stringify(hit)},element:e?.outerHTML,status:document.getElementById('status').textContent,state:controller.getState()}})()`)));
+                    await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[contact(native[4],native[5])]});
+                    await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[contact(130,160)]});
+                    await admissionHeld();
+                    await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+                    heldPhase=null;heldAdmissions.splice(0).forEach(release=>release());
+                    await wait("!!controller.getState().awaitingTarget");
+                }
+                const target=(await state()).awaitingTarget.points;
+                assert.equal(target[0],native[0]);assert.equal(target[target.length-2],native[native.length-2]);
+                const untouched=operation==="add"?target.filter((_,i)=>i<4||i>=6):
+                    operation==="delete"?[...native.slice(0,4),...native.slice(6)]:
+                    target.filter((_,i)=>i<4||i>=6);
+                if(operation==="add")assert.deepEqual(untouched,native);
+                if(operation==="delete")assert.deepEqual(target,untouched);
+                if(operation==="drag"){
+                    assert.deepEqual(untouched,native.filter((_,i)=>i<4||i>=6));
+                    assert.deepEqual(target.slice(4,6),[130,160]);
+                }
+                await feedback();await refresh();
+                assert((await state()).awaitingTarget,"An unchanged native heartbeat cannot erase the pending inset edit");
+                assert(!requests.some(url=>url.includes("/gesture/cancel?")),"Native endpoint shape must not cancel a pending point edit");
+                const queue=[];for(let command;(command=commands.getNextCommand());)queue.push(command);
+                assert.deepEqual(queue.map(c=>c.command),["tone_curve.gesture.begin","tone_curve.gesture.end"]);
+                const sdk=sdkExecute(queue,binding,curves,"blue");
+                assert.deepEqual(sdk.writes,[target]);assert.deepEqual(sdk.fields,["ToneCurvePV2012Blue"]);
+                assert.deepEqual(sdk.readback,target);curves.blue=sdk.readback;
+                await feedback();await refresh();assert.equal((await state()).awaitingTarget,null);
+                assert.deepEqual((await state()).authoritative.curves.blue,target);
+            }
+        }
         assert.deepEqual(exceptions, []);
-        console.log("Point Curve Add/Delete regression passed: rendered touch, unchanged feedback during Begin/End admission, exact production Lua write/readback and selected-channel scope, external curve/photo changes and late admission ownership.");
+        console.log("Point Curve Add/Delete/drag regression passed: rendered native inset touches, unchanged feedback during Begin/End admission, exact production HTTP/queue/Lua write/readback and selected-channel scope, external curve/photo changes and late admission ownership.");
     } finally { heldAdmissions.splice(0).forEach(release => release()); await browser.cleanup(resources); await bridge.stop(); commands.resetQueueForTests(); }
 }
 main().catch(error => { console.error(error.stack || error); process.exitCode = 1; });

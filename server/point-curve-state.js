@@ -26,7 +26,7 @@ function isDenseArray(value) {
     return true;
 }
 
-function validCurveArray(value) {
+function validNativeCurveArray(value) {
     if (!isDenseArray(value) || value.length < 4 || value.length > MAX_ARRAY_LENGTH || value.length % 2 !== 0) {
         return false;
     }
@@ -43,7 +43,12 @@ function validCurveArray(value) {
         previousX = x;
     }
 
-    return value[0] === MIN_COORDINATE && value[value.length - 2] === MAX_COORDINATE;
+    return true;
+}
+
+// Native point edits preserve the supplied coordinates, including inset endpoints.
+function validCurveArray(value) {
+    return validNativeCurveArray(value);
 }
 
 function serializeCurve(value) {
@@ -51,11 +56,16 @@ function serializeCurve(value) {
     return value.join(",");
 }
 
-function parseCurve(value) {
+function parseNativeCurve(value) {
     if (typeof value !== "string" || value === "" || value.trim() !== value || !/^\d+(?:,\d+)+$/.test(value)) {
         return null;
     }
     const parsed = value.split(",").map(Number);
+    return validNativeCurveArray(parsed) ? parsed : null;
+}
+
+function parseCurve(value) {
+    const parsed = parseNativeCurve(value);
     return validCurveArray(parsed) ? parsed : null;
 }
 
@@ -162,7 +172,7 @@ function createPointCurveState() {
             return false;
         }
         for (const channel of CHANNELS) {
-            if (!validCurveArray(feedback.curves[channel])) return false;
+            if (!validNativeCurveArray(feedback.curves[channel])) return false;
         }
 
         const next = {
@@ -468,8 +478,10 @@ module.exports = {
     MAX_ARRAY_LENGTH,
     GESTURE_ID_PATTERN,
     validCurveArray,
+    validNativeCurveArray,
     serializeCurve,
     parseCurve,
+    parseNativeCurve,
     validChannel,
     fieldForChannel,
     validRefineSaturation,

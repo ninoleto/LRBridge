@@ -112,14 +112,14 @@ assert.equal(pointCurve.validRefineSaturation(101, 0, 100), false);
 assert.equal(pointCurve.serializeCurve(composite), "0,0,64,58,192,200,255,255");
 assert.deepEqual(pointCurve.parseCurve("0,0,64,58,192,200,255,255"), composite);
 
-for (const valid of [linear, composite, red, green, blue, [0, 255, 1, 0, 255, 128]]) {
+for (const valid of [linear, composite, red, green, blue, [0, 255, 1, 0, 255, 128], [1, 0, 255, 255], [0, 0, 254, 255]]) {
     assert.equal(pointCurve.validCurveArray(valid), true, "Expected structurally valid curve: " + valid);
 }
 const sparse = [0, 0, 255, 255];
 delete sparse[1];
 for (const invalid of [
     null, {}, [], [0, 0, 255], [0, 0, 128, 128, 128, 140, 255, 255],
-    [1, 0, 255, 255], [0, 0, 254, 255], [0, -1, 255, 255], [0, 0, 255, 256],
+    [0, -1, 255, 255], [0, 0, 255, 256],
     [0, 0, 128.5, 140, 255, 255], [0, 0, NaN, 140, 255, 255], sparse
 ]) assert.equal(pointCurve.validCurveArray(invalid), false);
 for (const invalidText of ["", "0, 0,255,255", "0,0,255", "0,0,255,256", "0,0,128,2,128,3,255,255"] ) {

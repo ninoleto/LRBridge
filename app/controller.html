@@ -5739,16 +5739,58 @@
         let currentDevelopRefreshClassification = "initial";
         let developLoadingStatus = null;
         let hasReceivedAnyAuthoritativeDevelopValue = false;
+        let lastPresetCurveFeedback = null;
+        let lastPresetProfileFeedback = null;
+        const presetFeedbackRecovery = LRBridgeControllerDevelopPresets.createFeedbackRecovery({
+            fetch: fetch.bind(window),
+            getContext: function () {
+                return { activeModule: lastControllerActiveModule, selectedPhotoKey: lastControllerSelectedPhotoKey,
+                    selectedPhotoUuid: lastControllerSelectedPhotoUuid, contextCounter: lastControllerContextCounter,
+                    developCounter: lastControllerDevelopCounter };
+            },
+            getProfileRevision: function () { return profileModel ? profileModel.presentation().revision : 0; },
+            getLastProfile: function () { return lastPresetProfileFeedback; },
+            getLastCurve: function () { return lastPresetCurveFeedback; },
+            validProfile: developCategoricalHelper.validProfileState,
+            validCurve: LRBridgeToneCurve.normalizeSnapshot,
+            onConfirmed: function (part, value, fromRefresh) {
+                if (!fromRefresh) return;
+                if (part === "profile" && profileModel && !profileModel.getPending() && !profileModel.getTimedOut()) {
+                    profileModel.apply(value);
+                    lastPresetProfileFeedback = value;
+                }
+                else if (part === "pointCurve") pointCurveController.applyAuthoritative(value);
+            },
+            onChanged: function () {
+                updateProfileControl();
+                pointCurveController.updateFeedbackPresentation();
+                developPresetController.updateFeedbackPresentation();
+            }
+        });
         const pointCurveController = LRBridgeToneCurve.createController({
             document: document,
             fetch: fetch.bind(window),
             statusElement: statusBox,
-            setStatus: setStatus
+            setStatus: setStatus,
+            getFeedbackMessage: function () { return presetFeedbackRecovery.message("pointCurve"); },
+            getRetainedFeedback: function () { return presetFeedbackRecovery.lastAuthoritative("pointCurve"); },
+            onFeedback: function (value) {
+                const snapshot = LRBridgeToneCurve.normalizeSnapshot(value);
+                if (snapshot && snapshot.selectedPhotoUuid === lastControllerSelectedPhotoUuid &&
+                    snapshot.contextCounter === lastControllerContextCounter &&
+                    snapshot.developCounter === lastControllerDevelopCounter &&
+                    (!lastPresetCurveFeedback || snapshot.updatedAt >= lastPresetCurveFeedback.updatedAt)) {
+                    lastPresetCurveFeedback = snapshot;
+                }
+                presetFeedbackRecovery.observe("pointCurve", value);
+            }
         });
         const developPresetController = LRBridgeControllerDevelopPresets.createController({
             document: document,
             fetch: fetch.bind(window),
             setStatus: setStatus,
+            onApplicationCompleted: function (operation) { presetFeedbackRecovery.begin(operation); },
+            getFeedbackMessage: function () { return presetFeedbackRecovery.message(); },
             getContext: function () {
                 return {
                     activeModule: lastControllerActiveModule,
@@ -6245,6 +6287,13 @@
                 lastControllerActiveModule = data.activeModule;
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
                 lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;
+                if (lastPresetCurveFeedback && (data.activeModule !== "develop" ||
+                    data.selectedPhotoUuid !== lastPresetCurveFeedback.selectedPhotoUuid ||
+                    data.contextCounter !== lastPresetCurveFeedback.contextCounter)) lastPresetCurveFeedback = null;
+                if (lastPresetProfileFeedback && (data.activeModule !== "develop" ||
+                    data.selectedPhotoUuid !== lastPresetProfileFeedback.photoUuid ||
+                    data.contextCounter !== lastPresetProfileFeedback.contextCounter)) lastPresetProfileFeedback = null;
+                presetFeedbackRecovery.updateContext();
                 developPresetController.updateContext();
                 maskingController.updateContext(data);
                 removeController.updateContext();
@@ -8746,16 +8795,22 @@
         }
 
         function syncProfileOptions(control, presentation) {
+            const feedbackMessage = !presentation.pending && !presentation.available
+                ? presetFeedbackRecovery.message("profile") : null;
+            const retained = !presentation.pending && !presentation.available
+                ? presetFeedbackRecovery.lastAuthoritative("profile") : null;
             const renderKey = String(presentation.optionSnapshotRevision) + ":" +
                 String(presentation.inventoryStable) + ":" +
-                (presentation.inventoryStable ? "" : String(presentation.authoritativeLabel || presentation.updating));
+                (presentation.inventoryStable ? "" : String(presentation.authoritativeLabel || presentation.updating)) +
+                ":" + String(feedbackMessage) + ":" + String(retained && retained.selectedLabel);
             if (control.optionRenderKey === renderKey) return;
             control.select.replaceChildren();
             if (!presentation.inventoryStable) {
                 const unavailable = document.createElement("option");
                 unavailable.value = "";
                 unavailable.textContent = presentation.authoritativeLabel ||
-                    (presentation.updating ? "Updating Profile…" : "Unavailable");
+                    (retained && retained.selectedLabel) ||
+                    feedbackMessage || (presentation.updating ? "Updating Profile…" : "Unavailable");
                 control.select.appendChild(unavailable);
             } else {
                 presentation.options.forEach(function (option) {
@@ -8867,6 +8922,8 @@
                 control.status.textContent = developCategoricalErrors.profile;
             } else if (presentation.pending) {
                 control.status.textContent = "Updating Profile…";
+            } else if (!presentation.available && presetFeedbackRecovery.message("profile")) {
+                control.status.textContent = presetFeedbackRecovery.message("profile");
             } else if (presentation.updating) {
                 control.status.textContent = "Updating Profile…";
             } else {
@@ -9216,6 +9273,12 @@
                     data.profile.photoKey === lastControllerSelectedPhotoKey &&
                     data.profile.photoUuid === lastControllerSelectedPhotoUuid) {
                     const profileApplied = profileModel.apply(data.profile);
+                    if (developCategoricalHelper.validProfileState(data.profile) && data.profile.available &&
+                        !data.profile.updating && (!lastPresetProfileFeedback ||
+                            data.profile.revision >= lastPresetProfileFeedback.revision)) {
+                        lastPresetProfileFeedback = data.profile;
+                    }
+                    presetFeedbackRecovery.observe("profile", data.profile);
                     if (profileApplied.confirmed || profileApplied.lateConfirmed) {
                         clearDevelopCategoricalPendingTimer("profile");
                         delete developCategoricalErrors.profile;
@@ -11366,7 +11429,7 @@
             const state = pointCurveController.getState();
             const pointCurve = state && state.authoritative;
             return pointCurve && pointCurve.curves &&
-                LRBridgeToneCurve.validCurveArray(pointCurve.curves.rgb) ? {
+                LRBridgeToneCurve.validNativeCurveArray(pointCurve.curves.rgb) ? {
                     rgbCurve: pointCurve.curves.rgb.slice(),
                     name: pointCurve.name
                 } : null;

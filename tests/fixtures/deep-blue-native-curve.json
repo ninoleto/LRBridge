@@ -1,0 +1,13 @@
+{
+  "description": "Three unchanged-photo native SDK samples captured on 2026-10-03 after one Film-Inspired Deep Blue application. Both LrPhoto:getDevelopSettings and LrDevelopController.getValue returned identical dense numeric Lua arrays. No private photo identity is included.",
+  "profile": "Vintage 02",
+  "name": "Custom",
+  "nativeCoordinateType": "number",
+  "sampleCount": 3,
+  "curves": {
+    "rgb": [0, 0, 255, 255],
+    "red": [0, 0, 255, 255],
+    "green": [0, 0, 255, 255],
+    "blue": [2, 34, 73, 119, 139, 177, 171, 200, 255, 223]
+  }
+}

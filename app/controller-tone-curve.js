@@ -40,7 +40,7 @@
         return true;
     }
 
-    function validCurveArray(value) {
+    function validNativeCurveArray(value) {
         if (!isDenseArray(value) || value.length < 4 || value.length > 512 || value.length % 2 !== 0) return false;
         let previousX = null;
         for (let index = 0; index < value.length; index += 2) {
@@ -51,11 +51,19 @@
                 (previousX !== null && x <= previousX)) return false;
             previousX = x;
         }
-        return value[0] === 0 && value[value.length - 2] === 255;
+        return true;
+    }
+
+    function validCurveArray(value) {
+        return validNativeCurveArray(value);
     }
 
     function serializeCurve(points) {
         return validCurveArray(points) ? points.join(",") : null;
+    }
+
+    function serializeNativeCurve(points) {
+        return validNativeCurveArray(points) ? points.join(",") : null;
     }
 
     function clampCoordinate(value) {
@@ -130,7 +138,7 @@
     }
 
     function adobeSplineSlopes(points) {
-        return validCurveArray(points) ? naturalSplineSlopes(points) : null;
+        return validNativeCurveArray(points) ? naturalSplineSlopes(points) : null;
     }
 
     function curveSegments(points) {
@@ -283,7 +291,7 @@
 
     function createParametricEvaluator(values, rgbCurve) {
         const normalized = normalizeParametricCurveValues(values);
-        if (!normalized || !validCurveArray(rgbCurve)) return null;
+        if (!normalized || !validNativeCurveArray(rgbCurve)) return null;
         // Matched native graphs show that Lightroom's Parametric tab displays
         // this response independently of the RGB point curve. Keep the existing
         // RGB argument/validation for callers' context and availability gates;
@@ -353,7 +361,7 @@
 
     function parametricDisplaySegments(values, rgbCurve) {
         const normalized = normalizeParametricCurveValues(values);
-        if (!normalized || !validCurveArray(rgbCurve)) return null;
+        if (!normalized || !validNativeCurveArray(rgbCurve)) return null;
         if ([normalized.shadows, normalized.darks, normalized.lights, normalized.highlights].every(function (v) { return v === 0; })) {
             return curveSegments(PRESET_CURVES.Linear);
         }
@@ -453,7 +461,7 @@
     }
 
     function selectedPointValues(points, pointIndex) {
-        if (!validCurveArray(points) || !Number.isSafeInteger(pointIndex) || pointIndex < 0 ||
+        if (!validNativeCurveArray(points) || !Number.isSafeInteger(pointIndex) || pointIndex < 0 ||
             pointIndex >= points.length / 2) return null;
         return Object.freeze({ input: points[pointIndex * 2], output: points[pointIndex * 2 + 1] });
     }
@@ -462,7 +470,7 @@
         if (!validCurveArray(points)) return null;
         const nextX = clampCoordinate(x);
         const nextY = clampCoordinate(y);
-        if (nextX <= 0 || nextX >= 255) return null;
+        if (nextX <= points[0] || nextX >= points[points.length - 2] || points.length >= 512) return null;
         const result = points.slice();
         for (let index = 0; index < result.length; index += 2) {
             if (result[index] === nextX) return null;
@@ -515,8 +523,7 @@
         const lastPointIndex = points.length / 2 - 1;
         const constrainedY = clampCoordinate(y);
         let constrainedX;
-        if (pointIndex === 0) constrainedX = 0;
-        else if (pointIndex === lastPointIndex) constrainedX = 255;
+        if (pointIndex === 0 || pointIndex === lastPointIndex) constrainedX = points[pointIndex * 2];
         else {
             const previousX = points[(pointIndex - 1) * 2];
             const nextX = points[(pointIndex + 1) * 2];
@@ -536,7 +543,7 @@
     }
 
     function curvesEqual(left, right) {
-        return serializeCurve(left) !== null && serializeCurve(left) === serializeCurve(right);
+        return serializeNativeCurve(left) !== null && serializeNativeCurve(left) === serializeNativeCurve(right);
     }
 
     function validRefineSaturation(value) {
@@ -583,7 +590,7 @@
             !value.curves || typeof value.curves !== "object") return null;
         const curves = {};
         for (const channel of CHANNELS) {
-            if (!validCurveArray(value.curves[channel])) return null;
+            if (!validNativeCurveArray(value.curves[channel])) return null;
             curves[channel] = value.curves[channel].slice();
         }
         const normalized = {
@@ -748,9 +755,9 @@
     }
 
     function remapSelectedPointIndex(previousPoints, nextPoints, pointIndex) {
-        if (!Number.isSafeInteger(pointIndex) || !validCurveArray(nextPoints)) return null;
+        if (!Number.isSafeInteger(pointIndex) || !validNativeCurveArray(nextPoints)) return null;
         const nextCount = nextPoints.length / 2;
-        if (!validCurveArray(previousPoints)) return pointIndex >= 0 && pointIndex < nextCount ? pointIndex : null;
+        if (!validNativeCurveArray(previousPoints)) return pointIndex >= 0 && pointIndex < nextCount ? pointIndex : null;
         if (previousPoints.length === nextPoints.length) return pointIndex >= 0 && pointIndex < nextCount ? pointIndex : null;
         if (pointIndex < 0 || pointIndex >= previousPoints.length / 2) return null;
         const previousX = previousPoints[pointIndex * 2];
@@ -1140,9 +1147,17 @@
             refineRange.style.cursor = blockedRefinePointers.size ? "not-allowed" : "";
             const points = currentPoints();
             const available = !!points && expectedBinding && bindingsEqual(authoritative, expectedBinding);
+            const editable = available && validCurveArray(points);
+            if (!editable) addPointArmed = false;
             const preview = available ? activePreview(points) : null;
             if (!available && !retainCurveDisplay) {
-                curvePath.setAttribute("d", "");
+                // A completed preset may have no readable curve. Retain only a
+                // confirmed same-photo drawing, separately from editable authority.
+                const retained = typeof options.getRetainedFeedback === "function"
+                    ? normalizeSnapshot(options.getRetainedFeedback()) : null;
+                const retainedPoints = retained && expectedBinding && sameIdentity(retained, expectedBinding)
+                    ? retained.curves[selectedChannel] : null;
+                curvePath.setAttribute("d", retainedPoints ? curvePathData(retainedPoints) : "");
                 curvePath.classList.toggle("previewing", false);
                 previewPath.setAttribute("d", "");
                 previewPath.setAttribute("display", "none");
@@ -1155,7 +1170,11 @@
                 refineDecrementButton.disabled = true;
                 refineIncrementButton.disabled = true;
                 refineResetButton.disabled = true;
-                updatePresetOptions("");
+                if (retainedPoints) {
+                    refineRange.value = String(retained.refineSaturation.value);
+                    refineNumber.value = String(retained.refineSaturation.value);
+                }
+                updatePresetOptions(retainedPoints ? retained.name : "");
                 presetSelect.disabled = true;
                 setUpdating();
             } else if (available) {
@@ -1266,9 +1285,13 @@
                 overlay.hidden = true;
             }
             const busy = interactionBusy();
+            if (!busy && typeof options.getFeedbackMessage === "function") {
+                const message = options.getFeedbackMessage();
+                if (message) setUpdating(message);
+            }
             addPointButton.classList.toggle("active", addPointArmed);
             addPointButton.setAttribute("aria-pressed", String(addPointArmed));
-            addPointButton.disabled = !available || busy;
+            addPointButton.disabled = !editable || busy;
             Object.keys(channelButtons).forEach(function (channel) {
                 const button = channelButtons[channel];
                 const selected = channel === selectedChannel;
@@ -1292,11 +1315,11 @@
             refineIncrementButton.disabled = !refineChannelAvailable || refineStepBlocked ||
                 !Number.isFinite(refinePresented) || refinePresented >= authoritative.refineSaturation.max;
             refineResetButton.disabled = !refineChannelAvailable || busy;
-            presetSelect.disabled = !available || busy;
+            presetSelect.disabled = !available || busy || !validCurveArray(authoritative.curves.rgb);
             const interiorSelected = available && Number.isSafeInteger(selectedPointIndex) && selectedPointIndex > 0 &&
                 selectedPointIndex < points.length / 2 - 1;
-            deleteButton.disabled = !interiorSelected || busy;
-            resetButton.disabled = !available || busy;
+            deleteButton.disabled = !editable || !interiorSelected || busy;
+            resetButton.disabled = !editable || busy;
             if (reportedInteractionBusy !== busy) {
                 reportedInteractionBusy = busy;
                 onInteractionChange(busy);
@@ -1454,7 +1477,7 @@
 
         async function startGesture(session) {
             if (!session || !authoritative || !sameIdentity(session.identity, authoritative) ||
-                !bindingsEqual(authoritative, expectedBinding)) return;
+                !bindingsEqual(authoritative, expectedBinding) || !validCurveArray(authoritative.curves[session.channel])) return;
             session.identity.developCounter = authoritative.developCounter;
             const baseline = authoritative.curves[session.channel];
             const path = routePrefix + "/gesture/begin?channel=" + encodeURIComponent(session.channel) +
@@ -1477,6 +1500,11 @@
         function beginPointerGesture(event, pointIndex, adding, insertion) {
             const points = currentPoints();
             if (interactionBusy() || !points || !authoritative || !bindingsEqual(authoritative, expectedBinding)) return;
+            if (!validCurveArray(points)) {
+                if (!adding) selectedPointIndex = pointIndex;
+                render();
+                return;
+            }
             if (adding && (!insertion || !insertionBaselineMatches(points, insertion))) return;
             const coordinates = graphCoordinates(event.clientX, event.clientY, svg.getBoundingClientRect());
             if (!coordinates) return;
@@ -1810,7 +1838,8 @@
 
         async function applyPreset(name) {
             const target = presetCurve(name);
-            if (!target || interactionBusy() || !authoritative || !bindingsEqual(authoritative, expectedBinding)) return false;
+            if (!target || interactionBusy() || !authoritative || !bindingsEqual(authoritative, expectedBinding) ||
+                !validCurveArray(authoritative.curves.rgb)) return false;
             addPointArmed = false;
             selectedChannel = "rgb";
             selectedPointIndex = null;
@@ -1931,6 +1960,9 @@
                 }
             }
 
+            if (gesture && sameIdentity(gesture.identity, normalized) && !validCurveArray(normalized.curves[gesture.channel])) {
+                retireActiveGesture(gesture, "Point editing is unavailable for this native Lightroom curve");
+            }
             if (gesture && sameIdentity(gesture.identity, normalized)) {
                 const failure = editFailureDetail(normalized, {
                     editSequence: gesture.lastSubmittedEditSequence
@@ -2091,6 +2123,7 @@
                     }
                     render();
                 }
+                if (typeof options.onFeedback === "function") options.onFeedback(data.pointCurve);
             } catch (error) {
                 if (active && token === stateRequestToken) {
                     setStatus(error.message === "Point Curve request timed out"
@@ -2107,7 +2140,7 @@
 
         async function commitOneShot(target, operation) {
             if (!validCurveArray(target) || interactionBusy() || !authoritative ||
-                !bindingsEqual(authoritative, expectedBinding)) return false;
+                !bindingsEqual(authoritative, expectedBinding) || !validCurveArray(authoritative.curves[selectedChannel])) return false;
             gestureCounter += 1;
             const id = "curve_" + now().toString(36) + "_" + gestureCounter.toString(36);
             const baseline = authoritative.curves[selectedChannel];
@@ -2202,7 +2235,8 @@
             addPointButton.title = "Add point";
             addPointButton.setAttribute("aria-pressed", "false");
             addPointButton.addEventListener("click", function () {
-                if (interactionBusy() || !authoritative || !bindingsEqual(authoritative, expectedBinding)) return;
+                if (interactionBusy() || !authoritative || !bindingsEqual(authoritative, expectedBinding) ||
+                    !validCurveArray(currentPoints())) return;
                 addPointArmed = !addPointArmed;
                 setStatus(addPointArmed ? "Tap graph to add point" : "Add Point mode cancelled");
                 render();
@@ -2512,6 +2546,7 @@
             resetButton.addEventListener("click", async function () {
                 if (!authoritative || !bindingsEqual(authoritative, expectedBinding) || gesture) return;
                 const baseline = authoritative.curves[selectedChannel];
+                if (!validCurveArray(baseline)) return;
                 const resetBinding = copyExtendedIdentity({
                     selectedPhotoUuid: authoritative.selectedPhotoUuid,
                     contextCounter: authoritative.contextCounter,
@@ -2640,6 +2675,7 @@
                 }
             },
             refresh: refresh,
+            updateFeedbackPresentation: render,
             applyAuthoritative: applyAuthoritative,
             getState: function () {
                 return {
@@ -2724,6 +2760,7 @@
         PARAMETRIC_CURVE_FIELDS,
         createMaskingContextAdapter,
         validCurveArray,
+        validNativeCurveArray,
         serializeCurve,
         graphCoordinates,
         adobeSplineSlopes,

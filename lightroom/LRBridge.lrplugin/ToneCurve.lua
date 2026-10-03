@@ -32,7 +32,9 @@ local function validNumber(value)
     return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
 end
 
-local function validCurve(points)
+-- Lightroom presets may return endpoints inside the 0..255 domain. Preserve
+-- those coordinates on reads and writes; boundary inputs are not required.
+local function validNativeCurve(points)
     if type(points) ~= "table" then return false end
     local length = #points
     if length < 4 or length > 512 or length % 2 ~= 0 then return false end
@@ -52,14 +54,23 @@ local function validCurve(points)
         if previousX ~= nil and x <= previousX then return false end
         previousX = x
     end
-    return points[1] == 0 and points[length - 1] == 255
+    return true
+end
+
+local function validCurve(points)
+    return validNativeCurve(points)
+end
+
+local function serializeNativeCurve(points)
+    if not validNativeCurve(points) then return nil end
+    local serialized = {}
+    for index = 1, #points do serialized[index] = tostring(points[index]) end
+    return table.concat(serialized, ",")
 end
 
 local function serializeCurve(points)
     if not validCurve(points) then return nil end
-    local serialized = {}
-    for index = 1, #points do serialized[index] = tostring(points[index]) end
-    return table.concat(serialized, ",")
+    return serializeNativeCurve(points)
 end
 
 local function copyCurve(points)
@@ -187,9 +198,9 @@ function ToneCurve.readSnapshot()
     for _, channel in ipairs(channelOrder) do
         local field = channelFields[channel]
         local ok, points = LrTasks.pcall(function() return LrDevelopController.getValue(field) end)
-        if ok ~= true or not validCurve(points) then return nil end
+        if ok ~= true or not validNativeCurve(points) then return nil end
         snapshot.curves[channel] = copyCurve(points)
-        snapshot[channel .. "Serialized"] = serializeCurve(points)
+        snapshot[channel .. "Serialized"] = serializeNativeCurve(points)
     end
 
     local nameOk, name = LrTasks.pcall(function() return LrDevelopController.getValue("ToneCurveName2012") end)

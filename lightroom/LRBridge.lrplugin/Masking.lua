@@ -227,7 +227,7 @@ local function validCurve(points)
             y ~= math.floor(y) or y < 0 or y > 255 or previousX ~= nil and x <= previousX then return false end
         previousX = x
     end
-    return points[1] == 0 and points[count - 1] == 255
+    return true
 end
 
 local function normalizeCurve(value)

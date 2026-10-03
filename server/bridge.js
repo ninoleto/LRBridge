@@ -1043,7 +1043,7 @@ app.get("/tone-curve/feedback", function (req, res) {
     const binding = pointCurveBindingFromQuery(req.query);
     const curves = {};
     for (const channel of pointCurveDefinition.CHANNELS) {
-        curves[channel] = pointCurveDefinition.parseCurve(req.query[channel]);
+        curves[channel] = pointCurveDefinition.parseNativeCurve(req.query[channel]);
         if (!curves[channel]) return res.status(400).json({ ok: false, error: "Invalid Point Curve feedback" });
     }
     const refineSaturation = {

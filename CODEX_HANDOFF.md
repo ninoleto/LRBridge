@@ -1,5 +1,516 @@
 # LRBridge Codex Handoff
 
+## October 4 Deep Blue release checkpoint — native report and evidence limits
+
+- User reports that current Curve editing appears to work and authorizes a
+  scoped checkpoint/private package. Reuse that completed test; no new photo
+  edits, preset reapplication or automatic Reset were sent during preparation.
+- Collected fresh source feedback on the current edited photo: matching
+  photo/context/Develop binding, advancing heartbeat and Curve receipt,
+  feedback age **450–581 ms**, queue **0**, Curve Name **Custom** and Refine
+  Saturation **100**, range **0–100**. Served Controller assets match source.
+- Existing worker log contains four Blue gesture begin/end sequences, two
+  including update commands. This proves consumption, not exact SDK write
+  success. The prepared native Blue diagnostic write log was **not found**;
+  no exact attempted-array/SDK-error/readback correlation is available. Current
+  Blue feedback is Linear and cannot establish the earlier inset edit targets
+  or explain how the user changed that channel. No array-level record is
+  available to check for mismatches. Do not turn simulated wrapper checks into
+  native evidence.
+- Checkpoint scope: bounded Deep Blue preset feedback recovery, structurally
+  valid native Curve feedback/drawing, inset-endpoint Add/Delete/drag across
+  normal and Masking paths, focused regressions and compatibility documentation.
+  Untouched pairs/channels, endpoint deletion protection, exact baselines,
+  photo/mask/context ownership, Reset defaults and accepted Refine behavior
+  remain. Production plug-in has neither temporary write logging nor the
+  diagnostic virtual-copy-only restriction.
+- Reused focused browser/HTTP/queue/Lua checks: **48** normal native-shape cases
+  and **27** Masking handler cases use SDK doubles; before/after regression,
+  standard Curve, Refine, Parametric reference and preset recovery checks pass.
+  Required release-preparation and release-cleanup checks pass. Native attempts
+  remain less detailed than automated evidence; a focused packaged Curve check
+  is still required before final sign-off.
+- Full-project disaster-recovery backup uploaded and read back with matching
+  checksum/manifest. Candidate **20261003T035356Z**, unrelated work, personal
+  settings, stash, recordings and backups are preserved. Packaging uses an
+  isolated committed export with public defaults and production plug-in/helpers.
+- Remaining scope: focused packaged Curve editing/display/Name/Refine check,
+  normal packaged startup/restart with settings preserved and phone/tablet LAN
+  access. Reuse completed HTTP/PowerShell and accepted native feature results.
+  Intermittent Tone Curve authoritative-feedback stalls remain unresolved;
+  Refine Saturation beta compromise remains accepted. Auto Mask and Constrain
+  Crop optimization stay deferred. No push, tag or publication.
+
+## October 3 inset native point editing implemented — virtual-copy verification pending
+
+- User explicitly rejects the read-only restriction for Deep Blue. Earlier
+  native display/Name/Refine and RGB/Red/Green/Masking editing results remain
+  accepted; disabled Blue controls do **not** constitute Blue editing approval.
+  The new correction removes that restriction.
+- Browser operations, HTTP/queue validators and normal/Masking Lua now accept
+  structurally valid inset endpoints. Add inserts only within the actual input
+  interval; Delete still protects first/last points; drag changes only the
+  selected pair and preserves native endpoint input (Input 2 stays 2). Exact
+  serialization, dense integers, size/range/order, photo/mask/context/Develop,
+  stale-baseline, gesture ownership and confirmation safeguards remain. Other
+  channels are not written. SDK/local Reset defaults remain unchanged.
+- Regression fails before and passes after. Production HTTP/queue/Lua tests
+  cover 48 Add/Delete/drag/SDK Reset cases across all four channels and first/
+  last/both inset endpoints. Masking passes 27 confirmed cases. Rendered native
+  contacts, unchanged-heartbeat ownership, stale/late/context cleanup and
+  390/1280px availability checks pass. These are **SDK doubles, not native writes**.
+- Focused standard Point Curve, local Curve confirmation, Refine ownership/touch,
+  Parametric reference/split and preset-feedback recovery checks pass. Recovery's
+  obsolete endpoint-rejection assertions were updated; its refresh, timeout,
+  retained authority and no-retry behavior were not changed.
+- Native Blue write/readback remains pending on a **disposable virtual copy**.
+  No edit was sent to the user's current photo. Prepared a matching temporary
+  diagnostic plug-in copy with exact attempted-array, SDK error and before/after
+  readback logging; normal point writes additionally require virtual-copy SDK
+  metadata. Wrapper's non-copy guard, exact rejection evidence and one-call
+  success passed with SDK doubles. No recorder, timer or additional worker.
+- Native setup: quit source normally; run npm start from D:\Projects\LRBridge
+  (server validators require restart). In Plug-in Manager disable the current
+  LRBridge polling entry, use/reload once the matching temporary plug-in at
+  D:\Projects\LRBridge\local-checkpoints\native-curve-edit-20261003T213626Z\lightroom\LRBridge.lrplugin.
+  Keep one LRBridge polling entry enabled. Select only the disposable virtual
+  copy in Develop; refresh http://127.0.0.1:17892/. Point Curve → Blue: add an
+  interior point, drag it, then delete it; endpoint inputs/untouched points must
+  remain. Collect SDK log and fresh source feedback before claiming native
+  success. No preset reapplication or Reset Photo. After verification return to
+  D:\Projects\LRBridge\lightroom\LRBridge.lrplugin with a reload; it has the
+  same correction without temporary logging/virtual-copy restriction.
+- Documentation: docs/NATIVE_CURVE_COMPATIBILITY.md; new focused tests
+  tests/native-curve-editing.js and tests/mask-native-curve-editing.js. Pre-change
+  full-project backup uploaded/read back with checksum/manifest verification.
+  Evidence/snapshots: local-checkpoints/native-curve-edit-current.txt.
+  Candidate **20261003T035356Z**, unrelated work/settings, stash, recordings and
+  backups preserved. No commit, build, push or publication.
+
+
+## October 3 Deep Blue compatibility — native drawing/editing results accepted
+
+- User manually accepts the tested source behavior: **Blue visually matches
+  Lightroom**, its **Add/Delete controls are disabled with the explanation**,
+  **RGB/Red/Green Add/Delete work**, and **Masking Point Curve editing works**.
+  Record only these reported native checks; do not invent Blue Reset coverage,
+  new Refine adjustment testing or a resolution for unrelated intermittent
+  Tone Curve feedback issues.
+- Collected four fresh read-only source samples using the **current edited photo
+  and context**, rather than the original capture binding/arrays. Source Electron
+  PID **38724** owns 17890/17891/17892; served Controller HTML/JS hashes match the
+  corrected source. Samples match the live photo/context **1**, Develop **15**,
+  Curve revision **15**, with advancing heartbeat and Curve receipt timestamps,
+  feedback age **34–835 ms** and final command queue **0**.
+- Actual recently accepted SDK feedback now confirms **Curve Name Custom** and
+  **Refine Saturation value 100, min 0, max 100**. Lua reads those fields through
+  LrDevelopController getValue/getRange after the curves validate. The API is a
+  cache of accepted SDK snapshots; advancing receipt timestamps and matched
+  current binding establish fresh feedback here, not merely a successful GET.
+  This completes the remaining native Name/Refine read-availability check.
+- Current RGB is [0,0,107,131,179,174,255,255]; current Blue is
+  [2,34,73,119,171,200,255,223]. Original raw capture/fixture remains historical
+  evidence of the earlier five-point array. Do not infer how an individual point
+  changed or claim the original photo settings stayed untouched during the
+  user's editing test. No agent photo edits were sent during collection.
+- Intentional limitation: this Blue curve's first input remains **2**. Native
+  drawing/coordinate display is supported; its point drag/Add/Delete and
+  selected-channel Reset remain guarded by the existing 0/255 write contract.
+  Automated guards remain accepted; user's disabled Add/Delete notice is now
+  native accepted. Standard channels and Refine retain supported behavior.
+- Evidence, edited-context collector and prior frozen source/tests remain behind
+  `local-checkpoints/native-curve-compat-current.txt`. Documentation updated in
+  `docs/NATIVE_CURVE_COMPATIBILITY.md`. Existing candidate **20261003T035356Z**,
+  accepted fixes, settings, stash, recordings and backups remain preserved.
+  No application code changes, repeated suites, commit, build or publication.
+
+## October 3 Deep Blue Curve compatibility implemented — source native review pending
+
+- Implemented the confirmed native endpoint compatibility correction. Lua
+  snapshot reading/serialization, normal HTTP Curve feedback/state, Controller
+  normalization/drawing/point coordinates and the Parametric read gate now
+  accept structurally valid native curves without requiring endpoint inputs
+  0/255. Dense integer pairs, existing size/range/increasing-X checks and all
+  photo/context/freshness checks remain. The captured Blue array
+  **[2,34,73,119,139,177,171,200,255,223]** is preserved exactly; no inserted or
+  clamped endpoint and no photo write.
+- Existing strict write validators/serializers, gesture timing/ordering, SDK
+  operations, Reset defaults, interpolation and Masking/local-preset write
+  contracts stay intact. On a selected native curve outside that write contract,
+  Add/Delete/drag and selected-channel Reset are disabled with a visible notice;
+  native points remain selectable for exact coordinates. Forced handlers are
+  guarded, and new unsupported authority ends an existing point gesture.
+  Standard channels remain editable, named presets retain their RGB baseline
+  guard, and Refine Saturation stays independent of Curve endpoint shape.
+- Focused regression using the real sanitized native fixture **fails before**
+  the Lua correction and **passes after**. Tests cover exact SDK snapshot and
+  serialization, subsequent Curve Name/Refine value/range reads using SDK
+  doubles, unavailable Name/range rejection, malformed/sparse/oversized data,
+  stale photo/context/Develop feedback, HTTP feedback acceptance and zero
+  queued/SDK writes for guarded edits or a stale standard Blue baseline.
+  Rendered normal/Masking fixture checks pass at 390/1280 px: exact five points,
+  Input/Output selection, blocked pointers/forced clicks, standard RGB/Refine
+  availability, new read-only authority cancellation, context cleanup/no overflow.
+- Existing focused Point Curve, Add/Delete, normal/Masking Refine ownership/touch
+  and Parametric split/reference checks pass. No broader suite or native edit
+  was run. **Actual corrected native Curve Name/Refine feedback is not yet
+  accepted**: it needs the source application and source plug-in loaded on this
+  same unchanged photo. Fresh context/Develop counters after restart are valid;
+  do not force the old probe's Develop counter 35 or reapply Deep Blue.
+- Review documentation: `docs/NATIVE_CURVE_COMPATIBILITY.md`; regressions:
+  `tests/native-curve-compatibility.js`, `tests/controller-native-curve-browser.js`
+  and `tests/fixtures/deep-blue-native-curve.json`. Full pre-change backup was
+  uploaded/read back with manifest/hash verification; private evidence and
+  frozen source are behind `local-checkpoints/native-curve-compat-current.txt`.
+- Native steps: exit the running packaged application through **Exit LRBridge**
+  and confirm **Quit LRBridge**. Run `npm start` from `D:\Projects\LRBridge`.
+  In Lightroom Plug-in Manager, use **only** the source polling plug-in at
+  `D:\Projects\LRBridge\lightroom\LRBridge.lrplugin` and reload it once. Keep
+  the same photo unchanged in Develop. Refresh `http://127.0.0.1:17892/`;
+  check Point Curve **Custom**, Blue's five points / Input 2 Output 34 and its
+  edit/Reset guard, then RGB's readable Refine value/range matching Lightroom.
+  Collect fresh source Curve/context feedback without edits. No preset
+  reapplication, Reset Photo or another raw-probe invocation is required.
+- Package **20261003T035356Z** and existing accepted source/private work, stash,
+  settings, recordings/backups preserved. Broader intermittent Curve reports
+  remain unproven. No commit, build, push or publication.
+
+## October 3 Deep Blue native Curve evidence — exact endpoint rejection established
+
+- Collected and preserved `raw-sdk-curves-20261003-192900.json`: **three accepted
+  raw samples**, same selected photo/context/Develop revision throughout, idle
+  queue, completed original Deep Blue operation and unchanged native Develop
+  settings. No preset reapplication, reset, curve edit or other photo change.
+- Both **photo:getDevelopSettings()** and **LrDevelopController.getValue()**
+  return identical dense Lua tables with numeric indexes and numeric coordinate
+  values in all three samples. Blue is exactly
+  **[2,34,73,119,139,177,171,200,255,223]**: points (2,34), (73,119), (139,177),
+  (171,200), (255,223). RGB/Red/Green are [0,0,255,255]. Native photo settings
+  report Curve name **Custom** and Profile **Vintage 02**. No string-coordinate
+  decoding issue was observed in this capture.
+- Exact rejection: **ToneCurve.lua:55** requires
+  `points[1] == 0 and points[length - 1] == 255`. This legitimate native Blue
+  curve starts at **2**, so readSnapshot returns nil before reading Curve name
+  or Refine value/range. FeedbackPolling consequently omits the entire Curve
+  snapshot and clears its Develop fingerprint, explaining the preserved stale
+  Linear Curve feedback in this case. Do not generalize this proof to every
+  previously reported intermittent Curve issue.
+- Offline check using these real arrays reproduces rejection in the actual
+  production Lua module, server and Controller validators. A counterfactual
+  first-X-only change to 0 passes those validators **in the offline fixture**;
+  the photo was never changed. Production ToneCurve.lua matches the package.
+- Smallest safe correction identified, **not implemented in this step**:
+  permit structurally valid native arrays on the read/feedback/drawing paths in
+  Lua, server and Controller without requiring boundary X coordinates; retain
+  dense integer pairs, size/range/increasing-X checks and all context safeguards.
+  Separate read acceptance from the current write contract. Do not insert or
+  clamp endpoints. The browser movePoint currently forces endpoint X to 0/255,
+  so blindly relaxing the shared write validator risks changing the curve;
+  unsupported point editing must remain guarded until explicitly supported.
+- Capture did not measure the later **controller Curve-name and Refine value/
+  range** reads; after fixing this proven rejection, those checks still require
+  honest verification. Detailed raw evidence, preservation copy and focused
+  offline analysis remain behind `local-checkpoints/deep-blue-feedback-current.txt`.
+  Existing source changes/settings/stash and package 20261003T035356Z preserved.
+  No production edits, commit, build, push or publication.
+
+## October 3 raw Curve probe polling blocker corrected — native capture pending
+
+- Collected and preserved `raw-sdk-curves-20261003-185914.json`. Its only
+  recorded mismatch is **queueLength expected 0 / observed 1**. Photo identity,
+  Develop module, context 14, Develop counter 35 and context timestamp match.
+  Capture stopped before any raw Curve samples. The failed file records no
+  command identity; nearby production logs/queue evidence show ordinary
+  `clipboard.query` traffic. Do not claim a new native Blue array from this file.
+- Changed **only the independent temporary probe**, not production Lua, server
+  or package. It classifies pending queue entries through read-only diagnostics
+  and yields for an existing `clipboard.query` to drain, with a maximum of 20
+  0.1-second yields and bounded HTTP connection phases. It still requires an
+  idle queue before accepting samples. Unknown/queued writes, new admissions or
+  coalescing during that drain, stale heartbeat, incomplete/changed preset
+  operation, photo/module/context/Develop changes all stop capture. Whole native
+  Develop settings are compared internally throughout, independently of the
+  invalid-Curve feedback fingerprint; no private settings blob is logged.
+- Focused simulated check **fails on the preserved pre-correction probe** for
+  the known read draining case and **passes with the correction**. Also covers
+  persistent queued reads, queued writes, an edit admitted/executed between
+  polls, genuine context change, native settings change with unchanged Develop
+  counter, raw native types/indexes, SDK getter failure and no edit/worker paths.
+  This is probe validation, not actual native Curve evidence.
+- Latest read-only readiness: heartbeat **270 ms**, context and diagnostics
+  queues **0**, same selected photo/context/Develop binding, original Deep Blue
+  operation `apply-musbzfbj-e` completed with covered effect observed, no pending
+  application. Expected.lua stays unchanged. Evidence and frozen before/after
+  probe sources remain under `local-checkpoints/deep-blue-feedback-current.txt`.
+- Next: reload **only LRBridge Raw Curve Probe (read only)** once to load this
+  temporary Lua change. Leave production LRBridge enabled. Close Plug-in Manager
+  and invoke **File → Plug-in Extras → Capture Raw Tone Curves (read only)** once
+  on the unchanged photo in Develop; close the result dialog and report its file.
+  No re-registration, production reload, preset reapplication, reset or photo
+  edit. Actual Blue array and its exact rejection remain pending that capture.
+  Package 20261003T035356Z and all existing source/private work remain preserved.
+  No commit, build, push or publication.
+
+## October 3 production re-registered — raw Curve capture ready
+
+- User registered the production LRBridge plug-in again. **Polling resumed**:
+  four read-only samples have advancing heartbeat, age **113–712 ms**, and both
+  context/diagnostics queues **0**. Package log shows resumed command consumption
+  and completed feedback reads. Same selected photo, Develop module, context
+  **14**, Develop counter **35**, context timestamp and original completed Deep
+  Blue operation `apply-musbzfbj-e` match. No pending preset application. The
+  stopping/registration issue is separate from the original stale Curve feedback.
+- All expected probe binding fields still match; **no Expected.lua update is
+  needed**. Temporary short-path probe remains
+  `D:\Projects\LRBridge\local-checkpoints\DeepBlueRawCurve.lrplugin`, with the
+  added failure logging and all validation checks intact. Prior focused probe
+  checks reused; no repeated feature suite or application change.
+- Native instruction: in Plug-in Manager reload **only LRBridge Raw Curve Probe
+  (read only)** once for its logging change, keeping the production **LRBridge**
+  entry enabled. Close the manager, keep this same photo in Develop, then run
+  **File → Plug-in Extras → Capture Raw Tone Curves (read only)** once. Close the
+  saved/stopped dialog and report its result; collect the unique raw JSON file.
+  Do not reapply Deep Blue, reset or edit the photo. Raw Blue array remains pending
+  that invocation; cached /tone-curve/state is not fresh native evidence.
+- Readiness evidence/short-probe manifest preserved through
+  `local-checkpoints/deep-blue-feedback-current.txt`. Package 20261003T035356Z,
+  production plug-in files, existing source changes, private settings, stash and
+  earlier recordings/failure files remain preserved. No build, commit or publish.
+
+## October 3 warning closed — production workers explicitly stopped, capture not ready
+
+- User closed the probe warning. Three subsequent read-only samples still show
+  queue **1** (`clipboard.query`) and a heartbeat approximately **19 minutes old**.
+  Same photo, Develop module, context 14, Develop counter 35, context timestamp
+  and completed Deep Blue operation remain matched. No expected binding change
+  is justified, and the raw SDK probe must not run against this stale context.
+- Preserved production log identifies the concrete blocker: at **18:26:44**,
+  PollingLifecycle logs **shutdown requested**, **polling loop stopped** and both
+  **commands/feedback supervisor stopped**. No later startup appears. This rules
+  out treating the remaining queued clipboard read as proof of a stuck SDK call.
+  PluginShutdown.lua is invoked by Disable, unload/reload or Lightroom shutdown;
+  the log does not identify which hook fired. Do not claim the user disabled it
+  or attribute the shutdown to the probe without further evidence.
+- Asked for the existing production **LRBridge** entry's Enabled/Disabled status
+  in Plug-in Manager, keeping its status unchanged for now. Current probe guards
+  and failure logging remain intact. Do not request another capture until live
+  heartbeat and idle queue are verified. No package/source/runtime switch,
+  production plug-in changes, photo edits or repeated feature tests.
+
+## October 3 raw SDK probe stopped — unchanged identity, pending read; recovery prerequisite
+
+- Preserved `raw-sdk-curves-20261003-182659.json`: capture stopped at the initial
+  binding guard, before any Curve reads; samples are empty. That original probe
+  did not save the rejected observed binding, so the precise failing field at
+  **18:26:59** cannot be reconstructed from its file. Do not invent raw Blue data.
+- Subsequent live comparisons match the original selected photo, Develop module,
+  context **14**, Develop counter **35**, context timestamp **1791001437711** and
+  completed Deep Blue operation `apply-musbzfbj-e`. The only differing binding
+  field in those comparisons is **queueLength 1**, versus required **0**.
+  Diagnostics identify one **clipboard.query** read, with no queued photo edit.
+  This is consistent with the reported guard failure; it is not an exact-time
+  record of the failed run. Native Profile remains Vintage 02 / Look.Name.
+- Production bridge remains PID 10632 from package 20261003T035356Z with the
+  same ports. Heartbeat is currently stale and the queue has not become live/idle
+  during a bounded 30-second read-only observation. Asked the user to close any
+  still-open probe warning dialog and leave the same photo in Develop. Modal
+  pause is a possibility, not an established cause. Do not rebind or claim the
+  rerun is ready until fresh heartbeat and queue 0 are verified.
+- No expected identity/revision value currently needs updating. Preserved probe
+  files before adding **temporary diagnostic logging only**: observed parsed
+  binding, body type and explicit expected/current mismatch details are saved
+  before the existing guard throws. Heartbeat and preset-result details are also
+  retained. Every validation condition is unchanged; no ignored pending reads,
+  weakened context checks, edits or retries. Focused simulated checks pass,
+  including queue 1 rejection with logged expected 0/current 1 and zero Curve
+  reads. Original failure and earlier evidence remain intact.
+- Next: verify production heartbeat/idle queue after the warning is dismissed;
+  recheck same photo and completed operation. Update temporary Expected.lua only
+  if a verified binding value actually changed. Reload **only LRBridge Raw Curve
+  Probe (read only)** once to load its logging change, close Plug-in Manager, then
+  run its **Capture Raw Tone Curves (read only)** menu action once. Do not reload
+  the production plug-in, reapply Deep Blue, Reset Photo or edit Curve points.
+  Source changes, settings, stash, index, baseline package and all evidence remain
+  preserved. No build, commit, push or publication.
+
+## October 3 Deep Blue raw SDK probe — prepared, awaiting one read-only invocation
+
+- User reports Lightroom visibly shows a **custom Blue curve** while the
+  Controller returns stale Linear. Vintage 02 remains confirmed. Coordinate
+  display is unreliable; do not request another preset application or photo
+  reset, and do not substitute cached Curve state or installed metadata for a
+  native numeric readback.
+- Prepared independent, menu-only temporary plug-in at
+  `D:\Projects\LRBridge\local-checkpoints\DeepBlueRawCurve.lrplugin`.
+  Add it in Lightroom Plug-in Manager, close the manager, keep the same photo in
+  Develop, then run **File → Plug-in Extras → Capture Raw Tone Curves (read only)**
+  once. **No existing production plug-in reload or app switch is required.**
+  It starts no worker and submits no edits/feedback. Three samples read both
+  `photo:getDevelopSettings()` and `LrDevelopController.getValue()` before any
+  Curve validation, retaining native types/indexes. Bound photo/module, context,
+  Develop revision, completed Deep Blue operation and live heartbeat are checked;
+  changes/errors are recorded rather than retried.
+- Unique `raw-sdk-curves-*.json` evidence is written to local-checkpoints; collect
+  it after the user reports the menu result. Source/SDK review and simulated
+  safety/serialization checks pass (numeric/string arrays, both read sources,
+  photo/context cancellation, stale heartbeat, pending operation, getter failure,
+  no edit or worker paths). **Actual Blue array and exact rejecting condition
+  remain pending this native file.** Check the actual returned types as well as
+  the endpoint rule `points[1] == 0 and points[length - 1] == 255`.
+- Probe originals/checks/manifest are preserved through
+  `local-checkpoints/deep-blue-feedback-current.txt`. Short-path copy is
+  byte-identical; temporary files remain outside production source/distribution.
+  Package 20261003T035356Z ZIP hash is unchanged. All existing source changes,
+  settings, Git HEAD/index/stash and earlier evidence preserved. No application
+  edits, builds, commits or publication. Remove/disable only this separate probe
+  after collection, retaining its output.
+
+## October 3 Deep Blue applied once — native feedback correlation
+
+- User applied **Deep Blue once** and left the photo unchanged. Collected the
+  live operation `apply-musbzfbj-e` from the running unchanged package
+  **20261003T035356Z** (PID 10632). Matching production plug-in log receipt and
+  terminal result show **SDK call completed and covered effect observed**;
+  submission-to-completion is **374 ms**, with the same selected photo and
+  context 14 throughout. No automated edits, app switch or plug-in reload.
+- **Profile application confirmed:** available, non-updating Profile feedback
+  reports **Vintage 02**, source **Look.Name**, matching the selected photo and
+  context. Native helper counters remain **0 execution timeouts, 0 queue
+  expirations, 0 restarts**. Do not describe Profile as still unconfirmed for this
+  operation; its earlier Updating report was not present in these collected
+  responses. This read-only observation does not establish source UI acceptance.
+- **Curve feedback is demonstrably stale:** the API returns available Linear
+  curves (Blue `[0,0,255,255]`), revision 36, with a timestamp **372 ms before
+  preset submission / 746 ms before completion**. Five subsequent samples over
+  eight seconds retain that exact timestamp/revision while the plug-in heartbeat
+  advances and photo/context/Develop counter remain stable. A stale `available`
+  flag is not current-photo post-preset confirmation. Do not report that Lightroom
+  retained/reapplied Linear or that the preset failed to change its native curve.
+- Actual post-preset SDK Curve arrays remain missing. Production routes expose
+  only validated snapshots; there is no supported production route returning a
+  rejected raw curve. The inspected Deep Blue definition and focused Lua fixture
+  explain how its input-2 Blue endpoint can prevent validated feedback, but the
+  current native array has not been read independently. Smallest remaining
+  evidence is a read-only current-photo Curve check, without reapplying the preset
+  or Reset Photo. Keep this missing native evidence separate from the confirmed
+  Profile and SDK completion.
+- Fresh raw state, settling samples, counters and matching operation evidence are
+  preserved through `local-checkpoints/deep-blue-feedback-current.txt`.
+  Packaged/source ToneCurve.lua and DevelopPresets.lua hashes match. Existing
+  bounded browser recovery/regression remains uncommitted and unchanged during
+  this collection; no repeated tests, application changes, package or publication.
+
+## October 3 Deep Blue preset — focused feedback recovery, native comparison pending
+
+- Investigated only **Film-Inspired — Deep Blue**. Running baseline is private
+  package **20261003T035356Z**, checkpoint `fc9a781`; no app switch, plug-in
+  reload, automated photo edit, commit or new package. Existing candidates,
+  settings, stash, unrelated work and accepted feature results remain preserved.
+- Preserved production worker logs show three Deep Blue command receipts. The
+  user's reported **Preset applied** means the SDK application completed and
+  covered Develop-settings change was observed; it does not confirm each Profile
+  or Curve field. The server retains only the latest application result, which
+  is now a different preset. A bounded read-only observation captured no new
+  Deep Blue application. Its actual per-field native outcome is **not yet
+  established**; do not infer failure or successful Profile/Curve application.
+- Inspected the installed Lightroom Deep Blue definition: Look **Vintage 02**,
+  linear RGB/Red/Green and Blue points starting at input **2**, output **34**.
+  Production Lua, server and Controller currently require Curve endpoints at
+  input 0/255. Executing the unchanged production Lua reader against this focused
+  fixture rejects the whole snapshot before name/Refine readback. This establishes
+  a specific feedback incompatibility if those values are returned by Lightroom;
+  it is not yet a captured native readback and does not explain all previously
+  documented intermittent Tone Curve feedback failures. No validator, curve
+  mathematics, SDK operation or Profile discovery redesign was made.
+- Browser-only source correction: on a matching successful preset completion,
+  make **one extra read per Profile/Curve source**, never retry the preset edit.
+  After **eight seconds from SDK completion**, missing fresh feedback shows
+  **Preset applied; Lightroom feedback is unavailable.** instead of endless
+  Updating. Retain same-photo/context last authoritative Profile label and Curve
+  drawing/name/Refine separately from editable authority; missing authority keeps
+  controls disabled. Existing operation errors and pending edits take precedence.
+  Valid later feedback clears each notice independently; actual photo/context
+  changes cancel the recovery, and older context/Develop feedback cannot confirm
+  it. A cached unchanged Profile revision is not counted as a new native read.
+- Focused regression `node tests/develop-preset-feedback-recovery.js` passes:
+  production Lua rejection of the actual definition's Blue array; deduplication,
+  one read/source, bounded deadline, retained display across tab changes, no
+  guessed values or edit retries, late valid feedback and context cancellation.
+  The isolated rendered baseline fails with **Preset applied.** still displayed
+  after the deadline; corrected isolated Chromium rendering passes. Node syntax
+  and whitespace checks pass. These are simulated/isolated results, not native
+  Lightroom acceptance. No unrelated suites repeated.
+- Source allowlist is `app/controller-develop-presets.js`,
+  `app/controller-tone-curve.js` (presentation hooks only), `app/controller.html`,
+  `tests/develop-preset-feedback-recovery.js` and this handoff. Recovery archive
+  uploaded/read back before changes; preserved evidence is located through
+  `local-checkpoints/deep-blue-feedback-current.txt`. Native comparison still
+  needs one disposable-photo Deep Blue application, unchanged afterward, with
+  Lightroom Profile and Blue Curve values compared to the same operation's
+  returned feedback. No automatic Reset Photo. Source UI testing requires a
+  source-app switch and browser refresh; Lua/helpers are unchanged, so this
+  correction itself requires no plug-in reload. Report evidence before packaging.
+  All prior release gates and accepted/deferred limitations remain intact.
+
+## October 3 Dust naming beta ready — 20261003T035356Z
+
+- **Scoped local checkpoint:** `fc9a78187b290b285d5bf0420b8897682075b7d4`
+  (`fc9a781`, Rename Dust helper preset group with safe legacy migration), parent
+  `f4e2325`. Exactly 13 naming/documentation/test files allowlisted, staged and
+  cached-diff reviewed. Both XMPs change only Group metadata to
+  **LRBridge Dust Helper — Do not use manually**. Individual names, UUIDs,
+  settings/payloads and Dust command/feedback behavior remain unchanged.
+- **Fresh sanitized private beta `20261003T035356Z`**, built from its isolated
+  committed export, ready for the package switch:
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261003T035356Z\LRBridge.exe`
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261003T035356Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - Matching production plug-in: `D:\Projects\LRBridge\dist\private-test-20261003T035356Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261003T035356Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `46029f348215711f48c90b050423443c57425777d1e600eaca829d205a91569a`.
+- **Passed:** focused Dust naming/migration regression; six simulated Dust
+  HTTP/queue/SDK cases covering current, TEST and Dust Helpers definitions;
+  Node/PowerShell and production Lua syntax; release preparation/cleanup;
+  checkpoint/assets/public defaults/private exclusions; all 141 manifest files,
+  69 runtime inputs, 33 Controller assets and 41 Lua modules. Direct ZIP reads
+  verify the exact group, original UUIDs and manifest hashes. The actual packaged
+  installer migrates disposable copies of this machine's installed TEST presets
+  and the baseline Dust Helpers presets, then runs again idempotently: two XMPs,
+  correct separate backups, no duplicate presets. Real installed files untouched.
+- All **68 other runtime inputs, 40 other production plug-in files and both
+  native helpers** are byte-identical to 20261003T031848Z. Only Help and the two
+  strict Dust digest validators change among runtime/plug-in files. Accepted
+  Refine frozen source, two-second Transform guard and other controls preserved.
+  Two isolated packaged Node-mode start/stop cycles pass on ephemeral loopback
+  ports with settings and package manifest unchanged; no native helpers/edits
+  invoked. Reuse accepted native/helper and eight live HTTP/PowerShell results.
+- Baseline 20261003T031848Z ZIP hash remains
+  `2f9b79f48d5f19b4ebb35dc9db0c92592d257074b3fd9a328330a2d7737d2115`.
+  Running baseline PID 31876, Lightroom PID 31232, helper descendants and
+  production ports remain unchanged. Private settings, unrelated work, stash,
+  isolated worktrees, recordings, backups and all prior packages preserved;
+  index empty. Recovery archive uploaded/read back. No push, tag or publication.
+  Private evidence: local-checkpoints/dust-naming-release-current.txt.
+- **Installation:** quit LRBridge and Lightroom; preserve desired settings while
+  stopped. Run this package's **Install Dust Presets.cmd** and require both
+  Verified messages. Known old copies are backed up at the same filenames with
+  `.lrbridge-legacy.bak` or `.lrbridge-previous-group.bak`; do not manually import
+  duplicates. Reopen Lightroom, register/enable this matching production plug-in
+  instead of older/diagnostic copies and reload it once. Launch only the new EXE
+  and refresh the normal Controller. Confirm the new group contains the two
+  unchanged helper names. Do not use the helper presets manually.
+- New-label native installation remains a manual check; prior reported VM Dust
+  functionality remains accepted within its reported scope. Remaining package
+  gates stay intact: matching Lightroom connection/Profile feedback, normal
+  quit/restart and settings/favorites preservation, phone/tablet LAN and the
+  already-listed brief Refine/Reset, ordinary Add Point and Transform smoke
+  checks where still unreported. Do not infer additional Dust migration,
+  duplicate/manual-Healing coverage from the earlier VM pass. Refine Saturation
+  remains an accepted beta compromise; intermittent Tone Curve Awaiting feedback
+  has unknown cause, with no automatic photo reset. Auto Mask/Constrain Crop
+  performance deferred. macOS source URL unchanged; live verification still
+  pending source push. Retarget earlier release preparation before a future
+  authorized push/publication. This post-build result is saved after checkpoint.
+
 ## October 3 Dust preset group naming correction — reviewed checkpoint preparation
 
 - Checked actual candidate 20261003T031848Z ZIP entries before editing: both

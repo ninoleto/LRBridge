@@ -84,6 +84,107 @@
         return Number.isSafeInteger(amount) && amount >= 0 && amount <= 200 ? amount : null;
     }
 
+    // Presentation recovery after a completed SDK operation, never an edit retry.
+    function createFeedbackRecovery(options) {
+        const now = options.now || Date.now;
+        const schedule = options.setTimeout || setTimeout;
+        const unschedule = options.clearTimeout || clearTimeout;
+        const seen = new Set();
+        let current = null;
+        let refreshed = Promise.resolve();
+        function matches(entry) {
+            const context = options.getContext();
+            return entry && context && context.activeModule === "develop" &&
+                context.selectedPhotoUuid === entry.photo && context.contextCounter === entry.context;
+        }
+        function notify() { if (options.onChanged) options.onChanged(); }
+        function updateContext() {
+            if (current && !matches(current)) {
+                if (current.timer !== null) unschedule(current.timer);
+                current = null;
+                notify();
+            }
+        }
+        function observe(part, value, fromRefresh) {
+            updateContext();
+            if (!current || !Object.hasOwn(current.received, part)) return false;
+            const context = options.getContext();
+            if (part === "pointCurve" && options.validCurve(value) && value.selectedPhotoUuid === current.photo &&
+                value.contextCounter === current.context && !current.lastCurve) current.lastCurve = value;
+            const fresh = part === "profile"
+                ? options.validProfile(value) && value.available && !value.updating &&
+                    value.photoUuid === current.photo && value.photoKey === context.selectedPhotoKey &&
+                    value.contextCounter === current.context && value.revision > current.profileRevision
+                : options.validCurve(value) && value.selectedPhotoUuid === current.photo &&
+                    value.contextCounter === current.context && value.developCounter === context.developCounter &&
+                    value.updatedAt >= current.completedAt;
+            if (!fresh) return false;
+            if (!current.received[part]) {
+                current.received[part] = true;
+                if (options.onConfirmed) options.onConfirmed(part, value, fromRefresh === true);
+                if (current.received.profile && current.received.pointCurve && current.timer !== null) {
+                    unschedule(current.timer);
+                    current.timer = null;
+                }
+                notify();
+            }
+            return true;
+        }
+        function begin(operation) {
+            if (!operation || operation.operationKind !== "preset" || typeof operation.operationId !== "string" ||
+                !["SDK call completed and covered effect observed", "SDK call completed with no detectable change"].includes(operation.outcome) ||
+                !Number.isFinite(operation.completedAt) || operation.expectedActiveModule !== "develop" ||
+                operation.settledSelectedPhotoUuid !== operation.expectedSelectedPhotoUuid ||
+                operation.settledContextCounter !== operation.expectedContextCounter) return false;
+            const key = operation.expectedServerEpoch + ":" + operation.operationId;
+            const rememberedProfile = options.getLastProfile ? options.getLastProfile() : null;
+            const rememberedCurve = options.getLastCurve ? options.getLastCurve() : null;
+            const entry = { photo: operation.expectedSelectedPhotoUuid, context: operation.expectedContextCounter,
+                completedAt: operation.completedAt, profileRevision: options.getProfileRevision(),
+                lastProfile: rememberedProfile && rememberedProfile.available &&
+                    rememberedProfile.photoUuid === operation.expectedSelectedPhotoUuid &&
+                    rememberedProfile.contextCounter === operation.expectedContextCounter ? rememberedProfile : null,
+                lastCurve: options.validCurve(rememberedCurve) && rememberedCurve.selectedPhotoUuid === operation.expectedSelectedPhotoUuid &&
+                    rememberedCurve.contextCounter === operation.expectedContextCounter ? rememberedCurve : null,
+                received: { profile: false, pointCurve: false }, expired: false, timer: null };
+            if (seen.has(key) || !matches(entry)) return false;
+            seen.add(key);
+            if (current && current.timer !== null) unschedule(current.timer);
+            current = entry;
+            entry.timer = schedule(function () {
+                if (current !== entry) return;
+                entry.timer = null;
+                updateContext();
+                if (current === entry) { entry.expired = true; notify(); }
+            }, Math.max(0, operation.completedAt + 8000 - now()));
+            refreshed = Promise.all([
+                ["profile", "/api/develop-categorical/state"], ["pointCurve", "/api/tone-curve/state"]
+            ].map(async function ([part, path]) {
+                try {
+                    const response = await options.fetch(path, { cache: "no-store" });
+                    const data = await response.json();
+                    if (response.ok && current === entry) observe(part, data[part], true);
+                } catch (_) { /* The bounded notice describes missing readback; never repeat the edit. */ }
+            }));
+            notify();
+            return true;
+        }
+        return {
+            begin: begin, observe: observe, updateContext: updateContext,
+            lastAuthoritative: function (part) {
+                updateContext();
+                return current && (part === "profile" ? current.lastProfile : current.lastCurve);
+            },
+            whenRefreshed: function () { return refreshed; },
+            message: function (part) {
+                updateContext();
+                return current && current.expired && (part ? !current.received[part]
+                    : !current.received.profile || !current.received.pointCurve)
+                    ? "Preset applied; Lightroom feedback is unavailable." : null;
+            }
+        };
+    }
+
     function createController(options) {
         const document = options.document;
         const fetchRequest = options.fetch;
@@ -145,6 +246,7 @@
         let saveInFlight = false;
         let configuredListRendered = false;
         let pendingPresetStatusOperationId = null;
+        let notifiedApplicationId = null;
 
         function currentContext() {
             const value = typeof getContext === "function" ? getContext() : null;
@@ -939,7 +1041,7 @@
                 compactStatus.textContent = state.lastApplication.outcome === "failed" ||
                     state.lastApplication.outcome === "stale/rejected"
                     ? "Could not apply the preset. Please try again."
-                    : "Preset applied.";
+                    : (typeof options.getFeedbackMessage === "function" && options.getFeedbackMessage()) || "Preset applied.";
                 if (pendingPresetStatusOperationId &&
                     state.lastApplication.operationId === pendingPresetStatusOperationId) {
                     setStatus(compactStatus.textContent);
@@ -1236,6 +1338,12 @@
             acceptedStateRevision = Math.max(acceptedStateRevision, nextState.stateRevision);
             acceptedStateRequestGeneration = Math.max(acceptedStateRequestGeneration, requestGeneration);
             state = nextState;
+            const completed = state.lastApplication;
+            if (completed && completed.outcome && completed.operationId !== notifiedApplicationId &&
+                typeof options.onApplicationCompleted === "function") {
+                notifiedApplicationId = completed.operationId;
+                options.onApplicationCompleted(completed);
+            }
             if (state.inventoryStatus === "ready") inventoryRefreshError = null;
             else if (state.inventoryStatus === "error" && state.inventoryError) {
                 inventoryRefreshError = state.inventoryError;
@@ -1743,6 +1851,7 @@
             deactivate: deactivate,
             updateContext: updateContext,
             refresh: refreshState,
+            updateFeedbackPresentation: renderCompact,
             getState: function () { return state; },
             getDraft: function () { return createDraft(draft); },
             getAmountState: function () {
@@ -1761,6 +1870,7 @@
 
     return {
         createController: createController,
+        createFeedbackRecovery: createFeedbackRecovery,
         displayLabel: displayLabel,
         inventoryLabel: inventoryLabel,
         primaryLabel: primaryLabel,
