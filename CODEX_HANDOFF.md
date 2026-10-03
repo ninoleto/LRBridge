@@ -1,5 +1,101 @@
 # LRBridge Codex Handoff
 
+## October 3 Manage Favorite Presets responsive layout — scoped package preparation
+
+- Layout-only Controller correction: existing compact manager breakpoint changes
+  from 980 to 1200 px; option headings use normal word wrapping. At tablet widths
+  preset information/alias precede two readable option cards, followed by Move Up,
+  Move Down and Remove. Existing phone stacking and 1280 px desktop layout remain
+  intact. Exactly two CSS hunks; markup, wording, JavaScript, preset logic, saved
+  settings, touch controls and other sections are unchanged.
+- Isolated rendered Chromium checks pass at 390, 768, 820, 1024 and 1280 px with
+  two realistic preset rows: correct order, readable whole-word headings/helper
+  text, preserved touch targets, no horizontal overflow and unchanged 1280 px
+  geometry. Syntax/whitespace checks pass. No preset or slider suites, settings
+  saves, Lightroom commands or production setup changes. These are layout checks,
+  not additional native feature acceptance.
+- User authorizes checkpoint/package after those checks. Explicit allowlist is
+  app/controller.html and this handoff; all unrelated edits/settings/stash and
+  evidence remain preserved. Fresh full-project recovery backup uploaded and
+  independently read back. Private evidence:
+  local-checkpoints/preset-layout-release-current.txt.
+- Preserve candidate 20261003T024629Z unchanged as the comparison baseline. Build
+  from a new isolated committed export with public defaults/production assets and
+  the existing distribution exclusions. Verify all other runtime files, plug-in
+  and helpers against that candidate; reuse unchanged feature results.
+- Existing macOS Help URL is unchanged. Live GitHub verification remains pending
+  the authorized source push. Prior local publication preparation must target the
+  new checkpoint/package after completion; nothing has been pushed or published.
+  Retain all known limitations, accepted results, remaining manual package checks
+  and Auto Mask/Constrain Crop deferrals without reopening them.
+
+## October 3 final Windows beta candidate ready — 20261003T024629Z
+
+- **Reviewed local checkpoint:** `42032280028a21c6a1e5243a09099d531058bdae`
+  (`4203228`, Finalize accepted beta navigation and Calibration grouping), parent
+  `fbfaa9f`. Exactly six allowed files staged and cached-diff reviewed: Controller,
+  matching section/menu assertions, README, Windows beta/review notes and handoff.
+  User accepts final Calibration headings/dividers and Tools columns, narrow
+  black-first order and exact shared Presets-blue styling. Development scope frozen.
+- **Fresh private build: `20261003T024629Z`**, from an isolated committed Git
+  export through unchanged sanitized packaging. Paths:
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261003T024629Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261003T024629Z\LRBridge.exe`
+  - Production plug-in: `D:\Projects\LRBridge\dist\private-test-20261003T024629Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261003T024629Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `9178b82dca63aaa71e8965ff02e6ed6ab4d46f7deb906a9bbe823b5a688fbd24`.
+- **Completed automated checks:** focused section/menu model and all four new
+  shortcut activations; inline/test syntax and whitespace; sanitized release
+  preparation/cleanup, production Lua syntax and disposable Dust installer
+  fixtures; all 69 runtime inputs, 33 Controller assets, 41 Lua modules, helpers,
+  Dust presets/installer and 141 manifest files match the checkpoint. Public
+  defaults/empty preset configuration, portable relative documentation links and
+  exclusion of diagnostics/private files/credentials/tests/backups pass. Accepted
+  desktop 1280 and narrow 390/320 layout/appearance evidence reused unchanged.
+- All **68 other runtime files**, 42 external production plug-in files and both
+  native helpers are identical to `20261003T012920Z`; Refine matches frozen
+  accepted source and the two-second Transform guard is retained. Reuse completed
+  feature/native/helper lifecycle checks and eight live HTTP/PowerShell results;
+  no broad suite, Lightroom edits, helper probe or new capture. Reported Dust VM
+  pass remains accepted, without inventing migration/duplicate/manual-Healing
+  coverage. Auto Mask/Constrain Crop performance remains deferred.
+- Two exact packaged Electron **isolated Node-mode** start/stop/restart cycles
+  pass on ephemeral loopback ports with settings preserved. Package manifest is
+  unchanged afterwards. This does not establish desktop/tray/native acceptance.
+  Running source Electron PID 33148, shared helper PID 35680, Lightroom PID 31232
+  and production ports 17890–17892 remain unchanged. No production package launched.
+- Recovery backup uploaded and independently read back before changes. Private
+  evidence: `local-checkpoints/final-beta-current.txt`. Unrelated root files,
+  private settings, stash `76bd3118f786b886a30dd81ce3b591f4e14f49fe`, isolated
+  experimental worktree, frozen source/recordings and existing ZIPs remain intact.
+  Fallback checkpoint `689c505` / package `20261002T224000Z` and previous candidate
+  `20261003T012920Z` are unchanged. Index empty; this final package-result entry
+  is saved after the checkpoint and is not part of the package/source push.
+- **Remaining manual package checks:** Lightroom connection/current Profile
+  inventory/selection feedback; normal desktop quit/restart with settings,
+  favorites and reconnection; phone/tablet LAN; a brief normal/Masking Refine
+  movement and Reset, ordinary Add Point, and two-second Transform guard smoke.
+  Latest accepted Refine capture covers 18 complete drags/five blocked touches,
+  an incomplete startup fragment and no native Reset. No repeat long capture.
+  Tone Curve intermittent awaiting feedback remains unresolved/cause unknown;
+  Refine is accepted as a beta compromise. No automatic photo resets.
+- **Switch when ready:** Quit the running source LRBridge first. With both apps
+  stopped, copy desired existing settings/preset configuration into the new
+  package's config folder; keep browser/profile/controller address for favorites.
+  Launch only the new EXE. In Lightroom Plug-in Manager disable the old source or
+  diagnostic registration and enable the matching production folder above; reload
+  that registration once. Keep only one polling worker. Do not use a finished
+  trace page; use the normal Web Controller at `http://127.0.0.1:17892`.
+- **Publication prepared locally, not performed:** private task contains
+  `github-beta-release-notes.md`, `PUBLICATION_PLAN.md`, `publication-ready.json`
+  and guarded `verify-published-docs.cjs`. Prepared source push is the exact
+  checkpoint to the existing feature branch, including 29 commits beyond actual
+  remote `127fe4c9`; macOS guide and developer Help/API docs are included. All 116
+  checked tracked document destinations resolve locally. Proposed prerelease tag
+  `v0.6.0-beta.1` is not created. Live GitHub links must be verified after a later
+  authorized push; do not mark them passed now. No automated packaging blocker;
+  final manual package sign-off and authorized source push/publication remain.
+
 ## October 3 final Windows beta preparation — accepted UI follow-ups
 
 - User accepts Calibration's four headings/dividers and the Tools Jump menu's
