@@ -5,8 +5,9 @@ local Files = import "LrFileUtils"
 local MD5 = import "LrMD5"
 local Preset = {}
 Preset.digest = "ca1e4c9e0e49724b8fd9167c496026ba"
--- Same preset identity/settings, with only the group renamed to LRBridge Dust Helpers.
+-- Known group-only names preserve the inspected preset identity and settings.
 Preset.renamedDigest = "dec42dfb8c93e593e8582c377a25bef8"
+Preset.helperDigest = "69a611513c55d731c77181a87d3ffe97"
 Preset.sourceUuid = "B7A5079E-65BC-400B-A41D-91579B06666D"
 
 function Preset.resolve()
@@ -33,7 +34,7 @@ function Preset.resolve()
     if #digest ~= 32 or string.find(digest, "[^%x]") then
         digest = string.gsub(digest, ".", function(c) return string.format("%02x", string.byte(c)) end)
     end
-    if string.lower(digest) ~= Preset.digest and string.lower(digest) ~= Preset.renamedDigest then
+    if string.lower(digest) ~= Preset.digest and string.lower(digest) ~= Preset.renamedDigest and string.lower(digest) ~= Preset.helperDigest then
         error("Dust On preset differs from the inspected definition.", 0)
     end
     local settings = found:getSetting()

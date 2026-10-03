@@ -65,7 +65,7 @@ try {
     for (const item of require("../resources/presets/manifest.json").files) {
         const file = path.join(target, item.name);
         const updated = fs.readFileSync(file, "utf8");
-        const legacy = updated.replace('<rdf:li xml:lang="x-default">LRBridge Dust Helpers</rdf:li>',
+        const legacy = updated.replace('<rdf:li xml:lang="x-default">' + require("../resources/presets/manifest.json").group + '</rdf:li>',
             '<rdf:li xml:lang="x-default">LRBridge TEST</rdf:li>');
         fs.writeFileSync(file, legacy);
         assert.equal(build.sha(file), item.legacySha256);

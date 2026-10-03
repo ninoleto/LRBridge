@@ -1,5 +1,98 @@
 # LRBridge Codex Handoff
 
+## October 3 Dust preset group naming correction — reviewed checkpoint preparation
+
+- Checked actual candidate 20261003T031848Z ZIP entries before editing: both
+  bundled presets use **LRBridge Dust Helpers**, with manifest-matching hashes.
+  Local installed CameraRaw presets instead use **LRBridge TEST** and match the
+  exact known legacy hashes. The old displayed name is therefore explained by
+  previously installed copies on this machine, not this package's XMP metadata.
+  No claim is made about an unseen VM/current Lightroom inventory cache.
+- User requests **LRBridge Dust Helper — Do not use manually**. Corrected only
+  XMP Group metadata, manifest hashes/sizes, strict known-digest compatibility,
+  safe naming migration and corresponding Help/setup wording/tests. Individual
+  LRBridge Dust On/Off names, XMP UUIDs, all preset settings/payload bytes and
+  command/feedback/preservation behavior remain unchanged. Replacing only Group
+  text reproduces the complete earlier files' hashes, proving the byte scope.
+- Both old names remain supported by their exact inspected hashes. Installer
+  migrates either known version at the same filenames, retaining original
+  `.lrbridge-legacy.bak` and separate `.lrbridge-previous-group.bak` backups.
+  Modified files and conflicting backups still fail before any set is written;
+  no duplicate XMP presets are introduced. No installed presets were changed.
+- Focused naming regression fails before and passes after: identities/settings,
+  current/legacy/intermediate checksum validation, fresh/idempotent install,
+  both group migrations, retained backups, no duplicates and corrupt/conflict
+  rejection. Six existing simulated HTTP/queue/SDK On/Off cases cover the three
+  known preset definitions; syntax/whitespace checks pass. No native edits or
+  repeated feature suite. Completed native results, including reported VM Dust
+  pass, remain accepted within their existing scope; the new name has no native
+  installation acceptance yet.
+- **Updated package required for the exact requested label**, then run its Dust
+  installer with Lightroom closed and reopen Lightroom. Reinstalling the current
+  package alone only migrates TEST to Dust Helpers. Its production plug-in does
+  not recognize the new metadata checksum; do not install the newly named files
+  while retaining that old validator. Future package must include both renamed
+  presets and matching production plug-in; enable/reload that copy once during
+  the package switch. No reload or app switch was performed now.
+- User authorizes the 13-file naming/documentation/test checkpoint and a fresh
+  private package from its committed export. Focused naming, all six known-digest
+  Dust HTTP/queue/SDK cases, Node/PowerShell syntax, release preparation/cleanup,
+  production Lua syntax and whitespace checks pass. No broad suite or photo edits.
+  Fresh recovery backup uploaded and independently read back before checkpointing.
+  Preserve baseline 20261003T031848Z, all older candidates, private settings,
+  unrelated work, stash, isolated worktrees and recordings. Build with public
+  defaults, matching production plug-in, corrected presets and migration installer;
+  exclude diagnostic/private/developer artifacts. No push or publication.
+  Private evidence: local-checkpoints/dust-naming-release-current.txt; earlier
+  metadata evidence: local-checkpoints/dust-naming-current.txt. Remaining package
+  gates, accepted Refine compromise/Tone Curve limitation and deferred performance
+  work remain intact. New-label native installation is still untested.
+
+## October 3 responsive preset package ready — 20261003T031848Z
+
+- **Scoped checkpoint:** `f4e2325c28e74105b0eaa17008b20da80c6fab13`
+  (`f4e2325`, Keep favorite preset options readable at tablet widths), parent
+  `4203228`. Explicit app/controller.html + handoff allowlist reviewed before
+  commit; production diff is exactly the 980→1200 px manager breakpoint and
+  normal option-heading word wrapping. No markup, wording, JavaScript, preset
+  logic, SDK/HTTP behavior, saved settings or other section changes.
+- **New sanitized private build `20261003T031848Z`:**
+  - EXE: `D:\Projects\LRBridge\dist\private-test-20261003T031848Z\LRBridge.exe`
+  - ZIP: `D:\Projects\LRBridge\dist\beta-20261003T031848Z\LRBridge-0.6.0-beta-win-x64-portable.zip`
+  - Production plug-in: `D:\Projects\LRBridge\dist\private-test-20261003T031848Z\lightroom\LRBridge.lrplugin`
+  - Dust installer: `D:\Projects\LRBridge\dist\private-test-20261003T031848Z\Install Dust Presets.cmd`
+  - ZIP SHA-256: `2f9b79f48d5f19b4ebb35dc9db0c92592d257074b3fd9a328330a2d7737d2115`.
+- Rendered layout checks and visual inspection pass at **390/768/820/1024/1280**
+  px: readable whole-word titles/help, information/alias above options and actions
+  at compact widths, existing phone stacking, preserved touch targets, no
+  horizontal overflow and identical 1280 px layout. Only isolated presentation
+  checks; no preset/slider suites or extra native acceptance claimed.
+- Built from an isolated committed export. Package content/defaults/exclusions,
+  all 141 manifest files, 69 runtime inputs, 33 Controller assets, 41 Lua modules,
+  Dust presets/installer and two isolated packaged Node-mode start/stop cycles
+  pass. Settings and manifest remain unchanged after those cycles. **All 68 other
+  runtime files, 42 production plug-in files and both helpers are byte-identical
+  to candidate 20261003T024629Z.** Reuse completed feature/native/helper checks.
+- Candidate 20261003T024629Z ZIP hash remains
+  `9178b82dca63aaa71e8965ff02e6ed6ab4d46f7deb906a9bbe823b5a688fbd24`.
+  Its running app PID 33940, helper PID 5528, Lightroom PID 31232 and production
+  ports remain unchanged. No automatic switch, helper probe or photo edit.
+  All unrelated work, settings, stash, isolated worktrees, accepted recordings,
+  backups and earlier candidates preserved. Index empty; this post-build entry
+  is saved after the checkpoint. Private evidence:
+  local-checkpoints/preset-layout-release-current.txt.
+- **macOS Help URL unchanged:**
+  `https://github.com/ninoleto/LRBridge/blob/feature/v0.6-more-sdk-and-web-controller/docs/MACOS_PORTING.md`.
+  Live verification remains pending the source push; do not mark it passed.
+  No push, tag or publication. The previous local beta publication preparation
+  is preserved; retarget its checkpoint/package before any later authorized push.
+- Quit the running baseline before launching the new EXE; preserve desired
+  configuration while stopped, use the same browser/origin for favorites and
+  refresh the normal Controller. The production plug-in/helpers are unchanged;
+  this CSS correction itself needs no Lightroom plug-in reload.
+  Remaining manual package checks and all accepted results/known limitations
+  stay as documented below. No extra feature retest or recording is requested.
+
 ## October 3 Manage Favorite Presets responsive layout — scoped package preparation
 
 - Layout-only Controller correction: existing compact manager breakpoint changes

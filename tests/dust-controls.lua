@@ -27,8 +27,8 @@ import = function(name)
     return originalImport(name)
 end
 (import "LrMD5").digest = function(value)
-    if value == "inspected-off" then return dustScenario == "renamed-group" and "050d98209fce4ca04a671708d5730cf5" or "6222ed7b14ec731f0d114e24d9bea1d4" end
-    if value == "inspected-on" then return dustScenario == "renamed-group" and "dec42dfb8c93e593e8582c377a25bef8" or "ca1e4c9e0e49724b8fd9167c496026ba" end
+    if value == "inspected-off" then return dustScenario == "helper-warning-group" and "016630864d1d1677e6cb37fdc5a88dea" or dustScenario == "renamed-group" and "050d98209fce4ca04a671708d5730cf5" or "6222ed7b14ec731f0d114e24d9bea1d4" end
+    if value == "inspected-on" then return dustScenario == "helper-warning-group" and "69a611513c55d731c77181a87d3ffe97" or dustScenario == "renamed-group" and "dec42dfb8c93e593e8582c377a25bef8" or "ca1e4c9e0e49724b8fd9167c496026ba" end
     return originalDigest(value)
 end
 App.activeCatalog = function() return catalog end

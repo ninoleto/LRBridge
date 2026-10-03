@@ -9,6 +9,7 @@ local Dust = {}
 local title = "$$$/CRaw/Filter/DustRemoval/FilterPanelTitle=Dust Removal"
 local offDigest = "6222ed7b14ec731f0d114e24d9bea1d4"
 local renamedOffDigest = "050d98209fce4ca04a671708d5730cf5"
+local helperOffDigest = "016630864d1d1677e6cb37fdc5a88dea"
 local seen = {}
 local diagnosticsEnabled = false
 -- Lightroom may omit getenv. Optional diagnostics must never block an edit.
@@ -89,7 +90,7 @@ local function offPreset()
     if not match then error("LRBridge Dust Off preset is missing.", 0) end
     local contents = (import "LrFileUtils").readFile(match:getFile())
     if type(contents) ~= "string" or #contents > 8192 or
-        (md5(contents) ~= offDigest and md5(contents) ~= renamedOffDigest) then
+        (md5(contents) ~= offDigest and md5(contents) ~= renamedOffDigest and md5(contents) ~= helperOffDigest) then
         error("Dust Off preset differs from the inspected definition.", 0)
     end
     local settings = match:getSetting()

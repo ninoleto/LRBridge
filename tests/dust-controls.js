@@ -5,7 +5,7 @@ const { runtime } = require("./masking-create");
 const commands = require("../server/commands"), context = require("../server/context");
 const { createBridge } = require("../server/bridge");
 const definition = require("../server/remove-state");
-const scenarios = ["success", "unknown-state", "already-target", "renamed-group", "missing-preset", "changed-preset", "duplicate-preset", "version", "pending-ai",
+const scenarios = ["success", "unknown-state", "already-target", "renamed-group", "helper-warning-group", "missing-preset", "changed-preset", "duplicate-preset", "version", "pending-ai",
     "gate-timeout", "gate-photo", "gate-edit", "gate-manual", "gate-mode", "gate-preset", "stale-filter", "wrong-identity",
     "sdk-error", "no-change", "other-edit", "other-ai", "manual", "mask", "preference", "after-photo", "queue-photo", "missing-proof",
     "ai-update-needed", "ai-update-locked", "ai-update-unavailable"];
@@ -74,7 +74,7 @@ async function run(name, direction) {
         }
         await get(path); await get(path, 409);
         const after = await get("/remove/state");
-        const success = ["success", "renamed-group", "already-target", "void-return", "delayed", "ai-settles", "ai-pending-after", "no-treatment"].includes(name) || !enabling && name === "ai-update-needed";
+        const success = ["success", "renamed-group", "helper-warning-group", "already-target", "void-return", "delayed", "ai-settles", "ai-pending-after", "no-treatment"].includes(name) || !enabling && name === "ai-update-needed";
         const notApplied = enabling && ["no-change", "no-dust-after-processing"].includes(name);
         const unknown = name === "unknown-state" || !enabling && !closing && name === "no-change" || enabling && ["still-processing", "ai-update-locked-after", "ai-update-unavailable-after", "editing-feedback-error", "editing-feedback-unknown", "editing-feedback-missing",
             "no-dust-missing-completion", "no-dust-missing-preservation", "no-dust-wrong-token"].includes(name);
