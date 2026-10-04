@@ -6087,6 +6087,24 @@
                 }
             });
 
+            // A visible Parametric graph needs all seven values even when its
+            // slider rows are outside the viewport. Keep unrelated rows filtered.
+            if (activeTab === "tone-curve" && toneCurveView === "parametric" &&
+                parametricCurveGraphElement && parametricCurveGraphElement.isConnected &&
+                !parametricCurveGraphElement.closest("[hidden]")) {
+                const graphRect = parametricCurveGraphElement.getBoundingClientRect();
+                if (graphRect.width > 0 && graphRect.height > 0 &&
+                    graphRect.bottom > 0 && graphRect.top < viewportHeight &&
+                    graphRect.right > 0 && graphRect.left < viewportWidth) {
+                    Object.values(LRBridgeToneCurve.PARAMETRIC_CURVE_FIELDS).forEach(function (slider) {
+                        const element = sliderFeedbackElements[slider];
+                        if (element && element.isConnected && !visibleSliders.includes(slider)) {
+                            visibleSliders.push(slider);
+                        }
+                    });
+                }
+            }
+
             return visibleSliders;
         }
 
