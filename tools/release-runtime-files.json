@@ -19,6 +19,7 @@
   "app/controller-red-eye.js",
   "app/controller-reflections.js",
   "app/controller-remove.js",
+  "app/controller-request-id.js",
   "app/controller-section-collapse.js",
   "app/controller-server-lifecycle.js",
   "app/controller-tone-curve.js",

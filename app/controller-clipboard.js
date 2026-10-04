@@ -1,7 +1,7 @@
 (function(root, factory) {
-    if (typeof module === "object" && module.exports) module.exports = factory();
-    else root.LRBridgeControllerClipboard = factory();
-})(typeof globalThis !== "undefined" ? globalThis : this, function() {
+    if (typeof module === "object" && module.exports) module.exports = factory(require("./controller-request-id"));
+    else root.LRBridgeControllerClipboard = factory(root.LRBridgeRequestId);
+})(typeof globalThis !== "undefined" ? globalThis : this, function(requestIds) {
     "use strict";
     const contextKey = s => s && JSON.stringify([s.activeModule, s.selectedPhotoUuid, s.contextCounter, s.developCounter, s.contextChangedAt]);
     function createController(options) {
@@ -9,6 +9,7 @@
         let buttons = {}, status = null, review = null, state = null, receivedAt = 0;
         let polling = false, transport = false, unresolved = null, localReview = false, timer = null, epoch = null, accepted = null;
         let message = "", reviewError = "", lastResultKey = null, section = null, readFailed = false;
+        let requestIdFailure = null;
         const unconfirmedMessage = "Lightroom has not confirmed this copy or paste. Check Lightroom before trying again. Nothing was retried automatically.";
         const retired = new Set();
         const busy = () => Boolean(transport || unresolved || state?.pendingOperation);
@@ -58,6 +59,7 @@
             return text;
         }
         function render() {
+            if (requestIdFailure && requestIdFailure.context !== contextKey(options.getContext())) requestIdFailure = null;
             if (!status) return;
             // Native disabled blurs a focused button in Chromium. Keep these persistent
             // toolbar buttons focusable; action() enforces the same guard for all input.
@@ -68,8 +70,8 @@
             setText(status, readFailed ? "Could not get an update from Lightroom. Check the connection before trying again." :
                 busy() ? "Waiting for Lightroom…" : localReview || state?.needsReview ?
                     (state?.lastResult?.outcome === "uncertain" ? resultMessage(state.lastResult) : unconfirmedMessage) +
-                        (reviewError ? " " + reviewError : "") : message);
-            status.classList.toggle("clipboard-paste-result", !readFailed && !busy() && !localReview && !state?.needsReview &&
+                        (reviewError ? " " + reviewError : "") : requestIdFailure ? requestIdFailure.detail : message);
+            status.classList.toggle("clipboard-paste-result", !requestIdFailure && !readFailed && !busy() && !localReview && !state?.needsReview &&
                 state?.lastResult?.command === "clipboard.paste" && state.lastResult.outcome === "success" &&
                 message === resultMessage(state.lastResult));
             review.hidden = !(localReview || state?.needsReview);
@@ -115,7 +117,14 @@
         }
         async function action(command) {
             if (!enabled(command)) return;
-            const requestId = (options.requestId || (() => globalThis.crypto.randomUUID()))();
+            let requestId;
+            requestIdFailure = null;
+            try { requestId = (options.requestId || requestIds.createRequestId)(); }
+            catch (_) {
+                requestIdFailure = { command, context: contextKey(options.getContext()),
+                    detail: "The command was not sent because this browser could not create a secure request ID. Reload the Web Controller and try again." };
+                render(); notify(); return;
+            }
             const params = new URLSearchParams({ command, requestId, serverEpoch: state.serverEpoch, stateRevision: state.revision,
                 selectionToken: state.selectionToken, activeModule: state.activeModule, selectedPhotoUuid: state.selectedPhotoUuid,
                 contextCounter: state.contextCounter, developCounter: state.developCounter, contextChangedAt: state.contextChangedAt });
@@ -174,6 +183,9 @@
             runAction: action, actionAvailable: enabled,
             getFeedback() {
                 const needsReview = Boolean(localReview || state?.needsReview);
+                if (requestIdFailure && !busy() && !needsReview && !readFailed) return {
+                    busy: false, needsReview: false, kind: "error", command: requestIdFailure.command,
+                    notice: "not sent", short: "Not sent", summary: "Command was not sent", detail: requestIdFailure.detail };
                 return { busy: busy(), needsReview, detail: status?.textContent || "",
                     kind: needsReview ? "review" : busy() ? "pending" : readFailed || state?.lastResult?.outcome === "stale" ? "error" : state?.lastResult?.outcome === "success" ? "sent" : "idle",
                     key: state?.lastResult?.operationId, command: state?.pendingOperation?.command || (!busy() || needsReview ? state?.lastResult?.command : undefined),

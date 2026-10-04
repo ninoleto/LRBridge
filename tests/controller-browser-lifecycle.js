@@ -244,6 +244,7 @@ function createMockControllerServer(options) {
         ,["/controller-people.js", "controller-people.js"]
         ,["/controller-red-eye.js", "controller-red-eye.js"]
         ,["/controller-export.js", "controller-export.js"]
+        ,["/controller-request-id.js", "controller-request-id.js"]
         ,["/controller-clipboard.js", "controller-clipboard.js"]
         ,["/controller-favorites.js", "controller-favorites.js"]
     ]);
@@ -282,7 +283,7 @@ function createMockControllerServer(options) {
         const staticName = staticFiles.get(parsed.pathname);
         if (staticName) {
             const body = fs.readFileSync(staticName === "controller.html" && options && options.controllerSource
-                ? options.controllerSource : path.join(appRoot, staticName));
+                ? options.controllerSource : path.join(options?.appRoot || appRoot, staticName));
             const contentType = path.extname(staticName) === ".html"
                 ? "text/html; charset=utf-8"
                 : "text/javascript; charset=utf-8";

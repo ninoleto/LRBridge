@@ -39,6 +39,7 @@ const controllerReflectionsPath = path.join(__dirname, "controller-reflections.j
 const controllerPeoplePath = path.join(__dirname, "controller-people.js");
 const controllerRedEyePath = path.join(__dirname, "controller-red-eye.js");
 const controllerExportPath = path.join(__dirname, "controller-export.js");
+const controllerRequestIdPath = path.join(__dirname, "controller-request-id.js");
 const controllerClipboardPath = path.join(__dirname, "controller-clipboard.js");
 const controllerFavoritesPath = path.join(__dirname, "controller-favorites.js");
 const controllerHelpPath = path.join(__dirname, "controller-help.html");
@@ -454,6 +455,10 @@ async function handleControllerRequest(request, response) {
 
     if (requestUrl.pathname === "/controller-people.js") {
         sendControllerResponse(response, 200, "application/javascript; charset=utf-8", fs.readFileSync(controllerPeoplePath, "utf8"));
+        return;
+    }
+    if (requestUrl.pathname === "/controller-request-id.js") {
+        sendControllerResponse(response, 200, "application/javascript; charset=utf-8", fs.readFileSync(controllerRequestIdPath, "utf8"));
         return;
     }
     if (requestUrl.pathname === "/controller-export.js") {

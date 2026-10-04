@@ -1,5 +1,34 @@
 # LRBridge Codex Handoff
 
+## October 4 accepted LAN HTTP hotfix — v0.6.0-beta.2
+
+- User reports successful testing of private build **20261004T163816Z** and
+  authorizes the scoped commit and beta.2 publication. Acceptance is limited to
+  the reported testing; no additional manual scenarios are inferred.
+- Fixes Export and Copy/Paste failing before dispatch on ordinary LAN HTTP when
+  `crypto.randomUUID()` is unavailable. The shared browser helper uses secure
+  `crypto.getRandomValues()` to preserve UUID v4 format and uniqueness. ID
+  generation failure reports that the command was not sent; no retries added.
+- Existing requestId overrides, selection/context guards, duplicate protection
+  and Lightroom confirmation remain unchanged. The production plug-in, native
+  helpers, server, accepted controls and deferred limitations are preserved.
+- Reuse completed focused helper and browser regressions, actual insecure LAN
+  browser checks, package-content checks and isolated startup/shutdown checks.
+  Synthetic HTTP receipts are separate from the user's manual acceptance.
+  Details and repeatable focused commands: [LAN HTTP request IDs](docs/LAN_HTTP_REQUEST_IDS.md).
+- Publish the complete accepted package as
+  **LRBridge-0.6.0-beta.2-win-x64-portable.zip**, with SHA-256
+  **dd3594620433321fbf386a71ff4f4ec7b6738c2e9059dca904333e54efb4a8b6**.
+  Runtime bytes are unchanged from the accepted private candidate; verify against
+  this source checkpoint before publication. No application rebuild is needed.
+- Beta.2 retains the complete accepted beta.1 description plus the approved
+  hotfix notice and current download details. Publish beta.2 as Latest while
+  identifying it as beta in its title and tag. Only after public download
+  verification, shorten beta.1's description to the approved historical notice.
+  Keep beta.1's tag/assets and previous packages intact. Main's homepage update
+  is README-only and must continue pointing to tagged v0.6 source, not main's
+  older application code.
+
 ## October 4 Deep Blue release checkpoint — native report and evidence limits
 
 - User reports that current Curve editing appears to work and authorizes a
