@@ -1,5 +1,32 @@
 # HTTP workflows for Windows v0.6
 
+Private beta.4 adds eight-position Point Color selection in the Web Controller.
+The existing Companion selection route is **mask-local**:
+`GET /masking/point-color/sample?selectedIndex=1` with the existing
+`selectedPhotoUuid`, `contextCounter`, `developCounter`, `contextChangedAt`,
+`serverEpoch`, `stateRevision` and `selectedMaskGroupId` binding fields. Positions
+are **1-based, 1–8**. The global equivalent added in beta.4 is
+`GET /point-color/sample?selectedIndex=1`, requiring `selectedPhotoUuid`,
+`contextCounter`, `developCounter`, `contextChangedAt` and `serverEpoch` from
+`GET /point-color/state`'s `context` object. Use it only when `contextOwned` is true
+and the requested position exists in `state.swatchCount`. No mask ID is used for
+global selection. The SDK call is `selectPointColorSwatch(index, false)` globally
+and `selectPointColorSwatch(index, true)` for a mask.
+
+Both routes admit queued selections. Confirm only from owned SDK state with
+`selectionTransient === false` and matching `selectedIndex`. Index zero during a
+transition is not a confirmed sample or an empty collection. Preserve the prior
+owned display while disabling edits. Global feedback carries photo, revision and
+server-epoch ownership, and the server rejects late results from another owner.
+The normal global value/range/picker routes retain their request formats.
+See [private beta.4 scope and native QA](BETA4_PRIVATE_QA.md).
+
+Private beta.3 adds opt-in [queued numeric nudges](NUMERIC_NUDGE.md) and
+[identified Reset completion](RESET_COMPLETION.md) for future Companion adoption.
+These POST APIs use port 17891 directly. Existing GET Reset and Web Controller
+requests remain compatible. Priority `/feedback/request?purpose=reset` can return
+a pre-Reset value while Reset is queued; it is not operation-correlated completion.
+
 Direct API: `http://127.0.0.1:17891`. Builder Copy path and Copy full URL use this direct API, without `/api`. The controller at port 17892 proxies paths with `/api` prepended. For example, `http://127.0.0.1:17891/set?slider=Exposure&value=1.25` and `http://127.0.0.1:17892/api/set?slider=Exposure&value=1.25` reach the same handler. Never combine port 17891 with `/api`.
 
 HTTP admission means queued, not confirmed Lightroom execution. Check subsequent authoritative state or the workflow's matching result. A `queued` response does not prove that Lightroom applied the edit, and a later context change can invalidate pending work. Do not automatically retry a mutation after a timeout or uncertain response.
@@ -70,3 +97,9 @@ The inventory identifies these as workflows, not copy-ready URLs. The Builder do
 - Lens Blur: main sliders and Bokeh/Apply have ordinary routes; Focus Range requires its expected prior value/commit readback. Subject/Point/refinement actions use the accepted Windows helper. Explicit Visualize Depth requires current photo/context and Windows state before its SDK toggle. These are not interchangeable with blind toggles.
 
 The generated inventory lists actual registered methods/paths and their source file. Internal plug-in claims, validation, feedback and queue-consumption endpoints are identified separately; they are not controller actions. The current source modules remain authoritative for exact query/body schemas. The Builder never fabricates context tokens or strips required checks to make a URL reusable.
+
+## Private beta.4 guarded Set
+
+Optional POST /set checks a fresh expected SDK baseline and photo/context ownership
+at execution. Admission is not confirmation. See [Guarded Set and fine buttons](GUARDED_SET.md)
+for exact requests, receipts, ordering, retries and native verification limits.

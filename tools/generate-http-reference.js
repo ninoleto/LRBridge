@@ -12,7 +12,9 @@ const internal = new Set(["/context/update", "/tone-curve/feedback", "/develop-p
     "/develop-presets/inventory/complete", "/develop-presets/inventory/fail", "/remove/selection-native",
     "/remove/selection-refinement-native", "/remove/selection-validate", "/remove/selection-guard"]);
 const reads = new Set(["/color-grading", "/get", "/last-result", "/feedback/all", "/feedback/value", "/masking/presets"]);
-function kind(p) {
+function kind(p, method) {
+    if (p === "/nudge/result" || p === "/reset/result" || p === "/set/result") return "read";
+    if (["/reset", "/set"].includes(p) && method === "POST") return "workflow";
     if (["/diagnostics/masking-deletion-browser", "/diagnostics/masking-preset-trace"].includes(p)) return "internal";
     if (internal.has(p) || /(?:\/next|\/result|[-/]result|\/claim|\/validate|\/validation|\/profile-feedback|\/profile-validation)$/.test(p) && p !== "/last-result") return "internal";
     if (["/wake-lightroom", "/lens-blur/depth-visualization/toggle"].includes(p)) return "deprecated";
@@ -26,7 +28,7 @@ for (const file of files) {
     for (const match of source.matchAll(/app\.(get|post)\(\s*["']([^"']+)["']\s*,/g)) {
         const route = match[2], prefix = route.split("/")[1];
         operations.push({ method: match[1].toUpperCase(), path: route, group: labels[prefix] || "Core / " + (prefix || "status"),
-            kind: kind(route), source: "server/" + file, line: source.slice(0, match.index).split("\n").length });
+            kind: kind(route, match[1].toUpperCase()), source: "server/" + file, line: source.slice(0, match.index).split("\n").length });
     }
     // Expand the existing string-enum route family instead of indexing its incomplete prefix.
     for (const match of source.matchAll(/(\[[^\]\n]+\])\.forEach\(function \((\w+)\) \{\s*app\.(get|post)\(["']([^"']+)["'] \+ \2,/g)) {

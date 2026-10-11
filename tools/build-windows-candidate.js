@@ -4,7 +4,7 @@ const fs = require("node:fs"), path = require("node:path"), cp = require("node:c
 const root = path.resolve(__dirname, "..");
 const runtimeFiles = require("./release-runtime-files.json");
 const publicDocs = ["WINDOWS_BETA.md", "RELEASE_REVIEW.md", "RELEASE_CLEANUP.md", "LENS_BLUR_FOCUS_RANGE_STATE_AND_LIMITATIONS.md", "HTTP_WORKFLOWS.md", "HTTP_OPERATIONS.md", "COMPANION_HTTP_CHEATSHEET.md",
-    "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md"];
+    "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md", "NUMERIC_NUDGE.md", "RESET_COMPLETION.md", "BETA4_PRIVATE_QA.md", "PUBLIC_RELEASE_BLOCKERS.md", "GUARDED_SET.md"];
 const defaults = "poll_interval_ms=100\n";
 function distributionReadme(source) {
     // Developer guides link to source/tests that are deliberately not distributed.
@@ -40,7 +40,7 @@ function stageProject(stage) {
     }
     const allow = new Set([...runtimeFiles,
         "package.json", "package-lock.json", "electron-builder.yml", "bridge.js", "build/icon.ico", "config/sliders.json",
-        "README.md", "llms.txt", "Install Dust Presets.cmd", "tools/install-runtime-presets.ps1",
+        "README.md", "llms.txt", "Install Dust Presets.cmd", "tools/install-runtime-presets.ps1", "tools/test-numeric-nudge.ps1", "tools/test-reset-completion.ps1",
         ...publicDocs.map(n => "docs/"+n), ...["manifest.json", "LRBridge Dust On.xmp", "LRBridge Dust Off.xmp"].map(n => "resources/presets/"+n)]);
     const luaRoot = "lightroom/LRBridge.lrplugin/";
     const queue = ["Info", "PluginInit", "PluginShutdown", "Help"], seen = new Set();
@@ -94,7 +94,8 @@ async function main() {
         "-c.electronVersion="+require("../node_modules/electron/package.json").version,"-c.directories.output="+path.join(output,"package"),"-c.electronDist="+path.join(root,"node_modules/electron/dist")],{env:{...process.env,CSC_IDENTITY_AUTO_DISCOVERY:"false"}});
     const folder=path.join(output,"package/win-unpacked"),manifest=inspectCandidate(folder);
     const version=JSON.parse(fs.readFileSync(path.join(root,"package.json"))).version;
-    const zip=path.join(output,"LRBridge-"+version+"-beta-win-x64-portable.zip");
+    const artifactVersion=version.includes("-") ? version : version+"-beta";
+    const zip=path.join(output,"LRBridge-"+artifactVersion+"-win-x64-portable.zip");
     // Paths are data, not interpolated shell expressions.
     run("powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",path.join(root,"tools/package-windows-zip.ps1"),"-Source",folder,"-ZipPath",zip]);
     run("powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",path.join(root,"tools/verify-windows-zip.ps1"),"-ZipPath",zip]);

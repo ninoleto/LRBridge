@@ -21,6 +21,7 @@ const historyBrowser = require("./controller-history-browser");
 const maskCreateBrowser = require("./controller-mask-create-browser");
 const removeBrowser = require("./controller-remove-browser");
 const sourceCorrectionsBrowser = require("./controller-source-corrections-browser");
+const pointColorSwatchesBrowser = require("./point-color-swatches-browser");
 const resetFeedbackBrowser = require("./controller-reset-feedback-browser");
 const redEyeBrowser = require("./controller-red-eye-browser");
 const exportBrowser = require("./controller-export-browser");
@@ -220,6 +221,7 @@ function createMockControllerServer(options) {
     if (options && options.maskCreateOnly) maskCreateBrowser.install(grainFixture);
     if (grainFixture) removeBrowser.install(grainFixture);
     if (options && options.sourceCorrectionsOnly) sourceCorrectionsBrowser.install(grainFixture, fixtureCategoricalState());
+    if (options && options.pointColorOnly) pointColorSwatchesBrowser.install(grainFixture);
     if (grainFixture) redEyeBrowser.install(grainFixture);
     if (grainFixture) exportBrowser.install(grainFixture);
     if (options && options.clipboardOnly) clipboardBrowser.install(grainFixture);
@@ -1800,7 +1802,7 @@ async function runLifecycleTest(cdp, controllerUrl, mock, options) {
         if (grainOnly) {
             await cdp.send("Page.bringToFront");
             await waitFor(function () { return evaluate("document.hasFocus()"); }, "isolated Grain page focus");
-            const grain = await (options.resetFeedbackOnly ? resetFeedbackBrowser : options.sourceCorrectionsOnly ? sourceCorrectionsBrowser : options.favoritesOnly ? favoritesBrowser : options.clipboardOnly ? clipboardBrowser : options.exportOnly ? exportBrowser : options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
+            const grain = await (options.pointColorOnly ? pointColorSwatchesBrowser : options.resetFeedbackOnly ? resetFeedbackBrowser : options.sourceCorrectionsOnly ? sourceCorrectionsBrowser : options.favoritesOnly ? favoritesBrowser : options.clipboardOnly ? clipboardBrowser : options.exportOnly ? exportBrowser : options.redEyeOnly ? redEyeBrowser : options.removeOnly ? removeBrowser : options.historyOnly ? historyBrowser : options.maskCreateOnly ? maskCreateBrowser : maskingGrainBrowser).verify({ evaluate, waitFor, selectTab, fixture: mock.grainFixture,
                 reload: async function () {
                     await evaluate("window.__favoritesReloadMarker = true");
                     await cdp.send("Page.reload");
@@ -2180,13 +2182,14 @@ async function main() {
     const favoritesOnly = process.argv.includes("--favorites-only");
     const clipboardOnly = process.argv.includes("--clipboard-only") || favoritesOnly;
     const sourceCorrectionsOnly = process.argv.includes("--source-corrections-only");
+    const pointColorOnly = process.argv.includes("--point-color-only");
     const resetFeedbackOnly = process.argv.includes("--reset-feedback-only");
     const dustOnly = process.argv.includes("--dust-only");
     const selectedOnly = process.argv.includes("--selected-only");
     const removeOnly = process.argv.includes("--remove-only") || peopleOnly || dustOnly || selectedOnly;
-    const grainOnly = resetFeedbackOnly || sourceCorrectionsOnly || process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly || exportOnly || clipboardOnly;
+    const grainOnly = pointColorOnly || resetFeedbackOnly || sourceCorrectionsOnly || process.argv.includes("--grain-only") || historyOnly || maskCreateOnly || removeOnly || redEyeOnly || exportOnly || clipboardOnly;
     const resources = {
-        mock: createMockControllerServer({ resetFeedbackOnly, sourceCorrectionsOnly, grainOnly: grainOnly, historyOnly: historyOnly, maskCreateOnly: maskCreateOnly,
+        mock: createMockControllerServer({ pointColorOnly, resetFeedbackOnly, sourceCorrectionsOnly, grainOnly: grainOnly, historyOnly: historyOnly, maskCreateOnly: maskCreateOnly,
             deleteConfirmationOnly: deleteConfirmationOnly, removeOnly: removeOnly, redEyeOnly: redEyeOnly, exportOnly: exportOnly, clipboardOnly: clipboardOnly, favoritesOnly: favoritesOnly }),
         browser: null,
         browserProfileDirectory: null,
@@ -2215,6 +2218,7 @@ async function main() {
         summary = await runLifecycleTest(resources.pageCdp, controllerUrl, resources.mock, {
             resetFeedbackOnly,
             sourceCorrectionsOnly,
+            pointColorOnly,
             presetScrollOnly: presetScrollOnly,
             toneCurveLayoutOnly: toneCurveLayoutOnly,
             grainOnly: grainOnly,

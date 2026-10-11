@@ -143,6 +143,15 @@ const clipboardState = require("./clipboard-state").createClipboardState({ getCo
     enqueue: command => commands.tryEnqueueCommand(command).accepted,
     onChanged() { history.invalidate(); history.requestRefresh(); } });
 commands.setClipboardAdmissionProvider(clipboardState);
+const numericNudge = require("./numeric-nudge").createNumericNudge({ getContext: context.getContextFields,
+    enqueue: command => commands.tryEnqueueCommand(command) });
+commands.setNumericNudgeAdmissionProvider(numericNudge);
+const resetCompletion = require("./reset-completion").createResetCompletion({ getContext: context.getContextFields,
+    serverEpoch: numericNudge.capabilities().serverEpoch, enqueue: command => commands.tryEnqueueCommand(command) });
+commands.setResetCompletionAdmissionProvider(resetCompletion);
+const guardedSet = require("./guarded-set").createGuardedSet({ getContext: context.getContextFields,
+    serverEpoch: numericNudge.capabilities().serverEpoch, enqueue: command => commands.tryEnqueueCommand(command) });
+commands.setGuardedSetAdmissionProvider(guardedSet);
 
 function profileContextBinding(fields, previousDevelopCounter) {
     return {
@@ -158,8 +167,23 @@ function profileContextBinding(fields, previousDevelopCounter) {
 
 commands.setPointColorAdmissionContextProvider(function () {
     const current = pointColor.get();
-    return { selectedIndex: current.available ? current.selectedIndex : 0, contextCounter: context.getContextFields().contextCounter };
+    return { selectedIndex: current.available ? current.selectedIndex : 0, ...pointColorBinding() };
 });
+
+const POINT_COLOR_BINDING_FIELDS = ["selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt", "serverEpoch"];
+const pointColorServerEpoch = resetCompletion.capabilities().serverEpoch;
+let pointColorObservedBinding = null;
+function pointColorBinding() {
+    const fields = context.getContextFields();
+    return { selectedPhotoUuid: fields.selectedPhotoUuid, contextCounter: fields.contextCounter,
+        developCounter: fields.developCounter, contextChangedAt: fields.contextChangedAt,
+        serverEpoch: pointColorServerEpoch };
+}
+function pointColorBindingMatches(binding) {
+    const current = pointColorBinding();
+    return context.getContextFields().activeModule === "develop" && current.selectedPhotoUuid && binding &&
+        POINT_COLOR_BINDING_FIELDS.every(key => String(binding[key]) === String(current[key]));
+}
 commands.setDevelopPresetAdmissionProvider({
     matches: function (command, fields) {
         return command && command.command === "develop_preset.amount.set"
@@ -793,6 +817,7 @@ app.get("/help", function (req, res) {
         mode: "context-guarded-lightroom-control",
         sourceOfTruth: "Lightroom SDK feedback, with documented Windows native readback",
         operationInventory: require("./http-operations.json"),
+        capabilities: { numericNudge: "/nudge/capabilities", resetCompletion: "/reset/capabilities" },
         reliableEndpoints: {
             help: "/help",
             status: "/status",
@@ -1587,7 +1612,8 @@ app.get("/enhance/state", function (req, res) {
 app.get("/point-color/state", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
     pointColor.requestRefresh();
-    res.set("Cache-Control", "no-store").json({ ok: true, state: pointColor.get() });
+    res.set("Cache-Control", "no-store").json({ ok: true, state: pointColor.get(),
+        context: pointColorBinding(), contextOwned: !!pointColorBindingMatches(pointColorObservedBinding) });
 });
 
 app.get("/lens-blur/state", async function (req, res) {
@@ -1871,6 +1897,9 @@ require("./people-routes")(app, people, commands, exactQueryFields, parseStrictF
 require("./red-eye-routes")(app, redEye, commands, exactQueryFields, parseStrictFiniteNumber);
 require("./export-routes")(app, exportsState, commands, exactQueryFields, parseStrictFiniteNumber);
 require("./clipboard-routes")(app, clipboardState, commands, exactQueryFields, parseStrictFiniteNumber);
+require("./numeric-nudge-routes")(app, numericNudge);
+require("./reset-completion-routes")(app, resetCompletion);
+require("./guarded-set-routes")(app, guardedSet);
 
 app.get("/masking/state", function (req, res) {
     if (!exactQueryFields(req, [])) return res.status(400).json({ ok: false, error: "Invalid request" });
@@ -2805,7 +2834,7 @@ app.get("/history/result", function (req, res) {
 });
 app.get("/point-color/next", function (req, res) {
     if (Object.keys(req.query).length !== 0) return res.status(400).json({ ok: false, error: "Invalid request" });
-    res.json({ requested: pointColor.takeRequest() });
+    res.json({ requested: pointColor.takeRequest(), ...pointColorBinding() });
 });
 
 app.get("/point-color/result", function (req, res) {
@@ -2813,7 +2842,9 @@ app.get("/point-color/result", function (req, res) {
     const selectionTransient = req.query.selectionTransient === "true" ? true : req.query.selectionTransient === "false" ? false : null;
     const swatchCount = typeof req.query.swatchCount === "string" && /^\d+$/.test(req.query.swatchCount) ? Number(req.query.swatchCount) : null;
     const selectedIndex = typeof req.query.selectedIndex === "string" && /^\d+$/.test(req.query.selectedIndex) ? Number(req.query.selectedIndex) : null;
-    const allowed = new Set(["available", "swatchCount", "selectedIndex", "selectionTransient", "HueShift", "SatScale", "LumScale", "Variance", "RangeAmount"]);
+    const allowed = new Set(["available", "swatchCount", "selectedIndex", "selectionTransient", "HueShift", "SatScale", "LumScale", "Variance", "RangeAmount", ...POINT_COLOR_BINDING_FIELDS]);
+    const bound = POINT_COLOR_BINDING_FIELDS.some(key => req.query[key] !== undefined);
+    if (bound && !pointColorBindingMatches(req.query)) return res.status(409).json({ ok: false, error: "Point Color context changed" });
     for (const rangeName of pointColorDefinition.rangeNames) {
         allowed.add(pointColorDefinition.markerFields[rangeName]);
         for (const boundary of pointColorDefinition.boundaries) allowed.add(rangeName + "." + boundary);
@@ -2835,7 +2866,21 @@ app.get("/point-color/result", function (req, res) {
         }
     }
     if (!pointColor.update(input)) return res.status(400).json({ ok: false, error: "Invalid Point Color state" });
+    pointColorObservedBinding = bound ? pointColorBinding() : null;
     res.json({ ok: true });
+});
+
+app.get("/point-color/sample", function (req, res) {
+    if (!exactQueryFields(req, ["selectedIndex", ...POINT_COLOR_BINDING_FIELDS]) ||
+        typeof req.query.selectedIndex !== "string" || !/^[1-8]$/.test(req.query.selectedIndex)) return rejectInvalidCommand(res);
+    const current = pointColor.get(), selectedIndex = Number(req.query.selectedIndex);
+    if (!pointColorBindingMatches(req.query) || !pointColorBindingMatches(pointColorObservedBinding) ||
+        !current.available || current.selectionTransient || selectedIndex > current.swatchCount) {
+        return res.status(409).json({ ok: false, error: "Point Color sample or context is unavailable" });
+    }
+    const command = { command: "point_color.sample.select", selectedIndex };
+    for (const key of POINT_COLOR_BINDING_FIELDS) command["expected" + key[0].toUpperCase() + key.slice(1)] = pointColorBinding()[key];
+    queueOrReject(res, command, null, function () { pointColor.requestRefresh(Date.now(), true); });
 });
 
 app.get("/point-color/value", function (req, res) {
@@ -3936,6 +3981,8 @@ function start() {
             const failed = results.find(function (result) { return result.status === "rejected"; });
             if (failed) throw failed.reason;
             lifecycleState = "running";
+            resetCompletion.start();
+            guardedSet.start();
             return api;
         } catch (err) {
             await closeListeners();
@@ -3959,6 +4006,8 @@ function stop() {
             try { await startPromise; } catch (err) {}
         }
         lifecycleState = "stopping";
+        resetCompletion.stop();
+        guardedSet.stop();
         Array.from(feedbackSnapshotWaiters.keys()).forEach(function (id) {
             finishFeedbackSnapshotWaiters(id, "Bridge is stopping");
         });

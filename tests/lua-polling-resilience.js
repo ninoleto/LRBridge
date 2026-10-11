@@ -80,8 +80,8 @@ assert.equal(chain[chain.indexOf("npm run test:controller-shutdown") + 1], "npm 
 assert.equal(chain[chain.indexOf("npm run test:lua-polling") + 1], "npm run test:lua-selection", "selection source checks must follow polling resilience checks");
 assert.equal(packageJson.scripts["test:lua-polling"], "node tests/lua-polling-resilience.js");
 assert.equal(packageJson.scripts["test:lua-selection"], "node tests/lua-selection-dispatch.js");
-assert.equal(packageJson.version, "0.6.0", "Application version changed");
-assert.match(read("lightroom/LRBridge.lrplugin/Info.lua"), /VERSION = \{ major = 0, minor = 6, revision = 0 \}/, "Plug-in metadata must match the v0.6 candidate");
+assert.equal(packageJson.version, require("./contract-fixture.json").version, "Application version changed");
+assert.match(read("lightroom/LRBridge.lrplugin/Info.lua"), /VERSION = \{ major = 0, minor = 6, revision = 0, build = 4, display = "0\.6\.0-beta\.4 \(private QA\)" \}/, "Plug-in metadata must match the private beta.4 candidate");
 
 console.log("Lua polling resilience tests passed (source tests cannot prove Lightroom yield behavior; Lightroom runtime testing is still required).");
 require("./polling-lifecycle");

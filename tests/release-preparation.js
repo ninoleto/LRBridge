@@ -11,6 +11,14 @@ try {
         const item=inventory.operations.find(o=>o.path===p);
         assert.equal(item.kind,"workflow");
     }
+    assert.equal(inventory.operations.find(o=>o.path==="/reset" && o.method==="POST")?.kind,"workflow");
+    assert.equal(inventory.operations.find(o=>o.path==="/reset" && o.method==="GET")?.kind,"ordinary");
+    assert.equal(inventory.operations.find(o=>o.path==="/reset/result")?.kind,"read");
+    assert.equal(inventory.operations.find(o=>o.path==="/set" && o.method==="POST")?.kind,"workflow");
+    assert.equal(inventory.operations.find(o=>o.path==="/set" && o.method==="GET")?.kind,"ordinary");
+    assert.equal(inventory.operations.find(o=>o.path==="/set/result")?.kind,"read");
+    for(const p of ["/set/claim","/set/validate","/set/operation-result"]) assert.equal(inventory.operations.find(o=>o.path===p)?.kind,"internal");
+    for(const p of ["/reset/claim","/reset/validate","/reset/operation-result"]) assert.equal(inventory.operations.find(o=>o.path===p)?.kind,"internal");
     for(const file of fs.readdirSync(path.join(root,"server")).filter(n=>n.endsWith(".js"))) {
         const s=fs.readFileSync(path.join(root,"server",file),"utf8");
         for(const m of s.matchAll(/app\.(get|post)\(\s*["']([^"']+)["']\s*,/g)) assert(keys.includes(m[1].toUpperCase()+" "+m[2]),"unindexed route "+m[2]);
@@ -29,6 +37,7 @@ try {
     const stage=path.join(temp,"stage"); const result=build.stageProject(stage);
     assert(result.luaModules>25,"transitive runtime dependencies including dofile loops must be staged");
     for(const f of ["AutoStartPolling.lua","FeedbackPolling.lua","SettingsClipboard.lua","Export.lua","DustOnPreset.lua","DustPasteDiagnostics.lua","People.lua","Remove.lua"]) assert(fs.existsSync(path.join(stage,"lightroom/LRBridge.lrplugin",f)),"missing "+f);
+    for(const f of ["server/reset-completion.js","server/reset-completion-routes.js","lightroom/LRBridge.lrplugin/ResetCompletion.lua","docs/RESET_COMPLETION.md","tools/test-reset-completion.ps1"]) assert.equal(build.sha(path.join(stage,f)),build.sha(path.join(root,f)),"Reset package/source mismatch: "+f);
     const files=build.walk(stage);
     assert(!files.includes("docs/MACOS_PORTING.md"), "Source-only macOS guide must not expand the distribution documentation allowlist");
     assert(fs.readFileSync(path.join(root,"README.md"),"utf8").includes("[macOS porting guide](docs/MACOS_PORTING.md)"), "Source README retains the developer link");

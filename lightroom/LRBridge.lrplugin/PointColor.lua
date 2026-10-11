@@ -1,6 +1,8 @@
 local LrApplicationView = import "LrApplicationView"
 local LrDevelopController = import "LrDevelopController"
 local LrHttp = import "LrHttp"
+local LrApplication = import "LrApplication"
+local LrTasks = import "LrTasks"
 
 local PointColor = {}
 local fields = { HueShift = {-1, 1}, SatScale = {-1, 1}, LumScale = {-1, 1}, Variance = {-1, 1}, RangeAmount = {0, 1} }
@@ -277,7 +279,36 @@ function PointColor.translateContextRange(rangeName, lowerNone, lowerFull, upper
     return updateSwatch(completeSwatch, isForMasking)
 end
 
-local function postState(state)
+local bindingFields = { "selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt", "serverEpoch" }
+local function bindingFromJson(json)
+    if type(json) ~= "string" then return nil end
+    local binding = {}
+    for _, key in ipairs(bindingFields) do
+        local value
+        if key == "selectedPhotoUuid" or key == "serverEpoch" then
+            value = string.match(json, '"' .. key .. '"%s*:%s*"([%w:_%-]+)"')
+        else
+            value = tonumber(string.match(json, '"' .. key .. '"%s*:%s*(%d+)'))
+        end
+        if value == nil then return nil end
+        binding[key] = value
+    end
+    return binding
+end
+local function sameBinding(a, b)
+    if not a or not b then return false end
+    for _, key in ipairs(bindingFields) do if a[key] ~= b[key] then return false end end
+    return true
+end
+local function capturePhoto(binding)
+    if not binding or not inDevelop() then return nil end
+    local catalog = LrApplication.activeCatalog()
+    local photo = catalog and catalog:getTargetPhoto()
+    if not photo or photo:getRawMetadata("uuid") ~= binding.selectedPhotoUuid then return nil end
+    if catalog ~= LrApplication.activeCatalog() or catalog:getTargetPhoto() ~= photo or not inDevelop() then return nil end
+    return photo
+end
+local function postState(state, binding)
     local url = "http://127.0.0.1:17891/point-color/result?available=" .. tostring(state.available) .. "&swatchCount=" .. tostring(state.swatchCount) ..
         "&selectedIndex=" .. tostring(state.selectedIndex) .. "&selectionTransient=" .. tostring(state.selectionTransient)
     if state.available and state.selectedIndex > 0 then
@@ -286,6 +317,10 @@ local function postState(state)
             if state[markerFields[rangeName]] ~= nil then url = url .. "&" .. markerFields[rangeName] .. "=" .. tostring(state[markerFields[rangeName]]) end
             for _, boundary in ipairs(boundaries) do url = url .. "&" .. rangeName .. "." .. boundary .. "=" .. tostring(state[rangeName][boundary]) end
         end
+    end
+    for _, key in ipairs(bindingFields) do
+        local value = binding[key]
+        url = url .. "&" .. key .. "=" .. (type(value) == "number" and string.format("%.0f", value) or value)
     end
     LrHttp.get(url)
 end
@@ -305,11 +340,38 @@ function PointColor.translateRange(rangeName, lowerNone, lowerFull, upperFull, u
     return true
 end
 
-function PointColor.sendCurrentState()
-    local ok, state = pcall(function() return readState(false) end)
-    if not ok then return nil end
-    postState(state)
+function PointColor.sendCurrentState(bindingJson)
+    local lifecycle = _G.LRBridgePollingLifecycle
+    local binding = bindingFromJson(bindingJson or LrHttp.get("http://127.0.0.1:17891/point-color/state"))
+    local photo = capturePhoto(binding)
+    if not photo then return nil end
+    local ok, state = LrTasks.pcall(function() return readState(false) end)
+    if not ok or capturePhoto(binding) ~= photo or _G.LRBridgePollingLifecycle ~= lifecycle or
+        (lifecycle and lifecycle.stopping) then return nil end
+    -- The server rejects old photo/revision/epoch feedback even if HTTP yields.
+    postState(state, binding)
     return state
+end
+
+function PointColor.selectSample(command)
+    local lifecycle = _G.LRBridgePollingLifecycle
+    local expected = {}
+    for _, key in ipairs(bindingFields) do
+        expected[key] = command["expected" .. string.upper(string.sub(key, 1, 1)) .. string.sub(key, 2)]
+    end
+    local photo = capturePhoto(expected)
+    if not photo or not processVersionEligible() then return false end
+    local bindingJson = LrHttp.get("http://127.0.0.1:17891/point-color/state")
+    if not sameBinding(expected, bindingFromJson(bindingJson)) or capturePhoto(expected) ~= photo then return false end
+    local colors = LrDevelopController.getValue("PointColors")
+    local index = command.selectedIndex
+    if type(index) ~= "number" or index ~= math.floor(index) or index < 1 or index > 8 or
+        type(colors) ~= "table" or type(colors[index]) ~= "table" or capturePhoto(expected) ~= photo or
+        _G.LRBridgePollingLifecycle ~= lifecycle or (lifecycle and lifecycle.stopping) then return false end
+    LrDevelopController.selectPointColorSwatch(index, false)
+    -- Confirmation is a fresh SDK selection read, never the HTTP admission.
+    PointColor.sendCurrentState(bindingJson)
+    return true
 end
 
 function PointColor.selectTool()

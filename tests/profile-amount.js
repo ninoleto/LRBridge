@@ -76,7 +76,7 @@ const setSliderDriver = sourceBlock(driver, "function Driver.setSlider", "functi
 const resetSliderDriver = sourceBlock(driver, "function Driver.resetSlider", "local actionMap");
 const profileAmountResetDriver = sourceBlock(
     resetSliderDriver,
-    'if slider == "ProfileAmount" then',
+    'if slider == "ProfileAmount" and not guard then',
     "local developSlider = sliderMap[slider]"
 );
 assert.match(luaCommands,

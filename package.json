@@ -1,6 +1,6 @@
 {
   "name": "lrbridge",
-  "version": "0.6.0",
+  "version": "0.6.0-beta.4",
   "description": "Local HTTP bridge and Web Controller for controlling Adobe Lightroom Classic from Bitfocus Companion, Stream Deck, Loupedeck, PowerShell, curl, scripts, and other HTTP-capable tools.",
   "main": "app/main.js",
   "scripts": {
@@ -38,7 +38,7 @@
     "test:masking-preset-scroll": "node tests/controller-browser-lifecycle.js --masking-preset-scroll-only",
     "test:hdr-develop": "node tests/hdr-develop-settings.js",
     "test": "npm run test:masking && npm run test:point-color && npm run test:color-grading && npm run test:color-grading-transport && npm run test:profile && npm run test:profile-amount && npm run test:basic-categorical && npm run test:develop-categorical && npm run test:lens-blur && npm run test:section-collapse && npm run test:develop-presets && npm run test:contract && npm run test:sliders && npm run test:hdr-develop && npm run test:tone-curve && npm run test:point-curve && npm run test:lens-corrections && npm run test:desktop-tray && npm run test:desktop-renderer && npm run test:desktop-quit && npm run test:lifecycle && npm run test:input && npm run test:queue && npm run test:feedback-backlog && npm run test:diagnostics && npm run test:transport && npm run test:http-transport && npm run test:controller-proxy && npm run test:controller-feedback && npm run test:controller-color-grading && npm run test:controller-http && npm run test:http-builder && npm run test:controller-commands && npm run test:controller-shutdown && npm run test:lua-polling && npm run test:lua-selection && npm run test:polling-contract && npm run test:constrain-crop && npm run test:enhance",
-    "test:point-color": "node tests/point-color.js && node tests/point-color-controller-shared.js && node tests/mask-point-color-confirmation.js",
+    "test:point-color": "node tests/point-color.js && node tests/point-color-controller-shared.js && node tests/mask-point-color-confirmation.js && node tests/point-color-swatches.js",
     "test:constrain-crop": "node tests/constrain-crop.js",
     "test:lens-corrections": "node tests/controller-lens-corrections.js && node tests/lens-corrections-server.js",
     "test:enhance": "node tests/enhance-denoise.js",
@@ -78,7 +78,11 @@
     "pack:win": "node tools/build-windows-candidate.js",
     "dist:win": "node tools/build-windows-candidate.js",
     "generate:http-reference": "node tools/generate-http-reference.js",
-    "test:release": "node tools/run-release-checks.js"
+    "test:release": "node tools/run-release-checks.js",
+    "test:numeric-nudge": "node tests/numeric-nudge.js",
+    "test:reset-completion": "node tests/reset-completion.js",
+    "test:guarded-set": "node tests/guarded-set.js",
+    "test:quiet-queries": "node tests/quiet-background-queries.js"
   },
   "keywords": [
     "lightroom",

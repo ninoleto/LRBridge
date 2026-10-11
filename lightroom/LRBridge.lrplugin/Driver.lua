@@ -183,7 +183,7 @@ function Driver.adjustSlider(slider, amount)
 
 end
 
-function Driver.setSlider(slider, value, command)
+function Driver.setSlider(slider, value, command, resolveValue)
 
     local developSlider = slider == "CropConstrainToWarp" and "CropConstrainToWarp" or sliderMap[slider]
 
@@ -209,6 +209,8 @@ function Driver.setSlider(slider, value, command)
             return false
         end
         local setOk = LrTasks.pcall(function()
+            -- A relative operation reads its baseline only AFTER yielding SDK preparation.
+            if resolveValue then value = resolveValue(); if value == nil then error("Nudge guard rejected write") end end
             LrDevelopController.setValue(developSlider, value)
         end)
         local stopOk = LrTasks.pcall(function()
@@ -220,19 +222,20 @@ function Driver.setSlider(slider, value, command)
     if slider ~= "HDREditMode" then
         LrDevelopController.startTracking(developSlider)
     end
+    if resolveValue then value = resolveValue(); if value == nil then return false end end
     MaskingGrain.write(developSlider, command, function() LrDevelopController.setValue(developSlider, value) end)
 
     return true
 
 end
 
-function Driver.resetSlider(slider, command)
+function Driver.resetSlider(slider, command, guard)
 
     if slider == "HDREditMode" then
         return false
     end
 
-    if slider == "ProfileAmount" then
+    if slider == "ProfileAmount" and not guard then
         return Driver.setSlider(slider, 100)
     end
 
@@ -243,6 +246,20 @@ function Driver.resetSlider(slider, command)
     end
 
     if not prepareDevelopSlider(developSlider, command) then return false end
+
+    if guard then
+        -- Identified Reset owns this check after every yielding preparation step.
+        -- Profile Amount retains its existing absolute SDK reset, with the same
+        -- guarded completion/read path as every other identified slider Reset.
+        if slider == "ProfileAmount" and LrDevelopController.startTracking(developSlider) == false then return false end
+        if guard() ~= true then return false end
+        local result = MaskingGrain.write(developSlider, command, function()
+            if slider == "ProfileAmount" then return LrDevelopController.setValue(developSlider, 100) end
+            return LrDevelopController.resetToDefault(developSlider)
+        end)
+        -- SDK void returns are normal; an explicit false or thrown error fails.
+        return result ~= false
+    end
 
     MaskingGrain.write(developSlider, command, function() LrDevelopController.resetToDefault(developSlider) end)
 

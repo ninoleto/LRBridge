@@ -499,7 +499,12 @@ async function handleControllerRequest(request, response) {
     const publicReference = {
         "/reference/WINDOWS_BETA.md": "WINDOWS_BETA.md",
         "/reference/HTTP_WORKFLOWS.md": "HTTP_WORKFLOWS.md",
-        "/reference/HTTP_OPERATIONS.md": "HTTP_OPERATIONS.md"
+        "/reference/HTTP_OPERATIONS.md": "HTTP_OPERATIONS.md",
+        "/reference/NUMERIC_NUDGE.md": "NUMERIC_NUDGE.md",
+        "/reference/RESET_COMPLETION.md": "RESET_COMPLETION.md",
+        "/reference/BETA4_PRIVATE_QA.md": "BETA4_PRIVATE_QA.md",
+        "/reference/GUARDED_SET.md": "GUARDED_SET.md",
+        "/reference/PUBLIC_RELEASE_BLOCKERS.md": "PUBLIC_RELEASE_BLOCKERS.md"
     }[requestUrl.pathname];
     if (publicReference) {
         try {

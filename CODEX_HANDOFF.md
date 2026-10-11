@@ -1,5 +1,259 @@
 # LRBridge Codex Handoff
 
+## Source publication for Claude review — 2026-10-11
+
+This branch is **review/beta4-claude-source**, based on accepted commit
+**57cab790e8d4b8797ca3598e8f46a5a517b1a51b**. It publishes the final beta.4
+Windows/Web Controller/server/Lightroom source and tests for code inspection.
+It is not an official beta.4 release or a native acceptance checkpoint.
+No source functionality was changed to prepare this branch. Private settings,
+local handoff/logs, credentials, dependencies, checkpoints and binary packages
+are excluded; the base commit's public default settings are retained.
+
+See [the review guide](docs/BETA4_SOURCE_REVIEW.md) for scope, verification and
+known limitations. The separate Companion candidate is outside this repository
+publication. Older entries below describe development history; they do not
+authorize deployment, release, tags, merging or further pushes.
+
+## October 10 beta.4 guarded Set development — automated QA, native acceptance pending
+
+- This source is the NEW isolated copy at
+  `D:\Projects\LRBridge\local-checkpoints\beta4-guarded-set-20261010T161853Z\development`,
+  created from all 434 files of the verified `beta4-point-color-snapshot-20261010T160850Z`.
+  The first beta.4 source, snapshot, EXE, plug-in and ZIP remain protected and unchanged.
+- Optional **POST /set**, `/set/capabilities` and `/set/result` support Contrast,
+  Clarity and Vibrance. The serial worker's new GuardedSet uses the existing Driver
+  resolveValue hook after preparation, reads the actual SDK baseline and compares
+  it immediately before Set. Native photo/process/lifecycle and server context/
+  epoch ownership are checked around yields. Guarded batches are FIFO coalescing
+  boundaries, with one-use claims and bounded idempotent receipts. Applied means
+  successful SDK invocation, not authoritative feedback. See `docs/GUARDED_SET.md`.
+- Original GET Adjust/Set/Reset, Driver, command worker, Numeric Nudge and accepted
+  correlated Reset remain unchanged. No Fast Fine/TCP experimental source is used.
+- Separate Zorin candidate:
+  `/home/nino/companion-module-dev/lrbridge-beta4-guarded-set-20261010T161853Z`,
+  version `0.4.3-beta.4`, derives from the advanced swatch-equipped October 8 module.
+  One fine action and six down-only presets accumulate ±1 presses into absolute
+  targets. Existing feedback acquires/reconciles the SDK value. Native ordinary
+  rotaries dispatch /adjust immediately; advanced SDK adapters and Reset ownership
+  safeguards remain. Native Reset→immediate-input acceptance must be repeated.
+- Regression evidence: 534/534 focused Companion tests pass on Zorin, including
+  software dispatch timing with 0/8 fine presses. Windows tests cover actual
+  /next→Parser→Commands→Driver→receipt, ownership, baseline conflicts, capacity,
+  FIFO with Reset and compatibility. Full package/preservation records and exact
+  new artifact paths are in the parent `REPORT.md` and `package-verification.json`.
+- No installation, Lightroom edit, reload, service restart, Git mutation or
+  publication. This is a development record, not a native-accepted checkpoint.
+  Security blockers and six historical beta.2 failures remain separate.
+
+## October 10 beta.4 isolated development — Point Color built; Companion blocked
+
+- Development copy: `D:\Projects\LRBridge\local-checkpoints\beta4-20261010T152339Z\development`.
+  Copied from the accepted beta.3 worktree at HEAD `57cab790e8d4b8797ca3598e8f46a5a517b1a51b`,
+  including all uncommitted work. Runtime/plug-in bytes matched the native-tested
+  `private-beta3-nudge-parser-20261010T002929Z` reference. No experimental Fine source.
+- Version `0.6.0-beta.4`. Shared global/mask Point Color swatches 1–8 and teal SVG
+  picker implemented. Existing mask API reused; global `/point-color/sample` adds
+  photo/context/revision/epoch guards and owned SDK feedback. Existing polling reused.
+- Private EXE: `D:\Projects\LRBridge\dist\private-beta4-point-color-20261010T154713Z\LRBridge.exe`.
+  Matching plug-in is `lightroom\LRBridge.lrplugin` inside that directory.
+  This is a **Point Color-only candidate**, not completed beta.4 or native acceptance.
+- Zorin advanced source selected: `lrbridge-overnight-20261008-061007`; isolated copy
+  `/home/nino/companion-module-dev/lrbridge-beta4-20261010T152339Z`. All 188 original
+  files and the active fast-base link verified unchanged. No module build/restart.
+- Companion fine action/presets **not implemented**. Offline real-route/Parser/Driver
+  proof shows unguarded Set overwriting queued coarse/manual edits and another photo;
+  ordinary queue coalescing can replace a pending Reset. User decision pending on
+  an optional guarded `/set` prerequisite. Do not claim browser timers solve this.
+- Evidence and `ZORIN_HANDOFF.md` are in the task directory. Focused Point Color,
+  browser, Nudge, Reset, worker, queue and packaging checks pass. Six beta.2 failures
+  remain separate; contract failure reproduced unchanged on the accepted source.
+- No installation, live Lightroom requests, reload, restart, staging, commit,
+  push, tag or publication. Native QA requires permission. Accepted source, root
+  settings and prior packages unchanged; full backup uploaded and read-back verified.
+  Security/public-release blockers are separate in `docs/PUBLIC_RELEASE_BLOCKERS.md`.
+
+## October 7 private beta.3 Reset checkpoint — native accepted, package verified
+
+- Worktree: `D:\Projects\LRBridge\local-checkpoints\beta3-nudge-20261006T015847Z\worktree`,
+  branch **feature/beta3-numeric-nudge-20261006**, HEAD **57cab790e8d4b8797ca3598e8f46a5a517b1a51b**.
+  No upstream or staged files; equal to the local feature remote ref. Root remains
+  older **c6057a9**, with its unrelated changes/settings preserved. Existing stash intact.
+- Optional contract: **POST /reset** with request ID, server epoch, slider,
+  selected-photo UUID and navigation counter/timestamp; **GET /reset/capabilities**
+  and **GET /reset/result**. Legacy GET Reset/Web Controller remain compatible.
+  Each identified Reset is a FIFO coalescing boundary with a one-use claim and
+  bounded retained receipt. Capture is **Query.getDevelopValue(c.slider)** in
+  **ResetCompletion.lua**, after guarded Driver Reset succeeds, within the serial
+  worker before result publication/another edit. Independent priority feedback
+  can be PRE-RESET and never settles a receipt. Numeric Nudge/logging remain intact;
+  Companion integration is a subsequent task. API/examples: `docs/RESET_COMPLETION.md`.
+- User explicitly accepted native Reset testing: immediate SDK/Lightroom agreement
+  for **Exposure 0**, **Contrast 0**, **Vibrance 0**, **RAW Temperature 5150**,
+  **JPEG Temperature 0**, **artistic Profile Amount 100**, after non-default Sets.
+  Disabled Amount was unavailable without invocation/value. Live queued/repeated
+  Resets retained distinct results and retries were idempotent. Legacy/Web Controller
+  GET Reset executed; old epoch/photo/context admissions were rejected without enqueue.
+  Retained results keep their original owner. Mid-execution/result-delivery changes
+  and SDK error injection have automated coverage only. Acceptance covers tested cases;
+  no universal SDK completion barrier is claimed.
+- Verification: prior **20/20 focused** and **2/2 Reset browser** checks, plus
+  **7/7 focused** reruns after the native-discovered HTTP envelope parser fix.
+  Final **2/2 packaging preparation/cleanup** and **3/3 packaged EXE** checks pass.
+  The exact queued-Reset/priority-reader regression and serial Set→Reset→SDK read→
+  publish→next edit ordering pass. Reuse unrelated verification. The six reproduced
+  beta.2 failures remain separate; no clean full release gate is claimed.
+- Clean final candidate **20261006T235636Z**:
+  EXE `D:\Projects\LRBridge\dist\private-beta3-reset-20261006T235636Z\LRBridge.exe`;
+  plug-in `D:\Projects\LRBridge\dist\private-beta3-reset-20261006T235636Z\lightroom\LRBridge.lrplugin`;
+  ZIP `D:\Projects\LRBridge\dist\beta3-reset-20261006T235636Z\LRBridge-0.6.0-beta.3-win-x64-portable.zip`.
+  SHA-256 **2077a59ddd4f181a192535d171ca2161a65278b7541b9f77cd2bf71844bde314**.
+  Verified source/stage/manifests/ZIP/defaults/exclusions and prior-package preservation.
+  EXE, all **452 ASAR files** and **44 plug-in files** are byte-identical to native-
+  accepted **232340**; only the native acceptance API document differs. No new Lua
+  reload or native editing is required for this documentation package checkpoint.
+- Evidence/recovery: `local-checkpoints/beta3-reset-20261006T225053Z/`; final source
+  snapshot in `checkpoint-final-235636/`. Initial full disaster-recovery backup was
+  FTP-uploaded/readback-verified with credentials excluded. Both durable/local handoffs
+  are updated. **All changes remain uncommitted and unstaged; no push, tag or publication.**
+
+
+## October 7 private beta.3 — identified Reset candidate, native QA pending
+
+- Continue in **feature/beta3-numeric-nudge-20261006**, worktree
+  `D:\Projects\LRBridge\local-checkpoints\beta3-nudge-20261006T015847Z\worktree`.
+  HEAD remains **57cab790e8d4b8797ca3598e8f46a5a517b1a51b**, equal to the local
+  feature remote ref; this private branch has no upstream or staged files.
+  Root remains older **c6057a9**, with its existing unrelated work preserved.
+- Added optional `GET /reset/capabilities`, **`POST /reset`** and
+  `GET /reset/result` on port 17891. Legacy `GET /reset?slider=...` and Web
+  Controller requests are unchanged. The identified request binds request ID,
+  slider, epoch, UUID and navigation counter/timestamp. Results also preserve
+  operation ID and admitted/execution Develop revisions. Epoch/one-use claim/
+  validation/result follow Numeric Nudge's protocol with separate bounded Reset
+  receipts; Numeric Nudge and accepted quiet-query logging remain intact.
+- Identified Resets are FIFO coalescing boundaries. The serial worker calls
+  guarded `Driver.resetSlider`, then **`Query.getDevelopValue(c.slider)` in
+  `ResetCompletion.lua`**, before publishing/returning to another editing
+  command. SDK failure cannot gain success from a later read. Profile Amount
+  retains its absolute SDK Reset but uses the same actual SDK completion read.
+  No independent feedback queue, guessed defaults, calculated target or cache
+  supplies the value. Priority Reset feedback can still be PRE-RESET while a
+  Reset is queued; it must not settle an identified receipt.
+- Rechecks cover native photo/module/process/profile, navigation and epoch after
+  yielding preparation/read and before publication. A Develop revision advance
+  during final delivery produces uncertainty without a value. Pending receipts
+  expire after 60s with a 1s sweep; stop/context changes terminate them. Retain
+  at most 8192 IDs per epoch without eviction. Identical full-body retries return
+  the original receipt and never enqueue again, including terminal refusal or
+  plug-in reload. Queue-full refusal has an explicit unavailable receipt.
+- Focused verification: **20/20 server/plugin/packaging checks**, **2/2 Reset
+  browser regressions**, and **3/3 packaged EXE checks** passed, including the
+  exact queued-Reset/priority-reader race and production serial-worker ordering.
+  Existing fixture updates describe the new command; unrelated verification is
+  reused. The six reproduced beta.2 baseline failures remain separate:
+  lens-blur, develop-presets, contract-baseline, controller-http-limits,
+  controller-command-tabs and release-docs-browser. No clean full gate or native
+  Lightroom acceptance is claimed.
+- Fresh final candidate **20261006T231313Z** was built with matching plug-in.
+  Verified 146 sanitized source inputs (195 including runtime copies), all 147
+  external manifest files and 545 ASAR entries; public defaults/exclusions pass.
+  Previous candidate's 144 external files and original ZIP checksum still match.
+  EXE: `D:\Projects\LRBridge\dist\private-beta3-reset-20261006T231313Z\LRBridge.exe`.
+  Plug-in: `D:\Projects\LRBridge\dist\private-beta3-reset-20261006T231313Z\lightroom\LRBridge.lrplugin`.
+  ZIP: `D:\Projects\LRBridge\dist\beta3-reset-20261006T231313Z\LRBridge-0.6.0-beta.3-win-x64-portable.zip`.
+  SHA-256: **25428ab997016bacd1c167f1d10583ef56f8ad22e6f7fc8deb2abe07afc62e79**.
+- API/examples: `docs/RESET_COMPLETION.md`. Native helper:
+  `tools/test-reset-completion.ps1` defaults to **read-only preflight**;
+  `-Run -Slider Exposure -SetValue 2.75` sends Set then identified Reset and
+  an identical retry, then prints the owned SDK receipt. Evidence and recovery
+  backup: root `local-checkpoints/beta3-reset-20261006T225053Z/`; pointer
+  `local-checkpoints/beta3-reset-current.txt`. Full recovery backup was uploaded
+  and readback-verified before source changes, with credentials excluded.
+- **Native SDK Reset-to-read timing is unverified.** Observed means successful
+  SDK Reset return followed by an owned SDK read, not native completion proof.
+  Load this EXE and reload its matching plug-in once before live QA. Await the
+  user's readiness before sending any real editing command. Compare immediate
+  SDK values to Lightroom for Exposure, Contrast/Vibrance, RAW/rendered
+  Temperature and enabled/disabled Profile Amount; test repeated IDs and stale
+  context. A pre-Reset/delayed native read is a limitation, never confirmed.
+  There is still no admission-time profile token for same-photo profile changes.
+  **All work remains uncommitted; no push, tag or publication before live QA and
+  explicit user approval.**
+
+
+
+## October 6 private beta.3 candidate — implementation complete, native QA pending
+
+- Continue from branch **feature/beta3-numeric-nudge-20261006** in
+  `D:\Projects\LRBridge\local-checkpoints\beta3-nudge-20261006T015847Z\worktree`.
+  HEAD is published beta.2 **57cab790e8d4b8797ca3598e8f46a5a517b1a51b**;
+  it equals the configured feature remote ref, with no upstream on this private
+  branch and no staged files. The root worktree remains at older **c6057a9** with
+  its unrelated changes preserved; do not use that source for beta.3 packaging.
+- Implemented opt-in `GET /nudge/capabilities`, `POST /nudge` and correlated
+  `GET /nudge/result`, directly on port **17891**. The body binds request ID,
+  server epoch, slider and photo/navigation context. `steps` is an ordered array
+  of signed integer **numericStep counts**, not displacement or SDK increment
+  counts. Exposure uses **0.01**, not its visual rangeStep of 0.1. Temperature
+  reads its actual numeric value/range; no Kelvin conversion is invented.
+  Profile Amount uses the existing generic absolute SDK path.
+- The existing worker reads the SDK baseline at execution after preceding Reset,
+  applies clamping/snapping/precision and current bounds for each ordered entry,
+  then writes once. Nudges are coalescing boundaries and remain separate commands
+  and receipts. Rechecks cover photo, Develop context, process/profile, availability
+  and runtime range, including after yielding preparation. Payload/work are bounded;
+  one-use claims, epoch-bound request IDs and retained receipts prevent replay.
+  `requestedValue` is calculated; optional `sdkValue` is a separate SDK read.
+  Receipts never fabricate shared authoritative feedback.
+- Profile limitation: there is no generic admission-time profile generation token.
+  The profile is bound across execution/preparation, but a same-photo profile change
+  before execution can change which current Amount is nudged. Native Reset-to-read
+  timing remains unverified; SDK doubles prove call ordering, not native completion.
+  No guessed reset baseline or arbitrary delay is used as proof.
+- Quieted routine successful `clipboard.query` / `export.query` receipt and
+  queue-length logs only. Queries, polling, delivery, feedback, editing logs,
+  warnings/errors and explicit polling traces remain. Companion, existing Set,
+  Adjust, Reset and Web Controller controls/layouts are unchanged.
+- API contract, examples and live-QA helper are bundled as
+  `docs/NUMERIC_NUDGE.md` and `tools/test-numeric-nudge.ps1`.
+  Required release runners finished: original core **65/73**, browser **9/10**.
+  Three core fixture corrections subsequently passed focused retests (HTTP Builder
+  command surface, Lua polling resilience and selection dispatch), giving combined
+  **68/73 core** and **9/10 browser**, not a clean full gate. The six remaining
+  failures reproduce on unchanged beta.2: lens-blur, develop-presets,
+  contract-baseline, controller-http-limits, controller-command-tabs and
+  release-docs-browser. They concern existing source/copy/markup expectations;
+  unrelated controls and protected documentation were not changed to satisfy them.
+- Numeric nudge, quiet-query execution/state/error coverage, release preparation,
+  release cleanup and isolated packaged startup passed. On resume, the previously
+  inconclusive packaged numeric-nudge invocation passed with explicit output and
+  exit 0; the previously unlaunched request-ID browser check also passed, including
+  insecure LAN HTTP. The browser-docs beta.2 comparison reproduced its failure.
+  All outstanding checks finished; no native Lightroom acceptance is inferred.
+- Reused private package **20261006T021801Z**, without rebuilding. Verified current
+  source against **141 staged inputs**, **144 external files** and the ASAR runtime.
+  Public defaults/presets and distribution exclusions remain verified.
+  EXE: `D:\Projects\LRBridge\dist\private-beta3-20261006T021801Z\LRBridge.exe`.
+  Plug-in: `D:\Projects\LRBridge\dist\private-beta3-20261006T021801Z\lightroom\LRBridge.lrplugin`.
+  ZIP: `D:\Projects\LRBridge\dist\beta3-20261006T021801Z\LRBridge-0.6.0-beta.3-win-x64-portable.zip`.
+  SHA-256: **d36dd9c071df19483f536bf291437f3815288bf9bc5345adcccb7eb5162106c6**.
+- Saved verification: `local-checkpoints/beta3-nudge-20261006T015847Z/resume-verification-20261006/`
+  under the root project. Full release logs remain inside the isolated worktree's
+  `local-checkpoints/release-checks-2026-10-06T02-15-39-334Z/` (core) and
+  `release-checks-2026-10-06T02-15-39-315Z/` (browser).
+  Full-project backup was uploaded/read back before implementation; credentials
+  were excluded. Pre-existing root changes/settings, protected cheat sheets,
+  recordings, backups, stash and packages are preserved. Beta.2 ZIP bytes match
+  the published checksum; its release was not altered.
+- Next: launch this EXE, register its matching plug-in and **reload the plug-in once**.
+  Use disposable Develop photos; run the helper for Exposure, Temperature and
+  ProfileAmount (Reset admission immediately followed by nudge). Compare the live
+  Reset value to `baselineValue`, then Lightroom to `sdkValue`; test RAW/rendered
+  Temperature ranges, enabled/disabled Amount, bounds/reversals and stale context.
+  Confirm Clipboard/Export continue refreshing with quiet routine logs.
+  **No commit, push, tag or publication; await user approval after native QA.**
+
 ## October 4 accepted LAN HTTP hotfix — v0.6.0-beta.2
 
 - User reports successful testing of private build **20261004T163816Z** and
@@ -4125,3 +4379,15 @@ The user manually confirmed that the Controller repair works. Preserve this chec
 2. Correct rapid minus/plus desired/submitted/committed reconciliation so polling or an older completion cannot roll the local value back over newer queued intent.
 
 Do not restart LRBridge or reload the Lightroom plug-in merely for this completed checkpoint. Restart the source process only after a future server-code change; request a plug-in reload only after a future Lua change.
+
+### Guarded Set private artifacts — 20261010T165731Z (native QA pending)
+
+- EXE: D:\Projects\LRBridge\dist\private-beta4-guarded-set-20261010T165731Z\LRBridge-beta4-guarded-set-20261010T165731Z.exe
+- Matching plug-in: same new directory, lightroom\LRBridge.lrplugin.
+- ZIP: D:\Projects\LRBridge\dist\beta4-guarded-set-20261010T165731Z\LRBridge-0.6.0-beta.4-guarded-set-20261010T165731Z-win-x64-portable.zip
+- Companion QA archive: new Zorin candidate's qa-guarded-set-20261010T165731Z/ninoleto-lrbridge-0.4.3-beta.4-guarded-set-20261010T165731Z.tgz.
+- Final checks: 10/10 focused Windows, 4/4 packaged runtime; 534/534 focused
+  Companion, 4/4 actual bundle smoke tests. Source/package and before/after
+  preservation verification pass. See parent REPORT.md and ZORIN_HANDOFF.md.
+- Original first beta.4 package/source/snapshot remain byte-for-byte preserved.
+  No installation, native editing or Git mutation. Await native permission.

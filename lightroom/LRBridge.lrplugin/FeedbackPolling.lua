@@ -963,7 +963,7 @@ return function(shouldRun, spawnChildTask)
 
         local pointColorRequest = LrHttp.get("http://127.0.0.1:17891/point-color/next")
         if string.find(pointColorRequest or "", [["requested":true]], 1, true) then
-            Trace.call("sdk.pointColor", PointColor.sendCurrentState)
+            Trace.call("sdk.pointColor", function() return PointColor.sendCurrentState(pointColorRequest) end)
         end
 
         local historyRequest = LrHttp.get("http://127.0.0.1:17891/history/next")

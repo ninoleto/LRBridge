@@ -71,6 +71,131 @@ end
 function Parser.parse(json)
 
     local command = string.match(json, [["command":"([^"]+)"]])
+    if command == "develop.reset.correlated" then
+        if string.len(json) > 2048 then return nil end
+        -- /next wraps the flat command in {"command":{...}}. Validate the
+        -- inner object, so the envelope key is not a duplicate command field.
+        json = string.match(json, '^%s*{%s*"command"%s*:%s*({[^{}]*})%s*}%s*$') or json
+        local fields = { command = true, operationId = true, requestId = true, slider = true, expectedServerEpoch = true,
+            expectedSelectedPhotoUuid = true, expectedContextCounter = true, expectedContextChangedAt = true, admittedDevelopCounter = true }
+        local seen, count = {}, 0
+        for key in string.gmatch(json, '"([%w_]+)"%s*:') do
+            if not fields[key] or seen[key] then return nil end
+            seen[key], count = true, count + 1
+        end
+        if count ~= 9 then return nil end
+        local c = { command = command }
+        for _, key in ipairs({ "operationId", "requestId", "slider", "expectedServerEpoch", "expectedSelectedPhotoUuid" }) do
+            c[key] = parseStringField(json, key)
+            if not c[key] or #c[key] > 120 or not string.match(c[key], "^[%w:_%-]+$") then return nil end
+        end
+        if not string.match(c.operationId, "^rc%-%d+$") or #c.operationId > 13 then return nil end
+        for _, key in ipairs({ "expectedContextCounter", "expectedContextChangedAt", "admittedDevelopCounter" }) do
+            c[key] = parseIntegerField(json, key)
+            if not c[key] or c[key] < 0 or c[key] > 9007199254740991 then return nil end
+        end
+        return c
+    end
+    if command == "develop.nudge" then
+        if string.len(json) > 4096 then return nil end
+        json = string.match(json, '^%s*{%s*"command"%s*:%s*({[^{}]*})%s*}%s*$') or json
+        local fields = { command = true, operationId = true, requestId = true, slider = true, steps = true,
+            numericStep = true, precision = true, expectedServerEpoch = true, expectedSelectedPhotoUuid = true,
+            expectedContextCounter = true, expectedContextChangedAt = true, admittedDevelopCounter = true }
+        local seen, count = {}, 0
+        for key in string.gmatch(json, '"([%w_]+)"%s*:') do
+            if not fields[key] or seen[key] then return nil end
+            seen[key], count = true, count + 1
+        end
+        if count ~= 12 then return nil end
+        local c = { command = command }
+        for _, key in ipairs({ "operationId", "requestId", "slider", "expectedServerEpoch", "expectedSelectedPhotoUuid" }) do
+            c[key] = parseStringField(json, key)
+            if not c[key] or #c[key] > 120 or not string.match(c[key], "^[%w:_%-]+$") then return nil end
+        end
+        if not string.match(c.operationId, "^nn%-%d+$") then return nil end
+        for _, key in ipairs({ "precision", "expectedContextCounter", "expectedContextChangedAt", "admittedDevelopCounter" }) do
+            c[key] = parseIntegerField(json, key)
+            if not c[key] or c[key] < 0 or c[key] > 9007199254740991 then return nil end
+        end
+        c.numericStep = parseNumberField(json, "numericStep")
+        if not c.numericStep or c.numericStep <= 0 or c.numericStep > 1 or c.precision > 6 then return nil end
+        local body = string.match(json, '"steps"%s*:%s*%[([^%]]*)%]')
+        if not body then return nil end
+        c.steps = {}
+        local total = 0
+        for token in string.gmatch(body .. ",", "([^,]*),") do
+            if not string.match(token, "^%s*%-?%d+%s*$") then return nil end
+            local n = tonumber(token)
+            if not n or n == 0 or math.abs(n) > 1000 then return nil end
+            c.steps[#c.steps + 1], total = n, total + math.abs(n)
+        end
+        if #c.steps == 0 or #c.steps > 64 or total > 4096 then return nil end
+        return c
+    end
+    if command == "develop.set.guarded" then
+        if #json > 2048 then return nil end
+        json = string.match(json, '^%s*{%s*"command"%s*:%s*({[^{}]*})%s*}%s*$') or json
+        local body = string.match(json, '^%s*{([^{}]*)}%s*$')
+        if not body then return nil end
+        local strings = { command = true, operationId = true, requestId = true, slider = true, expectedServerEpoch = true, expectedSelectedPhotoUuid = true }
+        local numbers = { value = true, expectedValue = true, expectedContextCounter = true, expectedContextChangedAt = true, admittedDevelopCounter = true }
+        local c, count, pos = {}, 0, 1
+        while true do
+            local key, offset = string.match(string.sub(body, pos), '^%s*"([%w_]+)"%s*:%s*()')
+            if not key or c[key] ~= nil or not (strings[key] or numbers[key]) then return nil end
+            pos = pos + offset - 1
+            local token, after
+            if strings[key] then token, after = string.match(string.sub(body, pos), '^"([%w:_%.-]+)"()')
+            else
+                token, after = string.match(string.sub(body, pos), '^(%-?%d+%.?%d*[eE][+%-]?%d+)()')
+                if not token then token, after = string.match(string.sub(body, pos), '^(%-?%d+%.?%d*)()') end
+                if token and (string.match(token, '^%-?0%d') or string.match(token, '%.[eE]') or string.sub(token, -1) == '.') then return nil end
+            end
+            if not token or #token > 120 then return nil end
+            c[key] = strings[key] and token or tonumber(token)
+            if c[key] == nil then return nil end
+            pos, count = pos + after - 1, count + 1
+            local rest = string.sub(body, pos)
+            if string.match(rest, '^%s*$') then break end
+            local nextPos = string.match(rest, '^%s*,%s*()')
+            if not nextPos then return nil end
+            pos = pos + nextPos - 1
+        end
+        if count ~= 11 or c.command ~= command or not string.match(c.operationId or "", '^gs%-%d+$') or #c.operationId > 13 then return nil end
+        for _, key in ipairs({ "requestId", "expectedServerEpoch", "expectedSelectedPhotoUuid" }) do
+            if not c[key] or not string.match(c[key], '^[%w:_%-]+$') then return nil end
+        end
+        for _, key in ipairs({ "expectedContextCounter", "expectedContextChangedAt", "admittedDevelopCounter" }) do
+            if not c[key] or c[key] < 0 or c[key] > 9007199254740991 or c[key] ~= math.floor(c[key]) then return nil end
+        end
+        if c.slider ~= "Contrast" and c.slider ~= "Clarity" and c.slider ~= "Vibrance" then return nil end
+        if not c.value or c.value < -100 or c.value > 100 or
+            not c.expectedValue or c.expectedValue < -100 or c.expectedValue > 100 then return nil end
+        return c
+    end
+    if command == "point_color.sample.select" then
+        if #json > 2048 then return nil end
+        json = string.match(json, '^%s*{%s*"command"%s*:%s*({[^{}]*})%s*}%s*$') or json
+        local fields = { command = true, selectedIndex = true, expectedSelectedPhotoUuid = true,
+            expectedServerEpoch = true, expectedContextCounter = true, expectedDevelopCounter = true, expectedContextChangedAt = true }
+        local seen, count, c = {}, 0, { command = command }
+        for key in string.gmatch(json, '"([%w_]+)"%s*:') do
+            if not fields[key] or seen[key] then return nil end
+            seen[key], count = true, count + 1
+        end
+        if count ~= 7 then return nil end
+        for _, key in ipairs({ "expectedSelectedPhotoUuid", "expectedServerEpoch" }) do
+            c[key] = parseStringField(json, key)
+            if not c[key] or #c[key] > 200 or not string.match(c[key], "^[%w:_%-]+$") then return nil end
+        end
+        for _, key in ipairs({ "selectedIndex", "expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt" }) do
+            c[key] = parseIntegerField(json, key)
+            if not c[key] or c[key] < 0 or c[key] > 9007199254740991 then return nil end
+        end
+        if c.selectedIndex < 1 or c.selectedIndex > 8 then return nil end
+        return c
+    end
     local slider = string.match(json, [["slider":"([^"]+)"]])
     local action = string.match(json, [["action":"([^"]+)"]])
     local target = string.match(json, [["target":"([^"]+)"]])

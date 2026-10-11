@@ -172,7 +172,9 @@ log("silent polling started, interval " .. tostring(config.pollInterval))
                     diagnostic = diagnostic .. " " .. tostring(parameter)
                 end
 
-                log(diagnostic)
+                if command.command ~= "clipboard.query" and command.command ~= "export.query" then
+                    log(diagnostic)
+                end
 
                 executeCommand(command)
             end

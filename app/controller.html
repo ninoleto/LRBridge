@@ -234,6 +234,15 @@
             text-transform: uppercase;
         }
 
+        button.command-neutral.point-color-picker { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; background: #087F83; color: #fff; border-color: #20a5aa; }
+        button.point-color-picker svg { order: -1; width: 22px; height: 22px; flex: none; }
+        button.command-neutral.point-color-picker:hover:not(:disabled) { background: #096a6e; color: #fff; border-color: #66d7db; }
+        button.point-color-picker:focus-visible, button.point-color-swatch:focus-visible { outline: 3px solid #8fe9ed; outline-offset: 3px; }
+        button.command-neutral.point-color-picker:disabled { background: #36595b; color: #d7e5e5; }
+        .point-color-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; }
+        button.point-color-swatch { min-width: 44px; min-height: 44px; padding: 8px 12px; }
+        button.point-color-swatch.active { background: #087F83; color: #fff; border: 2px solid #8fe9ed; }
+        button.point-color-swatch:disabled { opacity: 0.5; }
         .point-color-detail-range { margin: 14px 0 18px; }
         .point-color-range-layout { display: grid; grid-template-columns: 72px minmax(220px, 1fr) 72px; gap: 12px; align-items: center; }
         .point-color-range-pair { color: #c8d3dc; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
@@ -5664,6 +5673,7 @@
         const presetTreatmentPresentations = new Set();
         let developTreatmentPresentation = null;
         let sharedPointColorController = null;
+        let pointColorServerEpoch = null;
         let enhanceState = null;
         let enhanceAmountInput = null;
         let enhanceAmountRange = null;
@@ -6306,6 +6316,7 @@
                 lastControllerActiveModule = data.activeModule;
                 lastControllerSelectedPhotoKey = data.selectedPhotoKey;
                 lastControllerSelectedPhotoUuid = data.selectedPhotoUuid;
+                if (sharedPointColorController) sharedPointColorController.applyContext(globalPointColorBinding());
                 if (lastPresetCurveFeedback && (data.activeModule !== "develop" ||
                     data.selectedPhotoUuid !== lastPresetCurveFeedback.selectedPhotoUuid ||
                     data.contextCounter !== lastPresetCurveFeedback.contextCounter)) lastPresetCurveFeedback = null;
@@ -11717,6 +11728,17 @@
             { key: "saturation", label: "Saturation" },
             { key: "luminance", label: "Luminance" }
         ]);
+        function globalPointColorBinding() {
+            return lastControllerActiveModule === "develop" && lastControllerSelectedPhotoUuid ? {
+                selectedPhotoUuid: lastControllerSelectedPhotoUuid, contextCounter: lastControllerContextCounter,
+                developCounter: lastControllerDevelopCounter, contextChangedAt: lastControllerContextChangedAt,
+                serverEpoch: pointColorServerEpoch
+            } : null;
+        }
+        function globalPointColorBindingKey(value) {
+            return value && [value.selectedPhotoUuid, value.contextCounter,
+                value.contextChangedAt, value.serverEpoch].join("|");
+        }
         function ensurePointColorController() {
             if (!sharedPointColorController) {
                 sharedPointColorController = LRBridgePointColor.createController({
@@ -11724,14 +11746,35 @@
                     fetch: fetch,
                     makeButton: makeButton,
                     routePrefix: "/api/point-color",
+                    showSwatches: true,
+                    bindingKey: globalPointColorBindingKey,
+                    selectionBindingQuery: function (binding) {
+                        return new URLSearchParams(binding).toString();
+                    },
+                    setStatus: setStatus,
+                    requestState: async function (binding) {
+                        const response = await fetch("/api/point-color/state", { cache: "no-store" });
+                        const data = await response.json();
+                        const current = globalPointColorBinding();
+                        if (!response.ok || !data || !data.context || !binding ||
+                            ["selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt"].some(function (key) {
+                                return !current || data.context[key] !== binding[key] || binding[key] !== current[key];
+                            })) throw new Error("Point Color feedback belongs to another context");
+                        if (pointColorServerEpoch !== data.context.serverEpoch) {
+                            pointColorServerEpoch = data.context.serverEpoch;
+                            sharedPointColorController.applyContext(globalPointColorBinding());
+                        }
+                        if (data.contextOwned !== true) throw new Error("Point Color is waiting for owned SDK feedback");
+                        return data.state;
+                    },
                     requestCommand: async function (path) {
                         const accepted = await sendCommand(path);
                         if (!accepted) throw new Error("Point Color command was rejected");
                         return { ok: true };
                     }
                 });
-                sharedPointColorController.applyContext({ scope: "global" });
             }
+            sharedPointColorController.applyContext(globalPointColorBinding());
             return sharedPointColorController;
         }
 

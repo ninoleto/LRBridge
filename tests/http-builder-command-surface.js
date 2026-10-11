@@ -129,7 +129,8 @@ const brushRecipe = executableBuilder.recipes.find(({recipe})=>recipe.route === 
 assert.equal(executableBuilder.recipePath(brushRecipe,{value:"0.00000001"},1),"/lens-blur/brush/amount/set?value=0.00000001","Keep decimal spelling accepted by the server");
 assert.equal(executableBuilder.psLiteral("Nino's & $(throw 'oops')"),"'Nino''s & $(throw ''oops'')'","Escape literals without interpolating PowerShell expressions");
 const publicCommands = extractValue(backendSource, "const allowedCommands =");
-const excludedCommands = ["develop.get", "export.query", "clipboard.query"];
+// The opt-in numeric nudge POST workflow is intentionally not a migrated Builder control.
+const excludedCommands = ["develop.get", "develop.set.guarded", "develop.nudge", "develop.reset.correlated", "export.query", "clipboard.query"];
 const representedCommands = new Set([
     ...families.flatMap(family => family.types.map(type => type.command)),
     ...directFamilies.map(family => family.command),
@@ -140,6 +141,18 @@ assertSameValues([...representedCommands], publicCommands.filter(command => !exc
 const inventory = require("../server/http-operations.json");
 const representedRoutes = new Set([...directFamilies.map(family => family.route), ...workflows.flatMap(card => card.routes)]);
 for (const operation of inventory.operations.filter(operation => operation.kind === "workflow")) {
+    if (operation.path === "/point-color/sample") {
+        // The new global controller uses an owned SDK snapshot. Do not migrate
+        // the protected Builder to permanent URLs with stale photo bindings.
+        assert.equal(operation.method, "GET");
+        const guide = fs.readFileSync(path.join(root, "docs/HTTP_WORKFLOWS.md"), "utf8");
+        assert(guide.includes("/point-color/sample?selectedIndex=1") && guide.includes("contextOwned"));
+        continue;
+    }
+    if (operation.path === "/nudge" || ["/reset", "/set"].includes(operation.path) && operation.method === "POST") {
+        assert.equal(operation.method, "POST", "Correlated editing is opt-in, with no Builder migration");
+        continue;
+    }
     assert(representedRoutes.has(operation.path), "Missing public function route: " + operation.path);
 }
 for (const route of representedRoutes) {

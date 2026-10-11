@@ -39,6 +39,8 @@ function emptyDiagnostics() {
                 byCommand: {
                     "develop.adjust": 0,
                     "develop.set": 0,
+                    "develop.nudge": 0,
+                    "develop.reset.correlated": 0,
                     "develop.get": 0,
                     "develop.reset": 0,
                     "develop.action": 0,
@@ -270,8 +272,8 @@ function testCoreMetrics() {
     commands.enqueueCommand({ command: "application.secondary_view", view: "loupe" });
     diagnostics = commands.getQueueDiagnostics();
     assert.deepEqual(diagnostics.queue.pending.byCommand, {
-        "develop.adjust": 1, "develop.set": 1, "develop.get": 1,
-        "develop.reset": 1, "develop.action": 1,
+        "develop.adjust": 1, "develop.set": 1, "develop.nudge": 0, "develop.get": 1,
+        "develop.reset": 1, "develop.reset.correlated": 0, "develop.action": 1,
         "photo.rotate": 1, "photo.treatment": 1,
         "photo.crop_aspect": 1,
         "photo.crop_angle.set": 0, "photo.crop_angle.reset": 0,

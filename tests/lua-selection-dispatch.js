@@ -217,6 +217,6 @@ assert.match(manualPolling, /dofile\(_PLUGIN\.path \.\. "\\\\PluginInit\.lua"\)/
 const packageJson = JSON.parse(read("package.json"));
 assert.equal(packageJson.scripts["test:lua-selection"], "node tests/lua-selection-dispatch.js");
 assert.equal(packageJson.scripts.test.split(" && ").filter((entry) => entry === "npm run test:lua-selection").length, 1);
-assert.equal(packageJson.version, "0.6.0");
+assert.equal(packageJson.version, require("./contract-fixture.json").version);
 
 console.log("Lua selection dispatch source tests passed. Source-level tests do not prove Lightroom runtime semantics; manual Lightroom testing is still required.");

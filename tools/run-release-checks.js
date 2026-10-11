@@ -2,7 +2,7 @@
 // Isolated checks only. Never invoke tests/http-smoke.js or the Windows helper.
 const fs=require("node:fs"),path=require("node:path"),cp=require("node:child_process");
 const root=path.resolve(__dirname,".."),pkg=require("../package.json");
-const extra=["clipboard","export","controller-history","controller-tab-actions","masking-create","masking-components",
+const extra=["numeric-nudge","reset-completion","quiet-background-queries","clipboard","export","controller-history","controller-tab-actions","masking-create","masking-components",
     "masking-component-delete","masking-component-invert","masking-preset-application","remove-preferences",
     "dust-controls","dust-preset","red-eye","polling-lifecycle","release-preparation",
     "polling-trace","release-cleanup","shared-reset-confirmation","reset-feedback-queue","reset-feedback-delivery",

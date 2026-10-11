@@ -270,7 +270,7 @@ function validateStaticContract() {
     const buildSource = read("tools/build-windows-candidate.js");
     assert.match(buildSource, /Refusing to reuse staging/);
     assert.match(buildSource, /inspectCandidate/);
-    assert.match(buildSource, /beta-win-x64-portable/);
+    assert.match(buildSource, /win-x64-portable/);
     // tests/release-preparation.js executes staging and verifies the actual runtime closure/resources.
 
 }

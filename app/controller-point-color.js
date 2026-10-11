@@ -109,6 +109,7 @@
         };
         const bindingKey = typeof options.bindingKey === "function" ? options.bindingKey : function () { return "global"; };
         const bindingQuery = typeof options.bindingQuery === "function" ? options.bindingQuery : function () { return ""; };
+        const selectionBindingQuery = typeof options.selectionBindingQuery === "function" ? options.selectionBindingQuery : bindingQuery;
         const resultForBinding = typeof options.resultForBinding === "function"
             ? options.resultForBinding : function () { return null; };
         const onInteractionChange = typeof options.onInteractionChange === "function"
@@ -126,6 +127,7 @@
         const showVisualize = options.showVisualize !== false;
         const includeSelectedIndexQuery = options.includeSelectedIndexQuery === true;
         const externalState = options.externalState === true;
+        const showSwatches = options.showSwatches === true;
         const pickerAction = options.pickerAction === false ? null :
             (typeof options.pickerAction === "function" ? options.pickerAction : function () {
                 return requestCommand(routePrefix + "/tool/select");
@@ -150,11 +152,49 @@
         let externallyBlocked = false;
         let visualizeRequest = null;
         let visualizeControl = null;
+        let selectionRequest = null;
+
+        function clearSelectionRequest() {
+            if (selectionRequest && selectionRequest.timer) clearTimeoutImpl(selectionRequest.timer);
+            selectionRequest = null;
+        }
+
+        async function selectSample(index) {
+            if (externallyBlocked || identityKey === null || !state.available || state.selectionTransient ||
+                index < 1 || index > state.swatchCount || selectionRequest || hasPendingEdits()) return;
+            if (index === state.selectedIndex) return;
+            const request = { key: identityKey, index: index, admitted: false, timer: null };
+            selectionRequest = request;
+            request.timer = setTimeoutImpl(function () {
+                if (selectionRequest !== request) return;
+                clearSelectionRequest();
+                onStatus("Lightroom has not confirmed the Point Color selection.");
+                if (host) render();
+                notifyBusy();
+            }, feedbackTimeoutMs);
+            if (host) render();
+            notifyBusy();
+            try {
+                const query = selectionBindingQuery(binding);
+                await requestCommand(routePrefix + "/sample?selectedIndex=" + index + (query ? "&" + query : ""));
+                if (selectionRequest !== request || request.key !== identityKey) return;
+                request.admitted = true;
+                onStatus("Point Color selection requested; waiting for Lightroom.");
+                onRefreshRequested();
+                if (!externalState) refresh();
+            } catch (error) {
+                if (selectionRequest !== request) return;
+                clearSelectionRequest();
+                onStatus("ERROR: " + (error && error.message || "Point Color selection failed"));
+                if (host) render();
+                notifyBusy();
+            }
+        }
 
         function notifyBusy() { onInteractionChange(isBusy()); }
 
         function writesAllowed() {
-            return externallyBlocked !== true && state.available === true && state.swatchCount > 0 && state.selectedIndex > 0 &&
+            return !selectionRequest && externallyBlocked !== true && state.available === true && state.swatchCount > 0 && state.selectedIndex > 0 &&
                 state.selectionTransient !== true && identityKey !== null;
         }
 
@@ -307,6 +347,7 @@
         }
 
         function resetContext(nextBinding) {
+            clearSelectionRequest();
             cancelLocalGestures();
             generation += 1;
             visualizeRequest = null;
@@ -332,12 +373,32 @@
                 binding = nextBinding;
             }
             if (!validState(nextState)) return false;
+            // SDK can report index zero briefly while changing swatches. Keep
+            // the last owned values visible, without claiming they are selected.
+            if (nextState.available && nextState.selectionTransient && state.available &&
+                (state.selectedIndex > 0 || state.displaySelectedIndex > 0)) {
+                nextState = Object.assign({}, state, nextState, {
+                    displaySelectedIndex: state.selectedIndex || state.displaySelectedIndex
+                });
+            }
+            let selectionSettled = false;
+            if (selectionRequest && (!nextState.available || nextState.swatchCount < selectionRequest.index)) {
+                clearSelectionRequest();
+                selectionSettled = true;
+                onStatus("Point Color selection is no longer available.");
+            }
+            if (selectionRequest && selectionRequest.admitted && !nextState.selectionTransient &&
+                nextState.available && nextState.selectedIndex === selectionRequest.index) {
+                clearSelectionRequest();
+                selectionSettled = true;
+                onStatus("Point Color selection confirmed by Lightroom.");
+            }
             const previousIndex = state.selectedIndex;
             const selectionChanged = previousIndex !== nextState.selectedIndex || state.available !== nextState.available ||
                 state.swatchCount !== nextState.swatchCount;
             state = nextState;
             settleAuthoritative(nextState, binding);
-            if (selectionChanged) {
+            if (selectionChanged || selectionSettled) {
                 generation += 1;
                 clearWritePipeline(null, false);
                 if (host) render();
@@ -370,9 +431,12 @@
         async function refresh() {
             if (externalState || requestInFlight || identityKey === null) return false;
             requestInFlight = true;
+            const requestedBinding = binding;
+            const requestedGeneration = generation;
             try {
-                const next = await requestState(binding);
-                return applyAuthoritative(next, binding);
+                const next = await requestState(requestedBinding);
+                if (requestedGeneration !== generation) return false;
+                return applyAuthoritative(next, requestedBinding);
             } catch (_error) {
                 return false;
             } finally {
@@ -700,16 +764,48 @@
             }
             const leadingControls = documentObject.createElement("div");
             leadingControls.className = "develop-section-leading-controls";
-            const picker = makeButton("Select Color Picker", "command-neutral", function () {
+            const picker = makeButton("Select Color Picker", "command-neutral point-color-picker", function () {
                 if (!pickerAction) return;
                 Promise.resolve(pickerAction(binding)).catch(function (error) {
                     onStatus("ERROR: " + (error && error.message ? error.message : "Color Picker request failed"));
                 });
             });
             picker.id = options.pickerId || "pointColorPickerSelect";
+            const icon = documentObject.createElementNS("http://www.w3.org/2000/svg", "svg");
+            icon.setAttribute("viewBox", "0 0 24 24");
+            icon.setAttribute("aria-hidden", "true");
+            icon.setAttribute("focusable", "false");
+            const path = documentObject.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", "M14 5l5 5m-7-3L4 15v4h4l8-8m-4-6 2-2a3 3 0 0 1 4 0l3 3a3 3 0 0 1 0 4l-2 2zM3 21l2-2");
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", "currentColor");
+            path.setAttribute("stroke-width", "2");
+            path.setAttribute("stroke-linecap", "round");
+            path.setAttribute("stroke-linejoin", "round");
+            icon.appendChild(path);
+            picker.appendChild(icon);
             picker.disabled = externallyBlocked || !pickerAction || identityKey === null;
             if (!pickerAction) picker.title = "Lightroom does not expose a safe mask-local Color Picker operation.";
             leadingControls.appendChild(picker); host.appendChild(leadingControls);
+            if (showSwatches) {
+                const swatches = documentObject.createElement("div");
+                swatches.className = "point-color-swatches";
+                swatches.setAttribute("role", "group");
+                swatches.setAttribute("aria-label", "Point Color samples");
+                swatches.setAttribute("aria-busy", String(!!selectionRequest || state.selectionTransient));
+                for (let index = 1; index <= 8; index += 1) {
+                    const selected = state.available && !state.selectionTransient && state.selectedIndex === index;
+                    const button = makeButton(String(index), "point-color-swatch", function () { selectSample(index); });
+                    button.dataset.pointColorSample = String(index);
+                    button.setAttribute("aria-label", "Point Color sample " + index);
+                    button.setAttribute("aria-pressed", String(selected));
+                    button.classList.toggle("active", selected);
+                    button.disabled = externallyBlocked || identityKey === null || !state.available ||
+                        index > state.swatchCount || state.selectionTransient || !!selectionRequest || hasPendingEdits();
+                    swatches.appendChild(button);
+                }
+                host.appendChild(swatches);
+            }
             if (!state.available) {
                 const message = documentObject.createElement("p");
                 message.textContent = "Point Color is unavailable in the current Lightroom context.";
@@ -832,7 +928,7 @@
                 });
         }
 
-        function isBusy() { return !!visualizeRequest || hasPendingEdits(); }
+        function isBusy() { return !!selectionRequest || !!visualizeRequest || hasPendingEdits(); }
 
         return Object.freeze({
             mount: function (nextHost) { host = nextHost; render(); return host; },

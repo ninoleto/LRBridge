@@ -38,6 +38,10 @@ extraFiles:
     to: resources/presets
   - from: tools/install-runtime-presets.ps1
     to: tools/install-runtime-presets.ps1
+  - from: tools/test-numeric-nudge.ps1
+    to: tools/test-numeric-nudge.ps1
+  - from: tools/test-reset-completion.ps1
+    to: tools/test-reset-completion.ps1
   - from: Install Dust Presets.cmd
     to: Install Dust Presets.cmd
 

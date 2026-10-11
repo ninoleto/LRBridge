@@ -24,6 +24,9 @@ let peopleAdmissionProvider = null;
 let redEyeAdmissionProvider = null;
 let exportAdmissionProvider = null;
 let clipboardAdmissionProvider = null;
+let numericNudgeAdmissionProvider = null;
+let resetCompletionAdmissionProvider = null;
+let guardedSetAdmissionProvider = null;
 
 const HARD_QUEUE_CAPACITY = 1024;
 const ORDINARY_ADMISSION_CEILING = 896;
@@ -132,6 +135,9 @@ function validateCommand(command) {
         "develop.adjust",
         "develop.get",
         "develop.set",
+        "develop.set.guarded",
+        "develop.nudge",
+        "develop.reset.correlated",
         "develop.reset",
         "develop.action",
         "photo.rotate",
@@ -328,6 +334,9 @@ function validateCommand(command) {
     if (command.command === "reflections.set") return require("./reflections-state").validCommand(command);
     if (command.command === "people.action") return require("./people-state").validCommand(command);
     if (command.command === "red_eye.action") return require("./red-eye-state").validCommand(command);
+    if (command.command === "develop.set.guarded") return require("./guarded-set").validCommand(command);
+    if (command.command === "develop.nudge") return require("./numeric-nudge").validCommand(command);
+    if (command.command === "develop.reset.correlated") return require("./reset-completion").validCommand(command);
     if (["export.query", "export.dialog", "export.previous"].includes(command.command)) return require("./export-state").validCommand(command);
     if (["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(command.command)) return require("./clipboard-state").validCommand(command);
     if (["remove.selection.action", "remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return require("./remove-state").validCommand(command);
@@ -525,6 +534,14 @@ function validateCommand(command) {
             command.field === "local_RefineSaturation" && Number.isFinite(command.expectedValue);
     }
 
+    if (command.command === "point_color.sample.select") {
+        return Object.keys(command).length === 7 && Number.isInteger(command.selectedIndex) &&
+            command.selectedIndex >= 1 && command.selectedIndex <= 8 &&
+            typeof command.expectedSelectedPhotoUuid === "string" && /^[A-Za-z0-9:_-]{1,200}$/.test(command.expectedSelectedPhotoUuid) &&
+            typeof command.expectedServerEpoch === "string" && /^[A-Za-z0-9:_-]{1,120}$/.test(command.expectedServerEpoch) &&
+            ["expectedContextCounter", "expectedDevelopCounter", "expectedContextChangedAt"].every(key =>
+                Number.isSafeInteger(command[key]) && command[key] >= 0);
+    }
     if (command.command === "point_color.value.set") {
         const keys = Object.keys(command);
         const publicShape = keys.length === 3;
@@ -850,15 +867,31 @@ function bindContextBoundDevelopCommand(command) {
     });
 }
 
-// Keep edits on their original side of queued Export and native Copy/Paste actions.
+// Keep all earlier edits on their original side of a relative baseline read,
+// Export, native Copy/Paste action or identified Reset. Receipted edits stay FIFO.
 function exportCoalescingFloor() {
     for (let i = commandQueue.length - 1; i >= 0; i--) {
-        if (["export.dialog", "export.previous", "clipboard.copy", "clipboard.paste"].includes(commandQueue[i].command)) return i + 1;
+        if (["develop.set.guarded", "develop.nudge", "develop.reset.correlated", "export.dialog", "export.previous", "clipboard.copy", "clipboard.paste"].includes(commandQueue[i].command)) return i + 1;
     }
     return 0;
 }
 
+function pointColorSelectionMatches(command) {
+    const current = pointColorAdmissionContextProvider && pointColorAdmissionContextProvider();
+    return current && context.getContextFields().activeModule === "develop" &&
+        ["selectedPhotoUuid", "contextCounter", "developCounter", "contextChangedAt", "serverEpoch"].every(key =>
+            command["expected" + key[0].toUpperCase() + key.slice(1)] === current[key]);
+}
+
 function tryEnqueueCommand(command) {
+    if (command && command.command === "develop.set.guarded" && (!validateCommand(command) ||
+        !guardedSetAdmissionProvider || !guardedSetAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
+    if (command && command.command === "point_color.sample.select" &&
+        (!validateCommand(command) || !pointColorSelectionMatches(command))) return admissionResult(ADMISSION_INVALID);
+    if (command && command.command === "develop.reset.correlated" && (!validateCommand(command) ||
+        !resetCompletionAdmissionProvider || !resetCompletionAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
+    if (command && command.command === "develop.nudge" && (!validateCommand(command) ||
+        !numericNudgeAdmissionProvider || !numericNudgeAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (command && ["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(command.command) &&
         (!validateCommand(command) || !clipboardAdmissionProvider || !clipboardAdmissionProvider.matches(command, "admit"))) return admissionResult(ADMISSION_INVALID);
     if (command && ["export.query", "export.dialog", "export.previous"].includes(command.command) &&
@@ -1234,8 +1267,10 @@ function tryEnqueueCommand(command) {
     lastEnqueuedAt = admittedAt;
     highWaterMark = Math.max(highWaterMark, commandQueue.length);
 
-    console.log("Queued command:", command);
-    console.log("Queue length:", commandQueue.length);
+    if (command.command !== "clipboard.query" && command.command !== "export.query") {
+        console.log("Queued command:", command);
+        console.log("Queue length:", commandQueue.length);
+    }
 
     return admissionResult(ADMISSION_ACCEPTED);
 }
@@ -1310,6 +1345,7 @@ function coalesceColorGrading(command) {
 }
 
 function tryEnqueueBatch(batch) {
+    if (Array.isArray(batch) && batch.some(c => c && ["develop.set.guarded", "develop.nudge", "develop.reset.correlated"].includes(c.command))) return admissionResult(ADMISSION_INVALID);
     if (Array.isArray(batch) && batch.some(c => c && ["clipboard.query", "clipboard.copy", "clipboard.paste"].includes(c.command))) return admissionResult(ADMISSION_INVALID);
     if (Array.isArray(batch) && batch.some(c => c && ["export.query", "export.dialog", "export.previous"].includes(c.command))) return admissionResult(ADMISSION_INVALID);
     if (!Array.isArray(batch) || !batch.every(validateCommand)) {
@@ -1352,7 +1388,7 @@ function isProtectedCommand(command) {
     if (command.command === "people.action") return true;
     if (command.command === "reflections.set") return true;
     if (["remove.selection.action", "remove.dust.off", "remove.dust.on", "remove.dust.close", "remove.brush.set", "remove.panel.set", "remove.repair.action", "remove.repair.fill.set", "remove.repair.param.set"].includes(command.command)) return true;
-    return command.command === "develop.reset" || command.command === "develop.action" ||
+    return command.command === "develop.reset" || command.command === "develop.reset.correlated" || command.command === "develop.action" ||
         command.command === "color_grading.region.reset" || command.command === "color_grading.value.reset" ||
         command.command === "lightroom.undo" || command.command === "lightroom.redo" ||
         command.command === "tone_curve.reset" || command.command === "tone_curve.gesture.cancel" ||
@@ -1406,6 +1442,19 @@ function getNextCommand() {
         const metadata = queueEntryMetadata.shift();
         dequeuedEntries += 1;
         lastDequeuedAt = Date.now();
+        if (command.command === "develop.set.guarded" && (!guardedSetAdmissionProvider || !guardedSetAdmissionProvider.matches(command, "dequeue"))) {
+            if (guardedSetAdmissionProvider) guardedSetAdmissionProvider.reject(command);
+            continue;
+        }
+        if (command.command === "point_color.sample.select" && !pointColorSelectionMatches(command)) continue;
+        if (command.command === "develop.reset.correlated" && (!resetCompletionAdmissionProvider || !resetCompletionAdmissionProvider.matches(command, "dequeue"))) {
+            if (resetCompletionAdmissionProvider) resetCompletionAdmissionProvider.reject(command);
+            continue;
+        }
+        if (command.command === "develop.nudge" && (!numericNudgeAdmissionProvider || !numericNudgeAdmissionProvider.matches(command, "dequeue"))) {
+            if (numericNudgeAdmissionProvider) numericNudgeAdmissionProvider.reject(command);
+            continue;
+        }
         traceMaskingQueue("dequeue_check", command, { queuedMs: metadata ? lastDequeuedAt - metadata.enqueuedAt : null,
             current: context.getContextFields() });
         if ((command.command === "point_color.value.set" || command.command === "point_color.range.set" || command.command === "point_color.range.translate" ||
@@ -1477,6 +1526,9 @@ function getQueueDiagnostics(nowMs) {
     const pendingByCommand = {
         "develop.adjust": 0,
         "develop.set": 0,
+        "develop.set.guarded": 0,
+        "develop.nudge": 0,
+        "develop.reset.correlated": 0,
         "develop.get": 0,
         "develop.reset": 0,
         "develop.action": 0,
@@ -1503,6 +1555,7 @@ function getQueueDiagnostics(nowMs) {
         ,"color_grading.value.reset": 0
         ,"color_grading.region.reset": 0
         ,"color_grading.view.set": 0
+        ,"point_color.sample.select": 0
         ,"point_color.value.set": 0
         ,"point_color.range.set": 0
         ,"point_color.range.translate": 0
@@ -1611,7 +1664,7 @@ function getQueueDiagnostics(nowMs) {
             oldestCommandAgeMs: oldestCommandAgeMs,
             pending: {
                 ordinary: pendingByCommand["clipboard.query"] + pendingByCommand["clipboard.copy"] + pendingByCommand["clipboard.paste"] + pendingByCommand["export.query"] + pendingByCommand["export.dialog"] + pendingByCommand["export.previous"] + pendingByCommand["develop.adjust"] +
-                    pendingByCommand["develop.set"] +
+                    pendingByCommand["develop.set"] + pendingByCommand["develop.set.guarded"] + pendingByCommand["develop.nudge"] +
                     pendingByCommand["develop.get"] +
                     pendingByCommand["photo.rotate"] +
                     pendingByCommand["photo.treatment"] +
@@ -1634,6 +1687,7 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["color_grading.wheel.set"] +
                     pendingByCommand["color_grading.value.set"] +
                     pendingByCommand["color_grading.view.set"] +
+                    pendingByCommand["point_color.sample.select"] +
                     pendingByCommand["point_color.value.set"] +
                     pendingByCommand["point_color.range.set"] +
                     pendingByCommand["point_color.range.translate"] +
@@ -1658,7 +1712,7 @@ function getQueueDiagnostics(nowMs) {
                     pendingByCommand["masking.correction.gesture.begin"] +
                     pendingByCommand["masking.correction.gesture.update"] +
                     pendingByCommand["masking.correction.gesture.end"],
-                protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.action"] +
+                protected: pendingByCommand["develop.reset"] + pendingByCommand["develop.reset.correlated"] + pendingByCommand["develop.action"] +
                     pendingByCommand["color_grading.region.reset"] + pendingByCommand["color_grading.value.reset"] +
                     pendingByCommand["tone_curve.reset"] + pendingByCommand["tone_curve.gesture.cancel"] +
                     pendingByCommand["tone_curve.refine_saturation.reset"] +
@@ -1792,5 +1846,8 @@ module.exports = {
     ,setRedEyeAdmissionProvider: function (provider) { redEyeAdmissionProvider = provider; }
     ,setExportAdmissionProvider: function (provider) { exportAdmissionProvider = provider; }
     ,setClipboardAdmissionProvider: function (provider) { clipboardAdmissionProvider = provider; }
+    ,setNumericNudgeAdmissionProvider: function (provider) { numericNudgeAdmissionProvider = provider; }
+    ,setResetCompletionAdmissionProvider: function (provider) { resetCompletionAdmissionProvider = provider; }
+    ,setGuardedSetAdmissionProvider: function (provider) { guardedSetAdmissionProvider = provider; }
     ,finishEnhanceAmountOperation: function () { enhanceAmountOperationPending = false; }
 };

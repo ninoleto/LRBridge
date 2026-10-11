@@ -1524,6 +1524,7 @@
                 commandTimeoutMs: options.pointColorCommandTimeoutMs,
                 feedbackTimeoutMs: options.pointColorFeedbackTimeoutMs,
                 includeSelectedIndexQuery: true,
+                showSwatches: true,
                 showHeading: false,
                 showVisualize: true,
                 pickerAction: function () { return sendOperation("pointColorPicker"); },

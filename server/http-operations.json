@@ -15,7 +15,7 @@
       "group": "Color Grading",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1351
+      "line": 1376
     },
     {
       "method": "GET",
@@ -23,7 +23,7 @@
       "group": "Color Grading",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1355
+      "line": 1380
     },
     {
       "method": "GET",
@@ -31,7 +31,7 @@
       "group": "Color Grading",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3455
+      "line": 3500
     },
     {
       "method": "GET",
@@ -39,7 +39,7 @@
       "group": "Color Grading",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 3471
+      "line": 3516
     },
     {
       "method": "GET",
@@ -47,7 +47,7 @@
       "group": "Color Grading",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3515
+      "line": 3560
     },
     {
       "method": "GET",
@@ -55,7 +55,7 @@
       "group": "Color Grading",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 3493
+      "line": 3538
     },
     {
       "method": "GET",
@@ -63,7 +63,7 @@
       "group": "Core / action",
       "kind": "ordinary",
       "source": "server/bridge.js",
-      "line": 3231
+      "line": 3276
     },
     {
       "method": "GET",
@@ -71,7 +71,7 @@
       "group": "Core / adjust",
       "kind": "ordinary",
       "source": "server/bridge.js",
-      "line": 3169
+      "line": 3214
     },
     {
       "method": "GET",
@@ -79,7 +79,7 @@
       "group": "Core / command",
       "kind": "ordinary",
       "source": "server/bridge.js",
-      "line": 3008
+      "line": 3053
     },
     {
       "method": "GET",
@@ -87,7 +87,7 @@
       "group": "Core / context",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 935
+      "line": 960
     },
     {
       "method": "GET",
@@ -95,7 +95,7 @@
       "group": "Core / context",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 941
+      "line": 966
     },
     {
       "method": "GET",
@@ -103,7 +103,7 @@
       "group": "Core / diagnostics",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 891
+      "line": 916
     },
     {
       "method": "GET",
@@ -111,7 +111,7 @@
       "group": "Core / diagnostics",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 899
+      "line": 924
     },
     {
       "method": "GET",
@@ -119,7 +119,7 @@
       "group": "Core / diagnostics",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 928
+      "line": 953
     },
     {
       "method": "POST",
@@ -127,7 +127,7 @@
       "group": "Core / diagnostics",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 916
+      "line": 941
     },
     {
       "method": "GET",
@@ -151,7 +151,7 @@
       "group": "Core / diagnostics",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 884
+      "line": 909
     },
     {
       "method": "GET",
@@ -159,7 +159,7 @@
       "group": "Core / feedback",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3722
+      "line": 3767
     },
     {
       "method": "GET",
@@ -167,7 +167,7 @@
       "group": "Core / feedback",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 3378
+      "line": 3423
     },
     {
       "method": "GET",
@@ -175,7 +175,7 @@
       "group": "Core / feedback",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3304
+      "line": 3349
     },
     {
       "method": "GET",
@@ -183,7 +183,7 @@
       "group": "Core / feedback",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3324
+      "line": 3369
     },
     {
       "method": "GET",
@@ -191,7 +191,7 @@
       "group": "Core / feedback",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3337
+      "line": 3382
     },
     {
       "method": "GET",
@@ -199,7 +199,7 @@
       "group": "Core / feedback",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 3524
+      "line": 3569
     },
     {
       "method": "GET",
@@ -207,7 +207,7 @@
       "group": "Core / feedback",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3729
+      "line": 3774
     },
     {
       "method": "GET",
@@ -215,7 +215,7 @@
       "group": "Core / feedback",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3704
+      "line": 3749
     },
     {
       "method": "GET",
@@ -223,7 +223,7 @@
       "group": "Core / get",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3265
+      "line": 3310
     },
     {
       "method": "GET",
@@ -231,7 +231,7 @@
       "group": "Core / groups",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1360
+      "line": 1385
     },
     {
       "method": "GET",
@@ -239,7 +239,7 @@
       "group": "Core / help",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 790
+      "line": 814
     },
     {
       "method": "GET",
@@ -247,7 +247,7 @@
       "group": "Core / last-result",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3298
+      "line": 3343
     },
     {
       "method": "GET",
@@ -255,7 +255,55 @@
       "group": "Core / next",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1573
+      "line": 1598
+    },
+    {
+      "method": "POST",
+      "path": "/nudge",
+      "group": "Core / nudge",
+      "kind": "workflow",
+      "source": "server/numeric-nudge-routes.js",
+      "line": 11
+    },
+    {
+      "method": "GET",
+      "path": "/nudge/capabilities",
+      "group": "Core / nudge",
+      "kind": "read",
+      "source": "server/numeric-nudge-routes.js",
+      "line": 7
+    },
+    {
+      "method": "GET",
+      "path": "/nudge/claim",
+      "group": "Core / nudge",
+      "kind": "internal",
+      "source": "server/numeric-nudge-routes.js",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/nudge/operation-result",
+      "group": "Core / nudge",
+      "kind": "internal",
+      "source": "server/numeric-nudge-routes.js",
+      "line": 29
+    },
+    {
+      "method": "GET",
+      "path": "/nudge/result",
+      "group": "Core / nudge",
+      "kind": "read",
+      "source": "server/numeric-nudge-routes.js",
+      "line": 16
+    },
+    {
+      "method": "GET",
+      "path": "/nudge/validate",
+      "group": "Core / nudge",
+      "kind": "internal",
+      "source": "server/numeric-nudge-routes.js",
+      "line": 25
     },
     {
       "method": "GET",
@@ -263,7 +311,55 @@
       "group": "Core / reset",
       "kind": "ordinary",
       "source": "server/bridge.js",
-      "line": 3242
+      "line": 3287
+    },
+    {
+      "method": "POST",
+      "path": "/reset",
+      "group": "Core / reset",
+      "kind": "workflow",
+      "source": "server/reset-completion-routes.js",
+      "line": 11
+    },
+    {
+      "method": "GET",
+      "path": "/reset/capabilities",
+      "group": "Core / reset",
+      "kind": "read",
+      "source": "server/reset-completion-routes.js",
+      "line": 7
+    },
+    {
+      "method": "GET",
+      "path": "/reset/claim",
+      "group": "Core / reset",
+      "kind": "internal",
+      "source": "server/reset-completion-routes.js",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/reset/operation-result",
+      "group": "Core / reset",
+      "kind": "internal",
+      "source": "server/reset-completion-routes.js",
+      "line": 29
+    },
+    {
+      "method": "GET",
+      "path": "/reset/result",
+      "group": "Core / reset",
+      "kind": "read",
+      "source": "server/reset-completion-routes.js",
+      "line": 16
+    },
+    {
+      "method": "GET",
+      "path": "/reset/validate",
+      "group": "Core / reset",
+      "kind": "internal",
+      "source": "server/reset-completion-routes.js",
+      "line": 25
     },
     {
       "method": "GET",
@@ -271,7 +367,7 @@
       "group": "Core / result",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 3274
+      "line": 3319
     },
     {
       "method": "GET",
@@ -279,7 +375,55 @@
       "group": "Core / set",
       "kind": "ordinary",
       "source": "server/bridge.js",
-      "line": 3202
+      "line": 3247
+    },
+    {
+      "method": "POST",
+      "path": "/set",
+      "group": "Core / set",
+      "kind": "workflow",
+      "source": "server/guarded-set-routes.js",
+      "line": 11
+    },
+    {
+      "method": "GET",
+      "path": "/set/capabilities",
+      "group": "Core / set",
+      "kind": "read",
+      "source": "server/guarded-set-routes.js",
+      "line": 7
+    },
+    {
+      "method": "GET",
+      "path": "/set/claim",
+      "group": "Core / set",
+      "kind": "internal",
+      "source": "server/guarded-set-routes.js",
+      "line": 20
+    },
+    {
+      "method": "GET",
+      "path": "/set/operation-result",
+      "group": "Core / set",
+      "kind": "internal",
+      "source": "server/guarded-set-routes.js",
+      "line": 28
+    },
+    {
+      "method": "GET",
+      "path": "/set/result",
+      "group": "Core / set",
+      "kind": "read",
+      "source": "server/guarded-set-routes.js",
+      "line": 16
+    },
+    {
+      "method": "GET",
+      "path": "/set/validate",
+      "group": "Core / set",
+      "kind": "internal",
+      "source": "server/guarded-set-routes.js",
+      "line": 24
     },
     {
       "method": "GET",
@@ -287,7 +431,7 @@
       "group": "Core / sliders",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 990
+      "line": 1015
     },
     {
       "method": "GET",
@@ -295,7 +439,7 @@
       "group": "Core / status",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 780
+      "line": 804
     },
     {
       "method": "GET",
@@ -303,7 +447,7 @@
       "group": "Core / status",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 880
+      "line": 905
     },
     {
       "method": "GET",
@@ -311,7 +455,7 @@
       "group": "Core / treatment",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3416
+      "line": 3461
     },
     {
       "method": "GET",
@@ -319,7 +463,7 @@
       "group": "Core / treatment",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 3424
+      "line": 3469
     },
     {
       "method": "GET",
@@ -327,7 +471,7 @@
       "group": "Core / treatment",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 3444
+      "line": 3489
     },
     {
       "method": "GET",
@@ -335,7 +479,7 @@
       "group": "Core / wake-lightroom",
       "kind": "deprecated",
       "source": "server/bridge.js",
-      "line": 870
+      "line": 895
     },
     {
       "method": "GET",
@@ -343,7 +487,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1842
+      "line": 1868
     },
     {
       "method": "GET",
@@ -351,7 +495,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1625
+      "line": 1651
     },
     {
       "method": "GET",
@@ -359,7 +503,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1696
+      "line": 1722
     },
     {
       "method": "GET",
@@ -367,7 +511,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1818
+      "line": 1844
     },
     {
       "method": "GET",
@@ -375,7 +519,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1760
+      "line": 1786
     },
     {
       "method": "GET",
@@ -383,7 +527,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1660
+      "line": 1686
     },
     {
       "method": "GET",
@@ -391,7 +535,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1802
+      "line": 1828
     },
     {
       "method": "GET",
@@ -399,7 +543,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1701
+      "line": 1727
     },
     {
       "method": "GET",
@@ -407,7 +551,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1637
+      "line": 1663
     },
     {
       "method": "GET",
@@ -415,7 +559,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1834
+      "line": 1860
     },
     {
       "method": "GET",
@@ -423,7 +567,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1850
+      "line": 1876
     },
     {
       "method": "GET",
@@ -431,7 +575,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1826
+      "line": 1852
     },
     {
       "method": "GET",
@@ -439,7 +583,7 @@
       "group": "Develop / Profiles (Windows inventory)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1751
+      "line": 1777
     },
     {
       "method": "GET",
@@ -447,7 +591,7 @@
       "group": "Develop Presets",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1479
+      "line": 1504
     },
     {
       "method": "GET",
@@ -455,7 +599,7 @@
       "group": "Develop Presets",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1443
+      "line": 1468
     },
     {
       "method": "GET",
@@ -463,7 +607,7 @@
       "group": "Develop Presets",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1555
+      "line": 1580
     },
     {
       "method": "POST",
@@ -471,7 +615,7 @@
       "group": "Develop Presets",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1373
+      "line": 1398
     },
     {
       "method": "GET",
@@ -479,7 +623,7 @@
       "group": "Develop Presets",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1422
+      "line": 1447
     },
     {
       "method": "GET",
@@ -487,7 +631,7 @@
       "group": "Develop Presets",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1432
+      "line": 1457
     },
     {
       "method": "GET",
@@ -495,7 +639,7 @@
       "group": "Develop Presets",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1405
+      "line": 1430
     },
     {
       "method": "GET",
@@ -503,7 +647,7 @@
       "group": "Develop Presets",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1393
+      "line": 1418
     },
     {
       "method": "GET",
@@ -511,7 +655,7 @@
       "group": "Develop Presets",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1452
+      "line": 1477
     },
     {
       "method": "GET",
@@ -519,7 +663,7 @@
       "group": "Develop Presets",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1366
+      "line": 1391
     },
     {
       "method": "GET",
@@ -527,7 +671,7 @@
       "group": "Enhance",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2980
+      "line": 3025
     },
     {
       "method": "GET",
@@ -535,7 +679,7 @@
       "group": "Enhance",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2998
+      "line": 3043
     },
     {
       "method": "GET",
@@ -543,7 +687,7 @@
       "group": "Enhance",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2924
+      "line": 2969
     },
     {
       "method": "GET",
@@ -551,7 +695,7 @@
       "group": "Enhance",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2898
+      "line": 2943
     },
     {
       "method": "GET",
@@ -559,7 +703,7 @@
       "group": "Enhance",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2947
+      "line": 2992
     },
     {
       "method": "GET",
@@ -567,7 +711,7 @@
       "group": "Enhance",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2903
+      "line": 2948
     },
     {
       "method": "GET",
@@ -575,7 +719,7 @@
       "group": "Enhance",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1581
+      "line": 1606
     },
     {
       "method": "GET",
@@ -583,7 +727,7 @@
       "group": "Enhance",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2959
+      "line": 3004
     },
     {
       "method": "GET",
@@ -767,7 +911,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2514
+      "line": 2543
     },
     {
       "method": "GET",
@@ -775,7 +919,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2658
+      "line": 2687
     },
     {
       "method": "GET",
@@ -783,7 +927,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2523
+      "line": 2552
     },
     {
       "method": "GET",
@@ -791,7 +935,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2579
+      "line": 2608
     },
     {
       "method": "GET",
@@ -799,7 +943,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2590
+      "line": 2619
     },
     {
       "method": "GET",
@@ -807,7 +951,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2558
+      "line": 2587
     },
     {
       "method": "GET",
@@ -815,7 +959,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2774
+      "line": 2803
     },
     {
       "method": "GET",
@@ -823,7 +967,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2766
+      "line": 2795
     },
     {
       "method": "GET",
@@ -831,7 +975,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "deprecated",
       "source": "server/bridge.js",
-      "line": 2533
+      "line": 2562
     },
     {
       "method": "GET",
@@ -839,7 +983,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2750
+      "line": 2779
     },
     {
       "method": "GET",
@@ -847,7 +991,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2736
+      "line": 2765
     },
     {
       "method": "GET",
@@ -855,7 +999,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2694
+      "line": 2723
     },
     {
       "method": "GET",
@@ -863,7 +1007,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2475
+      "line": 2504
     },
     {
       "method": "GET",
@@ -871,7 +1015,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2675
+      "line": 2704
     },
     {
       "method": "GET",
@@ -879,7 +1023,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2666
+      "line": 2695
     },
     {
       "method": "GET",
@@ -887,7 +1031,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2684
+      "line": 2713
     },
     {
       "method": "GET",
@@ -895,7 +1039,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2480
+      "line": 2509
     },
     {
       "method": "GET",
@@ -903,7 +1047,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1593
+      "line": 1619
     },
     {
       "method": "GET",
@@ -911,7 +1055,7 @@
       "group": "Lens Blur (SDK and Windows)",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2611
+      "line": 2640
     },
     {
       "method": "GET",
@@ -919,7 +1063,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2029
+      "line": 2058
     },
     {
       "method": "GET",
@@ -927,7 +1071,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1979
+      "line": 2008
     },
     {
       "method": "GET",
@@ -935,7 +1079,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2038
+      "line": 2067
     },
     {
       "method": "GET",
@@ -943,7 +1087,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2044
+      "line": 2073
     },
     {
       "method": "GET",
@@ -951,7 +1095,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1979
+      "line": 2008
     },
     {
       "method": "GET",
@@ -959,7 +1103,7 @@
       "group": "Masking",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2315
+      "line": 2344
     },
     {
       "method": "GET",
@@ -967,7 +1111,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2283
+      "line": 2312
     },
     {
       "method": "GET",
@@ -975,7 +1119,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2302
+      "line": 2331
     },
     {
       "method": "GET",
@@ -983,7 +1127,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2295
+      "line": 2324
     },
     {
       "method": "GET",
@@ -991,7 +1135,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2288
+      "line": 2317
     },
     {
       "method": "GET",
@@ -999,7 +1143,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2307
+      "line": 2336
     },
     {
       "method": "GET",
@@ -1007,7 +1151,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1970
+      "line": 1999
     },
     {
       "method": "GET",
@@ -1015,7 +1159,7 @@
       "group": "Masking",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2360
+      "line": 2389
     },
     {
       "method": "GET",
@@ -1023,7 +1167,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1997
+      "line": 2026
     },
     {
       "method": "GET",
@@ -1031,7 +1175,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2013
+      "line": 2042
     },
     {
       "method": "GET",
@@ -1039,7 +1183,7 @@
       "group": "Masking",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1883
+      "line": 1912
     },
     {
       "method": "GET",
@@ -1047,7 +1191,7 @@
       "group": "Masking",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2394
+      "line": 2423
     },
     {
       "method": "GET",
@@ -1055,7 +1199,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1989
+      "line": 2018
     },
     {
       "method": "GET",
@@ -1063,7 +1207,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2090
+      "line": 2119
     },
     {
       "method": "GET",
@@ -1071,7 +1215,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2123
+      "line": 2152
     },
     {
       "method": "GET",
@@ -1079,7 +1223,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2099
+      "line": 2128
     },
     {
       "method": "GET",
@@ -1087,7 +1231,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2110
+      "line": 2139
     },
     {
       "method": "GET",
@@ -1095,7 +1239,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2116
+      "line": 2145
     },
     {
       "method": "GET",
@@ -1103,7 +1247,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2082
+      "line": 2111
     },
     {
       "method": "GET",
@@ -1111,7 +1255,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2055
+      "line": 2084
     },
     {
       "method": "GET",
@@ -1119,7 +1263,7 @@
       "group": "Masking",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 2070
+      "line": 2099
     },
     {
       "method": "GET",
@@ -1127,7 +1271,7 @@
       "group": "Masking",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1888
+      "line": 1917
     },
     {
       "method": "GET",
@@ -1135,7 +1279,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2033
+      "line": 2062
     },
     {
       "method": "GET",
@@ -1143,7 +1287,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2050
+      "line": 2079
     },
     {
       "method": "GET",
@@ -1151,7 +1295,7 @@
       "group": "Masking",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1875
+      "line": 1904
     },
     {
       "method": "GET",
@@ -1159,7 +1303,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2186
+      "line": 2215
     },
     {
       "method": "GET",
@@ -1167,7 +1311,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2189
+      "line": 2218
     },
     {
       "method": "GET",
@@ -1175,7 +1319,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2188
+      "line": 2217
     },
     {
       "method": "GET",
@@ -1183,7 +1327,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2187
+      "line": 2216
     },
     {
       "method": "GET",
@@ -1191,7 +1335,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2199
+      "line": 2228
     },
     {
       "method": "GET",
@@ -1199,7 +1343,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2220
+      "line": 2249
     },
     {
       "method": "GET",
@@ -1207,7 +1351,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2223
+      "line": 2252
     },
     {
       "method": "GET",
@@ -1215,7 +1359,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2222
+      "line": 2251
     },
     {
       "method": "GET",
@@ -1223,7 +1367,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2221
+      "line": 2250
     },
     {
       "method": "GET",
@@ -1231,7 +1375,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2224
+      "line": 2253
     },
     {
       "method": "GET",
@@ -1239,7 +1383,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2191
+      "line": 2220
     },
     {
       "method": "GET",
@@ -1247,7 +1391,7 @@
       "group": "Masking",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 2167
+      "line": 2196
     },
     {
       "method": "GET",
@@ -1255,7 +1399,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2005
+      "line": 2034
     },
     {
       "method": "GET",
@@ -1263,7 +1407,7 @@
       "group": "Masking",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2021
+      "line": 2050
     },
     {
       "method": "GET",
@@ -1319,7 +1463,7 @@
       "group": "Point Color",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2806
+      "line": 2835
     },
     {
       "method": "GET",
@@ -1327,7 +1471,7 @@
       "group": "Point Color",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2854
+      "line": 2899
     },
     {
       "method": "GET",
@@ -1335,7 +1479,7 @@
       "group": "Point Color",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2888
+      "line": 2933
     },
     {
       "method": "GET",
@@ -1343,7 +1487,7 @@
       "group": "Point Color",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2872
+      "line": 2917
     },
     {
       "method": "GET",
@@ -1351,7 +1495,15 @@
       "group": "Point Color",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2811
+      "line": 2840
+    },
+    {
+      "method": "GET",
+      "path": "/point-color/sample",
+      "group": "Point Color",
+      "kind": "workflow",
+      "source": "server/bridge.js",
+      "line": 2873
     },
     {
       "method": "GET",
@@ -1359,7 +1511,7 @@
       "group": "Point Color",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1587
+      "line": 1612
     },
     {
       "method": "GET",
@@ -1367,7 +1519,7 @@
       "group": "Point Color",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2893
+      "line": 2938
     },
     {
       "method": "GET",
@@ -1375,7 +1527,7 @@
       "group": "Point Color",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 2841
+      "line": 2886
     },
     {
       "method": "GET",
@@ -1535,7 +1687,7 @@
       "group": "Tone Curve",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 1037
+      "line": 1062
     },
     {
       "method": "GET",
@@ -1543,7 +1695,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1162
+      "line": 1187
     },
     {
       "method": "GET",
@@ -1551,7 +1703,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1165
+      "line": 1190
     },
     {
       "method": "GET",
@@ -1559,7 +1711,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1164
+      "line": 1189
     },
     {
       "method": "GET",
@@ -1567,7 +1719,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1163
+      "line": 1188
     },
     {
       "method": "GET",
@@ -1575,7 +1727,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1327
+      "line": 1352
     },
     {
       "method": "GET",
@@ -1583,7 +1735,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1275
+      "line": 1300
     },
     {
       "method": "GET",
@@ -1591,7 +1743,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1284
+      "line": 1309
     },
     {
       "method": "GET",
@@ -1599,7 +1751,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1281
+      "line": 1306
     },
     {
       "method": "GET",
@@ -1607,7 +1759,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1278
+      "line": 1303
     },
     {
       "method": "GET",
@@ -1615,7 +1767,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1306
+      "line": 1331
     },
     {
       "method": "GET",
@@ -1623,7 +1775,7 @@
       "group": "Tone Curve",
       "kind": "workflow",
       "source": "server/bridge.js",
-      "line": 1186
+      "line": 1211
     },
     {
       "method": "GET",
@@ -1631,7 +1783,7 @@
       "group": "Tone Curve",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 1032
+      "line": 1057
     },
     {
       "method": "GET",
@@ -1639,7 +1791,7 @@
       "group": "Undo / Redo",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2794
+      "line": 2823
     },
     {
       "method": "GET",
@@ -1647,7 +1799,7 @@
       "group": "Undo / Redo",
       "kind": "internal",
       "source": "server/bridge.js",
-      "line": 2798
+      "line": 2827
     },
     {
       "method": "GET",
@@ -1655,7 +1807,7 @@
       "group": "Undo / Redo",
       "kind": "read",
       "source": "server/bridge.js",
-      "line": 2789
+      "line": 2818
     }
   ]
 }
