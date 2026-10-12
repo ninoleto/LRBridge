@@ -1,12 +1,10 @@
 # LRBridge
 
-LRBridge lets you control **Adobe Lightroom Classic** from a browser, hardware buttons and knobs, or scripts. It runs alongside Lightroom on your **Windows PC** and sends your adjustments to Lightroom, where the photo editing happens.
+LRBridge lets you control **Adobe Lightroom Classic** from a browser, hardware buttons and knobs, or scripts. It runs alongside Lightroom on your Windows PC and sends your adjustments to Lightroom, where the photo editing happens.
 
-**[Download the Windows release — v0.6.0-rc.1](https://github.com/ninoleto/LRBridge/releases/latest)**
+**[Download LRBridge 0.6.0-rc.1 for Windows x64](https://github.com/ninoleto/LRBridge/releases/download/v0.6.0-rc.1/LRBridge-0.6.0-rc.1-win-x64-portable.zip)** · [Release downloads](https://github.com/ninoleto/LRBridge/releases/latest)
 
-Requires Windows x64 and Lightroom Classic, not the cloud-based Lightroom app. The tested baseline is Lightroom Classic **15.4.1**; other versions have not been verified.
-
-> **Looking for v0.6 source?** Use the [released source at v0.6.0-rc.1](https://github.com/ninoleto/LRBridge/tree/v0.6.0-rc.1). This homepage describes that release, but the application code on `main` is older. Downloading or running `main` does not give you v0.6. Use the release tag for v0.6 source, build instructions and documentation.
+Requires **Windows x64 and Lightroom Classic**, not the cloud-based Lightroom app. The tested Lightroom version is **15.4.1**.
 
 ## What is LRBridge?
 
@@ -16,17 +14,11 @@ LRBridge has since grown into much more than that connection. Its included **Web
 
 You can use the Web Controller directly with LRBridge and Lightroom, build a hardware setup through Companion, or use both together. **Companion and additional hardware are not required for the Web Controller.**
 
-**HTTP Builder** primarily helps create custom commands for Companion’s **Generic: HTTP Requests** module. Its commands can also be used through PowerShell and other HTTP integrations. There is no LRBridge plug-in for Elgato’s native Stream Deck application; Stream Deck hardware connects through Companion.
+## Lightroom controls
 
-Use LRBridge only on a **trusted local network or private VPN**.
+The Web Controller provides interactive sliders that show values reported by Lightroom. You can drag a slider, enter a value, make small adjustments with +/− buttons, and reset individual settings. Changes made directly in Lightroom can also appear in the Controller.
 
-## What is new in v0.6?
-
-**This is the most complete LRBridge release so far**, with a substantially expanded Web Controller and many more Lightroom controls.
-
-The earlier Web Controller used adjustment buttons and basic value feedback. In v0.6, interactive sliders show values reported by Lightroom. You can drag a slider, enter a value, make small adjustments with +/− buttons, and reset individual settings. Changes made directly in Lightroom can also appear in the Controller.
-
-The available controls now cover:
+The available controls cover:
 
 - **Develop adjustments:** exposure, white balance, colour, detail, effects, calibration, lens corrections, transforms and HDR/SDR settings.
 - **Colour and curves:** Color Mixer, Point Color, Color Grading, editable Point Curves and Parametric Curve adjustments.
@@ -34,70 +26,95 @@ The available controls now cover:
 - **Profiles and presets:** browse available choices, apply them and adjust their amount where supported.
 - **Photo workflows:** selection, Copy/Paste Settings, export and other Lightroom actions.
 
-This release also improves touch and Reset behavior, feedback, navigation and layouts. The Parametric Curve graph updates when its adjustment sliders are offscreen, including changes made in Lightroom or another browser.
+RC1 includes Point Color swatch selection, updates to Reset handling, and more responsive Crop Angle, Color Grading and Healing controls. The matching Companion module also updates Zoom and Lens Blur/Healing feedback. Existing Companion buttons and connection settings can be kept when upgrading. Export and Copy/Paste Settings work when the Web Controller is opened from another device on the trusted network.
 
-LRBridge uses **Adobe’s official Lightroom plug-in SDK** for an extensive range of controls. Selected additional features use **experimental Windows automation** to operate Lightroom’s interface or read its current state. Some functions still need to be used directly in Lightroom, and some displayed values may take a moment to catch up.
+**HTTP Builder** helps you create custom Lightroom commands for Bitfocus Companion’s Generic: HTTP Requests module. You can also copy PowerShell commands or HTTP requests for scripts and other integrations.
 
-## Get started on Windows
+LRBridge uses **Adobe’s official Lightroom plug-in SDK** for an extensive range of controls. Selected additional features use **experimental Windows automation** to operate Lightroom’s interface or read its current state. Some functions still need to be used directly in Lightroom, and some displayed values may take a moment to catch up. The remaining limitations are explained below.
 
-1. Open the [recommended release](https://github.com/ninoleto/LRBridge/releases/latest) and download **LRBridge-0.6.0-beta.2-win-x64-portable.zip** from **Assets**.
-2. Extract the whole ZIP into a new writable folder. Keep its files together and quit any older LRBridge instance.
-3. **Only if you want Dust controls:** close Lightroom and run **Install Dust Presets.cmd** from the extracted folder.
+## Basic Windows installation
+
+Requires **Windows x64 and Adobe Lightroom Classic**, not the cloud-based Lightroom app. Tested with **Lightroom Classic 15.4.1**; other versions have not been verified.
+
+1. Open the [latest release](https://github.com/ninoleto/LRBridge/releases/latest) and download **[LRBridge-0.6.0-rc.1-win-x64-portable.zip](https://github.com/ninoleto/LRBridge/releases/download/v0.6.0-rc.1/LRBridge-0.6.0-rc.1-win-x64-portable.zip)** from **Assets**. This is the application ZIP; GitHub’s “Source code” downloads are for developers.
+2. Extract the whole ZIP into a **new writable folder**. Keep its files together, preserve your previous folder and settings, and quit any older LRBridge instance.
+3. **To use Dust controls under Healing:** close Lightroom and run **Install Dust Presets.cmd** from the extracted LRBridge folder. This installs the helper presets required by the Dust On, Off and Reset buttons.
 4. Start **LRBridge.exe**.
-5. In Lightroom Classic, open **File → Plug-in Manager → Add**. Select the matching **lightroom\LRBridge.lrplugin** folder inside the extracted folder, enable it and click **Done**. Restart Lightroom after installing the plug-in or Dust presets.
-6. In LRBridge, click **Open web controller**. Select a photo and switch Lightroom to **Develop** before sending editing commands.
+5. Open Lightroom Classic's **File → Plug-in Manager → Add**. Select the matching **lightroom\LRBridge.lrplugin** folder inside your extracted LRBridge folder, enable it and click **Done**. Restart Lightroom after installing the plug-in or Dust presets.
+6. In LRBridge, click **Open web controller**.
+7. Select a photo in Lightroom and switch to **Develop** before sending editing commands.
 
-Keep LRBridge and Lightroom running on the Windows PC. On a phone or tablet, use the PC’s network address shown in LRBridge. The Web Controller normally uses port **17892**. **Setup example on the same PC:** `http://127.0.0.1:17892/`. On another device, use the Windows PC’s LAN IP address instead; `127.0.0.1` means the device you are currently using.
+**Why Dust needs this extra step:** Dust On and Off apply the included helper presets automatically; you do not need to select them manually in Lightroom. Install the presets before using Dust On, Off or Reset. Reset clears Dust while preserving manual Healing repairs. Dust Size, Visualize Spots, Threshold and other Healing controls do not require this installer. If Dust status is unavailable, check Lightroom’s Apply checkbox.
 
-For instructions, click **Open help** in the LRBridge application. See the [Windows installation and upgrade guide for v0.6](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/WINDOWS_BETA.md) for matching plug-in setup, Dust presets and preserving settings when upgrading.
+Upgrading? Use the plug-in from the new folder, replacing the old entry in Plug-in Manager. Read the [Windows installation and upgrade guide](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/WINDOWS_BETA.md) to preserve your settings. The Dust installer handles supported older preset copies; do not import duplicates.
+
+## Open and use the standalone Web Controller
+
+Keep LRBridge and Lightroom Classic running on your Windows PC. Open the Controller, check its Lightroom connection indicator, then choose the controls you want to use.
+
+The Web Controller normally uses port **17892**:
+
+- **Setup example on the Windows PC:** open `http://127.0.0.1:17892/`, or click **Open web controller** in LRBridge.
+- **On a phone or tablet:** connect to the same trusted network and open the PC's network address shown by LRBridge. It uses the PC's LAN IP address and port **17892**.
+
+“Localhost” and `127.0.0.1` mean **the device you are currently using**. On a phone, they refer to the phone, not your Windows PC. Use the PC's LAN address there instead.
+
+For instructions, click **Open help** in the LRBridge application.
+
+A [repository copy of Help](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/app/controller-help.html) is also available.
 
 ## HTTP Builder and Bitfocus Companion
 
-**HTTP Builder helps you create custom Lightroom commands without writing them manually.** Its main purpose is to make buttons and actions for Companion’s **Generic: HTTP Requests** module. Choose an action, enter its values and copy the generated request. SDK commands and experimental Windows automation commands are listed separately.
+**HTTP Builder helps you create Lightroom commands without writing them manually.** Its main purpose is to make custom buttons and actions for Bitfocus Companion’s **Generic: HTTP Requests** module.
 
-You can also copy PowerShell commands or use the generated HTTP requests in scripts and other integrations. **The Builder prepares and copies commands; it does not execute them.** Companion, PowerShell or your chosen software sends them to LRBridge.
+Choose a Lightroom action, enter its values and copy the generated request into Companion. SDK commands use Adobe’s official Lightroom plug-in interface; experimental Windows automation commands are listed separately.
 
-To open the command builder, click **HTTP Builder** in the LRBridge application. The command cards include connection instructions. The HTTP API normally uses port **17891**. **API Base URL example on the same PC:** `http://127.0.0.1:17891`. From another device, use the Windows PC’s LAN IP address with port **17891**.
+You can also use HTTP Builder without Companion. Copy a PowerShell command to run on your computer, or use the generated HTTP requests in scripts and custom integrations that send commands over your network. **The Builder prepares and copies commands; it does not execute them.** Companion, PowerShell or your chosen software sends them to LRBridge.
 
-Companion can use either **Generic: HTTP Requests** with Builder-generated commands or the [separate LRBridge Companion module](https://github.com/ninoleto/companion-module-ninoleto-lrbridge), which provides its supported Lightroom actions in Companion’s menus.
+**There are two ways to connect Companion:**
+
+- **Generic: HTTP Requests:** use commands generated by HTTP Builder to create your own actions.
+- **The LRBridge Companion module:** choose its supported Lightroom actions directly from Companion’s menus. Download **[ninoleto-lrbridge-0.6.0-rc.1.tgz](https://github.com/ninoleto/companion-module-ninoleto-lrbridge/releases/download/v0.6.0-rc.1/ninoleto-lrbridge-0.6.0-rc.1.tgz)** from the [matching Companion 0.6.0-rc.1 release](https://github.com/ninoleto/companion-module-ninoleto-lrbridge/releases/tag/v0.6.0-rc.1), import it into Companion and select it for your LRBridge connection. Keep your existing buttons and connection settings. Tested with **Companion 5.0.1**.
 
 **There is currently no LRBridge plug-in for Elgato’s Stream Deck application.** Stream Deck hardware can be used through Bitfocus Companion.
 
-## Use a trusted network
+To open the command builder, click **HTTP Builder** in the LRBridge application. There you’ll find the command cards and connection instructions.
+
+## SDK and Windows automation, explained simply
+
+The SDK is Lightroom's official way for plug-ins to request changes. Windows automation works through Lightroom's interface instead. Some controls send changes through the SDK but use Windows automation to check what Lightroom is displaying, so the Controller's status can arrive later than the change itself.
+
+## Security warning
 
 Use LRBridge only on a **trusted local network or trusted private VPN**. It has no login or encrypted HTTPS connection. Anyone who can reach its controls may be able to send commands to Lightroom.
 
-Do not expose ports **17890, 17891 or 17892** to the public internet, including through port forwarding or public tunnels. Restrict access to trusted devices, especially on shared Wi-Fi.
+**Do not expose ports 17890, 17891 or 17892 to the public internet**, including through port forwarding or public tunnels. Restrict access to trusted devices, especially on shared Wi-Fi.
 
 ## Known limitations
 
-**The version remains 0.6.0-rc.1 and is a normal GitHub release marked Latest.** Some controls may respond slowly or fail to show Lightroom’s latest settings. If something does not work as expected, use that control directly in Lightroom Classic.
+Some controls may respond slowly or fail to show Lightroom’s latest settings. If something does not work as expected, use that control directly in Lightroom Classic.
 
-- Some controls are experimental or unavailable. Creating a new Lens Blur refinement and choosing lens profiles still require Lightroom directly.
-- Profile changes can appear in Lightroom before the Controller catches up. Lens Blur may show **Unavailable** or **Confirmation unavailable** after Lightroom applies a change.
-- Tone Curve can occasionally get stuck waiting for Lightroom’s values. Refine Saturation may still jump in normal or Masking views. The Parametric preview can differ slightly from Lightroom’s graph.
-- Auto Mask and Constrain Crop performance improvements are deferred.
-- **There is no macOS package yet.** A future port still needs implementation and testing.
+- **Some controls are experimental or unavailable.** Creating a new Lens Blur refinement and choosing lens profiles still require Lightroom directly.
+- **Profile feedback:** Lightroom may apply a change before the Controller catches up. A “command sent” message does not mean Lightroom has finished.
+- **Tone Curve:** can occasionally get stuck waiting for Lightroom's values.
+- **Refine Saturation:** may still jump in normal or Masking views.
+- **Parametric Curve:** the preview can differ slightly from Lightroom's graph.
+- **Lens Blur:** some controls may show ‘Unavailable’ or ‘Confirmation unavailable’ even after Lightroom applies the change.
+- **Auto Mask and Constrain Crop:** performance improvements are deferred.
+- **There is no macOS package yet.** The porting guide describes future work and testing needs, not current macOS support.
 
-See the [v0.6 release notes](https://github.com/ninoleto/LRBridge/releases/tag/v0.6.0-rc.1) and [Windows guide](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/WINDOWS_BETA.md) for details.
+## For developers and AI-assisted development
 
-The owner explicitly accepts the documented security limitations for publication. Default listeners bind beyond loopback, command/internal context endpoints lack caller authentication, and the earlier complete security review remains unreconciled. See the [publication decision and known limitations](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/PUBLIC_RELEASE_BLOCKERS.md). These are not claims of fixes.
+**Built with AI assistance:** LRBridge was developed with extensive help from ChatGPT and Codex—a process often called ‘vibe coding’. Its features and interface were guided by the maintainer and tested through hands-on use in Lightroom Classic. The source code and development notes are available so other developers and AI agents can review the implementation, fix remaining issues and continue the project.
 
-## For developers and AI agents
+The current application source branch is **[release/0.6.0-rc.1](https://github.com/ninoleto/LRBridge/tree/release/0.6.0-rc.1)**. The **[v0.6.0-rc.1 tag](https://github.com/ninoleto/LRBridge/tree/v0.6.0-rc.1)** matches the published package. The `main` branch hosts this homepage and older application code; start development from the current source branch or release tag.
 
-Use the **v0.6.0-rc.1 release tag**, not the older application code on `main`. These links point to the source and documentation that match the published package:
+- [Contributor handoff: build instructions, tested versions and safeguards](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/CONTRIBUTOR_HANDOFF.md)
+- [HTTP API and workflows](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/HTTP_WORKFLOWS.md) · [AI-agent context](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/AI_CONTEXT.md)
+- [Source manifest and build provenance](https://github.com/ninoleto/LRBridge/releases/download/v0.6.0-rc.1/LRBridge-release-manifest.json) · [Package checksums](https://github.com/ninoleto/LRBridge/releases/download/v0.6.0-rc.1/LRBridge-SHA256SUMS.txt)
+- [Detailed known limitations and publication decision](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/PUBLIC_RELEASE_BLOCKERS.md) · [macOS porting notes](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/MACOS_PORTING.md)
 
-- [Contributor handoff: builds, tested versions and contribution guidance](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/CONTRIBUTOR_HANDOFF.md)
-- [Matching Companion module and source](https://github.com/ninoleto/companion-module-ninoleto-lrbridge/releases/tag/v0.6.0-rc.1)
-- [Released source code](https://github.com/ninoleto/LRBridge/tree/v0.6.0-rc.1)
-- [Source setup and developer workflow](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/README.md)
-- [Packaging documentation](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/RELEASE_CLEANUP.md)
-- [HTTP API and workflows](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/HTTP_WORKFLOWS.md)
-- [Starting point for developers and AI agents](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/AI_CONTEXT.md)
-- [Curve compatibility notes](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/NATIVE_CURVE_COMPATIBILITY.md)
-- [macOS porting guide](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/MACOS_PORTING.md) — future work, not a supported macOS release.
-
-Forks, issues and pull requests are welcome, including contributions using AI coding agents. Start a branch from `v0.6.0-rc.1` and target `release/0.6.0-rc.1` for RC1-based work. Existing license terms are unchanged. Continued maintenance, review times and future releases are not promised.
+Forks, issues and pull requests are welcome, including work with AI coding agents. Existing license terms remain unchanged. Continued maintenance, review times and future releases are not promised.
 
 ## Support and funding
 
