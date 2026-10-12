@@ -29,7 +29,7 @@ assert.match(controllerHtml, /\.develop-preset-add-open\s*\{[\s\S]*background:\s
     "Add Presets must retain the blue action treatment");
 assert.match(controllerHtml, /\.develop-preset-save\.dirty:not\(:disabled\)\s*\{[\s\S]*background:\s*#1f7651/,
     "Dirty Save Changes must use the established green action treatment");
-assert.match(controllerHtml, /\.slider-jump-option\.preset-tab-entry\s*\{[\s\S]*#2f9ed8/,
+assert.match(controllerHtml, /\.slider-jump-option\.preset-tab-entry,\s*\.tools-jump-popover \.slider-jump-option\.tools-tab-shortcut\s*\{[^}]*border-color:\s*#2f9ed8/,
     "The Presets Jump-to destination must use one alternate blue/teal accent");
 assert.doesNotMatch(controllerHtml, /<select[^>]*developPreset/i,
     "Develop Presets must not use native select controls");

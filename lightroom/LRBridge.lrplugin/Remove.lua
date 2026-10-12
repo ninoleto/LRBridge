@@ -40,7 +40,7 @@ local function copyPreferences(value, depth)
     for key, item in pairs(value) do copy[key] = copyPreferences(item, depth + 1) end
     return copy
 end
-local function read(command)
+local function read(command, preferencesOnly)
     local diagnostics = Repair.diagnostics()
     diagnostics.activeModule = Repair.observe(diagnostics, "getCurrentModuleName", function() return LrApplicationView.getCurrentModuleName() end)
     diagnostics.selectedPhotoUuid = Repair.observe(diagnostics, "getTargetPhoto.uuid", function() return uuid(selectedPhoto()) end)
@@ -58,11 +58,17 @@ local function read(command)
         return copyPreferences(p, 0)
     end)
     if not photoMatches(command) then selectedTool = nil end
-    local repair = Repair.public(Repair.read(function() return contextMatches(command) end, diagnostics))
-    local dust = Dust.read(selectedPhoto(), function() return photoMatches(command) end)
+    -- Brush validation needs its live preferences, not repeated inventory/preset
+    -- discovery. Public snapshots still include current repair and Dust evidence.
+    local repair, dust
+    if not preferencesOnly then
+        repair = Repair.public(Repair.read(function() return contextMatches(command) end, diagnostics))
+        dust = Dust.read(selectedPhoto(), function() return photoMatches(command) end)
+    end
     if not ok or not preferences then return { available = false, selectedTool = selectedTool, repair = repair,
-        dust = dust, reason = "Open Remove in Develop to read brush preferences." } end
-    local snapshot = { available = true, selectedTool = selectedTool, preferences = preferences, repair = repair, dust = dust }
+        dust = dust, preferencesOnly = preferencesOnly, reason = "Open Remove in Develop to read brush preferences." } end
+    local snapshot = { available = true, selectedTool = selectedTool, preferences = preferences, repair = repair, dust = dust,
+        preferencesOnly = preferencesOnly }
     for _, field in ipairs(fields) do snapshot[field] = preferences[field] end
     return snapshot
 end
@@ -139,38 +145,61 @@ local function valueMatches(a, b)
     return a == b
 end
 function Remove.setBrushPreference(command)
+    local function detail(message, snapshot, setterResult)
+        local function precise(value)
+            return type(value) == "number" and string.format("%.17g", value) or tostring(value)
+        end
+        return string.sub(message .. " field=" .. tostring(command.field) .. " mode=" .. tostring(snapshot and snapshot.newSpotType) ..
+            " expected=" .. precise(command.expectedValue) .. " requested=" .. precise(command.value) ..
+            " observed=" .. precise(snapshot and snapshot[command.field]) ..
+            (setterResult ~= nil and " setter=" .. precise(setterResult) or ""), 1, 300)
+    end
     local function result(outcome, detail, snapshot, preserved)
+        if not snapshot or snapshot.preferencesOnly then snapshot = read(command) end
         LrHttp.get(baseUrl .. "operation-result?operationId=" .. encode(command.operationId) .. bindingUrl(command) ..
             "&repairEditConfirmed=false&repairRemovalConfirmed=false&targetRepairToken=null&field=" .. encode(command.field) .. "&value=" .. encode(command.value) .. "&outcome=" .. outcome ..
-            "&detail=" .. encode(detail or "") .. "&otherPreferencesPreserved=" .. tostring(preserved == true) .. snapshotUrl(snapshot or read(command)))
+            "&detail=" .. encode(detail or "") .. "&otherPreferencesPreserved=" .. tostring(preserved == true) .. snapshotUrl(snapshot))
     end
     local ok = LrTasks.pcall(function()
         if not fieldSupported(command.field, command.expectedRemoveMode) or not validValue(command.field, command.value) then
             result("failed", "Unsupported brush preference."); return
         end
         if not validate(command) then result("stale", "Remove brush context changed."); return end
-        local before = read(command)
-        if not before.available or before.newSpotType ~= command.expectedRemoveMode or before[command.field] ~= command.expectedValue or
+        local before = read(command, true)
+        if not before.available or before.newSpotType ~= command.expectedRemoveMode or not valueMatches(before[command.field], command.expectedValue) or
             not fieldSupported(command.field, before.newSpotType, before.preferences) then
-            result("stale", "Remove brush mode or value changed before the write.", before); return
+            result("stale", detail("Remove brush mode or value changed before the write.", before), before); return
         end
         -- HTTP calls can yield. Recheck native context, mode and baseline after the last yielding admission check.
         if not validate(command) then result("stale", "Remove brush context changed."); return end
-        before = read(command)
-        if not before.available or before.newSpotType ~= command.expectedRemoveMode or before[command.field] ~= command.expectedValue or
+        before = read(command, true)
+        if not before.available or before.newSpotType ~= command.expectedRemoveMode or not valueMatches(before[command.field], command.expectedValue) or
             not fieldSupported(command.field, before.newSpotType, before.preferences) or not contextMatches(command) then
-            result("stale", "Remove brush mode or value changed before the write.", before); return end
+            result("stale", detail("Remove brush mode or value changed before the write.", before), before); return end
         -- SDK 14.1+ accepts a partial table. Sending one field preserves other and future preferences without replaying stale values.
         -- newSpotType governs NEW spots; never call selected-spot setters, select a tool, or reveal a panel.
         local success = LrDevelopController.setRemovePanelPreferences({ [command.field] = command.value })
-        if success ~= true then result("failed", "Lightroom rejected the brush preference.", read(command)); return end
+        if success ~= true then
+            local rejected = read(command)
+            result("failed", detail("Lightroom rejected the brush preference.", rejected, tostring(success)), rejected); return
+        end
         local after
         for attempt = 1, 8 do
             if not validate(command) then result("stale", "Remove brush context changed after the write."); return end
-            after = read(command)
+            after = read(command, true)
+            -- Publish a full current snapshot once the lightweight readback agrees.
+            -- Recheck that full snapshot below; the extra discovery must not turn
+            -- a changed preference or target into a successful completion.
+            if after.available and valueMatches(after[command.field], command.value) then
+                local full = read(command)
+                -- Inventory getters can yield too. Bind the published preference
+                -- values to one last live read after that discovery has finished.
+                after = read(command, true)
+                after.repair, after.dust, after.preferencesOnly = full.repair, full.dust, nil
+            end
             local expectedMode = command.field == "newSpotType" and command.value or command.expectedRemoveMode
-            if not after.available or after.newSpotType ~= expectedMode then
-                result("stale", "Remove tool or mode changed after the write.", after); return
+            if not after.available or after.newSpotType ~= expectedMode or not contextMatches(command) then
+                result("stale", detail("Remove tool or mode changed after the write.", after), after); return
             end
             if not othersPreserved(before.preferences, after.preferences, command.field) then
                 result("failed", "Brush preference sent; other preferences changed before confirmation.", after); return
@@ -180,7 +209,7 @@ function Remove.setBrushPreference(command)
             end
             if attempt < 8 then LrTasks.sleep(0.05) end
         end
-        result("failed", "Lightroom did not confirm the brush preference.", after)
+        result("failed", detail("Lightroom did not confirm the brush preference.", after, true), after)
     end)
     if not ok then LrTasks.pcall(function() result("failed", "Lightroom could not update the brush preference.") end) end
 end

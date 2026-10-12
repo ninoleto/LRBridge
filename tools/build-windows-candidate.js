@@ -4,7 +4,7 @@ const fs = require("node:fs"), path = require("node:path"), cp = require("node:c
 const root = path.resolve(__dirname, "..");
 const runtimeFiles = require("./release-runtime-files.json");
 const publicDocs = ["WINDOWS_BETA.md", "RELEASE_REVIEW.md", "RELEASE_CLEANUP.md", "LENS_BLUR_FOCUS_RANGE_STATE_AND_LIMITATIONS.md", "HTTP_WORKFLOWS.md", "HTTP_OPERATIONS.md", "COMPANION_HTTP_CHEATSHEET.md",
-    "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md", "NUMERIC_NUDGE.md", "RESET_COMPLETION.md", "BETA4_PRIVATE_QA.md", "PUBLIC_RELEASE_BLOCKERS.md", "GUARDED_SET.md"];
+    "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md", "NUMERIC_NUDGE.md", "RESET_COMPLETION.md", "BETA4_PRIVATE_QA.md", "PUBLIC_RELEASE_BLOCKERS.md", "GUARDED_SET.md", "RELEASE_NOTES_0.6.0-rc.1.md"];
 const defaults = "poll_interval_ms=100\n";
 function distributionReadme(source) {
     // Developer guides link to source/tests that are deliberately not distributed.
@@ -80,7 +80,9 @@ function inspectCandidate(folder) {
     for(const f of ["LRBridge.exe","resources/native/windows-lightroom-native.ps1","resources/native/windows-remove-selected-identification.ps1","Install Dust Presets.cmd","lightroom/LRBridge.lrplugin/SettingsClipboard.lua","lightroom/LRBridge.lrplugin/DustOnPreset.lua","resources/presets/manifest.json"]) if(!files.includes(f)) throw Error("Missing runtime file: "+f);
     const presets=JSON.parse(fs.readFileSync(path.join(folder,"resources/presets/manifest.json")));
     for(const p of presets.files) if(sha(path.join(folder,"resources/presets",p.name))!==p.sha256) throw Error("Packaged preset mismatch");
-    const manifest={version:1,files:files.map(file=>({file,bytes:fs.statSync(path.join(folder,file)).size,sha256:sha(path.join(folder,file))})),asarEntries:entries.length};
+    const sourceCommit=cp.execFileSync("git",["rev-parse","HEAD"],{cwd:root,encoding:"utf8"}).trim();
+    const sourceDirty=cp.execFileSync("git",["status","--porcelain","--untracked-files=normal"],{cwd:root,encoding:"utf8"}).trim().length>0;
+    const manifest={version:1,productVersion:require("../package.json").version,sourceCommit,sourceDirty,files:files.map(file=>({file,bytes:fs.statSync(path.join(folder,file)).size,sha256:sha(path.join(folder,file))})),asarEntries:entries.length};
     fs.writeFileSync(path.join(folder,"release-manifest.json"),JSON.stringify(manifest,null,2)+"\n");
     return manifest;
 }

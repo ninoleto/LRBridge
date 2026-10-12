@@ -39,6 +39,7 @@ function emptyDiagnostics() {
                 byCommand: {
                     "develop.adjust": 0,
                     "develop.set": 0,
+                    "develop.set.guarded": 0,
                     "develop.nudge": 0,
                     "develop.reset.correlated": 0,
                     "develop.get": 0,
@@ -72,6 +73,7 @@ function emptyDiagnostics() {
                     "point_color.range.translate": 0,
                     "point_color.range_visualization.toggle": 0,
                     "point_color.tool.select": 0,
+                    "point_color.sample.select": 0,
                     "lightroom.undo": 0,
                     "lightroom.redo": 0,
                     "lens_blur.active.set": 0,
@@ -272,7 +274,7 @@ function testCoreMetrics() {
     commands.enqueueCommand({ command: "application.secondary_view", view: "loupe" });
     diagnostics = commands.getQueueDiagnostics();
     assert.deepEqual(diagnostics.queue.pending.byCommand, {
-        "develop.adjust": 1, "develop.set": 1, "develop.nudge": 0, "develop.get": 1,
+        "develop.adjust": 1, "develop.set": 1, "develop.set.guarded": 0, "develop.nudge": 0, "develop.get": 1,
         "develop.reset": 1, "develop.reset.correlated": 0, "develop.action": 1,
         "photo.rotate": 1, "photo.treatment": 1,
         "photo.crop_aspect": 1,
@@ -295,6 +297,7 @@ function testCoreMetrics() {
         "point_color.range.translate": 0,
         "point_color.range_visualization.toggle": 0,
         "point_color.tool.select": 0,
+        "point_color.sample.select": 0,
         "lightroom.undo": 0,
         "lightroom.redo": 0,
         "lens_blur.active.set": 0,

@@ -167,9 +167,11 @@ module.exports = async function checkBuilder({ evaluate, cdp, width, presentatio
         if (href.startsWith('#')) assert.equal(await run('!!document.getElementById(' + JSON.stringify(href.slice(1)) + ')'), true, href);
         else assert(["/", "/help", "/reference/HTTP_WORKFLOWS.md"].includes(href), "unexpected reference " + href);
     }
-    await run('searchFor("slider-no-match");document.querySelector("#clearSearch").click();window.scrollTo(0,1500);');
+    // The accepted developer introduction makes the toolbar start below 1500px
+    // on narrow screens. Reach the toolbar before checking sticky behavior.
+    await run('searchFor("slider-no-match");document.querySelector("#clearSearch").click();window.scrollTo(0,toolbar.getBoundingClientRect().top+scrollY+300);new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     const toolbar = await run('({top:toolbar.getBoundingClientRect().top,height:toolbar.offsetHeight,search:searchEl.getBoundingClientRect().top,step:stepInput.getBoundingClientRect().top})');
-    assert(Math.abs(toolbar.top) < 1 && toolbar.search >= 0 && toolbar.step >= 0, "Search/Step must remain sticky while scrolling");
+    assert(Math.abs(toolbar.top) < 1 && toolbar.search >= 0 && toolbar.step >= 0, "Search/Step must remain sticky while scrolling: " + JSON.stringify({width,toolbar}));
     assert(toolbar.height < 230, "sticky toolbar must stay compact on phones");
     await run('searchFor("Exposure");field("slider-Exposure","value").focus();');
     const focus = await run('({top:document.activeElement.getBoundingClientRect().top,bottom:toolbar.getBoundingClientRect().bottom})');
@@ -212,10 +214,12 @@ async function checkRefinedPresentation({run, cdp, width}) {
         "Companion: For cards with a URL, set the module’s Base URL to the address below. Add an http: GET action to a Companion button, then use Copy path and paste it into the action’s URI field.",
         "PowerShell: Use Copy PowerShell, paste into PowerShell and run it. Some actions require a complete script instead of a single URL; those cards provide the script.",
         "This page only creates and copies commands. It does not run them. After running a command, allow Lightroom time to respond before repeating it.",
+        "For developers and AI coding assistants: Building an integration or modifying LRBridge? Read the HTTP API developer reference. You can also give this document to your AI coding assistant, together with the source code and tests for the version you are working on.",
         "Use LRBridge only on a trusted local network or through a trusted VPN. Do not expose its ports directly to the internet."
     ]);
-    assert.deepEqual(await run('Array.from(document.querySelectorAll("#introduction strong")).map(e=>e.textContent)'), ["Companion:", "PowerShell:"]);
-    assert.equal(await run('document.querySelector("header a")'), null);
+    assert.deepEqual(await run('Array.from(document.querySelectorAll("#introduction strong")).map(e=>e.textContent)'), ["Companion:", "PowerShell:", "For developers and AI coding assistants:"]);
+    assert.deepEqual(await run('Array.from(document.querySelectorAll("header a")).map(a=>({label:a.textContent,href:a.getAttribute("href")}))'),
+        [{label:"HTTP API developer reference",href:"/reference/HTTP_WORKFLOWS.md"}]);
     const tabs = await run(`(()=>{const strip=document.querySelector('.execution-tabs'),tab=document.querySelector('#tab-sdk'),note=document.querySelector('#executionDescription'),style=getComputedStyle(tab);return {
         afterIntro:strip.getBoundingClientRect().top>=document.querySelector('#introduction').getBoundingClientRect().bottom,
         aboveToolbar:note.getBoundingClientRect().bottom<=toolbar.getBoundingClientRect().top,

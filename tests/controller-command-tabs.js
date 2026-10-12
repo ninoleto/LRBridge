@@ -4,7 +4,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const root = path.join(__dirname, "..");
-const source = fs.readFileSync(path.join(root, "app/controller.html"), "utf8");
+const source = fs.readFileSync(path.join(root, "app/controller.html"), "utf8").replace(/\r\n/g, "\n");
 const commands = require("../server/commands");
 const controllerScript = source.match(/<script>([\s\S]*?)<\/script>/);
 assert.ok(controllerScript, "Controller script is missing");

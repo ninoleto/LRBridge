@@ -106,20 +106,21 @@ local function activePhoto()
     return photo
 end
 
-local function prepareDevelop(resetReady)
+local function requireDevelopPhoto(photo)
+    if activePhoto() ~= photo or string.lower(tostring(LrApplicationView.getCurrentModuleName())) ~= "develop" then
+        error("Color Grading context changed before update")
+    end
+end
+
+local function prepareDevelop()
     local photo = activePhoto()
-    -- Scalar Reset already has an active Develop photo in normal Controller use.
-    -- Transitions retain their wait; both paths revalidate the photo before Reset.
-    if resetReady == true and string.lower(tostring(LrApplicationView.getCurrentModuleName())) == "develop" then
-        if activePhoto() ~= photo then error("Color Grading photo changed before Reset") end
-        return photo
-    end
-    LrApplicationView.switchToModule("develop")
-    LrTasks.sleep(0.2)
+    -- An already active Develop photo needs no module transition on every turn.
+    -- Keep the existing settling wait when a module transition is necessary.
     if string.lower(tostring(LrApplicationView.getCurrentModuleName())) ~= "develop" then
-        error("Color Grading requires the Develop module")
+        LrApplicationView.switchToModule("develop")
+        LrTasks.sleep(0.2)
     end
-    if resetReady == true and activePhoto() ~= photo then error("Color Grading photo changed before Reset") end
+    requireDevelopPhoto(photo)
     return photo
 end
 
@@ -140,12 +141,15 @@ end
 function ColorGrading.setWheel(region, hue, saturation)
     local mapping = regions[region]
     if mapping == nil then error("Invalid Color Grading region") end
-    prepareDevelop()
+    local photo = prepareDevelop()
     validateValue(mapping.hue, hue)
     validateValue(mapping.saturation, saturation)
+    requireDevelopPhoto(photo)
     LrDevelopController.startTracking(mapping.hue)
     LrDevelopController.startTracking(mapping.saturation)
+    requireDevelopPhoto(photo)
     LrDevelopController.setValue(mapping.hue, hue)
+    requireDevelopPhoto(photo)
     LrDevelopController.setValue(mapping.saturation, saturation)
     return true
 end
@@ -153,9 +157,11 @@ end
 function ColorGrading.setValue(control, value)
     local parameter = controls[control]
     if parameter == nil then error("Invalid Color Grading control") end
-    prepareDevelop()
+    local photo = prepareDevelop()
     validateValue(parameter, value)
+    requireDevelopPhoto(photo)
     LrDevelopController.startTracking(parameter)
+    requireDevelopPhoto(photo)
     LrDevelopController.setValue(parameter, value)
     return true
 end
@@ -163,7 +169,7 @@ end
 function ColorGrading.resetValue(control)
     local parameter = controls[control]
     if parameter == nil then error("Invalid Color Grading control") end
-    local photo = prepareDevelop(true)
+    local photo = prepareDevelop()
     runtimeRange(parameter)
     if activePhoto() ~= photo or string.lower(tostring(LrApplicationView.getCurrentModuleName())) ~= "develop" then
         error("Color Grading context changed before Reset")
@@ -175,17 +181,21 @@ end
 function ColorGrading.resetRegion(region)
     local mapping = regions[region]
     if mapping == nil then error("Invalid Color Grading region") end
-    prepareDevelop()
+    local photo = prepareDevelop()
     runtimeRange(mapping.hue); runtimeRange(mapping.saturation); runtimeRange(mapping.luminance)
+    requireDevelopPhoto(photo)
     LrDevelopController.resetToDefault(mapping.hue)
+    requireDevelopPhoto(photo)
     LrDevelopController.resetToDefault(mapping.saturation)
+    requireDevelopPhoto(photo)
     LrDevelopController.resetToDefault(mapping.luminance)
     return true
 end
 
 function ColorGrading.setView(view)
     if views[view] ~= true then error("Invalid Color Grading view") end
-    prepareDevelop()
+    local photo = prepareDevelop()
+    requireDevelopPhoto(photo)
     LrDevelopController.setActiveColorGradingView(view)
     return true
 end

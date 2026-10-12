@@ -230,7 +230,7 @@ function validateStaticContract() {
         assert.ok(!controllerSliderReferences.includes(id), "Web Controller exclusion changed for " + id);
         assert.ok(!generatedDoc.includes("slider=" + id), "Generated Companion document exclusion changed for " + id);
         assert.ok(generatorSource.includes('item.id === "' + id + '"'), "Companion generator exclusion is missing for " + id);
-        assert.ok(companionBuilderSource.includes('slider.id !== "' + id + '"'), "HTML Companion builder exclusion is missing for " + id);
+        assert.ok(companionBuilderSource.includes('item.id !== "' + id + '"'), "HTML Companion builder exclusion is missing for " + id);
     }
     for (const action of fixture.actions) {
         if (action === "selectHealingTool") assert.match(read("app/controller-remove.js"), /field === "selectedTool" \? "panel"/, "Healing must use its guarded panel workflow");
@@ -415,10 +415,10 @@ async function validateHttpAndWebSocketContract() {
     assert.deepEqual(result.body, { name: "LRBridge", ok: true, httpPort: 17891, wsPort: 17890, help: "/help" });
 
     result = await request(captured, "/help");
-    assert.deepEqual(keys(result.body), ["experimentalEndpoints", "mode", "name", "notes", "operationInventory", "reliableEndpoints", "sourceOfTruth"]);
+    assert.deepEqual(keys(result.body), ["capabilities", "experimentalEndpoints", "mode", "name", "notes", "operationInventory", "reliableEndpoints", "sourceOfTruth"]);
 
     result = await request(captured, "/status");
-    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "hasLatestResult", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid", "supportedSliders"]);
+    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "hasLatestResult", "lastHeartbeatAt", "maskingCorrectionDevelopFloor", "maskingGrainMaskId", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid", "supportedSliders"]);
     assert.deepEqual(result.body.supportedSliders, sliders.map((slider) => slider.id));
 
     result = await request(captured, "/diagnostics/queue");
@@ -426,7 +426,7 @@ async function validateHttpAndWebSocketContract() {
     assert.deepEqual(keys(result.body), ["counters", "ok", "pointCurveGestures", "queue", "scope", "timestamps"]);
 
     result = await request(captured, "/context");
-    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid"]);
+    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "maskingCorrectionDevelopFloor", "maskingGrainMaskId", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid"]);
 
     result = await request(captured, "/sliders");
     assert.deepEqual(keys(result.body), ["sliders"]);
@@ -504,7 +504,7 @@ async function validateHttpAndWebSocketContract() {
     await request(captured, "/next");
 
     result = await request(captured, "/context/update", { activeModule: "develop", selectedPhotoKey: "photo-1", developFingerprint: "abc" });
-    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid"]);
+    assert.deepEqual(keys(result.body), ["activeModule", "contextChangedAt", "contextCounter", "developChangedAt", "developCounter", "lastHeartbeatAt", "maskingCorrectionDevelopFloor", "maskingGrainMaskId", "ok", "queueLength", "selectedPhotoKey", "selectedPhotoPath", "selectedPhotoUuid"]);
     assert.deepEqual(await drainCommands(captured, 0), [], "context heartbeat must not enqueue a module command");
 
     result = await request(captured, "/result", { command: "develop.get.result", slider: "Exposure", value: "1.25" });

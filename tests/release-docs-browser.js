@@ -165,9 +165,9 @@ const server=http.createServer((req,res)=>{
                     "On the computer running LRBridge:",
                     "Keep LRBridge running while using the Web Controller.",
                     "Using a newer LRBridge folder? Make sure Lightroom loads the plug-in from that same folder. Remove the older LRBridge entry from Plug-in Manager and add the current one.",
-                    "Healing → Dust: To use Apply on/off and Reset through LRBridge, you need to add two Dust presets to Lightroom. Close Lightroom Classic and run Install Dust Presets.cmd from your LRBridge folder. This adds both presets automatically. Reopen Lightroom when it finishes. If Apply and Reset already work, you can skip this step."
+                    "Healing → Dust: To use On, Off and Reset through LRBridge, close Lightroom Classic and run Install Dust Presets.cmd from your LRBridge folder. Reopen Lightroom and look under LRBridge Dust Helper — Do not use manually for LRBridge Dust On and LRBridge Dust Off. The installer can rename the group of the exact earlier bundled presets, preserving a backup and their identities. Existing copies in LRBridge TEST or LRBridge Dust Helpers remain recognized; do not import duplicate presets. Modified or conflicting files are reported for you to resolve."
                 ]);
-                assert.deepEqual(install.emphasis,["LRBridge.exe","lightroom","LRBridge.lrplugin","Lightroom Classic","File → Plug-in Manager","Add","lightroom","LRBridge.lrplugin","Done","LRBridge running","Using a newer LRBridge folder?","Healing → Dust:","Install Dust Presets.cmd"]);
+                assert.deepEqual(install.emphasis,["LRBridge.exe","lightroom","LRBridge.lrplugin","Lightroom Classic","File → Plug-in Manager","Add","lightroom","LRBridge.lrplugin","Done","LRBridge running","Using a newer LRBridge folder?","Healing → Dust:","On","Off","Reset","Install Dust Presets.cmd","LRBridge Dust Helper — Do not use manually","LRBridge Dust On","LRBridge Dust Off","LRBridge TEST","LRBridge Dust Helpers"]);
                 assert.equal(install.links,0);
                 assert.doesNotMatch(install.steps.join(" "),/Dust/,"Dust setup must stay separate from the compact general plug-in steps");
                 assert.doesNotMatch(install.text,/Restart Lightroom|ZIP|[Dd]ownload|[Ee]xtract|Recommended locations|Documents\\|Desktop\\|Program Files/);
@@ -200,8 +200,8 @@ const server=http.createServer((req,res)=>{
                 })()`);
                 assert.deepEqual(controlLimits.map(entry=>entry.label),["Healing → Remove → Selected Add/Subtract","Healing → Dust","Point Color → Visualize Range","Lens Blur focus controls","Copy / Paste Settings"],"control limitations must use bold paragraph labels in order");
                 assert.deepEqual(controlLimits[1].paragraphs,[
-                    "LRBridge controls Dust Apply on/off and Reset by applying two included presets in Lightroom Classic. If those presets are not installed, these buttons are unavailable. Dust Size, Visualize Spots and Threshold do not require the presets.",
-                    "This setup is only necessary if you want to use Dust Apply or Reset through LRBridge. See Set up the Lightroom plug-in for instructions.",
+                    "Dust On and Off apply the corresponding included presets in Lightroom Classic. Reset clears only Dust and preserves manual Healing repairs. These commands require validated presets; unavailable On/Off feedback alone does not disable them. Check Lightroom’s Apply checkbox when Dust status is unavailable. Dust Size, Visualize Spots and Threshold do not require the presets.",
+                    "This setup is only necessary if you want to use Dust On, Off or Reset through LRBridge. See Set up the Lightroom plug-in for instructions.",
                     "LRBridge’s current Dust implementation is restricted to Lightroom Classic 15.4.1. Support for other versions has not been established."
                 ]);
                 assert.doesNotMatch(controlLimits[1].paragraphs.join(" "),/Install Dust Presets\.cmd|close Lightroom|reopen Lightroom/,"Dust installation steps belong only in the setup section");

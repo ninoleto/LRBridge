@@ -1,0 +1,58 @@
+{
+  "version": "0.6.0-rc.1",
+  "acceptedOn": "2026-10-12",
+  "lrbridgeBaseCommit": "4b007f48f3df8b34cee64c9ec133a06a3d529081",
+  "companionBaseCommit": "6fa1ddae6599352b24a11963ba6f8bc83b20fbb9",
+  "acceptedCombination": {
+    "application": "0.6.0-beta.4",
+    "plugin": "beta4.10",
+    "companion": "0.5.0-beta.4.13"
+  },
+  "inputs": [
+    {
+      "file": "LRBridge-Companion-0.5.0-beta.4.13-source.zip",
+      "sha256": "92edf9914a48b8bb551ae0e37c9ad148ab91f69a0a264f13091560ec8db4bd8d"
+    },
+    {
+      "file": "ninoleto-lrbridge-0.5.0-beta.4.13.tgz",
+      "sha256": "a3fba1c4d734eed4c8b832f365ec986bd60a4b3ca370cda097808b7c42702c11"
+    },
+    {
+      "file": "LRBridge-Lightroom-Plugin-beta4.10-update.zip",
+      "sha256": "33802d4adc4721fcaaad7bfb6fa4e6645ae6e99109289e156537ce0c52d0b044"
+    }
+  ],
+  "pluginOverlay": [
+    {
+      "path": "lightroom/LRBridge.lrplugin/Info.lua",
+      "baseline_sha256": "ee08a82a795082b16cc091d27ec4915ec92c0987a1729d330d78678901abe653",
+      "accepted_sha256": "618d09017c9b7b1d98948ba0df32cbd0fe1f952b8843e463fee3eff9c137a0a9",
+      "rc1_sha256": "b0d097ca046cb81ce3fb1dd046bad21a70c9f902e2de3e5a410f8d5f6b4fcee7"
+    },
+    {
+      "path": "lightroom/LRBridge.lrplugin/Remove.lua",
+      "baseline_sha256": "c5ae00eaa92f62c7a864168eb5995b80e1aafe94c7bcf780dbbdd5d25a36c640",
+      "accepted_sha256": "bc144798838ff4b5e3cd2ba0d2ef98c0f5618d7bb8e87f0bc8ebe447fa05f0be",
+      "rc1_sha256": "bc144798838ff4b5e3cd2ba0d2ef98c0f5618d7bb8e87f0bc8ebe447fa05f0be"
+    },
+    {
+      "path": "lightroom/LRBridge.lrplugin/ColorGrading.lua",
+      "baseline_sha256": "d41faaca757d9d33ee01dcf5e946f9003204c54f139ffb96dbe698f9a2394bb3",
+      "accepted_sha256": "8d12239d0cb6dab80a8c3349e8af8a769953cdd7025cd657b8facbde0b0b067f",
+      "rc1_sha256": "8d12239d0cb6dab80a8c3349e8af8a769953cdd7025cd657b8facbde0b0b067f"
+    },
+    {
+      "path": "lightroom/LRBridge.lrplugin/Crop.lua",
+      "baseline_sha256": "250296c9a5e3354358f48deb214a313a931b9bda42ad16974aeca7c80476f3d7",
+      "accepted_sha256": "c4d9588999cef91dab588fdbc193ef2cf0e616f71d63b63d89e21c0d73ce921f",
+      "rc1_sha256": "c4d9588999cef91dab588fdbc193ef2cf0e616f71d63b63d89e21c0d73ce921f"
+    }
+  ],
+  "companionExecutableSha256": "e85cd3057c5e6a31769650258309bb72601922d4f088dd31619ae2f7b63ae374",
+  "notes": [
+    "All accepted application/server runtime files retained byte-for-byte. Electron packaging rewrites package metadata.",
+    "41 unchanged plugin files retained; the three behavior files match accepted hashes; Info.lua changes only RC1 metadata.",
+    "Companion src and lockfile retained byte-for-byte; its packaged main.js matches the accepted beta4.13 TGZ.",
+    "Companion reference-update is retained as historical provenance, not applied to RC1 test references."
+  ]
+}

@@ -661,7 +661,7 @@ assert.match(controller, /\.lens-blur-experimental-note strong\s*\{\s*font-weigh
     "The semantic Experimental label must be visibly bold");
 assert.doesNotMatch(lensBlurUiBlock, /\*\*Experimental:/,
     "The warning must not display Markdown asterisks");
-assert.match(controller, /\.lens-blur-experimental-note\s*\{[\s\S]*?border-left:\s*3px solid #d6a52b/,
+assert.match(controller, /\.lens-blur-experimental-note,\s*\.masking-panel-help\s*\{[^}]*border-left:\s*3px solid #d6a52b/,
     "The Focus Range experimental note must retain compact amber warning styling");
 assert.doesNotMatch(controller, /focusRangeExperimentalNote\.className\s*=\s*[^;]*error/,
     "The Focus Range experimental note must not be presented as an error");

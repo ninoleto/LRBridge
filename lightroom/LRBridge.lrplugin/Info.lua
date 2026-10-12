@@ -1,5 +1,5 @@
 return {
-    VERSION = { major = 0, minor = 6, revision = 0, build = 4, display = "0.6.0-beta.4 (private QA)" },
+    VERSION = { major = 0, minor = 6, revision = 0, build = 601, display = "0.6.0-rc.1" },
 
     LrSdkVersion = 15.3,
     LrSdkMinimumVersion = 15.3,

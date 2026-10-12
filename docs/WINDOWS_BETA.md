@@ -1,4 +1,11 @@
-# LRBridge Windows v0.6 beta
+# LRBridge Windows 0.6.0-rc.1
+
+RC1 preserves the user-accepted LRBridge beta.4 application, beta4.10 Lightroom
+plug-in behavior and Companion beta4.13 behavior. Use
+`LRBridge-0.6.0-rc.1-win-x64-portable.zip` with
+`ninoleto-lrbridge-0.6.0-rc.1.tgz`. See [RC1 release notes](RELEASE_NOTES_0.6.0-rc.1.md)
+and [publication status](PUBLIC_RELEASE_BLOCKERS.md). Earlier dated entries below
+are historical acceptance records, not outstanding requests to repeat that testing.
 
 **Final October 3 UI acceptance:** Calibration's Shadows, Red Primary, Green
 Primary and Blue Primary headings/dividers are accepted. The Tools Jump menu

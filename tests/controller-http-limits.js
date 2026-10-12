@@ -498,10 +498,13 @@ async function testHumanHelpRouteThroughControllerServer() {
         const builderResponse = await request(port, { path: builderHref });
         assert.equal(builderResponse.statusCode, 200);
         assert.match(builderResponse.headers["content-type"], /^text\/html\b/);
-        assert.match(builderResponse.body, /<title>Bitfocus Companion HTTP Builder - LRBridge<\/title>/);
+        assert.match(builderResponse.body, /<title>HTTP Builder - LRBridge<\/title>/);
         for (const reference of ["/reference/WINDOWS_BETA.md", "/reference/HTTP_WORKFLOWS.md", "/reference/HTTP_OPERATIONS.md"]) {
             if (reference === "/reference/WINDOWS_BETA.md") {
                 assert.ok(!helpResponse.body.includes('href="' + reference + '"'), "Plug-in setup must not link the detailed guide");
+            } else if (reference === "/reference/HTTP_OPERATIONS.md") {
+                assert.ok(!(helpResponse.body + builderResponse.body).includes('href="' + reference + '"'),
+                    "Accepted Help/Builder navigation links the workflow guide; inventory remains a direct reference route");
             } else {
                 assert.ok((helpResponse.body + builderResponse.body).includes('href="' + reference + '"'));
             }

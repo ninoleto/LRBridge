@@ -1,3 +1,8 @@
+> Historical beta.4 development record. The user accepted the later beta.4 /
+> beta4.10 / Companion beta4.13 combination as RC1 on 2026-10-12. See
+> [current RC1 notes](RELEASE_NOTES_0.6.0-rc.1.md); pending statements below
+> describe the earlier candidate, not outstanding RC1 feature acceptance.
+
 # 0.6.0-beta.4 private Point Color and guarded fine-button candidate
 
 This is isolated development, not a public release or native-accepted checkpoint.
