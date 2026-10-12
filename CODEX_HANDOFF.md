@@ -1,6 +1,6 @@
 # LRBridge Codex Handoff
 
-## RC1 acceptance and preparation — 2026-10-12
+## RC1 acceptance and publication decision — 2026-10-12
 
 The user accepts LRBridge beta.4 with Lightroom plug-in beta4.10 and Companion
 beta4.13 as RC1. Earlier pending-acceptance notes below are historical. RC1
@@ -8,19 +8,26 @@ integrates those exact implementations; only version metadata, packaging,
 documentation and stale regression fixtures change. See
 [RC1 release notes](docs/RELEASE_NOTES_0.6.0-rc.1.md),
 [source provenance](docs/RC1_SOURCE_PROVENANCE.json) and
-[current public-release blockers](docs/PUBLIC_RELEASE_BLOCKERS.md).
+[accepted known limitations](docs/PUBLIC_RELEASE_BLOCKERS.md) and
+[contributor handoff](docs/CONTRIBUTOR_HANDOFF.md).
 
 Preparation uses isolated `release/0.6.0-rc.1` worktrees. The original dirty
 root checkout, settings, stash and accepted portable installation are preserved.
 The required private recovery backup was uploaded and readback-verified before
 integration; credentials were excluded. No automated Lightroom photo edits,
-installation change, plug-in reload, push, tag or prerelease publication occurred.
-Current unauthenticated command/internal context admission blocks publication.
+working-installation change or plug-in reload occurred during preparation.
+The owner explicitly accepts the documented security limitations for publication.
+Publish both `v0.6.0-rc.1` tags as normal GitHub releases with `prerelease=false`
+and `make_latest=true`; the earlier publication hold is superseded. Preserve
+existing tags/releases and licenses. Welcome forks and contributions without a
+maintenance commitment. Record final remote IDs and verification outside the
+tagged source after publication.
 
 Final automated gates pass: `npm run test:release` **75/75**,
 `npm run test:release -- --browser` **10/10**, and Companion **265/265** using
 Node 22.20.0 and pinned Yarn 4.17.0. The Companion bundle is byte-identical to
-accepted beta4.13. Build the sanitized Windows package from the clean RC1 commit;
+accepted beta4.13. Reuse these checks while executable inputs remain unchanged.
+Build the sanitized Windows package from the clean final RC1 commit;
 retain artifact hashes and final package verification in the local preparation
 report without changing the packaged source commit.
 

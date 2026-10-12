@@ -4,7 +4,9 @@ RC1 preserves the user-accepted LRBridge beta.4 application, beta4.10 Lightroom
 plug-in behavior and Companion beta4.13 behavior. Use
 `LRBridge-0.6.0-rc.1-win-x64-portable.zip` with
 `ninoleto-lrbridge-0.6.0-rc.1.tgz`. See [RC1 release notes](RELEASE_NOTES_0.6.0-rc.1.md)
-and [publication status](PUBLIC_RELEASE_BLOCKERS.md). Earlier dated entries below
+and [accepted known limitations](PUBLIC_RELEASE_BLOCKERS.md). The owner authorizes
+publication as a normal GitHub release marked Latest while retaining `rc.1` in
+the version. Use only a trusted LAN or private VPN. Earlier dated entries below
 are historical acceptance records, not outstanding requests to repeat that testing.
 
 **Final October 3 UI acceptance:** Calibration's Shadows, Red Primary, Green

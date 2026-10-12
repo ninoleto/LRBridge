@@ -6,8 +6,17 @@ implementation is beta4.13. Newer Companion revisions did not require a newer
 Lightroom plug-in. This is integration and release packaging, with no new
 controller behavior or authentication/network redesign.
 
-Publication remains gated by [public-release blockers](PUBLIC_RELEASE_BLOCKERS.md).
-Preparing these packages does not mean a GitHub prerelease has been published.
+The owner accepts the [documented security limitations](PUBLIC_RELEASE_BLOCKERS.md)
+for publication. Version `0.6.0-rc.1` is distributed as a normal GitHub release,
+explicitly marked **Latest**, with `prerelease=false`. The version string and
+accepted behavior are unchanged.
+
+The [complete source at v0.6.0-rc.1](https://github.com/ninoleto/LRBridge/tree/v0.6.0-rc.1)
+matches the package's source commit manifest. GitHub's source ZIP/tarball downloads
+also refer to that tag. See the [contributor handoff](CONTRIBUTOR_HANDOFF.md) for
+build instructions. Forks, issues and pull requests, including contributions
+using AI coding agents, are welcome. Existing license terms are preserved;
+continued maintenance and response times are not promised.
 
 ## Included changes
 
@@ -39,9 +48,11 @@ Preparing these packages does not mean a GitHub prerelease has been published.
 
 The tested baseline is Windows x64, Lightroom Classic 15.4.1 and Companion 5.0.1.
 See the [installation guide](WINDOWS_BETA.md) for Dust setup, configuration,
-browser preferences and feature limitations. Only trusted private-network use
-is described: command and internal feedback interfaces currently lack caller
-authentication. That unresolved release concern is tracked in the blocker file.
+browser preferences and feature limitations. Use only a **trusted LAN or trusted
+private VPN**. Listeners bind beyond loopback, and command/internal feedback
+interfaces lack caller authentication. Do not expose LRBridge through public
+port forwarding or tunnels. The earlier complete security review remains
+unreconciled. These are accepted publication limitations, not claims of fixes.
 
 ## Verification
 
@@ -59,5 +70,5 @@ behavior and assertion thresholds were preserved.
 The generated `release-manifest.json` records version, source commit, source
 cleanliness and every packaged file's SHA-256. Final package verification must
 match source, staged `runtime/lightroom`, extracted plug-in files and resources.
-Current results and remaining blockers are recorded in
+Current results and accepted known limitations are recorded in
 [PUBLIC_RELEASE_BLOCKERS.md](PUBLIC_RELEASE_BLOCKERS.md).

@@ -3,7 +3,7 @@
 The user has accepted the beta.4 application, beta4.10 plug-in and Companion
 beta4.13 implementation as RC1. The fresh RC1 package preserves that behavior.
 Older dated pending-feature statements below are historical; current package
-smoke checks and security publication blockers are tracked in
+smoke checks and security limitations accepted for publication are tracked in
 [PUBLIC_RELEASE_BLOCKERS.md](PUBLIC_RELEASE_BLOCKERS.md) and
 [RC1 release notes](RELEASE_NOTES_0.6.0-rc.1.md).
 

@@ -4,7 +4,7 @@ const fs = require("node:fs"), path = require("node:path"), cp = require("node:c
 const root = path.resolve(__dirname, "..");
 const runtimeFiles = require("./release-runtime-files.json");
 const publicDocs = ["WINDOWS_BETA.md", "RELEASE_REVIEW.md", "RELEASE_CLEANUP.md", "LENS_BLUR_FOCUS_RANGE_STATE_AND_LIMITATIONS.md", "HTTP_WORKFLOWS.md", "HTTP_OPERATIONS.md", "COMPANION_HTTP_CHEATSHEET.md",
-    "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md", "NUMERIC_NUDGE.md", "RESET_COMPLETION.md", "BETA4_PRIVATE_QA.md", "PUBLIC_RELEASE_BLOCKERS.md", "GUARDED_SET.md", "RELEASE_NOTES_0.6.0-rc.1.md"];
+    "COPY_PASTE_SETTINGS.md", "CONTROLLER_FAVORITES.md", "EXPORT_CONTROLS.md", "REMOVE_BRUSH_PREFERENCES.md", "NUMERIC_NUDGE.md", "RESET_COMPLETION.md", "BETA4_PRIVATE_QA.md", "PUBLIC_RELEASE_BLOCKERS.md", "GUARDED_SET.md", "RELEASE_NOTES_0.6.0-rc.1.md", "CONTRIBUTOR_HANDOFF.md"];
 const defaults = "poll_interval_ms=100\n";
 function distributionReadme(source) {
     // Developer guides link to source/tests that are deliberately not distributed.

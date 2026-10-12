@@ -1,10 +1,16 @@
-# RC1 public-release blockers — reconciled 2026-10-12
+# RC1 publication decision and known limitations — 2026-10-12
 
-**Publication is blocked by the current security findings below.** Functional
-acceptance and passing regression tests do not resolve caller authentication.
-No authentication migration, bind-address change or network redesign is included
-in this integration release. Do not publish either RC1 prerelease until the
-shared publication conditions have been satisfied.
+**The repository owner explicitly accepted the documented security limitations
+for publication on 2026-10-12.** They are known limitations, not publication
+blockers for this release. Both products retain version `0.6.0-rc.1` and are
+published as normal GitHub releases (`prerelease=false`), explicitly marked
+Latest. This supersedes the earlier publication hold recorded in this file.
+
+Use LRBridge only on a **trusted LAN or trusted private VPN**. Do not expose
+ports 17890, 17891 or 17892 through public port forwarding or public tunnels.
+Restrict access to trusted devices. Functional acceptance and passing tests do
+not add caller authentication or close the findings below. No authentication
+migration, bind-address change or network redesign is included in RC1.
 
 ## Resolved historical items
 
@@ -41,7 +47,7 @@ reconciliation and focused retests, final full runs pass **75/75 core** and
 **10/10 browser** checks. Companion passes **265/265 tests**. Detailed evidence
 is retained in the local RC1 preparation report.
 
-## Current blockers
+## Known limitations accepted for publication
 
 1. **Network listeners are not restricted to loopback by default.**
    createBridge() in server/bridge.js leaves httpHost and wsHost undefined;
@@ -65,10 +71,11 @@ is retained in the local RC1 preparation report.
    were independently reproduced against current source. They do not substitute
    for reconciling additional findings in that original review.
 
-Closing these items requires an explicit reviewed security scope/decision and
-matching verification while preserving trusted-LAN/Companion compatibility and
-the authoritative plug-in boundary. This integration does not silently introduce
-that redesign or treat a documentation warning as a security fix.
+The owner's publication decision accepts these risks and the incomplete earlier
+review coverage; it does not declare them fixed or the review closed. Future
+security work should define its scope and verify trusted-LAN/Companion
+compatibility and the authoritative plug-in boundary. Contributions addressing
+these limitations are welcome under the existing license terms.
 
 ## Package acceptance
 
@@ -76,4 +83,5 @@ The working portable installation and settings remain untouched. Automated
 checks use offline fixtures. A fresh RC1 installation still needs the ordinary
 user-led smoke check: new folder, settings migration, matching plug-in reloaded
 once, connection, Companion import and version display. It is not a request to
-repeat accepted feature testing and does not remove the blockers above.
+repeat accepted feature testing. It does not change the known security limitations
+or the owner's explicit decision to publish with them documented.
