@@ -2,11 +2,11 @@
 
 LRBridge lets you control **Adobe Lightroom Classic** from a browser, hardware buttons and knobs, or scripts. It runs alongside Lightroom on your **Windows PC** and sends your adjustments to Lightroom, where the photo editing happens.
 
-**[Download the recommended Windows beta — v0.6.0-beta.2](https://github.com/ninoleto/LRBridge/releases/latest)**
+**[Download the Windows release — v0.6.0-rc.1](https://github.com/ninoleto/LRBridge/releases/latest)**
 
 Requires Windows x64 and Lightroom Classic, not the cloud-based Lightroom app. The tested baseline is Lightroom Classic **15.4.1**; other versions have not been verified.
 
-> **Looking for v0.6 source?** Use the [released source at v0.6.0-beta.2](https://github.com/ninoleto/LRBridge/tree/v0.6.0-beta.2). This homepage describes that release, but the application code on `main` is older. Downloading or running `main` does not give you v0.6. Use the release tag for v0.6 source, build instructions and documentation.
+> **Looking for v0.6 source?** Use the [released source at v0.6.0-rc.1](https://github.com/ninoleto/LRBridge/tree/v0.6.0-rc.1). This homepage describes that release, but the application code on `main` is older. Downloading or running `main` does not give you v0.6. Use the release tag for v0.6 source, build instructions and documentation.
 
 ## What is LRBridge?
 
@@ -49,7 +49,7 @@ LRBridge uses **Adobe’s official Lightroom plug-in SDK** for an extensive rang
 
 Keep LRBridge and Lightroom running on the Windows PC. On a phone or tablet, use the PC’s network address shown in LRBridge. The Web Controller normally uses port **17892**. **Setup example on the same PC:** `http://127.0.0.1:17892/`. On another device, use the Windows PC’s LAN IP address instead; `127.0.0.1` means the device you are currently using.
 
-For instructions, click **Open help** in the LRBridge application. See the [Windows installation and upgrade guide for v0.6](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/docs/WINDOWS_BETA.md) for matching plug-in setup, Dust presets and preserving settings when upgrading.
+For instructions, click **Open help** in the LRBridge application. See the [Windows installation and upgrade guide for v0.6](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/WINDOWS_BETA.md) for matching plug-in setup, Dust presets and preserving settings when upgrading.
 
 ## HTTP Builder and Bitfocus Companion
 
@@ -69,9 +69,9 @@ Use LRBridge only on a **trusted local network or trusted private VPN**. It has 
 
 Do not expose ports **17890, 17891 or 17892** to the public internet, including through port forwarding or public tunnels. Restrict access to trusted devices, especially on shared Wi-Fi.
 
-## Beta limitations
+## Known limitations
 
-**This is a beta release.** Some controls may respond slowly or fail to show Lightroom’s latest settings. If something does not work as expected, use that control directly in Lightroom Classic.
+**The version remains 0.6.0-rc.1 and is a normal GitHub release marked Latest.** Some controls may respond slowly or fail to show Lightroom’s latest settings. If something does not work as expected, use that control directly in Lightroom Classic.
 
 - Some controls are experimental or unavailable. Creating a new Lens Blur refinement and choosing lens profiles still require Lightroom directly.
 - Profile changes can appear in Lightroom before the Controller catches up. Lens Blur may show **Unavailable** or **Confirmation unavailable** after Lightroom applies a change.
@@ -79,19 +79,25 @@ Do not expose ports **17890, 17891 or 17892** to the public internet, including 
 - Auto Mask and Constrain Crop performance improvements are deferred.
 - **There is no macOS package yet.** A future port still needs implementation and testing.
 
-See the [v0.6 release notes](https://github.com/ninoleto/LRBridge/releases/tag/v0.6.0-beta.2) and [Windows guide](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/docs/WINDOWS_BETA.md) for details.
+See the [v0.6 release notes](https://github.com/ninoleto/LRBridge/releases/tag/v0.6.0-rc.1) and [Windows guide](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/WINDOWS_BETA.md) for details.
+
+The owner explicitly accepts the documented security limitations for publication. Default listeners bind beyond loopback, command/internal context endpoints lack caller authentication, and the earlier complete security review remains unreconciled. See the [publication decision and known limitations](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/PUBLIC_RELEASE_BLOCKERS.md). These are not claims of fixes.
 
 ## For developers and AI agents
 
-Use the **v0.6.0-beta.2 release tag**, not the older application code on `main`. These links point to the source and documentation that match the published package:
+Use the **v0.6.0-rc.1 release tag**, not the older application code on `main`. These links point to the source and documentation that match the published package:
 
-- [Released source code](https://github.com/ninoleto/LRBridge/tree/v0.6.0-beta.2)
-- [Source setup and developer workflow](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/README.md)
-- [Packaging documentation](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/docs/RELEASE_CLEANUP.md)
-- [HTTP API and workflows](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/docs/HTTP_WORKFLOWS.md)
-- [Starting point for developers and AI agents](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/docs/AI_CONTEXT.md)
-- [Curve compatibility notes](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/docs/NATIVE_CURVE_COMPATIBILITY.md)
-- [macOS porting guide](https://github.com/ninoleto/LRBridge/blob/v0.6.0-beta.2/docs/MACOS_PORTING.md) — future work, not a supported macOS release.
+- [Contributor handoff: builds, tested versions and contribution guidance](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/CONTRIBUTOR_HANDOFF.md)
+- [Matching Companion module and source](https://github.com/ninoleto/companion-module-ninoleto-lrbridge/releases/tag/v0.6.0-rc.1)
+- [Released source code](https://github.com/ninoleto/LRBridge/tree/v0.6.0-rc.1)
+- [Source setup and developer workflow](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/README.md)
+- [Packaging documentation](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/RELEASE_CLEANUP.md)
+- [HTTP API and workflows](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/HTTP_WORKFLOWS.md)
+- [Starting point for developers and AI agents](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/AI_CONTEXT.md)
+- [Curve compatibility notes](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/NATIVE_CURVE_COMPATIBILITY.md)
+- [macOS porting guide](https://github.com/ninoleto/LRBridge/blob/v0.6.0-rc.1/docs/MACOS_PORTING.md) — future work, not a supported macOS release.
+
+Forks, issues and pull requests are welcome, including contributions using AI coding agents. Start a branch from `v0.6.0-rc.1` and target `release/0.6.0-rc.1` for RC1-based work. Existing license terms are unchanged. Continued maintenance, review times and future releases are not promised.
 
 ## Support and funding
 
