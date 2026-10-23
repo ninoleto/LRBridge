@@ -28,6 +28,12 @@ Search keywords: Adobe Lightroom Classic controller, Lightroom HTTP API, Lightro
 
 ## Quick links
 
+Optional development integration: [LRBridge MCP server for Codex and Claude Code](https://github.com/ninoleto/LRBridge/blob/feature/mcp-server/mcp/README.md).
+It runs separately from the released application, uses local stdio and existing
+guarded APIs, and includes Windows setup and automated tests. RC1 guarded absolute
+Set supports Contrast, Clarity and Vibrance only; the guide explains other safe
+operations and the required manual Lightroom validation.
+
 Native **Quick Copy Settings** and **Paste Settings** are at the bottom of Selection, after Export; Navigate is first. Copy uses Lightroom's last chosen categories; Paste targets the photos selected in Lightroom and requests AI updating. The compact [favorites bar](docs/CONTROLLER_FAVORITES.md) defaults to Undo/Redo. Its searchable, grouped chooser offers all Selection and Application action buttons, including Copy/Paste and Export, without changing existing favorites. Routine action-specific feedback expires outside the bar; errors and required review remain accessible. The simplified help and result presentation are accepted. See [Copy/Paste behavior, safeguards and limits](docs/COPY_PASTE_SETTINGS.md).
 
 Native **Export…** and **Export with Previous** controls are on the Web Controller's Selection page. See [Export controls, HTTP contract and validation status](docs/EXPORT_CONTROLS.md). Export with Previous reuses Lightroom's last export settings and may start immediately. Earlier acceptance documented button behavior with one selected photo. The latest report does not specify completed output or additional photo counts, so it does not establish those scenarios.
