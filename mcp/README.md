@@ -175,9 +175,17 @@ an unsupported MCP operation. Missing feedback causes an error, never a default.
   to the original server epoch, photo and navigation context, and confirms only
   if its value matches the worker's SDK observation. The original receipt keeps
   its historical revision. Changed values, stale/missing feedback, navigation or
-  another revision change during the read remain uncertain. This is a read-only
+  another revision change after SDK dispatch remain uncertain. This is a read-only
   confirmation step, never a repeated write or an automatic journal acknowledgement.
   An uncertain/failed worker receipt cannot be upgraded by a matching later value.
+- For post-execution confirmation only, a new `purpose=edit` feedback request may
+  follow a newer Develop revision while still queued, as RC1's reader protocol
+  permits. The adapter accepts only the same original photo/navigation/epoch owner,
+  freezes the first SDK-dispatch binding it receives, and requires that exact
+  revision to remain current through completion. It reports the snapshot's actual
+  revision. A later change to an already bound snapshot is rejected. Pre-write
+  admission baselines keep their exact revision; no extra feedback request or
+  mutation retry is introduced.
 - A value can change after observation. These checks do not promise a universal
   Lightroom processing-completion barrier or an atomic SDK compare-and-set.
 - Profile Amount inherits RC1's limitation: there is no admission-time profile

@@ -30,9 +30,10 @@ test('MCP adapter against actual RC1 routes, queue and receipt stores with an is
     const response = await fetch(baseUrl + route + (params ? '?' + new URLSearchParams(params) : ''));
     return { status: response.status, data: await response.json() };
   };
-  let stop = false, workerError;
+  let stop = false, workerError, feedbackBarrier;
   const worker = (async () => {
     while (!stop) {
+      if (feedbackBarrier) await feedbackBarrier;
       const read = (await call('/feedback/next')).data.request;
       if (read) {
         const ids = read.slider.startsWith('__many__:') ? read.slider.slice(9).split(',') : [read.slider];
@@ -123,10 +124,53 @@ test('MCP adapter against actual RC1 routes, queue and receipt stores with an is
       } finally { service.http.get = get; }
     });
   }
+  await t.test('batch confirmation follows RC1 dispatch binding after each queued read crosses a same-photo heartbeat', async () => {
+    const get = service.http.get.bind(service.http);
+    const before = received.length;
+    const context = (await service.call('lrbridge_get_photo_context')).context;
+    let releaseFeedback, queuedConfirmations = 0;
+    service.http.get = async (route, options) => {
+      const data = await get(route, options);
+      if (route.startsWith('/set/result?') && data.receipt?.phase === 'complete') {
+        // Hold the simulated SDK until the next read is actually admitted.
+        feedbackBarrier = new Promise(resolve => { releaseFeedback = resolve; });
+      } else if (route.startsWith('/feedback/request-many?') && releaseFeedback) {
+        const queued = (await call('/feedback/snapshot', { id: data.request.id })).data.snapshot;
+        assert.equal(queued.complete, false);
+        assert.equal(queued.context, undefined, 'No dispatch binding or SDK sample yet');
+        assert.deepEqual(queued.results, {});
+        contextState.updateContext({ ...contextState.getContextFields(), developFingerprint: 'queued-confirm-' + ++queuedConfirmations });
+        releaseFeedback(); releaseFeedback = undefined; feedbackBarrier = undefined;
+      }
+      return data;
+    };
+    try {
+      const adjustments = [{ slider: 'Contrast', value: 10 }, { slider: 'Clarity', value: 5 }, { slider: 'Vibrance', value: 10 }];
+      const input = { requestId: 'dispatch-batch-real', context, adjustments };
+      const result = await service.call('lrbridge_set_multiple_sliders', input);
+      assert.ifError(workerError);
+      assert.equal(result.status, 'confirmed', JSON.stringify(result));
+      assert.equal(result.atomic, false);
+      assert.deepEqual(result.results.map(r => [r.slider, r.status, r.value]), adjustments.map(a => [a.slider, 'confirmed', a.value]));
+      assert.deepEqual(result.results.map(r => r.context.developCounter), [1, 2, 3].map(n => context.developCounter + n));
+      assert.equal(queuedConfirmations, 3);
+      assert.equal(received.length - before, 3);
+      assert.equal(new Set(received.slice(before).map(c => c.requestId)).size, 3);
+      const duplicate = await service.call('lrbridge_set_multiple_sliders', input);
+      assert.equal(duplicate.duplicate, true); assert.equal(duplicate.historical, true);
+      assert.equal(received.length - before, 3); assert.equal(queuedConfirmations, 3);
+      const fresh = await service.call('lrbridge_get_slider_values', { sliders: adjustments.map(a => a.slider) });
+      assert.equal(fresh.status, 'read');
+      assert.deepEqual(adjustments.map(a => fresh.values[a.slider].value), [10, 5, 10]);
+    } finally {
+      releaseFeedback?.(); feedbackBarrier = undefined; service.http.get = get;
+    }
+  });
   await t.test('stale context refuses admission to actual command queue', async () => {
+    const before = received.length;
     const context = (await service.call('lrbridge_get_photo_context')).context;
     contextState.updateContext({ activeModule: 'develop', selectedPhotoUuid: 'other-photo', developFingerprint: 'integration-2' });
     const result = await service.call('lrbridge_set_slider', { requestId: 'stale-real', context, slider: 'Clarity', value: 20 });
-    assert.equal(result.status, 'rejected'); assert.equal(result.code, 'context_changed'); assert.equal(received.length, 5);
+    assert.equal(result.status, 'rejected'); assert.equal(result.code, 'context_changed'); assert.equal(received.length, before);
   });
 });

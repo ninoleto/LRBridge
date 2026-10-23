@@ -269,7 +269,9 @@ export class LRBridgeService {
     }
     const state = await this.bridge.checkContext(operation.context, signal, false);
     if (operation.family === 'set') {
-      const observation = await this.bridge.readValues([operation.body.slider], { expected: state.context, signal });
+      const observation = await this.bridge.readValues([operation.body.slider], {
+        expected: state.context, signal, followDispatchRevision: true
+      });
       const value = observation.values[operation.body.slider];
       if (!value.available || !near(value.value, operation.body.value)) {
         return { status: 'uncertain', code: 'target_not_observed', receipt, observation,
@@ -293,7 +295,9 @@ export class LRBridgeService {
       // A later heartbeat can account for this edit, but its cause is unknown.
       // Keep the receipt historical and acquire new authority at the current
       // revision under the ORIGINAL epoch/photo/navigation owner. Never re-POST.
-      const observation = await this.bridge.readValues([operation.body.slider], { expected: state.context, signal });
+      const observation = await this.bridge.readValues([operation.body.slider], {
+        expected: state.context, signal, followDispatchRevision: true
+      });
       const value = observation.values[operation.body.slider];
       if (!value.available || !near(value.value, r.sdkValue)) {
         return { status: 'uncertain', code: 'observation_value_changed', receipt, observation,

@@ -4,8 +4,10 @@ Development baseline: `v0.6.0-rc.1`, commit
 `c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`. No Lightroom Classic instance,
 personal computer or real catalog is available in the development environment.
 The owner subsequently ran the limited Windows/Lightroom checks recorded below.
-The follow-up Contrast Set/Reset check passed on the revision-confirmation fix.
-Full native acceptance remains pending.
+The follow-up Contrast Set/Reset check passed on the first revision-confirmation
+fix. A subsequent batch exposed a queued-feedback dispatch race; its adapter fix
+passes automated checks and awaits native retesting. Full native acceptance
+remains pending.
 
 ## Automated evidence
 
@@ -22,10 +24,15 @@ ephemeral loopback port and gives the adapter a temporary private journal.
   The revision-confirmation cases reproduce a heartbeat after an accepted worker
   receipt and require fresh owned SDK evidence; changed values, unavailable/stale
   feedback, changed ownership and uncertain worker receipts cannot confirm.
+  A further 22 dispatch-confirmation cases cover later same-owner bindings before
+  SDK dispatch, immutable partial snapshots, strict admission baselines, batch
+  stopping, unavailable/changed values and durable duplicate behavior.
 - `npm run test:bridge` runs the adapter against the actual RC1 HTTP handlers,
   command queue and receipt stores with an isolated SDK worker double. It checks
   Set, Nudge, Reset, duplicate behavior, stale photo rejection and later same-photo
-  heartbeats after retained Nudge/Reset receipts.
+  heartbeats after retained Nudge/Reset receipts. The batch fixture holds the SDK
+  worker until each new empty confirmation request is admitted, advances the same
+  photo's revision, then lets the actual RC1 handler bind and complete the read.
 - The existing `test:guarded-set`, `test:numeric-nudge` and `test:reset-completion`
   suites exercise production Lua, parsers/worker ordering and SDK doubles. The
   adapter does not change their implementations or fixtures.
@@ -35,8 +42,9 @@ ephemeral loopback port and gives the adapter a temporary private journal.
   integration fixture, local packaging, and existing RC1 regression on Windows.
   A workflow definition is not evidence that a hosted run has passed.
 
-Local results: **104/104 MCP tests**, **7/7 actual-route integration tests**, and the
+Local results: **126/126 MCP tests**, **8/8 actual-route integration tests**, and the
 separate existing Guarded Set check (**33 SDK/ownership/envelope scenarios**) pass.
+The existing Numeric Nudge and Reset completion checks also pass after this fix.
 `npm audit --omit=dev` reports **0 vulnerabilities** in the MCP production graph.
 The browser runner returned **9/10** using Chromium 153.0.8010.0 with a Linux
 container launch wrapper. `release-docs-browser` failed on its existing early
@@ -96,6 +104,31 @@ does not establish whether that run exercised the later-revision recovery path.
 The automated cases cover that path and its failure conditions. Claude Code,
 additional controls/photo types, batches and the remaining race/interruption
 checks below still require native testing.
+
+### Subsequent batch attempt and dispatch-confirmation fix
+
+The next native Codex transcript requested Contrast +10, Clarity +5 and Vibrance
++10 from initial SDK values of 0. The first result was `uncertain` with
+`stale_feedback`; Clarity and Vibrance were `not_attempted`. The client stopped
+without retries, rollback, further writes or a final SDK read. The supplied
+Lightroom screenshot showed Contrast +10, Clarity 0 and Vibrance 0. This visual
+evidence does not retroactively confirm the MCP operation or clear its journal.
+
+The same failure was reproduced with the actual RC1 HTTP handlers: a queued
+`purpose=edit` confirmation read legitimately binds to a later same-photo revision
+at SDK dispatch, but the adapter required its earlier request-time revision. Four
+positive mocked cases and the actual-route batch failed before the adapter fix.
+Post-execution confirmation now accepts the request's later dispatch binding only
+under its original owner, keeps that binding immutable once seen, and verifies
+the exact revision is still current when the read completes. All numeric values
+still come from correlated SDK results and must match the successful operation.
+Admission reads remain strict; no read or mutation is resubmitted. Existing
+uncertain records are not rewritten, acknowledged or resumed by an upgrade.
+
+The native trace abbreviates the tool JSON, so the individual mismatched context
+fields from that run are unavailable. The regression establishes a real protocol
+mismatch producing the same reported failure. **The fixed three-slider batch
+still requires a native retest.**
 
 ## Windows and Lightroom manual checklist
 

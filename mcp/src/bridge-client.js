@@ -74,8 +74,8 @@ export class BridgeClient {
     }));
     return Object.fromEntries(entries);
   }
-  async readValues(ids, { expected, metadata, signal } = {}) {
-    const initial = expected ? await this.checkContext(expected, signal) : await this.context(signal);
+  async readValues(ids, { expected, metadata, signal, followDispatchRevision = false } = {}) {
+    const initial = expected ? await this.checkContext(expected, signal, !followDispatchRevision) : await this.context(signal);
     this.requireReady(initial);
     const context = initial.context;
     const registry = metadata || await this.metadata(signal);
@@ -97,7 +97,7 @@ export class BridgeClient {
       throw new BridgeError('invalid_feedback', 'LRBridge did not admit the requested feedback set.');
     }
     const deadline = Date.now() + this.readTimeoutMs;
-    let snapshot;
+    let snapshot, dispatchContext;
     while (Date.now() < deadline) {
       const data = await this.http.get(`/feedback/snapshot?id=${id}&wait=1`, { signal,
         timeoutMs: Math.min(this.http.timeoutMs, Math.max(1, deadline - Date.now())) });
@@ -106,8 +106,22 @@ export class BridgeClient {
           snapshot.requestedSliders.length !== readable.length || readable.some(s => !snapshot.requestedSliders.includes(s))) {
         throw new BridgeError('invalid_feedback', 'Feedback snapshot identity mismatch.');
       }
-      if (snapshot.context && !equalContext(context, owner(context.serverEpoch, snapshot.context))) {
-        throw new BridgeError('stale_feedback', 'Feedback belongs to a different photo or Develop revision.');
+      if (snapshot.context) {
+        const binding = owner(context.serverEpoch, snapshot.context);
+        // RC1 purpose=edit binds an empty queued request at SDK dispatch. Only
+        // post-execution confirmation may follow a newer revision of the same
+        // original owner. Once a dispatch binding exists it is immutable, even
+        // while results are partial. Admission baselines remain exact-revision.
+        const requireExactRevision = dispatchContext !== undefined || !followDispatchRevision;
+        if (!equalContext(dispatchContext || context, binding, requireExactRevision) ||
+            !integer(binding.developCounter) || binding.developCounter < context.developCounter) {
+          throw new BridgeError('stale_feedback', 'Feedback belongs to a different photo or Develop revision.', {
+            snapshotId: id, expectedContext: dispatchContext || context, feedbackContext: binding
+          });
+        }
+        dispatchContext = binding;
+      } else if (dispatchContext) {
+        throw new BridgeError('invalid_feedback', 'Feedback lost its SDK-dispatch context binding.', { snapshotId: id });
       }
       if (snapshot.complete === true) break;
       await pause(Math.min(this.pollMs, Math.max(1, deadline - Date.now())), signal);
@@ -116,7 +130,7 @@ export class BridgeClient {
     if (!snapshot.context || !snapshot.results || !finite(snapshot.completedAt)) {
       throw new BridgeError('invalid_feedback', 'Completed feedback lacks owned context or results.');
     }
-    await this.checkContext(context, signal);
+    await this.checkContext(dispatchContext, signal);
     for (const id of readable) {
       const value = snapshot.results[id];
       if (!value || value.id !== snapshot.id || value.slider !== id || !finite(value.receivedAt) ||
@@ -132,7 +146,7 @@ export class BridgeClient {
           source: 'sdk', receivedAt: value.receivedAt };
       }
     }
-    return { context, values, authority: 'request_owned_sdk_snapshot', snapshotId: snapshot.id,
+    return { context: dispatchContext, values, authority: 'request_owned_sdk_snapshot', snapshotId: snapshot.id,
       observedAt: snapshot.completedAt, note: 'An owned SDK observation at this revision; later native edits may change it.' };
   }
 }

@@ -26,6 +26,17 @@
   Unsupported absolute targets are refused; HTTP admission is never confirmation,
   and uncertain operations require human review before later writes.
 - When working from `mcp/`, this handoff is `../CODEX_HANDOFF.md`.
+- Subsequent native batch testing stopped at uncertain Contrast feedback; Clarity
+  and Vibrance were not attempted. A screenshot showed only Contrast at +10.
+  The actual RC1-route regression reproduced the same failure when an empty edit
+  read acquired a newer revision at SDK dispatch. The follow-up adapter change
+  accepts that dispatch binding only after a successful operation receipt, under
+  the original owner, and requires it to remain unchanged through the read.
+  Admission baselines stay strict, with no automatic read/write retry or batch
+  resumption. **126/126 MCP**, **8/8 actual-route** and existing Guarded Set/Nudge/
+  Reset checks pass locally. Native batch retesting remains pending; see the PR
+  for this change's hosted CI status. Do not clear existing uncertain records
+  without human review.
 
 ## RC1 acceptance and publication decision — 2026-10-12
 
