@@ -10,7 +10,8 @@ and between batch items. Their adapter fixes pass automated checks. The owner
 subsequently confirmed a complete three-slider batch on `c76a636`, with fresh SDK
 readback and a matching Lightroom screenshot, then verified that an unsupported
 Exposure target rejects a whole batch without changing either slider. Broader
-native acceptance remains pending.
+native acceptance remains pending. A subsequent Exposure +0.35 relative adjustment
+also confirmed, with fresh SDK readback of +0.35 from a baseline of 0.
 
 ## Automated evidence
 
@@ -227,6 +228,18 @@ call, no relative substitution, retry, rollback or resumption. This verifies the
 native mixed supported/unsupported batch rejection case. It does not establish
 standalone rejection or separate Highlights/Shadows cases. The new transcript
 does not repeat the Git commit check; it follows the successful `c76a636` test.
+
+### Successful native Exposure numeric adjustment
+
+The next owner-provided Codex transcript read fresh photo context and SDK Exposure
+0, then called `lrbridge_adjust_slider` once with a new request ID and amount
++0.35. The operation returned `confirmed`; the following fresh SDK read reported
+Exposure +0.35. Only Exposure was targeted and no previous operation was resumed.
+This establishes a native decimal relative-adjustment case using Numeric Nudge.
+It used no absolute Set or substitution for the earlier rejected batch. The trace
+does not repeat the Git SHA check or expose the full operation receipt. Exposure
+Reset, bounds/clamping, additional photo types and the remaining manual checks
+below are still pending.
 
 ## Windows and Lightroom manual checklist
 

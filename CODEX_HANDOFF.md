@@ -1,6 +1,6 @@
 # LRBridge Codex Handoff
 
-## Optional MCP feature — native batch and unsupported-target rejection passed
+## Optional MCP feature — native edit tests passed; broader acceptance pending
 
 - Current development branch: `feature/mcp-server`, based on published
   `v0.6.0-rc.1` (`c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`).
@@ -72,6 +72,11 @@
   and Exposure 0. One batch call, no fallback, retries, rollback or resumption.
   This verifies whole-batch prevalidation with a supported first target. The
   transcript does not repeat the Git SHA check; broader manual cases remain.
+- The next native Codex test confirmed one relative Exposure +0.35 adjustment:
+  fresh SDK baseline 0, `lrbridge_adjust_slider` confirmed, fresh SDK readback
+  +0.35. Only Exposure was targeted; no absolute Set or prior operation resumption.
+  This verifies decimal Numeric Nudge on the test photo. Exposure Reset, bounds,
+  other photo types, Claude Code and race/interruption checks remain pending.
 
 ## RC1 acceptance and publication decision — 2026-10-12
 
