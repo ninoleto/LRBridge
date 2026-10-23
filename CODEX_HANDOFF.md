@@ -75,8 +75,10 @@
 - The next native Codex test confirmed one relative Exposure +0.35 adjustment:
   fresh SDK baseline 0, `lrbridge_adjust_slider` confirmed, fresh SDK readback
   +0.35. Only Exposure was targeted; no absolute Set or prior operation resumption.
-  This verifies decimal Numeric Nudge on the test photo. Exposure Reset, bounds,
-  other photo types, Claude Code and race/interruption checks remain pending.
+  The subsequent Exposure Reset also confirmed: SDK baseline +0.35, one Reset,
+  fresh SDK result 0. The result was observed, not assumed, and no Set/Adjust
+  substitute was used. Bounds, other photo types, Claude Code and race/interruption
+  checks remain pending.
 
 ## RC1 acceptance and publication decision — 2026-10-12
 
