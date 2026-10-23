@@ -8,8 +8,9 @@ The follow-up Contrast Set/Reset check passed on the first revision-confirmation
 fix. Subsequent batches exposed queued-feedback dispatch races during confirmation
 and between batch items. Their adapter fixes pass automated checks. The owner
 subsequently confirmed a complete three-slider batch on `c76a636`, with fresh SDK
-readback and a matching Lightroom screenshot. Broader native acceptance remains
-pending.
+readback and a matching Lightroom screenshot, then verified that an unsupported
+Exposure target rejects a whole batch without changing either slider. Broader
+native acceptance remains pending.
 
 ## Automated evidence
 
@@ -75,9 +76,9 @@ source or browser fixture was changed. Later CI status is recorded in the PR.
 For `c76a636892bcd2725adcf2596eddbe5ea4620d78`,
 [hosted run 40035481474](https://github.com/ninoleto/LRBridge/actions/runs/40035481474)
 passed all four MCP jobs on Windows/Linux with Node 22/24, each with **142/142 MCP**,
-**10/10 actual-route integration** and packaging checks. The existing Windows
-Guarded Set and core release steps also passed; browser checks were still running
-when this native evidence was recorded. See the PR for their final status.
+**10/10 actual-route integration** and packaging checks. The fifth job, existing
+Windows regression, also passed: **33 Guarded Set scenarios**, **75/75 core** and
+**10/10 browser** checks. All five jobs succeeded for this code commit.
 The Linux development runtime is Node 24.19.0 and npm 11.9.0. The parent application's
 core release runner returned **71/75**: four failures reproduced on the untouched
 RC1 tag (`controller-proxy`, `controller-feedback-snapshot-proxy`,
@@ -207,9 +208,25 @@ each receipt/revision transition, so it does not prove that this run traversed
 every recovery path; automated regressions cover those paths. The screenshot is
 supporting visual evidence, not the source of execution confirmation.
 
-Claude Code, unsupported-target rejection, other photo types, deliberate concurrent
-edits/navigation and connection interruption checks remain pending. Personal
-photo identifiers, operation IDs, paths and screenshots are not published here.
+Claude Code, other photo types, deliberate concurrent edits/navigation and
+connection interruption checks remain pending. Personal photo identifiers,
+operation IDs, paths and screenshots are not published here.
+
+### Successful native whole-batch rejection
+
+In the subsequent Codex validation, fresh SDK values were Contrast +14 and
+Exposure 0. The owner requested a single new batch with Contrast +16 first and
+unsupported absolute Exposure +0.35 second. The complete tool result returned
+`status: rejected`, `code: unsupported_safe_set` and `retryAutomatically: false`,
+stating that the entire request was refused before any write. MCP `isError: true`
+represents this expected tool rejection, not a transport failure.
+
+Fresh SDK readback on the same photo showed Contrast still +14 and Exposure still
+0. The supported first target was not applied. The transcript reports one batch
+call, no relative substitution, retry, rollback or resumption. This verifies the
+native mixed supported/unsupported batch rejection case. It does not establish
+standalone rejection or separate Highlights/Shadows cases. The new transcript
+does not repeat the Git commit check; it follows the successful `c76a636` test.
 
 ## Windows and Lightroom manual checklist
 

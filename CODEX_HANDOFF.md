@@ -1,6 +1,6 @@
 # LRBridge Codex Handoff
 
-## Optional MCP feature — native three-slider batch passed
+## Optional MCP feature — native batch and unsupported-target rejection passed
 
 - Current development branch: `feature/mcp-server`, based on published
   `v0.6.0-rc.1` (`c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`).
@@ -64,8 +64,14 @@
   safety/photo-type/interruption checklist still need native testing.
 - Hosted run `40035481474` at that code commit passed all four MCP jobs on
   Windows/Linux with Node 22/24: **142/142 MCP**, **10/10 actual-route** and packaging
-  per job. Existing Windows Guarded Set/core steps also passed; browser checks
-  were still running when this evidence was recorded. See the PR for final status.
+  per job. The existing Windows regression job also passed: **33 Guarded Set**
+  scenarios, **75/75 core** and **10/10 browser**. All five jobs succeeded.
+- The following native Codex safety test requested Contrast +16 followed by
+  unsupported absolute Exposure +0.35 in one new batch. It returned
+  `unsupported_safe_set` before any write; fresh SDK readback kept Contrast +14
+  and Exposure 0. One batch call, no fallback, retries, rollback or resumption.
+  This verifies whole-batch prevalidation with a supported first target. The
+  transcript does not repeat the Git SHA check; broader manual cases remain.
 
 ## RC1 acceptance and publication decision — 2026-10-12
 
