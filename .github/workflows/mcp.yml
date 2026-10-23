@@ -50,3 +50,17 @@ jobs:
       - run: npm run test:guarded-set
       - run: npm run test:release
       - run: npm run test:release -- --browser
+      - name: Show failed release-check diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path local-checkpoints -Directory -Filter 'release-checks-*' -ErrorAction SilentlyContinue | ForEach-Object {
+            $checkDirectory = $_.FullName
+            $reportPath = Join-Path $checkDirectory 'results.json'
+            if (Test-Path -LiteralPath $reportPath) {
+              Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json | Where-Object { -not $_.passed } | ForEach-Object {
+                Write-Output $_.command
+                Get-Content -LiteralPath (Join-Path $checkDirectory $_.log) -Tail 100
+              }
+            }
+          }

@@ -5,9 +5,9 @@ Development baseline: `v0.6.0-rc.1`, commit
 personal computer or real catalog is available in the development environment.
 The owner subsequently ran the limited Windows/Lightroom checks recorded below.
 The follow-up Contrast Set/Reset check passed on the first revision-confirmation
-fix. A subsequent batch exposed a queued-feedback dispatch race; its adapter fix
-passes automated checks and awaits native retesting. Full native acceptance
-remains pending.
+fix. Subsequent batches exposed queued-feedback dispatch races during confirmation
+and between batch items. Their adapter fixes pass automated checks; the latest
+batch fix awaits native retesting. Full native acceptance remains pending.
 
 ## Automated evidence
 
@@ -27,12 +27,17 @@ ephemeral loopback port and gives the adapter a temporary private journal.
   A further 22 dispatch-confirmation cases cover later same-owner bindings before
   SDK dispatch, immutable partial snapshots, strict admission baselines, batch
   stopping, unavailable/changed values and durable duplicate behavior.
+  Another 16 batch-baseline cases cover later dispatch revisions between items,
+  original value/range preservation, ownership changes, immutable bindings,
+  monotonic revisions, expired deadlines, uncertainty and duplicate behavior.
 - `npm run test:bridge` runs the adapter against the actual RC1 HTTP handlers,
   command queue and receipt stores with an isolated SDK worker double. It checks
   Set, Nudge, Reset, duplicate behavior, stale photo rejection and later same-photo
   heartbeats after retained Nudge/Reset receipts. The batch fixture holds the SDK
   worker until each new empty confirmation request is admitted, advances the same
   photo's revision, then lets the actual RC1 handler bind and complete the read.
+  Two further cases reproduce the next-item baseline race through those handlers:
+  unchanged baselines complete; an intervening Clarity edit is never overwritten.
 - The existing `test:guarded-set`, `test:numeric-nudge` and `test:reset-completion`
   suites exercise production Lua, parsers/worker ordering and SDK doubles. The
   adapter does not change their implementations or fixtures.
@@ -42,7 +47,7 @@ ephemeral loopback port and gives the adapter a temporary private journal.
   integration fixture, local packaging, and existing RC1 regression on Windows.
   A workflow definition is not evidence that a hosted run has passed.
 
-Local results: **126/126 MCP tests**, **8/8 actual-route integration tests**, and the
+Local results: **142/142 MCP tests**, **10/10 actual-route integration tests**, and the
 separate existing Guarded Set check (**33 SDK/ownership/envelope scenarios**) pass.
 The existing Numeric Nudge and Reset completion checks also pass after this fix.
 `npm audit --omit=dev` reports **0 vulnerabilities** in the MCP production graph.
@@ -54,7 +59,17 @@ For fix commit `ad6d902cd10b4921f1f2637ecd0786ef4c38fd3e`,
 [hosted run 40030357076](https://github.com/ninoleto/LRBridge/actions/runs/40030357076)
 passed all five jobs: MCP, actual-route integration and packaging on Windows/Linux
 with Node 22/24, plus the existing Windows Guarded Set, **75/75 core** and
-**10/10 browser** checks. Later CI status is recorded in the pull request.
+**10/10 browser** checks. For `d933f4d`,
+[hosted run 40033354211](https://github.com/ninoleto/LRBridge/actions/runs/40033354211)
+passed all four MCP matrix jobs and existing Windows **75/75 core** checks, but
+the browser runner passed **8/10**: its history and favorites lifecycle checks
+failed. The previous workflow retained only their summary in the job log; the
+workflow now prints failed release-check diagnostics without suppressing failures.
+Independent Linux runs of the unchanged fixtures also failed on untouched RC1
+(history: CDP `Runtime.evaluate` timeout; favorites: review visibility timeout).
+The feature-branch history run failed similarly; its favorites run passed. These
+results do not establish the exact Windows failure cause. No parent application
+source or browser fixture was changed. Later CI status is recorded in the PR.
 The Linux development runtime is Node 24.19.0 and npm 11.9.0. The parent application's
 core release runner returned **71/75**: four failures reproduced on the untouched
 RC1 tag (`controller-proxy`, `controller-feedback-snapshot-proxy`,
@@ -127,8 +142,41 @@ uncertain records are not rewritten, acknowledged or resumed by an upgrade.
 
 The native trace abbreviates the tool JSON, so the individual mismatched context
 fields from that run are unavailable. The regression establishes a real protocol
-mismatch producing the same reported failure. **The fixed three-slider batch
-still requires a native retest.**
+mismatch producing the same reported failure. The next native test is recorded
+below.
+
+### Next-item baseline race and preservation fix
+
+The owner pulled `d933f4d21246bb6d19f779547b297c836a427f92`, acknowledged the
+previous uncertain operation after review, and submitted a new three-slider batch
+from SDK values Contrast +10, Clarity 0 and Vibrance 0. The complete tool JSON
+establishes:
+
+| Requested edit | Tool result |
+| --- | --- |
+| Contrast +12 | Confirmed with a separate SDK value of +12 at revision 14 |
+| Clarity +5 | Rejected before POST: `stale_feedback`, expected revision 14, dispatch revision 15 |
+| Vibrance +10 | Not attempted |
+
+Photo UUID, navigation counter/timestamp and server epoch were identical in the
+two contexts. The overall result was `partial_failure`, not `uncertain`. No retry,
+rollback or further call occurred. This rejected item needs no acknowledgement;
+the original batch remains completed and its request ID cannot be reused.
+
+The adapter now permits a later batch baseline read to follow a newer SDK-dispatch
+revision under the original owner, with the previous confirmed revision as its
+minimum. It preserves the entire batch's original values and ranges. A later
+target must still match its original baseline, which also remains the guarded
+POST's expected value. A manual edit to Clarity therefore stops the batch with
+`baseline_changed` before Clarity is written. Initial prevalidation stays strict;
+changing ownership or changing an already bound snapshot still stops the batch.
+No feedback request or mutation is repeated and no failed batch is resumed.
+
+The exact next-item race fails against `d933f4d` in the mocked and actual-route
+fixtures, and passes with this fix. Negative tests preserve an intervening edit
+even if no revision heartbeat has arrived. **Native confirmation of the complete
+three-slider batch is still pending.** Use fresh context and a new request ID for
+a deliberate new test; do not resume or replay the previous batch.
 
 ## Windows and Lightroom manual checklist
 
@@ -164,6 +212,8 @@ and its matching plug-in; there is no new plug-in to reload for this adapter.
 8. **Ordering/batches:** send a supported three-control batch and observe distinct
    sequential receipts. Induce an unavailable/stale second target. The first edit
    remains, later targets are not attempted, and there is no rollback.
+   Change a later target manually after initial prevalidation: its original SDK
+   baseline must not be replaced, even if the photo's revision has advanced.
 9. **Interrupted connection:** on disposable data, stop Lightroom/LRBridge or the
    MCP process during a queued call. Inspect the operation using the original ID.
    Restarting MCP must not repeat a write. Other writes must remain blocked after

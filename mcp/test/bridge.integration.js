@@ -166,6 +166,61 @@ test('MCP adapter against actual RC1 routes, queue and receipt stores with an is
       releaseFeedback?.(); feedbackBarrier = undefined; service.http.get = get;
     }
   });
+  for (const changedBaseline of [false, true]) {
+    await t.test(`batch next-item dispatch crosses a heartbeat with changed baseline=${changedBaseline}`, async () => {
+      const get = service.http.get.bind(service.http), submit = service.submit.bind(service);
+      const before = received.length;
+      Object.assign(values, { Contrast: 10, Clarity: 0, Vibrance: 0 });
+      contextState.updateContext({ ...contextState.getContextFields(), developFingerprint: 'next-baseline-start-' + changedBaseline });
+      const context = (await service.call('lrbridge_get_photo_context')).context;
+      let releaseFeedback, laterBaselines = 0;
+      service.submit = async (...args) => {
+        const result = await submit(...args);
+        if (result.status === 'confirmed' && received.length - before < 3) {
+          feedbackBarrier = new Promise(resolve => { releaseFeedback = resolve; });
+        }
+        return result;
+      };
+      service.http.get = async (route, options) => {
+        const data = await get(route, options);
+        if (route.startsWith('/feedback/request-many?') && releaseFeedback) {
+          const queued = (await call('/feedback/snapshot', { id: data.request.id })).data.snapshot;
+          assert.equal(queued.context, undefined); assert.deepEqual(queued.results, {});
+          if (changedBaseline) values.Clarity = 7; // An unrelated edit must survive.
+          contextState.updateContext({ ...contextState.getContextFields(),
+            developFingerprint: `next-baseline-${changedBaseline}-${++laterBaselines}` });
+          releaseFeedback(); releaseFeedback = undefined; feedbackBarrier = undefined;
+        }
+        return data;
+      };
+      try {
+        const adjustments = [{ slider: 'Contrast', value: 12 }, { slider: 'Clarity', value: 5 }, { slider: 'Vibrance', value: 10 }];
+        const input = { requestId: 'next-baseline-real-' + changedBaseline, context, adjustments };
+        const result = await service.call('lrbridge_set_multiple_sliders', input);
+        assert.ifError(workerError);
+        if (changedBaseline) {
+          assert.equal(result.status, 'partial_failure', JSON.stringify(result));
+          assert.deepEqual(result.results.map(r => r.status), ['confirmed', 'rejected', 'not_attempted']);
+          assert.equal(result.results[1].code, 'baseline_changed');
+          assert.equal(result.results[1].baseline.value, 0); assert.equal(result.results[1].observation.value, 7);
+          assert.deepEqual([values.Contrast, values.Clarity, values.Vibrance], [12, 7, 0]);
+          assert.equal(received.length - before, 1); assert.equal(laterBaselines, 1);
+        } else {
+          assert.equal(result.status, 'confirmed', JSON.stringify(result));
+          assert.deepEqual(result.results.map(r => r.value), [12, 5, 10]);
+          assert.deepEqual(result.results.map(r => r.context.developCounter), [0, 1, 2].map(n => context.developCounter + n));
+          assert.deepEqual(received.slice(before).map(c => c.expectedValue), [10, 0, 0]);
+          assert.equal(received.length - before, 3); assert.equal(laterBaselines, 2);
+        }
+        assert.deepEqual(service.journal.blocked(), []);
+        const count = received.length;
+        assert.equal((await service.call('lrbridge_set_multiple_sliders', input)).duplicate, true);
+        assert.equal(received.length, count);
+      } finally {
+        releaseFeedback?.(); feedbackBarrier = undefined; service.http.get = get; service.submit = submit;
+      }
+    });
+  }
   await t.test('stale context refuses admission to actual command queue', async () => {
     const before = received.length;
     const context = (await service.call('lrbridge_get_photo_context')).context;

@@ -1,6 +1,6 @@
 # LRBridge Codex Handoff
 
-## Optional MCP feature — limited native Contrast retest passed
+## Optional MCP feature — next-item batch baseline fix, native retest pending
 
 - Current development branch: `feature/mcp-server`, based on published
   `v0.6.0-rc.1` (`c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`).
@@ -37,6 +37,25 @@
   Reset checks pass locally. Native batch retesting remains pending; see the PR
   for this change's hosted CI status. Do not clear existing uncertain records
   without human review.
+- Native batch evidence on `d933f4d` confirmed Contrast +12, then rejected Clarity
+  before its POST (`stale_feedback`, revision 14 versus 15); Vibrance was not
+  attempted. The full JSON shows the same photo/navigation/epoch owner. This is
+  `partial_failure`, not uncertainty: no acknowledgement is needed for that
+  rejected item and the old batch must not be resumed or replayed.
+- Later batch reads now accept a newer same-owner SDK-dispatch revision only
+  while preserving each target's initial SDK value/range. A changed later target
+  rejects as `baseline_changed` before its POST; its original value also remains
+  the guarded execution baseline. Initial admission stays exact-revision, bound
+  snapshots stay immutable, and deadlines/stop-on-failure/no-retry rules remain.
+  **142/142 MCP** and **10/10 actual-route** tests pass, including the reproduced
+  next-item race and preservation of a manual edit with or without a heartbeat.
+  Complete native three-slider batch acceptance is still pending.
+- Hosted run `40033354211` at `d933f4d` passed four MCP matrix jobs and **75/75**
+  existing Windows core checks; browser checks passed **8/10** (history/favorites
+  failures). Both fixtures also produced failures on untouched RC1 under Linux;
+  that does not establish their Windows cause. The workflow now prints failed
+  release-check details. Parent app/server/Lua/browser fixtures remain unchanged.
+  See the PR for subsequent hosted results and `mcp/TESTING.md` for exact limits.
 
 ## RC1 acceptance and publication decision — 2026-10-12
 

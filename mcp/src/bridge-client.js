@@ -108,10 +108,11 @@ export class BridgeClient {
       }
       if (snapshot.context) {
         const binding = owner(context.serverEpoch, snapshot.context);
-        // RC1 purpose=edit binds an empty queued request at SDK dispatch. Only
-        // post-execution confirmation may follow a newer revision of the same
-        // original owner. Once a dispatch binding exists it is immutable, even
-        // while results are partial. Admission baselines remain exact-revision.
+        // RC1 purpose=edit binds an empty queued request at SDK dispatch. The
+        // caller may follow a newer revision only for confirmation or a later
+        // batch read whose original baseline is separately preserved/compared.
+        // The owner never changes. Once seen, the dispatch binding is immutable
+        // even while results are partial. Initial admission reads remain exact.
         const requireExactRevision = dispatchContext !== undefined || !followDispatchRevision;
         if (!equalContext(dispatchContext || context, binding, requireExactRevision) ||
             !integer(binding.developCounter) || binding.developCounter < context.developCounter) {

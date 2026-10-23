@@ -150,8 +150,9 @@ export class LRBridgeService {
           throw new BridgeError('unsupported_safe_set', `RC1 guarded Set does not support ${action.slider}; the entire request was refused before any write.`);
         }
       }
-      let feedback = await this.bridge.readValues(actions.map(a => a.slider), { expected: args.context, metadata, signal });
-      for (const action of actions) this.validateAction(action, metadata, caps, feedback.values[action.slider]);
+      const baseline = await this.bridge.readValues(actions.map(a => a.slider), { expected: args.context, metadata, signal });
+      for (const action of actions) this.validateAction(action, metadata, caps, baseline.values[action.slider]);
+      let feedback = baseline;
       const record = { version: 1, origin: this.http.origin, requestId: args.requestId, fingerprint: intentHash,
         intent: { name, args }, state: 'pending', reviewed: false, operations: [], createdAt: new Date().toISOString() };
       this.journal.save(record);
@@ -166,17 +167,31 @@ export class LRBridgeService {
         try {
           if (Date.now() >= deadline) throw new BridgeError('batch_timeout', 'Batch deadline reached before this write.');
           if (index > 0) {
-            const state = await this.bridge.checkContext(args.context, signal, false);
-            feedback = await this.bridge.readValues([action.slider], { expected: state.context, metadata, signal });
+            // Earlier confirmed edits may advance the global revision before
+            // this read reaches the SDK. Preserve the batch's original intent:
+            // follow only its owner, never a revision older than the last result,
+            // then compare the untouched slider with its INITIAL SDK baseline.
+            feedback = await this.bridge.readValues([action.slider], {
+              expected: results[index - 1].context, metadata, signal, followDispatchRevision: true
+            });
           }
           const extra = this.validateAction(action, metadata, caps, feedback.values[action.slider]);
+          const original = baseline.values[action.slider], current = feedback.values[action.slider];
+          if (index > 0 && (!near(original.value, current.value) ||
+              !near(original.range.min, current.range.min) || !near(original.range.max, current.range.max))) {
+            throw new BridgeError('baseline_changed', `${action.slider} changed since batch prevalidation; no write was sent for this slider.`, {
+              invoked: false, baseline: original, baselineContext: baseline.context,
+              observation: current, context: feedback.context
+            });
+          }
           await this.bridge.checkContext(feedback.context, signal);
+          if (Date.now() >= deadline) throw new BridgeError('batch_timeout', 'Batch deadline reached before this write.');
           if (signal?.aborted) throw new BridgeError('cancelled', 'Cancelled before submission.');
           const requestId = batch ? 'mcp-' + createHash('sha256').update(args.requestId + ':' + index).digest('hex') : args.requestId;
           const body = { requestId, serverEpoch: feedback.context.serverEpoch, slider: action.slider,
             selectedPhotoUuid: feedback.context.selectedPhotoUuid, contextCounter: feedback.context.contextCounter,
             contextChangedAt: feedback.context.contextChangedAt,
-            ...(action.family === 'set' ? { expectedValue: feedback.values[action.slider].value, value: action.value } : extra) };
+            ...(action.family === 'set' ? { expectedValue: original.value, value: action.value } : extra) };
           const operation = { family: action.family, body, context: feedback.context, stage: 'sending' };
           record.operations.push(operation);
           this.journal.save(record); // Must be durable before the only POST.
