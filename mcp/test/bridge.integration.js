@@ -92,10 +92,41 @@ test('MCP adapter against actual RC1 routes, queue and receipt stores with an is
       assert.equal(received.length, before);
     });
   }
+  for (const [name, args, expected] of [
+    ['lrbridge_adjust_slider', { slider: 'Vibrance', amount: 5 }, 10],
+    ['lrbridge_reset_slider', { slider: 'Contrast' }, 0.37]
+  ]) {
+    await t.test(`${name} confirms a retained receipt after a same-photo heartbeat using fresh SDK feedback`, async () => {
+      const requestId = 'heartbeat-' + name;
+      const context = (await service.call('lrbridge_get_photo_context')).context;
+      const get = service.http.get.bind(service.http);
+      let advanced = false;
+      service.http.get = async (route, options) => {
+        const data = await get(route, options);
+        // Deterministically deliver a heartbeat after the actual RC1 server has
+        // accepted and returned an observed receipt, before MCP confirms it.
+        if (!advanced && data.receipt?.phase === 'complete' && data.receipt.requestId === requestId) {
+          contextState.updateContext({ ...contextState.getContextFields(), developFingerprint: requestId });
+          advanced = true;
+        }
+        return data;
+      };
+      try {
+        const result = await service.call(name, { requestId, context, ...args });
+        assert.ifError(workerError);
+        assert.equal(result.status, 'confirmed', JSON.stringify(result));
+        assert.equal(result.confirmation, 'owned_sdk_receipt_and_fresh_owned_read');
+        assert.equal(result.value, expected);
+        assert.equal(result.context.developCounter, result.receipt.result.executionDevelopCounter + 1);
+        assert.ok(Number.isSafeInteger(result.snapshotId));
+        assert.equal(received.filter(command => command.requestId === requestId).length, 1);
+      } finally { service.http.get = get; }
+    });
+  }
   await t.test('stale context refuses admission to actual command queue', async () => {
     const context = (await service.call('lrbridge_get_photo_context')).context;
     contextState.updateContext({ activeModule: 'develop', selectedPhotoUuid: 'other-photo', developFingerprint: 'integration-2' });
     const result = await service.call('lrbridge_set_slider', { requestId: 'stale-real', context, slider: 'Clarity', value: 20 });
-    assert.equal(result.status, 'rejected'); assert.equal(result.code, 'context_changed'); assert.equal(received.length, 3);
+    assert.equal(result.status, 'rejected'); assert.equal(result.code, 'context_changed'); assert.equal(received.length, 5);
   });
 });

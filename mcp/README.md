@@ -169,6 +169,15 @@ an unsupported MCP operation. Missing feedback causes an error, never a default.
   never presented as observed feedback by itself.
 - Reset needs its matching successful Reset plus the SDK read captured inside the
   same serial worker. Its actual value is returned; no zero/default is assumed.
+- A heartbeat can advance the Develop revision after a valid Nudge/Reset receipt
+  is retained. The adapter does not assume that its own edit caused that change.
+  It acquires a new request-owned SDK snapshot at the later revision, still bound
+  to the original server epoch, photo and navigation context, and confirms only
+  if its value matches the worker's SDK observation. The original receipt keeps
+  its historical revision. Changed values, stale/missing feedback, navigation or
+  another revision change during the read remain uncertain. This is a read-only
+  confirmation step, never a repeated write or an automatic journal acknowledgement.
+  An uncertain/failed worker receipt cannot be upgraded by a matching later value.
 - A value can change after observation. These checks do not promise a universal
   Lightroom processing-completion barrier or an atomic SDK compare-and-set.
 - Profile Amount inherits RC1's limitation: there is no admission-time profile

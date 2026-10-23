@@ -278,9 +278,9 @@ export class LRBridgeService {
       return { status: 'confirmed', confirmation: 'successful_sdk_invocation_and_separate_owned_read',
         value: value.value, source: 'sdk', context: observation.context, receipt, snapshotId: observation.snapshotId };
     }
-    if (!isInt(r.executionDevelopCounter) || state.context.developCounter !== r.executionDevelopCounter) {
+    if (!isInt(r.executionDevelopCounter) || state.context.developCounter < r.executionDevelopCounter) {
       return { status: 'uncertain', code: 'observation_revision_changed', receipt,
-        message: 'The serial worker observed a value, but the current Develop revision differs. The receipt is historical.' };
+        message: 'The worker execution revision is missing or ahead of the current bridge revision.' };
     }
     if (operation.family === 'reset' && (r.resetSucceeded !== true || r.capture !== 'serial-worker-after-reset')) {
       throw new BridgeError('invalid_receipt', 'Reset receipt lacks its serial-worker SDK capture.');
@@ -288,6 +288,20 @@ export class LRBridgeService {
     if (operation.family === 'nudge' && (!validRange(r) || !finite(r.baselineValue) || !finite(r.requestedValue) ||
         r.sdkValue < r.min || r.sdkValue > r.max || r.matchesRequested !== true || !near(r.sdkValue, r.requestedValue))) {
       return { status: 'uncertain', code: 'target_not_observed', receipt, message: 'Nudge readback did not confirm its computed target.' };
+    }
+    if (state.context.developCounter > r.executionDevelopCounter) {
+      // A later heartbeat can account for this edit, but its cause is unknown.
+      // Keep the receipt historical and acquire new authority at the current
+      // revision under the ORIGINAL epoch/photo/navigation owner. Never re-POST.
+      const observation = await this.bridge.readValues([operation.body.slider], { expected: state.context, signal });
+      const value = observation.values[operation.body.slider];
+      if (!value.available || !near(value.value, r.sdkValue)) {
+        return { status: 'uncertain', code: 'observation_value_changed', receipt, observation,
+          message: 'Fresh owned SDK feedback does not match the worker observation. No write was repeated.' };
+      }
+      return { status: 'confirmed', confirmation: 'owned_sdk_receipt_and_fresh_owned_read',
+        value: value.value, source: 'sdk', context: observation.context, receipt, snapshotId: observation.snapshotId,
+        note: 'The original receipt remains historical. A separate owned SDK read confirms its value at the returned revision; the cause of the revision change is not inferred.' };
     }
     return { status: 'confirmed', confirmation: 'owned_sdk_read_in_serial_worker', value: r.sdkValue, source: 'sdk',
       context: state.context, receipt, note: 'SDK observation after this invocation, not a universal Lightroom processing-completion guarantee.' };

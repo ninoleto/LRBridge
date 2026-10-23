@@ -238,11 +238,6 @@ test('Nudge observed value different from computed target stays uncertain', asyn
   const r = await m.service.call('lrbridge_adjust_slider', { requestId: 'different', context: await m.ownedContext(), slider: 'Vibrance', amount: 5 });
   assert.equal(r.status, 'uncertain'); assert.equal(r.code, 'target_not_observed'); assert.equal('value' in r, false);
 });
-test('a historical execution revision is not current SDK confirmation', async t => {
-  const m = await setup(t, { onComplete(_op, state) { state.context.developCounter++; } });
-  const r = await m.service.call('lrbridge_reset_slider', { requestId: 'revision', context: await m.ownedContext(), slider: 'Contrast' });
-  assert.equal(r.status, 'uncertain'); assert.equal(r.code, 'observation_revision_changed');
-});
 test('inconsistent terminal invocation flags are an invalid receipt, not definite non-execution', async t => {
   const m = await setup(t, { onComplete(op) { op.receipt.result.invoked = false; } });
   const r = await set(m, await m.ownedContext()); assert.equal(r.status, 'uncertain'); assert.equal(r.code, 'invalid_receipt');

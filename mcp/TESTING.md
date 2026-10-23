@@ -3,7 +3,8 @@
 Development baseline: `v0.6.0-rc.1`, commit
 `c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`. No Lightroom Classic instance,
 personal computer or real catalog is available in the development environment.
-No real Lightroom integration or Windows installation acceptance is claimed.
+The owner subsequently ran the limited Windows/Lightroom checks recorded below.
+Full native acceptance, including the revision-confirmation fix, remains pending.
 
 ## Automated evidence
 
@@ -17,9 +18,13 @@ ephemeral loopback port and gives the adapter a temporary private journal.
   offline heartbeat, network failure, cancellation and timeouts, duplicate IDs,
   journal persistence/failure, interrupted calls, interprocess exclusion, batch
   prevalidation/partial failure, and loopback/redirect/response-size restrictions.
+  The revision-confirmation cases reproduce a heartbeat after an accepted worker
+  receipt and require fresh owned SDK evidence; changed values, unavailable/stale
+  feedback, changed ownership and uncertain worker receipts cannot confirm.
 - `npm run test:bridge` runs the adapter against the actual RC1 HTTP handlers,
   command queue and receipt stores with an isolated SDK worker double. It checks
-  Set, Nudge, Reset, duplicate behavior and stale photo rejection.
+  Set, Nudge, Reset, duplicate behavior, stale photo rejection and later same-photo
+  heartbeats after retained Nudge/Reset receipts.
 - The existing `test:guarded-set`, `test:numeric-nudge` and `test:reset-completion`
   suites exercise production Lua, parsers/worker ordering and SDK doubles. The
   adapter does not change their implementations or fixtures.
@@ -29,7 +34,7 @@ ephemeral loopback port and gives the adapter a temporary private journal.
   integration fixture, local packaging, and existing RC1 regression on Windows.
   A workflow definition is not evidence that a hosted run has passed.
 
-Local results: **77/77 MCP tests**, **5/5 actual-route integration tests**, and the
+Local results: **104/104 MCP tests**, **7/7 actual-route integration tests**, and the
 separate existing Guarded Set check (**33 SDK/ownership/envelope scenarios**) pass.
 `npm audit --omit=dev` reports **0 vulnerabilities** in the MCP production graph.
 The browser runner returned **9/10** using Chromium 153.0.8010.0 with a Linux
@@ -44,6 +49,30 @@ RC1 tag (`controller-proxy`, `controller-feedback-snapshot-proxy`,
 disconnected-response assertion, unavailable `os.networkInterfaces()` syscall,
 and missing Windows `powershell.exe`. No parent source/fixture was changed to
 make those checks pass. Windows CI/manual verification remains distinct.
+
+## Owner-provided Windows/Lightroom evidence — 2026-10-23
+
+The owner supplied native Codex transcripts and Lightroom screenshots for commit
+`b4102a0fd284a070c9ac4ee350b554c42a2ae89c`, with Node 24.18.0, PowerShell 7.6.7,
+Codex CLI 0.164.0 and the existing RC1 application/plug-in. Lightroom's exact
+version was not supplied. Personal photo paths, UUIDs and screenshots are omitted.
+
+| Check | Observed evidence |
+| --- | --- |
+| Installation, connection and discovery | `--check` reported ready; Codex connected with nine tools |
+| Exposure, Contrast, Highlights, Shadows, Clarity, Vibrance | SDK read returned zero for all six, matching the screenshot |
+| Guarded Contrast Set | 0 to +10, tool confirmed, fresh SDK read and screenshot agreed |
+| Relative Vibrance adjustment | 0 to +5, tool confirmed and screenshot agreed |
+| Contrast Reset | Worker observed 0 and screenshot agreed; adapter returned `observation_revision_changed` and stopped without retrying |
+
+That Reset exposed an over-conservative adapter revision check. The fix preserves
+the historical receipt and obtains fresh SDK feedback under the same original
+photo/navigation/epoch owner when the current revision has advanced. Only a value
+matching the successful worker observation confirms. All other ownership, receipt,
+readback and no-replay checks remain in force. Both new positive regression cases
+failed against the original adapter and passed after the fix. **Native retesting
+of the fix is still required.** The original uncertain journal entry is not
+rewritten or automatically acknowledged by upgrading.
 
 ## Windows and Lightroom manual checklist
 
