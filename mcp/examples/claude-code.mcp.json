@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "lrbridge": {
+      "type": "stdio",
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": ["D:\\Projects\\LRBridge-MCP\\mcp\\src\\cli.js"],
+      "env": { "LRBRIDGE_URL": "http://127.0.0.1:17891" }
+    }
+  }
+}

@@ -1,5 +1,91 @@
 # LRBridge Codex Handoff
 
+## Optional MCP feature — native edit tests passed; broader acceptance pending
+
+- Current development branch: `feature/mcp-server`, based on published
+  `v0.6.0-rc.1` (`c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`).
+  [Draft PR #1](https://github.com/ninoleto/LRBridge/pull/1) targets
+  `release/0.6.0-rc.1`. The user authorized development, commits, pushes and the PR;
+  merging, publication and release-asset changes are not authorized for this work.
+  Older release instructions below describe the original RC1 publication.
+- `mcp/` is an independent optional Node stdio adapter using the official MCP SDK
+  and existing RC1 HTTP interfaces. Existing Electron/server/Lua/Companion behavior
+  is unchanged. See [installation and capabilities](mcp/README.md) and
+  [test evidence and remaining native checklist](mcp/TESTING.md).
+- Code commit `ad6d902cd10b4921f1f2637ecd0786ef4c38fd3e` fixes an overly conservative
+  Reset/Nudge revision check using fresh owned SDK feedback, with no write retry.
+  Automated checks pass: **104/104 MCP**, **7/7 actual-route integration**, all four
+  Windows/Linux Node 22/24 jobs, and existing Windows **75/75 core**, **10/10 browser**
+  and **33 Guarded Set scenarios** in hosted run `40030357076`.
+- Owner-provided Windows Codex evidence covers six SDK values, Contrast Set and
+  Vibrance Adjust. The follow-up on that code commit confirmed Contrast Set to +10
+  and Reset to 0, each followed by a fresh SDK read, without retries. This is a
+  limited native checkpoint; Claude Code and the broader manual checklist remain
+  pending. Personal photo paths, UUIDs and screenshots are omitted.
+- RC1 supports guarded absolute Set only for Contrast, Clarity and Vibrance.
+  Unsupported absolute targets are refused; HTTP admission is never confirmation,
+  and uncertain operations require human review before later writes.
+- When working from `mcp/`, this handoff is `../CODEX_HANDOFF.md`.
+- Subsequent native batch testing stopped at uncertain Contrast feedback; Clarity
+  and Vibrance were not attempted. A screenshot showed only Contrast at +10.
+  The actual RC1-route regression reproduced the same failure when an empty edit
+  read acquired a newer revision at SDK dispatch. The follow-up adapter change
+  accepts that dispatch binding only after a successful operation receipt, under
+  the original owner, and requires it to remain unchanged through the read.
+  Admission baselines stay strict, with no automatic read/write retry or batch
+  resumption. **126/126 MCP**, **8/8 actual-route** and existing Guarded Set/Nudge/
+  Reset checks pass locally. Subsequent native batch results are recorded below.
+  Do not clear existing uncertain records without human review.
+- Native batch evidence on `d933f4d` confirmed Contrast +12, then rejected Clarity
+  before its POST (`stale_feedback`, revision 14 versus 15); Vibrance was not
+  attempted. The full JSON shows the same photo/navigation/epoch owner. This is
+  `partial_failure`, not uncertainty: no acknowledgement is needed for that
+  rejected item and the old batch must not be resumed or replayed.
+- Later batch reads now accept a newer same-owner SDK-dispatch revision only
+  while preserving each target's initial SDK value/range. A changed later target
+  rejects as `baseline_changed` before its POST; its original value also remains
+  the guarded execution baseline. Initial admission stays exact-revision, bound
+  snapshots stay immutable, and deadlines/stop-on-failure/no-retry rules remain.
+  **142/142 MCP** and **10/10 actual-route** tests pass, including the reproduced
+  next-item race and preservation of a manual edit with or without a heartbeat.
+  The complete native three-slider batch subsequently passed as recorded below.
+- Hosted run `40033354211` at `d933f4d` passed four MCP matrix jobs and **75/75**
+  existing Windows core checks; browser checks passed **8/10** (history/favorites
+  failures). Both fixtures also produced failures on untouched RC1 under Linux;
+  that does not establish their Windows cause. The workflow now prints failed
+  release-check details. Parent app/server/Lua/browser fixtures remain unchanged.
+  See the PR for subsequent hosted results and `mcp/TESTING.md` for exact limits.
+- The owner's native Codex retest on clean, synced `c76a636` passed a new batch:
+  Contrast +12 to +14, Clarity 0 to +5 and Vibrance 0 to +10. All three operations
+  confirmed; the following SDK read on the same photo and Lightroom screenshot
+  matched. Only these three targets were requested; no prior batch was resumed.
+  This is a limited native batch checkpoint. The abbreviated trace does not prove
+  that every revision-recovery path was exercised. Claude Code and the remaining
+  safety/photo-type/interruption checklist still need native testing.
+- Hosted run `40035481474` at that code commit passed all four MCP jobs on
+  Windows/Linux with Node 22/24: **142/142 MCP**, **10/10 actual-route** and packaging
+  per job. The existing Windows regression job also passed: **33 Guarded Set**
+  scenarios, **75/75 core** and **10/10 browser**. All five jobs succeeded.
+- The following native Codex safety test requested Contrast +16 followed by
+  unsupported absolute Exposure +0.35 in one new batch. It returned
+  `unsupported_safe_set` before any write; fresh SDK readback kept Contrast +14
+  and Exposure 0. One batch call, no fallback, retries, rollback or resumption.
+  This verifies whole-batch prevalidation with a supported first target. The
+  transcript does not repeat the Git SHA check; broader manual cases remain.
+- The next native Codex test confirmed one relative Exposure +0.35 adjustment:
+  fresh SDK baseline 0, `lrbridge_adjust_slider` confirmed, fresh SDK readback
+  +0.35. Only Exposure was targeted; no absolute Set or prior operation resumption.
+  The subsequent Exposure Reset also confirmed: SDK baseline +0.35, one Reset,
+  fresh SDK result 0. The result was observed, not assumed, and no Set/Adjust
+  substitute was used. Bounds, other photo types, Claude Code and race/interruption
+  checks remain pending.
+- Native photo-change protection passed on 2026-10-24: Codex captured photo A's
+  SDK context and Contrast +14, paused for the owner to select B, verified B's
+  different UUID and Contrast 0, then submitted one Set using A's context unchanged.
+  It rejected as `context_changed`; fresh SDK readback kept B at 0. No retries,
+  rollback or other writes. Returning to A, module changes and navigation during
+  an admitted operation still require native checks.
+
 ## RC1 acceptance and publication decision — 2026-10-12
 
 The user accepts LRBridge beta.4 with Lightroom plug-in beta4.10 and Companion

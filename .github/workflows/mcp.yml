@@ -1,0 +1,66 @@
+name: LRBridge MCP and RC1 compatibility
+
+on:
+  push:
+    branches: [feature/mcp-server]
+  pull_request:
+    branches: [release/0.6.0-rc.1]
+    paths: ['mcp/**', '.github/workflows/mcp.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  mcp:
+    name: MCP on ${{ matrix.os }} / Node ${{ matrix.node }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: mcp
+      - run: npm test
+        working-directory: mcp
+      - run: npm ci --ignore-scripts
+      - run: npm run test:bridge
+        working-directory: mcp
+      - run: npm run pack:local
+        working-directory: mcp
+
+  rc1-regression:
+    name: Existing RC1 regression on Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:guarded-set
+      - run: npm run test:release
+      - run: npm run test:release -- --browser
+      - name: Show failed release-check diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path local-checkpoints -Directory -Filter 'release-checks-*' -ErrorAction SilentlyContinue | ForEach-Object {
+            $checkDirectory = $_.FullName
+            $reportPath = Join-Path $checkDirectory 'results.json'
+            if (Test-Path -LiteralPath $reportPath) {
+              Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json | Where-Object { -not $_.passed } | ForEach-Object {
+                Write-Output $_.command
+                Get-Content -LiteralPath (Join-Path $checkDirectory $_.log) -Tail 100
+              }
+            }
+          }

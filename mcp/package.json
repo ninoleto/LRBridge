@@ -1,0 +1,36 @@
+{
+  "name": "lrbridge-mcp",
+  "version": "0.1.0",
+  "description": "Local stdio MCP adapter for the existing LRBridge RC1 HTTP API",
+  "type": "module",
+  "private": true,
+  "license": "ISC",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "lrbridge-mcp": "src/cli.js"
+  },
+  "files": [
+    "src/",
+    "examples/",
+    "README.md",
+    "TESTING.md",
+    "LICENSE",
+    "package-lock.json"
+  ],
+  "scripts": {
+    "start": "node src/cli.js",
+    "check": "node src/cli.js --check",
+    "test": "node --test test/*.test.js",
+    "test:bridge": "node --test test/bridge.integration.js",
+    "pack:local": "node scripts/package.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.3.1"
+  }
+}
