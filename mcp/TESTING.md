@@ -12,6 +12,8 @@ readback and a matching Lightroom screenshot, then verified that an unsupported
 Exposure target rejects a whole batch without changing either slider. Broader
 native acceptance remains pending. Subsequent Exposure tests confirmed a relative
 adjustment from 0 to +0.35 and Reset from +0.35 to an SDK-observed 0.
+The owner also verified that a Set using photo A's saved context is rejected after
+selecting photo B, whose SDK Contrast remained unchanged.
 
 ## Automated evidence
 
@@ -89,7 +91,7 @@ and missing Windows `powershell.exe`. No parent source/fixture was changed to
 make those checks pass. Hosted Windows CI and native Lightroom acceptance remain
 distinct.
 
-## Owner-provided Windows/Lightroom evidence — 2026-10-23
+## Owner-provided Windows/Lightroom evidence — 2026-10-23–24
 
 The owner supplied native Codex transcripts and Lightroom screenshots for commit
 `b4102a0fd284a070c9ac4ee350b554c42a2ae89c`, with Node 24.18.0, PowerShell 7.6.7,
@@ -209,7 +211,7 @@ each receipt/revision transition, so it does not prove that this run traversed
 every recovery path; automated regressions cover those paths. The screenshot is
 supporting visual evidence, not the source of execution confirmation.
 
-Claude Code, other photo types, deliberate concurrent edits/navigation and
+Claude Code, other photo types, deliberate concurrent edits, remaining navigation and
 connection interruption checks remain pending. Personal photo identifiers,
 operation IDs, paths and screenshots are not published here.
 
@@ -248,6 +250,24 @@ Its resulting 0 was read from the SDK; it was not an assumed default.
 The traces do not repeat the Git SHA check or expose full operation receipts.
 Bounds/clamping, nonzero reset results on other controls/photo types and the
 remaining manual checks below are still pending.
+
+### Successful native rejection after a photo change — 2026-10-24
+
+Codex first read SDK Contrast +14 for photo A and saved that read's exact context.
+It made no write, asked the owner to select another test photo in Develop, and
+waited for the owner's reply. After the switch, a fresh SDK read established that
+photo B had a different UUID and Contrast 0.
+
+One new `lrbridge_set_slider` call requested Contrast +16 using the original A
+context unchanged. The complete tool JSON returned `status: rejected`,
+`code: context_changed` and `retryAutomatically: false`. A subsequent fresh SDK
+read showed B's Contrast still 0. The transcript reports no retries, rollback or
+other writes. Personal UUIDs and the request ID are omitted.
+
+This verifies rejection before admission when the selected photo differs from
+the captured owner. It does not establish returning-to-A behavior, module changes
+or navigation while an already admitted command is pending; those remain on the
+manual checklist. The trace does not repeat the Git SHA check.
 
 ## Windows and Lightroom manual checklist
 

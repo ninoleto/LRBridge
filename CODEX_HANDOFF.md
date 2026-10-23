@@ -79,6 +79,12 @@
   fresh SDK result 0. The result was observed, not assumed, and no Set/Adjust
   substitute was used. Bounds, other photo types, Claude Code and race/interruption
   checks remain pending.
+- Native photo-change protection passed on 2026-10-24: Codex captured photo A's
+  SDK context and Contrast +14, paused for the owner to select B, verified B's
+  different UUID and Contrast 0, then submitted one Set using A's context unchanged.
+  It rejected as `context_changed`; fresh SDK readback kept B at 0. No retries,
+  rollback or other writes. Returning to A, module changes and navigation during
+  an admitted operation still require native checks.
 
 ## RC1 acceptance and publication decision — 2026-10-12
 
