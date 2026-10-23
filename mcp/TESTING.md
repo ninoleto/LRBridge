@@ -4,7 +4,8 @@ Development baseline: `v0.6.0-rc.1`, commit
 `c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`. No Lightroom Classic instance,
 personal computer or real catalog is available in the development environment.
 The owner subsequently ran the limited Windows/Lightroom checks recorded below.
-Full native acceptance, including the revision-confirmation fix, remains pending.
+The follow-up Contrast Set/Reset check passed on the revision-confirmation fix.
+Full native acceptance remains pending.
 
 ## Automated evidence
 
@@ -41,14 +42,19 @@ The browser runner returned **9/10** using Chromium 153.0.8010.0 with a Linux
 container launch wrapper. `release-docs-browser` failed on its existing early
 `document.body.dataset` access while `document.body` was null; the identical
 failure reproduced on untouched RC1. No browser fixture was patched.
-Hosted CI status is recorded separately in the pull request.
+For fix commit `ad6d902cd10b4921f1f2637ecd0786ef4c38fd3e`,
+[hosted run 40030357076](https://github.com/ninoleto/LRBridge/actions/runs/40030357076)
+passed all five jobs: MCP, actual-route integration and packaging on Windows/Linux
+with Node 22/24, plus the existing Windows Guarded Set, **75/75 core** and
+**10/10 browser** checks. Later CI status is recorded in the pull request.
 The Linux development runtime is Node 24.19.0 and npm 11.9.0. The parent application's
 core release runner returned **71/75**: four failures reproduced on the untouched
 RC1 tag (`controller-proxy`, `controller-feedback-snapshot-proxy`,
 `controller-http-limits`, `release-preparation`). They involve the existing
 disconnected-response assertion, unavailable `os.networkInterfaces()` syscall,
 and missing Windows `powershell.exe`. No parent source/fixture was changed to
-make those checks pass. Windows CI/manual verification remains distinct.
+make those checks pass. Hosted Windows CI and native Lightroom acceptance remain
+distinct.
 
 ## Owner-provided Windows/Lightroom evidence — 2026-10-23
 
@@ -70,9 +76,26 @@ the historical receipt and obtains fresh SDK feedback under the same original
 photo/navigation/epoch owner when the current revision has advanced. Only a value
 matching the successful worker observation confirms. All other ownership, receipt,
 readback and no-replay checks remain in force. Both new positive regression cases
-failed against the original adapter and passed after the fix. **Native retesting
-of the fix is still required.** The original uncertain journal entry is not
-rewritten or automatically acknowledged by upgrading.
+failed against the original adapter and passed after the fix. The original
+uncertain journal entry is not rewritten or automatically acknowledged by upgrading.
+
+### Follow-up Contrast retest on the fix
+
+The owner supplied a native Codex transcript with a clean `feature/mcp-server`
+checkout at `ad6d902cd10b4921f1f2637ecd0786ef4c38fd3e`, equal to its upstream.
+Fresh SDK context was read before each operation on the same test photo:
+
+| Operation | Tool status | Fresh SDK Contrast read afterward |
+| --- | --- | ---: |
+| `lrbridge_set_slider` to +10 | Confirmed | +10 |
+| `lrbridge_reset_slider` | Confirmed | 0 |
+
+The transcript reports only Contrast changed and no retries. This establishes a
+successful native Set/Reset check on the fixed adapter; the abbreviated output
+does not establish whether that run exercised the later-revision recovery path.
+The automated cases cover that path and its failure conditions. Claude Code,
+additional controls/photo types, batches and the remaining race/interruption
+checks below still require native testing.
 
 ## Windows and Lightroom manual checklist
 

@@ -1,5 +1,32 @@
 # LRBridge Codex Handoff
 
+## Optional MCP feature — limited native Contrast retest passed
+
+- Current development branch: `feature/mcp-server`, based on published
+  `v0.6.0-rc.1` (`c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`).
+  [Draft PR #1](https://github.com/ninoleto/LRBridge/pull/1) targets
+  `release/0.6.0-rc.1`. The user authorized development, commits, pushes and the PR;
+  merging, publication and release-asset changes are not authorized for this work.
+  Older release instructions below describe the original RC1 publication.
+- `mcp/` is an independent optional Node stdio adapter using the official MCP SDK
+  and existing RC1 HTTP interfaces. Existing Electron/server/Lua/Companion behavior
+  is unchanged. See [installation and capabilities](mcp/README.md) and
+  [test evidence and remaining native checklist](mcp/TESTING.md).
+- Code commit `ad6d902cd10b4921f1f2637ecd0786ef4c38fd3e` fixes an overly conservative
+  Reset/Nudge revision check using fresh owned SDK feedback, with no write retry.
+  Automated checks pass: **104/104 MCP**, **7/7 actual-route integration**, all four
+  Windows/Linux Node 22/24 jobs, and existing Windows **75/75 core**, **10/10 browser**
+  and **33 Guarded Set scenarios** in hosted run `40030357076`.
+- Owner-provided Windows Codex evidence covers six SDK values, Contrast Set and
+  Vibrance Adjust. The follow-up on that code commit confirmed Contrast Set to +10
+  and Reset to 0, each followed by a fresh SDK read, without retries. This is a
+  limited native checkpoint; Claude Code and the broader manual checklist remain
+  pending. Personal photo paths, UUIDs and screenshots are omitted.
+- RC1 supports guarded absolute Set only for Contrast, Clarity and Vibrance.
+  Unsupported absolute targets are refused; HTTP admission is never confirmation,
+  and uncertain operations require human review before later writes.
+- When working from `mcp/`, this handoff is `../CODEX_HANDOFF.md`.
+
 ## RC1 acceptance and publication decision — 2026-10-12
 
 The user accepts LRBridge beta.4 with Lightroom plug-in beta4.10 and Companion
