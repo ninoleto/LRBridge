@@ -1,6 +1,6 @@
 # LRBridge Codex Handoff
 
-## Optional MCP feature — next-item batch baseline fix, native retest pending
+## Optional MCP feature — native three-slider batch passed
 
 - Current development branch: `feature/mcp-server`, based on published
   `v0.6.0-rc.1` (`c03ffdd9170837c0ac1b1ba284c8c7bb3dda34d6`).
@@ -34,9 +34,8 @@
   the original owner, and requires it to remain unchanged through the read.
   Admission baselines stay strict, with no automatic read/write retry or batch
   resumption. **126/126 MCP**, **8/8 actual-route** and existing Guarded Set/Nudge/
-  Reset checks pass locally. Native batch retesting remains pending; see the PR
-  for this change's hosted CI status. Do not clear existing uncertain records
-  without human review.
+  Reset checks pass locally. Subsequent native batch results are recorded below.
+  Do not clear existing uncertain records without human review.
 - Native batch evidence on `d933f4d` confirmed Contrast +12, then rejected Clarity
   before its POST (`stale_feedback`, revision 14 versus 15); Vibrance was not
   attempted. The full JSON shows the same photo/navigation/epoch owner. This is
@@ -49,13 +48,24 @@
   snapshots stay immutable, and deadlines/stop-on-failure/no-retry rules remain.
   **142/142 MCP** and **10/10 actual-route** tests pass, including the reproduced
   next-item race and preservation of a manual edit with or without a heartbeat.
-  Complete native three-slider batch acceptance is still pending.
+  The complete native three-slider batch subsequently passed as recorded below.
 - Hosted run `40033354211` at `d933f4d` passed four MCP matrix jobs and **75/75**
   existing Windows core checks; browser checks passed **8/10** (history/favorites
   failures). Both fixtures also produced failures on untouched RC1 under Linux;
   that does not establish their Windows cause. The workflow now prints failed
   release-check details. Parent app/server/Lua/browser fixtures remain unchanged.
   See the PR for subsequent hosted results and `mcp/TESTING.md` for exact limits.
+- The owner's native Codex retest on clean, synced `c76a636` passed a new batch:
+  Contrast +12 to +14, Clarity 0 to +5 and Vibrance 0 to +10. All three operations
+  confirmed; the following SDK read on the same photo and Lightroom screenshot
+  matched. Only these three targets were requested; no prior batch was resumed.
+  This is a limited native batch checkpoint. The abbreviated trace does not prove
+  that every revision-recovery path was exercised. Claude Code and the remaining
+  safety/photo-type/interruption checklist still need native testing.
+- Hosted run `40035481474` at that code commit passed all four MCP jobs on
+  Windows/Linux with Node 22/24: **142/142 MCP**, **10/10 actual-route** and packaging
+  per job. Existing Windows Guarded Set/core steps also passed; browser checks
+  were still running when this evidence was recorded. See the PR for final status.
 
 ## RC1 acceptance and publication decision — 2026-10-12
 

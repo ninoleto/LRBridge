@@ -6,8 +6,10 @@ personal computer or real catalog is available in the development environment.
 The owner subsequently ran the limited Windows/Lightroom checks recorded below.
 The follow-up Contrast Set/Reset check passed on the first revision-confirmation
 fix. Subsequent batches exposed queued-feedback dispatch races during confirmation
-and between batch items. Their adapter fixes pass automated checks; the latest
-batch fix awaits native retesting. Full native acceptance remains pending.
+and between batch items. Their adapter fixes pass automated checks. The owner
+subsequently confirmed a complete three-slider batch on `c76a636`, with fresh SDK
+readback and a matching Lightroom screenshot. Broader native acceptance remains
+pending.
 
 ## Automated evidence
 
@@ -70,6 +72,12 @@ Independent Linux runs of the unchanged fixtures also failed on untouched RC1
 The feature-branch history run failed similarly; its favorites run passed. These
 results do not establish the exact Windows failure cause. No parent application
 source or browser fixture was changed. Later CI status is recorded in the PR.
+For `c76a636892bcd2725adcf2596eddbe5ea4620d78`,
+[hosted run 40035481474](https://github.com/ninoleto/LRBridge/actions/runs/40035481474)
+passed all four MCP jobs on Windows/Linux with Node 22/24, each with **142/142 MCP**,
+**10/10 actual-route integration** and packaging checks. The existing Windows
+Guarded Set and core release steps also passed; browser checks were still running
+when this native evidence was recorded. See the PR for their final status.
 The Linux development runtime is Node 24.19.0 and npm 11.9.0. The parent application's
 core release runner returned **71/75**: four failures reproduced on the untouched
 RC1 tag (`controller-proxy`, `controller-feedback-snapshot-proxy`,
@@ -117,8 +125,8 @@ The transcript reports only Contrast changed and no retries. This establishes a
 successful native Set/Reset check on the fixed adapter; the abbreviated output
 does not establish whether that run exercised the later-revision recovery path.
 The automated cases cover that path and its failure conditions. Claude Code,
-additional controls/photo types, batches and the remaining race/interruption
-checks below still require native testing.
+additional controls/photo types and the remaining race/interruption checks below
+still require native testing. The later batch retest is recorded below.
 
 ### Subsequent batch attempt and dispatch-confirmation fix
 
@@ -174,9 +182,34 @@ No feedback request or mutation is repeated and no failed batch is resumed.
 
 The exact next-item race fails against `d933f4d` in the mocked and actual-route
 fixtures, and passes with this fix. Negative tests preserve an intervening edit
-even if no revision heartbeat has arrived. **Native confirmation of the complete
-three-slider batch is still pending.** Use fresh context and a new request ID for
-a deliberate new test; do not resume or replay the previous batch.
+even if no revision heartbeat has arrived. The native follow-up below used fresh
+context and a new request ID; it did not resume or replay the previous batch.
+
+### Successful native three-slider batch on the fix
+
+The owner supplied a Codex CLI 0.164.0 transcript from a clean `feature/mcp-server`
+checkout at `c76a636892bcd2725adcf2596eddbe5ea4620d78`, equal to its upstream.
+Fresh initial SDK values were Contrast +12, Clarity 0 and Vibrance 0. One new
+`lrbridge_set_multiple_sliders` call returned overall `confirmed`, with
+`atomic: false`. A subsequent SDK read on the same photo and the supplied
+Lightroom screenshot agreed:
+
+| Slider | Initial SDK value | Tool result | Fresh SDK value | Lightroom display |
+| --- | ---: | --- | ---: | ---: |
+| Contrast | +12 | Confirmed | +14 | +14 |
+| Clarity | 0 | Confirmed | +5 | +5 |
+| Vibrance | 0 | Confirmed | +10 | +10 |
+
+The transcript reports that only these three sliders were targeted and no previous
+batch was resumed. This establishes a successful native sequential batch, alongside
+the earlier read/Set/Adjust/Reset checks. The abbreviated tool trace does not expose
+each receipt/revision transition, so it does not prove that this run traversed
+every recovery path; automated regressions cover those paths. The screenshot is
+supporting visual evidence, not the source of execution confirmation.
+
+Claude Code, unsupported-target rejection, other photo types, deliberate concurrent
+edits/navigation and connection interruption checks remain pending. Personal
+photo identifiers, operation IDs, paths and screenshots are not published here.
 
 ## Windows and Lightroom manual checklist
 
